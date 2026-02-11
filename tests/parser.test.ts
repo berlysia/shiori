@@ -141,5 +141,19 @@ describe('parseShioriFields', () => {
       const result = parseShioriFields('=bad ref=');
       assert.equal(result.errors.length, 2);
     });
+
+    it('detects unexpected bare token after key=value', () => {
+      const result = parseShioriFields('ref=SUP-1234 ignore');
+      assert.equal(result.ref, 'SUP-1234');
+      assert.equal(result.errors.length, 1);
+      assert.match(result.errors[0]!, /unexpected bare token.*ignore/);
+    });
+
+    it('detects unexpected bare token with multiple words', () => {
+      const result = parseShioriFields('ref=SUP-1234 some extra');
+      assert.equal(result.ref, 'SUP-1234');
+      assert.equal(result.errors.length, 1);
+      assert.match(result.errors[0]!, /unexpected bare token.*some extra/);
+    });
   });
 });

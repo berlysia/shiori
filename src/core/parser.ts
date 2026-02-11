@@ -30,7 +30,14 @@ export function parseShioriFields(input: string): ParsedShioriFields {
 
     // Read key
     const eqIdx = trimmed.indexOf('=', i);
-    if (eqIdx === -1) break;
+    if (eqIdx === -1) {
+      // Bare token without '=' (not at start, so not bare ref shorthand)
+      const token = trimmed.slice(i).trim();
+      if (token) {
+        errors.push(`unexpected bare token '${token}'`);
+      }
+      break;
+    }
     const key = trimmed.slice(i, eqIdx);
 
     // Missing key before '='

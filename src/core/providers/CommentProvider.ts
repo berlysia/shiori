@@ -79,8 +79,6 @@ interface ParsedDirective {
   rules: string[];
   shioriFieldsStr: string | undefined;
   isIgnored: boolean;
-  /** When ignore is combined with other fields, it's a syntax error */
-  ignoreConflict: boolean;
 }
 
 function parseDirectiveContent(afterDirective: string): ParsedDirective {
@@ -95,26 +93,8 @@ function parseDirectiveContent(afterDirective: string): ParsedDirective {
   // Check for shiori:ignore first (before general shiori: prefix)
   const ignoreMatch = metaPart.match(SHIORI_IGNORE_RE);
   if (ignoreMatch) {
-    // Check if there are other fields after "ignore"
-    const afterIgnore = metaPart
-      .slice(ignoreMatch.index! + ignoreMatch[0].length)
-      .trim();
-    // Also check for fields before "shiori:ignore" within the shiori: context
-    const shioriMatch = metaPart.match(SHIORI_PREFIX_RE);
-    const beforeIgnore = shioriMatch
-      ? metaPart
-          .slice(shioriMatch.index! + shioriMatch[0].length)
-          .replace(/ignore\b/, '')
-          .trim()
-      : '';
-
-    const hasExtraFields = afterIgnore.length > 0 || beforeIgnore.length > 0;
-    return {
-      rules,
-      shioriFieldsStr: undefined,
-      isIgnored: true,
-      ignoreConflict: hasExtraFields,
-    };
+    // shiori:ignore takes precedence — extra fields after it are simply discarded
+    return { rules, shioriFieldsStr: undefined, isIgnored: true };
   }
 
   // Check for shiori: prefix in meta part
@@ -123,7 +103,7 @@ function parseDirectiveContent(afterDirective: string): ParsedDirective {
     ? metaPart.slice(shioriMatch.index! + shioriMatch[0].length).trim()
     : undefined;
 
-  return { rules, shioriFieldsStr, isIgnored: false, ignoreConflict: false };
+  return { rules, shioriFieldsStr, isIgnored: false };
 }
 
 /** Map TODO keyword to CandidatePattern */
@@ -155,21 +135,17 @@ export class CommentProvider implements AnnotationProvider {
       if (stylelintMatch || eslintMatch) {
         const match = stylelintMatch ?? eslintMatch!;
         const afterDirective = match[3]!;
-        const { rules, shioriFieldsStr, isIgnored, ignoreConflict } =
+        const { rules, shioriFieldsStr, isIgnored } =
           parseDirectiveContent(afterDirective);
 
         if (isIgnored) {
-          // shiori:ignore detected
-          const syntaxErrors = ignoreConflict
-            ? ['shiori:ignore cannot be combined with other fields']
-            : undefined;
+          // shiori:ignore detected — always treated as ignored
           const pushIgnored = (rule: string | undefined) => {
             annotations.push({
               ref: '',
               rule,
               tagged: true,
-              ignored: !ignoreConflict,
-              syntaxErrors,
+              ignored: true,
               location: { file: file.path, line },
             });
           };

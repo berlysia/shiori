@@ -193,27 +193,30 @@ describe('CommentProvider', () => {
       assert.equal(records[1]!.ignored, true);
     });
 
-    it('reports syntax-error when ignore is combined with ref', () => {
+    it('treats shiori:ignore with extra fields as simply ignored', () => {
       const input = makeInput(
         '// eslint-disable-next-line no-console -- shiori:ignore ref=SUP-1234',
       );
       const records = provider.scan(input).annotations;
       assert.equal(records.length, 1);
-      assert.equal(records[0]!.ignored, false);
-      assert.ok(records[0]!.syntaxErrors);
-      assert.ok(records[0]!.syntaxErrors!.length > 0);
+      assert.equal(records[0]!.ignored, true);
+      assert.equal(records[0]!.ref, '');
+      assert.equal(records[0]!.syntaxErrors, undefined);
     });
 
-    it('reports syntax-error when ref precedes ignore', () => {
+    it('reports syntax-error when ref precedes ignore bare token', () => {
       const input = makeInput(
         '// eslint-disable-next-line no-console -- shiori: ref=SUP-1234 ignore',
       );
       const records = provider.scan(input).annotations;
       assert.equal(records.length, 1);
-      // This goes through normal Path A parse since shiori:ignore regex does not match "shiori: ref=SUP-1234 ignore"
-      // The word "ignore" just becomes a bare token that the parser ignores
+      // Path A parse: "ignore" is an unexpected bare token → syntax-error
       assert.equal(records[0]!.ref, 'SUP-1234');
       assert.equal(records[0]!.ignored, false);
+      assert.ok(records[0]!.syntaxErrors);
+      assert.ok(
+        records[0]!.syntaxErrors!.some((e: string) => e.includes('ignore')),
+      );
     });
 
     it('treats standalone shiori:ignore as bare ref shorthand', () => {

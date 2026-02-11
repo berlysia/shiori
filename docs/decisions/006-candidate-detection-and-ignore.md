@@ -95,18 +95,20 @@ CommentProvider: shiori: プレフィックス検出
 
 #### shiori:ignore と他フィールドの共存
 
-`shiori:ignore` は単独で使用する。他のフィールドとの同時指定は不正とする:
+`shiori:ignore` は `shiori:` プレフィックスに直結する形（`shiori:ignore`）で優先的に検出される。後続にフィールドが付いても単に無視（ignored）として扱う:
 
 ```ts
 // ✅ 正しい
 // eslint-disable-next-line no-console -- shiori:ignore
 
-// ❌ 不正（syntax-error として報告）
+// ✅ 単に ignored として扱う（extra fields は無視される）
 // eslint-disable-next-line no-console -- shiori:ignore ref=SUP-1234
+
+// ❌ syntax-error（"ignore" がベアトークンとして検出される）
 // eslint-disable-next-line no-console -- shiori: ref=SUP-1234 ignore
 ```
 
-ref がある場合は tracked として管理すべきであり、ignore と矛盾する。
+`shiori:ignore` 形式は常に ignore が優先される。一方 `shiori: ... ignore` のように通常のフィールド列に "ignore" をベアトークンとして混在させた場合は syntax-error となる。
 
 ### 4. draft の維持
 
