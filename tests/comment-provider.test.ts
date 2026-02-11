@@ -69,6 +69,17 @@ describe('CommentProvider', () => {
       assert.equal(records[0]!.rule, '@typescript-eslint/no-explicit-any');
       assert.equal(records[0]!.expires, undefined);
     });
+
+    it('detects lint directive with bare ref shorthand', () => {
+      const input = makeInput(
+        '// eslint-disable-next-line no-console -- shiori:SUP-1234',
+      );
+      const records = provider.scan(input);
+      assert.equal(records.length, 1);
+      assert.equal(records[0]!.ref, 'SUP-1234');
+      assert.equal(records[0]!.kind, undefined);
+      assert.equal(records[0]!.rule, 'no-console');
+    });
   });
 
   describe('multi-rule fan-out', () => {
@@ -96,6 +107,33 @@ describe('CommentProvider', () => {
       assert.equal(records.length, 1);
       assert.equal(records[0]!.ref, 'ADR:0007');
       assert.equal(records[0]!.kind, 'design');
+      assert.equal(records[0]!.rule, undefined);
+    });
+
+    it('detects bare ref shorthand (line)', () => {
+      const input = makeInput('// shiori:SUP-1234');
+      const records = provider.scan(input);
+      assert.equal(records.length, 1);
+      assert.equal(records[0]!.ref, 'SUP-1234');
+      assert.equal(records[0]!.kind, undefined);
+      assert.equal(records[0]!.rule, undefined);
+    });
+
+    it('detects bare ref shorthand with namespace (line)', () => {
+      const input = makeInput('// shiori:JIRA:PROJ-123');
+      const records = provider.scan(input);
+      assert.equal(records.length, 1);
+      assert.equal(records[0]!.ref, 'JIRA:PROJ-123');
+      assert.equal(records[0]!.kind, undefined);
+      assert.equal(records[0]!.rule, undefined);
+    });
+
+    it('detects bare ref shorthand (block)', () => {
+      const input = makeInput('/* shiori:ADR:0007 */');
+      const records = provider.scan(input);
+      assert.equal(records.length, 1);
+      assert.equal(records[0]!.ref, 'ADR:0007');
+      assert.equal(records[0]!.kind, undefined);
       assert.equal(records[0]!.rule, undefined);
     });
 

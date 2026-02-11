@@ -16,6 +16,11 @@ export function parseShioriFields(input: string): ParsedShioriFields {
   const fields: Record<string, string> = {};
   const trimmed = input.trim();
 
+  // Bare ref shorthand: a single non-empty token with no '='
+  if (trimmed.length > 0 && !trimmed.includes('=') && !/\s/.test(trimmed)) {
+    return { ref: trimmed } as ParsedShioriFields;
+  }
+
   let i = 0;
   while (i < trimmed.length) {
     // Skip whitespace
