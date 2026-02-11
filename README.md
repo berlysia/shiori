@@ -150,7 +150,7 @@ Detects:
 - **missing-in-registry** — ref in source but not in registry
 - **unused-in-source** — ref in registry but not in source
 - **expired** — Registry entry past its `expires` date
-- **malformed** — Annotation without `ref` field
+- **syntax-error** — Annotation with `shiori:` marker but invalid syntax
 
 Options:
 
@@ -174,6 +174,56 @@ shiori init-registry \
   --output registry.json \
   --merge existing-registry.json
 ```
+
+#### `draft` — List draft annotations
+
+```bash
+shiori draft \
+  --scan scan-result.json \
+  --output drafts.json
+```
+
+Lists annotations that have a `shiori:` marker but no ref (intentional drafts awaiting a tracking reference).
+
+Options:
+
+- `--scan, -s` — Path to scan result JSON (required)
+- `--output, -o` — Output file (default: stdout)
+
+#### `candidates` — List candidate annotations
+
+```bash
+shiori candidates \
+  --scan scan-result.json \
+  --format markdown \
+  --output candidates.md
+```
+
+Lists lint disable comments and other patterns detected as potential shiori management candidates (no `shiori:` marker).
+
+Options:
+
+- `--scan, -s` — Path to scan result JSON (required)
+- `--format, -f` — Output format: `json` (default) or `markdown`
+- `--output, -o` — Output file (default: stdout)
+
+#### `show` — Show information about a specific ref
+
+```bash
+shiori show \
+  --ref JIRA:PROJ-123 \
+  --scan scan-result.json \
+  --registry registry.json
+```
+
+Looks up a ref and displays its registry entry, source locations, and resolved URL (if namespace is configured). Exit code `0` if found, `1` if not found.
+
+Options:
+
+- `--ref` — The ref to look up (required)
+- `--scan, -s` — Path to scan result JSON (required)
+- `--registry, -r` — Path to registry file (required)
+- `--config, -c` — Path to directory containing `.shiorirc.json` (default: cwd)
 
 ## CI Integration
 
@@ -212,7 +262,7 @@ jobs:
             --registry registry.json \
             --format markdown \
             --output report.md \
-            --warn-on missing-in-registry,unused-in-source,expired,malformed
+            --warn-on missing-in-registry,unused-in-source,expired,syntax-error
 ```
 
 ## Development

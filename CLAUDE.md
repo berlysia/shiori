@@ -48,11 +48,13 @@ Source Files → CommentProvider.scan() → ShioriAnnotation[]
 
 Each command has a pure logic module and a CLI wrapper (e.g., `scan.ts` + `scan-cli.ts`). CLI framework: gunshi.
 
+Implemented commands: `scan`, `verify`, `init-registry`, `draft`, `candidates`, `show`.
+
 ### CommentProvider Classification Paths
 
 - **Path A**: Lint directive + `shiori:` → Full annotation with rule
 - **Path B**: Standalone `shiori:` comment → Annotation without rule
-- **Path C**: Lint directive without `shiori:` → Malformed (empty ref)
+- **Path C**: Lint directive without `shiori:` → Candidate (detected for potential tracking)
 - **Path D**: Regular comment → Ignored
 
 ### Annotation Syntax (ADR 003, ADR 007)
@@ -75,4 +77,9 @@ ADRs are in `docs/decisions/`:
 - **002**: Annotation model generalization (suppression → annotation, multiple verbs)
 - **003**: `shiori: key=value` syntax migration (from `verb(<id>)` format)
 - **004**: `kind` field registry-only migration (from source comments to registry)
+- **005**: Draft annotations (`shiori:` with no ref as intentional draft state)
+- **006**: Candidate detection and `shiori:ignore` (malformed → syntax-error, auto-detect lint disable candidates)
 - **007**: Positional ref syntax (`ref=` replaced by positional first token)
+- **008**: Namespace resolution (`parseRef()` and `resolveRefUrl()` for `NAMESPACE:id` refs)
+- **009**: `shiori show` command (ref information lookup with registry, source locations, URL)
+- **010**: Multi-registry loading (namespace-based registry file splitting)
