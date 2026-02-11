@@ -1,17 +1,31 @@
 # lint-ledger
 
-Lint suppression ledger management tool.
+Annotation tracking and governance tool.
 
 ## Purpose
 
-`lint-ledger` is a governance layer that recovers "technical exceptions" — lint violations hidden by `disable` comments — from source code, manages them in a ledger, and verifies them in CI.
+`lint-ledger` is a governance layer that recovers structured annotations — lint violations hidden by `disable` comments and other tracked exceptions — from source code, manages them in a ledger, and verifies them in CI.
 
 When developers use `stylelint-disable-next-line` or `eslint-disable-next-line`, those violations disappear from lint results entirely. This tool brings them back under organizational control by:
 
-- Scanning source code for suppression comments
-- Requiring each suppression to carry a tracking ID via `waive(<ID>)`
+- Scanning source code for annotated disable comments
+- Requiring each annotation to carry a tracking ID via `verb(<ID>)` (e.g. `waive(SUP-1234)`)
+- Supporting multiple annotation verbs: `waive`, `note`, `risk`, `migrate` (and custom verbs)
 - Verifying IDs against a JSON ledger with reason, ownership, and expiration
 - Generating human-readable (Markdown) and machine-readable (JSON) reports
+
+## Annotation Verbs
+
+Each disable comment can use one of the following verbs to classify the exception:
+
+| Verb | Purpose | Example |
+|------|---------|---------|
+| `waive` | Permanent or long-lived exception | `waive(SUP-1234)` |
+| `note` | Informational annotation | `note(NOTE-1)` |
+| `risk` | Known risk acceptance | `risk(RISK-1)` |
+| `migrate` | Temporary during migration | `migrate(MIG-1) expires=2026-12-31` |
+
+Custom verbs can be configured via the `--verbs` CLI option.
 
 ## Why Not a Lint Plugin?
 
@@ -21,11 +35,11 @@ When developers use `stylelint-disable-next-line` or `eslint-disable-next-line`,
 
 ## Architecture: Provider Design
 
-Suppression extraction is abstracted behind a `SuppressionProvider` interface, making the tool independent of any specific lint tool's internals.
+Annotation extraction is abstracted behind an `AnnotationProvider` interface, making the tool independent of any specific lint tool's internals.
 
 ```
 ┌─────────────┐     ┌──────────────────────┐     ┌─────────┐
-│ Source Files │────▶│  SuppressionProvider  │────▶│ Records │
+│ Source Files │────▶│  AnnotationProvider   │────▶│ Records │
 └─────────────┘     │  (pluggable)          │     └─────────┘
                     └──────────────────────┘
                               │
@@ -48,7 +62,7 @@ Suppression extraction is abstracted behind a `SuppressionProvider` interface, m
 
 ### Comment Convention
 
-Each suppression comment must include `waive(<ID>)`. An `expires=YYYY-MM-DD` is recommended.
+Each disable comment must include a verb with tracking ID: `verb(<ID>)`. An `expires=YYYY-MM-DD` is recommended.
 
 **stylelint:**
 
@@ -62,11 +76,17 @@ Each suppression comment must include `waive(<ID>)`. An `expires=YYYY-MM-DD` is 
 ```typescript
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- waive(SUP-5678) expires=2026-12-31
 const data: any = fetchLegacyAPI();
+
+// eslint-disable-next-line no-console -- note(NOTE-1)
+console.log("debug output");
+
+// eslint-disable-next-line no-var -- migrate(MIG-1) expires=2026-12-31
+var legacy = true;
 ```
 
 ### Ledger Format
 
-A JSON file keyed by suppression ID:
+A JSON file keyed by annotation ID:
 
 ```json
 {
@@ -82,7 +102,7 @@ A JSON file keyed by suppression ID:
 
 ### Commands
 
-#### `scan` — Extract suppressions from source
+#### `scan` — Extract annotations from source
 
 ```bash
 lint-ledger scan \
@@ -95,6 +115,7 @@ Options:
 - `--ignore, -i` — Exclude patterns. Default: `**/node_modules/**,**/dist/**,**/.git/**`
 - `--output, -o` — Output file (default: stdout)
 - `--cwd` — Working directory (default: `process.cwd()`)
+- `--verbs` — Annotation verbs to detect (comma-separated). Default: `waive,note,risk,migrate`
 
 #### `verify` — Reconcile scan results with ledger
 
@@ -110,11 +131,12 @@ Detects:
 - **missing-in-ledger** — ID in source but not in ledger
 - **unused-in-source** — ID in ledger but not in source
 - **expired** — Ledger entry past its `expires` date
-- **malformed** — Suppression comment without `waive()` ID
+- **malformed** — Annotation without tracking ID
 
 Options:
 - `--scan, -s` — Path to scan result JSON (required)
 - `--ledger, -l` — Path to ledger JSON (required)
+- `--registry, -r` — Alias for `--ledger`
 - `--fail-on` — Issue types that cause exit code 1 (comma-separated)
 - `--warn-on` — Issue types reported as warnings (comma-separated)
 - `--format, -f` — Output format: `json` (default) or `markdown`
@@ -139,7 +161,7 @@ lint-ledger init-ledger \
 ### GitHub Actions
 
 ```yaml
-name: Lint Ledger Check
+name: Annotation Ledger Check
 on: [pull_request]
 
 jobs:
@@ -152,7 +174,7 @@ jobs:
           node-version: 22
       - run: npm ci
 
-      - name: Scan lint suppressions
+      - name: Scan annotations
         run: npx lint-ledger scan --output scan-result.json
 
       - name: Verify against ledger
