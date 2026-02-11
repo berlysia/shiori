@@ -1,33 +1,29 @@
-/** Suppression source type */
-export type SuppressionSource = 'comment' | 'native' | 'external';
+/** Annotation source type */
+export type AnnotationSource = 'comment' | 'native' | 'external';
 
-/** Target linter */
-export type LinterKind = 'stylelint' | 'eslint' | 'unknown';
+/** Default annotation verbs */
+export const DEFAULT_VERBS = ['waive', 'note', 'risk', 'migrate'] as const;
 
-/** Meta information extracted from suppression comments (initially only expires) */
-export interface SuppressionMeta {
-  /** Expiration date in YYYY-MM-DD format */
-  expires: string | undefined;
-}
-
-/** A single lint suppression record extracted from source code */
-export interface SuppressionRecord {
-  /** ID extracted from waive(...). e.g. "SUP-1234" */
+/** A single annotation record extracted from source code */
+export interface AnnotationRecord {
+  /** ID extracted from verb(...). e.g. "SUP-1234" */
   id: string;
-  /** Target linter */
-  linter: LinterKind;
-  /** Suppressed rule name. e.g. "plugin/baseline", "@typescript-eslint/no-explicit-any" */
-  rule: string | undefined;
+  /** Annotation verb. e.g. "waive", "note", "risk", "migrate" */
+  verb: string;
+  /** Tool that owns the suppressed rule. e.g. "stylelint", "eslint" */
+  tool?: string;
+  /** Subject (rule name). e.g. "plugin/baseline", "@typescript-eslint/no-explicit-any" */
+  subject?: string;
   /** File path (relative) */
   file: string;
   /** Line number (1-indexed) */
   line: number;
   /** Source type */
-  source: SuppressionSource;
-  /** Raw suppression comment string */
+  source: AnnotationSource;
+  /** Raw comment string */
   raw: string;
   /** Meta information */
-  meta: SuppressionMeta;
+  meta: Record<string, unknown>;
   /** Provider name. e.g. "CommentProvider" */
   provider: string;
 }
@@ -44,9 +40,10 @@ export interface LedgerEntry {
   owner: string | undefined;
   notes: string | undefined;
   kind: LedgerKind | undefined;
+  verb: string | undefined;
 }
 
-/** Full ledger keyed by suppression ID */
+/** Full ledger keyed by annotation ID */
 export type Ledger = Record<string, LedgerEntry>;
 
 /** Verify issue type */
