@@ -76,9 +76,9 @@ export function verify(options: VerifyOptions): VerifyResult {
     }
   }
 
-  // Check malformed (empty ref)
+  // Check malformed (empty ref without shiori: marker; drafts are excluded)
   for (const record of records) {
-    if (record.ref === '') {
+    if (record.ref === '' && !record.tagged) {
       issues.push({
         type: 'malformed',
         severity: determineSeverity('malformed', failOn, warnOn),

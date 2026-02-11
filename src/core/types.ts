@@ -1,6 +1,6 @@
 /** A single annotation extracted from source code */
 export interface ShioriAnnotation {
-  /** Reference ID. e.g. "SUP-1234", "ADR:0007". Empty string = malformed */
+  /** Reference ID. e.g. "SUP-1234", "ADR:0007". Empty string if untracked or draft */
   ref: string;
   /** Lint rule name. e.g. "plugin/baseline", "@typescript-eslint/no-explicit-any" */
   rule?: string;
@@ -8,6 +8,8 @@ export interface ShioriAnnotation {
   expires?: string;
   /** Reason text */
   reason?: string;
+  /** Whether the annotation has an explicit `shiori:` marker in source */
+  tagged: boolean;
   /** Source location */
   location: {
     file: string;

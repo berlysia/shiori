@@ -23,9 +23,13 @@ interface CliResult {
 
 async function runCli(args: string[]): Promise<CliResult> {
   try {
-    const { stdout, stderr } = await execFileAsync('node', [CLI_PATH, ...args], {
-      cwd: PROJECT_ROOT,
-    });
+    const { stdout, stderr } = await execFileAsync(
+      'node',
+      [CLI_PATH, ...args],
+      {
+        cwd: PROJECT_ROOT,
+      },
+    );
     return { stdout, stderr, exitCode: 0 };
   } catch (err: unknown) {
     const e = err as { stdout?: string; stderr?: string; code?: number };
@@ -46,11 +50,7 @@ describe('CLI E2E', () => {
     scanResultPath = join(tmpDir, 'scan-result.json');
 
     // Pre-run scan and save result for verify/init-registry tests
-    const { stdout } = await runCli([
-      'scan',
-      '--patterns',
-      SCAN_PATTERNS,
-    ]);
+    const { stdout } = await runCli(['scan', '--patterns', SCAN_PATTERNS]);
 
     const records = JSON.parse(stdout) as unknown[];
     assert.ok(Array.isArray(records), 'scan should output JSON array');
@@ -59,7 +59,13 @@ describe('CLI E2E', () => {
   });
 
   after(async () => {
-    const files = ['scan-result.json', 'output-scan.json', 'new-registry.json', 'merged-registry.json'];
+    const files = [
+      'scan-result.json',
+      'output-scan.json',
+      'new-registry.json',
+      'merged-registry.json',
+      'draft-result.json',
+    ];
     for (const f of files) {
       try {
         await unlink(join(tmpDir, f));
@@ -77,10 +83,13 @@ describe('CLI E2E', () => {
         SCAN_PATTERNS,
       ]);
       assert.equal(exitCode, 0);
-      const records = JSON.parse(stdout) as Array<{ ref: string; location: { file: string } }>;
+      const records = JSON.parse(stdout) as Array<{
+        ref: string;
+        location: { file: string };
+      }>;
       assert.ok(Array.isArray(records));
-      // SUP-1001, SUP-1002, SUP-2001, SUP-2002, malformed(no-debugger)
-      assert.equal(records.length, 5);
+      // SUP-1001, SUP-1002, SUP-2001, SUP-2002, malformed(no-debugger), draft(no ref)
+      assert.equal(records.length, 6);
       // Verify new field shape
       assert.ok(records[0]!.ref !== undefined);
       assert.ok(records[0]!.location !== undefined);
@@ -98,7 +107,7 @@ describe('CLI E2E', () => {
       assert.equal(exitCode, 0);
       const content = await readFile(outputPath, 'utf-8');
       const records = JSON.parse(content) as unknown[];
-      assert.equal(records.length, 5);
+      assert.equal(records.length, 6);
     });
   });
 
@@ -180,12 +189,15 @@ describe('CLI E2E', () => {
       ]);
       assert.equal(exitCode, 0);
       const content = await readFile(outputPath, 'utf-8');
-      const registry = JSON.parse(content) as Record<string, { reason: string }>;
+      const registry = JSON.parse(content) as Record<
+        string,
+        { reason: string }
+      >;
       assert.ok('SUP-1001' in registry);
       assert.equal(registry['SUP-1001']!.reason, 'TODO: fill in reason');
     });
 
-    it('merges with existing registry', async () => {
+    it('merges with existing registry (preserves existing entries)', async () => {
       const outputPath = join(tmpDir, 'merged-registry.json');
       const { exitCode } = await runCli([
         'init-registry',
@@ -198,11 +210,47 @@ describe('CLI E2E', () => {
       ]);
       assert.equal(exitCode, 0);
       const content = await readFile(outputPath, 'utf-8');
-      const registry = JSON.parse(content) as Record<string, { reason: string }>;
+      const registry = JSON.parse(content) as Record<
+        string,
+        { reason: string }
+      >;
       // Existing entry preserved
       assert.equal(registry['SUP-1001']!.reason, 'vendor prefix fallback');
       // New entry gets placeholder
       assert.equal(registry['SUP-2002']!.reason, 'TODO: fill in reason');
+    });
+  });
+
+  describe('draft command', () => {
+    it('lists draft annotations from scan result', async () => {
+      const { stdout, exitCode } = await runCli([
+        'draft',
+        '--scan',
+        scanResultPath,
+      ]);
+      assert.equal(exitCode, 0);
+      const result = JSON.parse(stdout) as {
+        drafts: Array<{ ref: string; tagged: boolean }>;
+        count: number;
+      };
+      assert.equal(result.count, 1);
+      assert.equal(result.drafts[0]!.ref, '');
+      assert.equal(result.drafts[0]!.tagged, true);
+    });
+
+    it('writes to file with --output', async () => {
+      const outputPath = join(tmpDir, 'draft-result.json');
+      const { exitCode } = await runCli([
+        'draft',
+        '--scan',
+        scanResultPath,
+        '--output',
+        outputPath,
+      ]);
+      assert.equal(exitCode, 0);
+      const content = await readFile(outputPath, 'utf-8');
+      const result = JSON.parse(content) as { count: number };
+      assert.equal(result.count, 1);
     });
   });
 });

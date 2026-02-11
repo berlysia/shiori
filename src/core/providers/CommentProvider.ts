@@ -115,6 +115,7 @@ export class CommentProvider implements AnnotationProvider {
               rule: undefined,
               expires: fields.expires,
               reason: fields.reason,
+              tagged: true,
               location: { file: file.path, line },
             });
           } else {
@@ -124,6 +125,7 @@ export class CommentProvider implements AnnotationProvider {
                 rule,
                 expires: fields.expires,
                 reason: fields.reason,
+                tagged: true,
                 location: { file: file.path, line },
               });
             }
@@ -134,6 +136,7 @@ export class CommentProvider implements AnnotationProvider {
             annotations.push({
               ref: '',
               rule: undefined,
+              tagged: false,
               location: { file: file.path, line },
             });
           } else {
@@ -141,6 +144,7 @@ export class CommentProvider implements AnnotationProvider {
               annotations.push({
                 ref: '',
                 rule,
+                tagged: false,
                 location: { file: file.path, line },
               });
             }
@@ -161,6 +165,7 @@ export class CommentProvider implements AnnotationProvider {
           rule: undefined,
           expires: fields.expires,
           reason: fields.reason,
+          tagged: true,
           location: { file: file.path, line },
         });
         continue;

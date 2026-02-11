@@ -26,6 +26,7 @@ describe('CommentProvider', () => {
       assert.equal(records[0]!.ref, 'SUP-1234');
       assert.equal(records[0]!.rule, 'plugin/baseline');
       assert.equal(records[0]!.expires, '2026-06-01');
+      assert.equal(records[0]!.tagged, true);
       assert.equal(records[0]!.location.file, 'test.css');
       assert.equal(records[0]!.location.line, 1);
     });
@@ -39,6 +40,7 @@ describe('CommentProvider', () => {
       assert.equal(records.length, 1);
       assert.equal(records[0]!.ref, 'SUP-5678');
       assert.equal(records[0]!.rule, 'color-named');
+      assert.equal(records[0]!.tagged, true);
     });
 
     it('detects eslint-disable-next-line with shiori and expires', () => {
@@ -50,6 +52,7 @@ describe('CommentProvider', () => {
       assert.equal(records[0]!.ref, 'SUP-9999');
       assert.equal(records[0]!.rule, '@typescript-eslint/no-explicit-any');
       assert.equal(records[0]!.expires, '2026-12-31');
+      assert.equal(records[0]!.tagged, true);
     });
 
     it('detects eslint-disable-line with shiori', () => {
@@ -61,6 +64,7 @@ describe('CommentProvider', () => {
       assert.equal(records[0]!.ref, 'SUP-0001');
       assert.equal(records[0]!.rule, '@typescript-eslint/no-explicit-any');
       assert.equal(records[0]!.expires, undefined);
+      assert.equal(records[0]!.tagged, true);
     });
 
     it('detects lint directive with bare ref shorthand', () => {
@@ -71,6 +75,7 @@ describe('CommentProvider', () => {
       assert.equal(records.length, 1);
       assert.equal(records[0]!.ref, 'SUP-1234');
       assert.equal(records[0]!.rule, 'no-console');
+      assert.equal(records[0]!.tagged, true);
     });
   });
 
@@ -85,6 +90,8 @@ describe('CommentProvider', () => {
       assert.equal(records[1]!.rule, 'no-debugger');
       assert.equal(records[0]!.ref, 'SUP-MULTI');
       assert.equal(records[1]!.ref, 'SUP-MULTI');
+      assert.equal(records[0]!.tagged, true);
+      assert.equal(records[1]!.tagged, true);
     });
   });
 
@@ -95,6 +102,7 @@ describe('CommentProvider', () => {
       assert.equal(records.length, 1);
       assert.equal(records[0]!.ref, 'ADR:0007');
       assert.equal(records[0]!.rule, undefined);
+      assert.equal(records[0]!.tagged, true);
     });
 
     it('detects bare ref shorthand (line)', () => {
@@ -103,6 +111,7 @@ describe('CommentProvider', () => {
       assert.equal(records.length, 1);
       assert.equal(records[0]!.ref, 'SUP-1234');
       assert.equal(records[0]!.rule, undefined);
+      assert.equal(records[0]!.tagged, true);
     });
 
     it('detects bare ref shorthand with namespace (line)', () => {
@@ -111,6 +120,7 @@ describe('CommentProvider', () => {
       assert.equal(records.length, 1);
       assert.equal(records[0]!.ref, 'JIRA:PROJ-123');
       assert.equal(records[0]!.rule, undefined);
+      assert.equal(records[0]!.tagged, true);
     });
 
     it('detects bare ref shorthand (block)', () => {
@@ -119,6 +129,7 @@ describe('CommentProvider', () => {
       assert.equal(records.length, 1);
       assert.equal(records[0]!.ref, 'ADR:0007');
       assert.equal(records[0]!.rule, undefined);
+      assert.equal(records[0]!.tagged, true);
     });
 
     it('detects standalone shiori comment (block)', () => {
@@ -127,6 +138,7 @@ describe('CommentProvider', () => {
       assert.equal(records.length, 1);
       assert.equal(records[0]!.ref, 'ADR:0007');
       assert.equal(records[0]!.rule, undefined);
+      assert.equal(records[0]!.tagged, true);
     });
 
     it('detects standalone shiori in multi-line block comment', () => {
@@ -134,6 +146,7 @@ describe('CommentProvider', () => {
       const records = provider.scan(input);
       assert.equal(records.length, 1);
       assert.equal(records[0]!.ref, 'ADR:0007');
+      assert.equal(records[0]!.tagged, true);
       assert.equal(records[0]!.location.line, 1);
     });
   });
@@ -145,6 +158,7 @@ describe('CommentProvider', () => {
       assert.equal(records.length, 1);
       assert.equal(records[0]!.ref, '');
       assert.equal(records[0]!.rule, 'no-console');
+      assert.equal(records[0]!.tagged, false);
     });
 
     it('produces empty ref for directive with -- but no shiori:', () => {
@@ -155,6 +169,7 @@ describe('CommentProvider', () => {
       assert.equal(records.length, 1);
       assert.equal(records[0]!.ref, '');
       assert.equal(records[0]!.rule, 'no-console');
+      assert.equal(records[0]!.tagged, false);
     });
   });
 
@@ -177,6 +192,7 @@ describe('CommentProvider', () => {
       assert.equal(records.length, 1);
       assert.equal(records[0]!.ref, 'SUP-NORULE');
       assert.equal(records[0]!.rule, undefined);
+      assert.equal(records[0]!.tagged, true);
     });
 
     it('handles quoted reason', () => {
@@ -187,6 +203,7 @@ describe('CommentProvider', () => {
       assert.equal(records.length, 1);
       assert.equal(records[0]!.ref, 'SUP-1');
       assert.equal(records[0]!.reason, 'needed for debugging');
+      assert.equal(records[0]!.tagged, true);
     });
 
     it('handles expires with YYYY-MM format', () => {
@@ -196,6 +213,7 @@ describe('CommentProvider', () => {
       const records = provider.scan(input);
       assert.equal(records.length, 1);
       assert.equal(records[0]!.expires, '2026-06');
+      assert.equal(records[0]!.tagged, true);
     });
   });
 
@@ -205,8 +223,10 @@ describe('CommentProvider', () => {
       const records = provider.scan({ path: 'sample.css', content });
       assert.equal(records.length, 2);
       assert.equal(records[0]!.ref, 'SUP-1234');
+      assert.equal(records[0]!.tagged, true);
       assert.equal(records[0]!.location.line, 1);
       assert.equal(records[1]!.ref, 'SUP-5678');
+      assert.equal(records[1]!.tagged, true);
       assert.equal(records[1]!.location.line, 4);
     });
 
@@ -215,8 +235,10 @@ describe('CommentProvider', () => {
       const records = provider.scan({ path: 'sample.ts', content });
       assert.equal(records.length, 2);
       assert.equal(records[0]!.ref, 'SUP-9999');
+      assert.equal(records[0]!.tagged, true);
       assert.equal(records[0]!.location.line, 1);
       assert.equal(records[1]!.ref, 'SUP-0001');
+      assert.equal(records[1]!.tagged, true);
       assert.equal(records[1]!.location.line, 4);
     });
 
@@ -231,14 +253,18 @@ describe('CommentProvider', () => {
       assert.equal(records[0]!.rule, 'no-console');
       assert.equal(records[1]!.rule, 'no-debugger');
       assert.equal(records[0]!.ref, 'SUP-MULTI');
+      assert.equal(records[0]!.tagged, true);
+      assert.equal(records[1]!.tagged, true);
 
       // No shiori → malformed
       assert.equal(records[2]!.ref, '');
       assert.equal(records[2]!.rule, 'no-console');
+      assert.equal(records[2]!.tagged, false);
 
       // No rule
       assert.equal(records[3]!.ref, 'SUP-NORULE');
       assert.equal(records[3]!.rule, undefined);
+      assert.equal(records[3]!.tagged, true);
     });
 
     it('parses multi-kind.ts correctly', () => {
@@ -248,16 +274,20 @@ describe('CommentProvider', () => {
 
       assert.equal(records[0]!.ref, 'NOTE-1');
       assert.equal(records[0]!.rule, 'no-console');
+      assert.equal(records[0]!.tagged, true);
 
       assert.equal(records[1]!.ref, 'MIG-1');
       assert.equal(records[1]!.rule, 'no-var');
       assert.equal(records[1]!.expires, '2026-12-31');
+      assert.equal(records[1]!.tagged, true);
 
       assert.equal(records[2]!.ref, 'RISK-1');
       assert.equal(records[2]!.rule, '@typescript-eslint/no-explicit-any');
+      assert.equal(records[2]!.tagged, true);
 
       assert.equal(records[3]!.ref, 'SUP-VERB');
       assert.equal(records[3]!.rule, 'no-debugger');
+      assert.equal(records[3]!.tagged, true);
     });
   });
 });

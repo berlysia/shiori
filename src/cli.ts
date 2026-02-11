@@ -3,6 +3,7 @@ import { cli, define } from 'gunshi';
 import { scanCommand } from './commands/scan-cli.ts';
 import { verifyCommand } from './commands/verify-cli.ts';
 import { initRegistryCommand } from './commands/init-registry-cli.ts';
+import { draftCommand } from './commands/draft-cli.ts';
 
 const main = define({
   name: 'shiori',
@@ -20,5 +21,6 @@ await cli(process.argv.slice(2), main, {
     scan: scanCommand,
     verify: verifyCommand,
     'init-registry': initRegistryCommand,
+    draft: draftCommand,
   },
 });

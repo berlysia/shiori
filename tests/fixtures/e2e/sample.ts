@@ -6,3 +6,6 @@ console.log(data);
 
 // eslint-disable-next-line no-debugger
 debugger;
+
+// shiori: reason="need to revisit this logic"
+const temp = 42;

@@ -16,6 +16,7 @@ function makeAnnotation(
   return {
     ref: 'TEST-001',
     rule: 'no-console',
+    tagged: true,
     location: { file: 'test.ts', line: 1 },
     ...overrides,
   };
@@ -146,8 +147,8 @@ describe('verify', () => {
   });
 
   describe('malformed', () => {
-    it('detects records with empty ref', () => {
-      const records = [makeAnnotation({ ref: '' })];
+    it('detects records with empty ref and no shiori tag (malformed)', () => {
+      const records = [makeAnnotation({ ref: '', tagged: false })];
       const registry: Registry = {};
       const result = verify({
         records,
@@ -160,6 +161,19 @@ describe('verify', () => {
       assert.equal(result.issues[0]!.type, 'malformed');
       assert.equal(result.issues[0]!.severity, 'error');
       assert.equal(result.issues[0]!.message, 'Annotation without tracking ID');
+    });
+
+    it('does not report draft annotations (tagged with empty ref)', () => {
+      const records = [makeAnnotation({ ref: '', tagged: true })];
+      const registry: Registry = {};
+      const result = verify({
+        records,
+        registry,
+        failOn: ['malformed'],
+        warnOn: [],
+        now: referenceDate,
+      });
+      assert.equal(result.issues.length, 0);
     });
   });
 
@@ -205,7 +219,7 @@ describe('verify', () => {
     it('produces correct summary statistics', () => {
       const records = [
         makeAnnotation({ ref: 'SUP-MISS' }),
-        makeAnnotation({ ref: '' }),
+        makeAnnotation({ ref: '', tagged: false }),
       ];
       const registry: Registry = {
         'SUP-UNUSED': makeRegistryEntry(),
