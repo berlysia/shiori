@@ -5,6 +5,7 @@ import { verifyCommand } from './commands/verify-cli.ts';
 import { initRegistryCommand } from './commands/init-registry-cli.ts';
 import { draftCommand } from './commands/draft-cli.ts';
 import { candidatesCommand } from './commands/candidates-cli.ts';
+import { showCommand } from './commands/show-cli.ts';
 
 const main = define({
   name: 'shiori',
@@ -24,5 +25,6 @@ await cli(process.argv.slice(2), main, {
     'init-registry': initRegistryCommand,
     draft: draftCommand,
     candidates: candidatesCommand,
+    show: showCommand,
   },
 });
