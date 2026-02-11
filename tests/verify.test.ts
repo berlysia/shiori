@@ -1,18 +1,19 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { Ledger, LedgerEntry, SuppressionRecord } from '../src/core/types.ts';
+import type { Ledger, LedgerEntry, AnnotationRecord } from '../src/core/types.ts';
 import { verify, formatVerifyResultAsMarkdown } from '../src/commands/verify.ts';
 
-function makeRecord(overrides: Partial<SuppressionRecord> = {}): SuppressionRecord {
+function makeRecord(overrides: Partial<AnnotationRecord> = {}): AnnotationRecord {
   return {
     id: 'TEST-001',
-    linter: 'eslint',
-    rule: 'no-console',
+    verb: 'waive',
+    tool: 'eslint',
+    subject: 'no-console',
     file: 'test.ts',
     line: 1,
     source: 'comment',
     raw: '// eslint-disable-next-line no-console -- waive(TEST-001)',
-    meta: { expires: undefined },
+    meta: {},
     provider: 'CommentProvider',
     ...overrides,
   };
@@ -27,6 +28,7 @@ function makeLedgerEntry(overrides: Partial<LedgerEntry> = {}): LedgerEntry {
     owner: undefined,
     notes: undefined,
     kind: undefined,
+    verb: undefined,
     ...overrides,
   };
 }
@@ -70,7 +72,7 @@ describe('verify', () => {
 
   describe('unused-in-source', () => {
     it('detects IDs in ledger but not in source', () => {
-      const records: SuppressionRecord[] = [];
+      const records: AnnotationRecord[] = [];
       const ledger: Ledger = { 'SUP-OLD': makeLedgerEntry() };
       const result = verify({
         records,
@@ -135,6 +137,7 @@ describe('verify', () => {
       assert.equal(result.issues.length, 1);
       assert.equal(result.issues[0]!.type, 'malformed');
       assert.equal(result.issues[0]!.severity, 'error');
+      assert.equal(result.issues[0]!.message, 'Annotation without tracking ID');
     });
   });
 
@@ -214,7 +217,7 @@ describe('verify', () => {
         now: referenceDate,
       });
       const md = formatVerifyResultAsMarkdown(result);
-      assert.ok(md.includes('# Lint Ledger Verification Report'));
+      assert.ok(md.includes('# Annotation Ledger Verification Report'));
       assert.ok(md.includes('## Errors'));
       assert.ok(md.includes('SUP-MISS'));
       assert.ok(md.includes('missing-in-ledger'));

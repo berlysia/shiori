@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { CommentProvider } from '../src/core/providers/CommentProvider.ts';
-import type { FileInput } from '../src/core/providers/SuppressionProvider.ts';
+import type { FileInput } from '../src/core/providers/AnnotationProvider.ts';
 
 const provider = new CommentProvider();
 
@@ -27,9 +27,10 @@ describe('CommentProvider', () => {
       const records = provider.scan(input);
       assert.equal(records.length, 1);
       assert.equal(records[0]!.id, 'SUP-1234');
-      assert.equal(records[0]!.linter, 'stylelint');
-      assert.equal(records[0]!.rule, 'plugin/baseline');
-      assert.equal(records[0]!.meta.expires, '2026-06-01');
+      assert.equal(records[0]!.verb, 'waive');
+      assert.equal(records[0]!.tool, 'stylelint');
+      assert.equal(records[0]!.subject, 'plugin/baseline');
+      assert.equal(records[0]!.meta['expires'], '2026-06-01');
       assert.equal(records[0]!.source, 'comment');
       assert.equal(records[0]!.provider, 'CommentProvider');
       assert.equal(records[0]!.line, 1);
@@ -43,8 +44,9 @@ describe('CommentProvider', () => {
       const records = provider.scan(input);
       assert.equal(records.length, 1);
       assert.equal(records[0]!.id, 'SUP-5678');
-      assert.equal(records[0]!.linter, 'stylelint');
-      assert.equal(records[0]!.rule, 'color-named');
+      assert.equal(records[0]!.verb, 'waive');
+      assert.equal(records[0]!.tool, 'stylelint');
+      assert.equal(records[0]!.subject, 'color-named');
     });
   });
 
@@ -56,9 +58,10 @@ describe('CommentProvider', () => {
       const records = provider.scan(input);
       assert.equal(records.length, 1);
       assert.equal(records[0]!.id, 'SUP-9999');
-      assert.equal(records[0]!.linter, 'eslint');
-      assert.equal(records[0]!.rule, '@typescript-eslint/no-explicit-any');
-      assert.equal(records[0]!.meta.expires, '2026-12-31');
+      assert.equal(records[0]!.verb, 'waive');
+      assert.equal(records[0]!.tool, 'eslint');
+      assert.equal(records[0]!.subject, '@typescript-eslint/no-explicit-any');
+      assert.equal(records[0]!.meta['expires'], '2026-12-31');
     });
 
     it('detects eslint-disable-line', () => {
@@ -68,9 +71,10 @@ describe('CommentProvider', () => {
       const records = provider.scan(input);
       assert.equal(records.length, 1);
       assert.equal(records[0]!.id, 'SUP-0001');
-      assert.equal(records[0]!.linter, 'eslint');
-      assert.equal(records[0]!.rule, '@typescript-eslint/no-explicit-any');
-      assert.equal(records[0]!.meta.expires, undefined);
+      assert.equal(records[0]!.verb, 'waive');
+      assert.equal(records[0]!.tool, 'eslint');
+      assert.equal(records[0]!.subject, '@typescript-eslint/no-explicit-any');
+      assert.equal(records[0]!.meta['expires'], undefined);
     });
   });
 
@@ -81,32 +85,36 @@ describe('CommentProvider', () => {
       );
       const records = provider.scan(input);
       assert.equal(records.length, 2);
-      assert.equal(records[0]!.rule, 'no-console');
-      assert.equal(records[1]!.rule, 'no-debugger');
+      assert.equal(records[0]!.subject, 'no-console');
+      assert.equal(records[1]!.subject, 'no-debugger');
       assert.equal(records[0]!.id, 'SUP-MULTI');
       assert.equal(records[1]!.id, 'SUP-MULTI');
+      assert.equal(records[0]!.verb, 'waive');
+      assert.equal(records[1]!.verb, 'waive');
     });
   });
 
   describe('edge cases', () => {
-    it('produces empty id when waive() is absent', () => {
+    it('produces empty id when verb() is absent', () => {
       const input = makeInput(
         '// eslint-disable-next-line no-console',
       );
       const records = provider.scan(input);
       assert.equal(records.length, 1);
       assert.equal(records[0]!.id, '');
-      assert.equal(records[0]!.rule, 'no-console');
+      assert.equal(records[0]!.verb, 'waive');
+      assert.equal(records[0]!.subject, 'no-console');
     });
 
-    it('produces undefined rule when no rules specified', () => {
+    it('produces undefined subject when no rules specified', () => {
       const input = makeInput(
         '// eslint-disable-next-line -- waive(SUP-NORULE)',
       );
       const records = provider.scan(input);
       assert.equal(records.length, 1);
       assert.equal(records[0]!.id, 'SUP-NORULE');
-      assert.equal(records[0]!.rule, undefined);
+      assert.equal(records[0]!.verb, 'waive');
+      assert.equal(records[0]!.subject, undefined);
     });
 
     it('ignores regular comments', () => {
@@ -124,7 +132,7 @@ describe('CommentProvider', () => {
       );
       const records = provider.scan(input);
       assert.equal(records.length, 1);
-      assert.equal(records[0]!.meta.expires, '2026-01-01');
+      assert.equal(records[0]!.meta['expires'], '2026-01-01');
     });
 
     it('handles expires without quotes', () => {
@@ -134,7 +142,62 @@ describe('CommentProvider', () => {
       );
       const records = provider.scan(input);
       assert.equal(records.length, 1);
-      assert.equal(records[0]!.meta.expires, '2026-02-02');
+      assert.equal(records[0]!.meta['expires'], '2026-02-02');
+    });
+  });
+
+  describe('multi-verb support', () => {
+    it('detects note() verb', () => {
+      const input = makeInput(
+        '// eslint-disable-next-line no-console -- note(NOTE-1)',
+      );
+      const records = provider.scan(input);
+      assert.equal(records.length, 1);
+      assert.equal(records[0]!.id, 'NOTE-1');
+      assert.equal(records[0]!.verb, 'note');
+    });
+
+    it('detects risk() verb', () => {
+      const input = makeInput(
+        '// eslint-disable-next-line @typescript-eslint/no-explicit-any -- risk(RISK-1)',
+      );
+      const records = provider.scan(input);
+      assert.equal(records.length, 1);
+      assert.equal(records[0]!.id, 'RISK-1');
+      assert.equal(records[0]!.verb, 'risk');
+    });
+
+    it('detects migrate() verb', () => {
+      const input = makeInput(
+        '// eslint-disable-next-line no-var -- migrate(MIG-1) expires=2026-12-31',
+      );
+      const records = provider.scan(input);
+      assert.equal(records.length, 1);
+      assert.equal(records[0]!.id, 'MIG-1');
+      assert.equal(records[0]!.verb, 'migrate');
+      assert.equal(records[0]!.meta['expires'], '2026-12-31');
+    });
+
+    it('respects custom verbs configuration', () => {
+      const customProvider = new CommentProvider({ verbs: ['waive', 'todo'] });
+      const input = makeInput(
+        '// eslint-disable-next-line no-console -- todo(TODO-1)',
+      );
+      const records = customProvider.scan(input);
+      assert.equal(records.length, 1);
+      assert.equal(records[0]!.id, 'TODO-1');
+      assert.equal(records[0]!.verb, 'todo');
+    });
+
+    it('does not detect verbs outside custom configuration', () => {
+      const customProvider = new CommentProvider({ verbs: ['waive'] });
+      const input = makeInput(
+        '// eslint-disable-next-line no-console -- note(NOTE-1)',
+      );
+      const records = customProvider.scan(input);
+      assert.equal(records.length, 1);
+      assert.equal(records[0]!.id, '');
+      assert.equal(records[0]!.verb, 'waive');
     });
   });
 
@@ -144,8 +207,10 @@ describe('CommentProvider', () => {
       const records = provider.scan({ path: 'sample.css', content });
       assert.equal(records.length, 2);
       assert.equal(records[0]!.id, 'SUP-1234');
+      assert.equal(records[0]!.verb, 'waive');
       assert.equal(records[0]!.line, 1);
       assert.equal(records[1]!.id, 'SUP-5678');
+      assert.equal(records[1]!.verb, 'waive');
       assert.equal(records[1]!.line, 4);
     });
 
@@ -154,8 +219,10 @@ describe('CommentProvider', () => {
       const records = provider.scan({ path: 'sample.ts', content });
       assert.equal(records.length, 2);
       assert.equal(records[0]!.id, 'SUP-9999');
+      assert.equal(records[0]!.verb, 'waive');
       assert.equal(records[0]!.line, 1);
       assert.equal(records[1]!.id, 'SUP-0001');
+      assert.equal(records[1]!.verb, 'waive');
       assert.equal(records[1]!.line, 4);
     });
 
@@ -167,17 +234,43 @@ describe('CommentProvider', () => {
       assert.equal(records.length, 4);
 
       // Multi-rule
-      assert.equal(records[0]!.rule, 'no-console');
-      assert.equal(records[1]!.rule, 'no-debugger');
+      assert.equal(records[0]!.subject, 'no-console');
+      assert.equal(records[1]!.subject, 'no-debugger');
       assert.equal(records[0]!.id, 'SUP-MULTI');
+      assert.equal(records[0]!.verb, 'waive');
 
       // No waive
       assert.equal(records[2]!.id, '');
-      assert.equal(records[2]!.rule, 'no-console');
+      assert.equal(records[2]!.verb, 'waive');
+      assert.equal(records[2]!.subject, 'no-console');
 
       // No rule
       assert.equal(records[3]!.id, 'SUP-NORULE');
-      assert.equal(records[3]!.rule, undefined);
+      assert.equal(records[3]!.verb, 'waive');
+      assert.equal(records[3]!.subject, undefined);
+    });
+
+    it('parses multi-verb.ts correctly', () => {
+      const content = loadFixture('multi-verb.ts');
+      const records = provider.scan({ path: 'multi-verb.ts', content });
+      assert.equal(records.length, 4);
+
+      assert.equal(records[0]!.verb, 'note');
+      assert.equal(records[0]!.id, 'NOTE-1');
+      assert.equal(records[0]!.subject, 'no-console');
+
+      assert.equal(records[1]!.verb, 'migrate');
+      assert.equal(records[1]!.id, 'MIG-1');
+      assert.equal(records[1]!.subject, 'no-var');
+      assert.equal(records[1]!.meta['expires'], '2026-12-31');
+
+      assert.equal(records[2]!.verb, 'risk');
+      assert.equal(records[2]!.id, 'RISK-1');
+      assert.equal(records[2]!.subject, '@typescript-eslint/no-explicit-any');
+
+      assert.equal(records[3]!.verb, 'waive');
+      assert.equal(records[3]!.id, 'SUP-VERB');
+      assert.equal(records[3]!.subject, 'no-debugger');
     });
   });
 });
