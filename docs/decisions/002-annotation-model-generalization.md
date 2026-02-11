@@ -19,6 +19,7 @@ Accepted
 **lint 抑制専用モデルから構造化注釈の汎用モデルへ一般化する。**
 
 具体的には:
+
 - `SuppressionRecord` → `AnnotationRecord` に改名・拡張
 - 注釈の種類を表す `verb` フィールドを導入（`waive`, `note`, `risk`, `migrate` 等）
 - `linter` / `rule` → `tool` / `subject` に汎化（lint 以外でも意味が通るように）
@@ -52,6 +53,7 @@ SuppressionRecord → AnnotationRecord
 ### Source Code Markers
 
 `waive(<ID>)` を維持しつつ、`<verb>(<ID>)` を基本構文として一般化:
+
 - `waive(SUP-1234)` — lint 抑制
 - `note(NOTE-1)` — 注記
 - `risk(RISK-1)` — リスク受容

@@ -41,12 +41,12 @@ ESLint directive 内では `--` セパレータの後に配置:
 
 ### フィールド必須性
 
-| フィールド | 必須性 | 備考 |
-|-----------|--------|------|
-| `ref` | **必須** | なければ malformed 扱い |
-| `kind` | 任意 | 省略時は分類なし |
-| `expires` | 任意 | YYYY-MM-DD or YYYY-MM |
-| `reason` | 任意 | 自由記述 |
+| フィールド | 必須性   | 備考                    |
+| ---------- | -------- | ----------------------- |
+| `ref`      | **必須** | なければ malformed 扱い |
+| `kind`     | 任意     | 省略時は分類なし        |
+| `expires`  | 任意     | YYYY-MM-DD or YYYY-MM   |
+| `reason`   | 任意     | 自由記述                |
 
 ### namespace
 
@@ -60,17 +60,17 @@ ESLint directive 内では `--` セパレータの後に配置:
 
 ```ts
 type ShioriAnnotation = {
-  tag?: string          // TODO, FIXME 等（将来拡張）
-  kind?: string         // compat, waive, debt, risk, design...
-  ref: string           // JIRA:PROJ-123, ADR:0007（必須）
-  reason?: string       // 自由記述
-  expires?: string      // YYYY-MM-DD or YYYY-MM
-  rule?: string         // ESLint/stylelint ルール名（directive から自動取得）
+  tag?: string; // TODO, FIXME 等（将来拡張）
+  kind?: string; // compat, waive, debt, risk, design...
+  ref: string; // JIRA:PROJ-123, ADR:0007（必須）
+  reason?: string; // 自由記述
+  expires?: string; // YYYY-MM-DD or YYYY-MM
+  rule?: string; // ESLint/stylelint ルール名（directive から自動取得）
   location: {
-    file: string
-    line: number
-  }
-}
+    file: string;
+    line: number;
+  };
+};
 ```
 
 ## Rationale
@@ -109,13 +109,13 @@ lint directive 内で検出した場合は、directive のルール名を `rule`
 
 ### 構文変更（破壊的）
 
-| 要素 | 旧（ADR 002） | 新（本 ADR） |
-|------|---------------|-------------|
-| 基本形 | `verb(ID)` | `shiori: ref=ID kind=verb` |
-| ESLint 内 | `-- verb(ID)` | `-- shiori: ref=ID kind=verb` |
-| expires | `expires=2026-01-01`（正規表現で補助パース） | `expires=2026-01-01`（key=value 統一） |
-| 名前空間 | なし | `ref=JIRA:PROJ-123` |
-| スタンドアロン | なし | `// shiori: ref=ADR:0007 kind=design` |
+| 要素           | 旧（ADR 002）                                | 新（本 ADR）                           |
+| -------------- | -------------------------------------------- | -------------------------------------- |
+| 基本形         | `verb(ID)`                                   | `shiori: ref=ID kind=verb`             |
+| ESLint 内      | `-- verb(ID)`                                | `-- shiori: ref=ID kind=verb`          |
+| expires        | `expires=2026-01-01`（正規表現で補助パース） | `expires=2026-01-01`（key=value 統一） |
+| 名前空間       | なし                                         | `ref=JIRA:PROJ-123`                    |
+| スタンドアロン | なし                                         | `// shiori: ref=ADR:0007 kind=design`  |
 
 ### 内部モデル変更
 
@@ -138,6 +138,7 @@ AnnotationRecord        → ShioriAnnotation
 ### Phase 2: 新構文パーサ
 
 CommentProvider を書き換え:
+
 - `shiori:` プレフィックスの key=value 構文を解析
 - lint directive 内（`-- shiori:`）とスタンドアロン（`// shiori:`）の両方を検出
 - directive のルール名を `rule` に自動紐付け
