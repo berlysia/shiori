@@ -9,36 +9,31 @@ Annotation tracking and governance tool.
 When developers use `stylelint-disable-next-line` or `eslint-disable-next-line`, those violations disappear from lint results entirely. This tool brings them back under organizational control by:
 
 - Scanning source code for `shiori:` annotations (in lint disable comments and standalone)
-- Requiring each annotation to carry a tracking reference via `shiori: ref=<ID>` (e.g. `shiori: ref=SUP-1234`)
+- Requiring each annotation to carry a tracking reference (e.g. `shiori: SUP-1234`)
 - Supporting annotation classification via `kind` field in the registry: `waive`, `design`, `compat`, `risk`, `migrate` (and custom kinds)
 - Verifying references against a JSON registry with reason, ownership, and expiration
 - Generating human-readable (Markdown) and machine-readable (JSON) reports
 
 ## Annotation Syntax
 
-Annotations use the `shiori:` prefix with `key=value` fields. The `ref` field is required; all others are optional.
+Annotations use the `shiori:` prefix. The first token is the tracking reference (positional ref); additional fields use `key=value` syntax.
 
 ```
-shiori: ref=<ID> [expires=<date>] [reason=<text>]
-```
-
-A bare ref shorthand is also supported:
-
-```
-shiori:<ID>
+shiori: <ref> [expires=<date>] [reason=<text>]
+shiori:<ref>                    // compact form
 ```
 
 ### Fields
 
 | Field     | Required | Description                                                       |
 | --------- | -------- | ----------------------------------------------------------------- |
-| `ref`     | **Yes**  | Tracking reference (e.g. `SUP-1234`, `JIRA:PROJ-123`, `ADR:0007`) |
+| ref       | **Yes**  | Tracking reference (positional, e.g. `SUP-1234`, `JIRA:PROJ-123`) |
 | `expires` | No       | Expiration date (`YYYY-MM-DD` or `YYYY-MM`)                       |
 | `reason`  | No       | Free-text description                                             |
 
 > **Note:** The `kind` field (annotation classification: `waive`, `design`, `compat`, `risk`, `migrate`, etc.) is managed in the registry, not in source comments. See [ADR 004](docs/decisions/004-kind-registry-only.md).
 
-See [ADR 003](docs/decisions/003-shiori-intent-layer-migration.md) for the syntax design rationale.
+See [ADR 007](docs/decisions/007-positional-ref-syntax.md) for the positional ref syntax rationale.
 
 ## Why Not a Lint Plugin?
 
@@ -76,23 +71,23 @@ Annotation extraction is abstracted behind an `AnnotationProvider` interface, ma
 
 ### Comment Convention
 
-Each tracked comment must include a `shiori:` annotation with at least a `ref` field. Place the annotation after the `--` separator in lint disable comments, or as a standalone comment.
+Each tracked comment must include a `shiori:` annotation with a tracking reference. Place the annotation after the `--` separator in lint disable comments, or as a standalone comment.
 
 **Lint disable comments (ESLint / stylelint):**
 
 ```typescript
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- shiori: ref=SUP-5678 expires=2026-12-31
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- shiori: SUP-5678 expires=2026-12-31
 const data: any = fetchLegacyAPI();
 
-// eslint-disable-next-line no-console -- shiori: ref=NOTE-1
+// eslint-disable-next-line no-console -- shiori: NOTE-1
 console.log('debug output');
 
-// eslint-disable-next-line no-var -- shiori: ref=MIG-1 expires=2026-12-31
+// eslint-disable-next-line no-var -- shiori: MIG-1 expires=2026-12-31
 var legacy = true;
 ```
 
 ```css
-/* stylelint-disable-next-line plugin/baseline -- shiori: ref=SUP-1234 expires=2026-06-01 */
+/* stylelint-disable-next-line plugin/baseline -- shiori: SUP-1234 expires=2026-06-01 */
 .foo {
   display: flex;
 }
@@ -101,7 +96,7 @@ var legacy = true;
 **Standalone annotations (no lint directive):**
 
 ```typescript
-// shiori: ref=ADR:0007
+// shiori: ADR:0007
 // shiori:SUP-1234
 ```
 

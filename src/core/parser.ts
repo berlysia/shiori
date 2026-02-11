@@ -8,68 +8,107 @@ export interface ParsedShioriFields {
 }
 
 /**
- * Parse a shiori key=value field string.
- * Supports unquoted values (ref=SUP-1234) and quoted values (reason="some text").
- * Returns ref='' when ref key is absent (malformed).
+ * Parse a shiori field string with positional ref.
+ * The first token (before whitespace) is treated as a positional ref if it
+ * does not contain '='. Remaining tokens are parsed as key=value pairs.
+ * The key 'ref' is not valid in key=value pairs and produces a parse error.
  */
 export function parseShioriFields(input: string): ParsedShioriFields {
   const fields: Record<string, string> = {};
   const errors: string[] = [];
   const trimmed = input.trim();
 
-  // Bare ref shorthand: a single non-empty token with no '='
-  if (trimmed.length > 0 && !trimmed.includes('=') && !/\s/.test(trimmed)) {
-    return { ref: trimmed, errors } as ParsedShioriFields;
+  if (trimmed.length === 0) {
+    return { ref: '', errors } as ParsedShioriFields;
   }
 
+  // Determine positional ref from the first token
+  const firstSpaceIdx = trimmed.search(/\s/);
+  const firstToken =
+    firstSpaceIdx === -1 ? trimmed : trimmed.slice(0, firstSpaceIdx);
+
+  let positionalRef = '';
+  let remainder = trimmed;
+
+  if (!firstToken.includes('=')) {
+    positionalRef = firstToken;
+    remainder = firstSpaceIdx === -1 ? '' : trimmed.slice(firstSpaceIdx).trim();
+  }
+
+  // Parse remainder as key=value pairs
   let i = 0;
-  while (i < trimmed.length) {
+  while (i < remainder.length) {
     // Skip whitespace
-    while (i < trimmed.length && trimmed[i] === ' ') i++;
-    if (i >= trimmed.length) break;
+    while (i < remainder.length && remainder[i] === ' ') i++;
+    if (i >= remainder.length) break;
 
     // Read key
-    const eqIdx = trimmed.indexOf('=', i);
+    const eqIdx = remainder.indexOf('=', i);
     if (eqIdx === -1) {
-      // Bare token without '=' (not at start, so not bare ref shorthand)
-      const token = trimmed.slice(i).trim();
+      // Bare token without '=' in key=value section
+      const token = remainder.slice(i).trim();
       if (token) {
         errors.push(`unexpected bare token '${token}'`);
       }
       break;
     }
-    const key = trimmed.slice(i, eqIdx);
+    const key = remainder.slice(i, eqIdx);
 
     // Missing key before '='
     if (key === '') {
       errors.push("missing key before '='");
       i = eqIdx + 1;
       // Skip value to continue parsing
-      while (i < trimmed.length && trimmed[i] !== ' ') i++;
+      while (i < remainder.length && remainder[i] !== ' ') i++;
+      continue;
+    }
+
+    // Reject 'ref' as a key=value key
+    if (key === 'ref') {
+      errors.push("'ref' is not a valid key; use positional syntax");
+      i = eqIdx + 1;
+      // Skip the value using the same logic as normal value parsing
+      if (
+        i < remainder.length &&
+        (remainder[i] === '"' || remainder[i] === "'")
+      ) {
+        const quote = remainder[i]!;
+        i++;
+        const closeIdx = remainder.indexOf(quote, i);
+        if (closeIdx === -1) {
+          break;
+        }
+        i = closeIdx + 1;
+      } else {
+        while (i < remainder.length && remainder[i] !== ' ') i++;
+      }
       continue;
     }
 
     i = eqIdx + 1;
 
     // Read value
-    if (i < trimmed.length && (trimmed[i] === '"' || trimmed[i] === "'")) {
+    if (
+      i < remainder.length &&
+      (remainder[i] === '"' || remainder[i] === "'")
+    ) {
       // Quoted value
-      const quote = trimmed[i]!;
+      const quote = remainder[i]!;
       i++;
-      const closeIdx = trimmed.indexOf(quote, i);
+      const closeIdx = remainder.indexOf(quote, i);
       if (closeIdx === -1) {
         // Unterminated quote: take rest as value
         errors.push(`unterminated quote for key '${key}'`);
-        fields[key] = trimmed.slice(i);
+        fields[key] = remainder.slice(i);
         break;
       }
-      fields[key] = trimmed.slice(i, closeIdx);
+      fields[key] = remainder.slice(i, closeIdx);
       i = closeIdx + 1;
     } else {
       // Unquoted value: read until whitespace
       const start = i;
-      while (i < trimmed.length && trimmed[i] !== ' ') i++;
-      const value = trimmed.slice(start, i);
+      while (i < remainder.length && remainder[i] !== ' ') i++;
+      const value = remainder.slice(start, i);
 
       // Empty value (key= followed by space or EOF)
       if (value === '') {
@@ -82,7 +121,7 @@ export function parseShioriFields(input: string): ParsedShioriFields {
 
   return {
     ...fields,
-    ref: fields['ref'] ?? '',
+    ref: positionalRef,
     errors,
   } as ParsedShioriFields;
 }

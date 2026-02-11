@@ -39,7 +39,7 @@ Source Files → CommentProvider.scan() → ShioriAnnotation[]
 ### Core Modules (`src/core/`)
 
 - **types.ts** — All shared types (`ShioriAnnotation`, `Registry`, `VerifyIssue`, etc.)
-- **parser.ts** — `parseShioriFields()`: parses `shiori: key=value` annotation syntax
+- **parser.ts** — `parseShioriFields()`: parses `shiori: <ref> [key=value ...]` annotation syntax
 - **registry.ts** — Registry loading, validation, saving
 - **providers/AnnotationProvider.ts** — Provider interface (pluggable extraction)
 - **providers/CommentProvider.ts** — Current implementation: line-based text scanning for lint disable comments
@@ -55,17 +55,17 @@ Each command has a pure logic module and a CLI wrapper (e.g., `scan.ts` + `scan-
 - **Path C**: Lint directive without `shiori:` → Malformed (empty ref)
 - **Path D**: Regular comment → Ignored
 
-### Annotation Syntax (ADR 003)
+### Annotation Syntax (ADR 003, ADR 007)
 
-Current syntax uses `shiori: key=value` format with `ref` as the required field:
+Positional ref syntax: first token is the tracking reference, remaining tokens are `key=value` pairs:
 
 ```typescript
-// eslint-disable-next-line no-console -- shiori: ref=SUP-1234 expires=2026-06
-// shiori: ref=ADR:0007
-// shiori:SUP-1234              // bare ref shorthand
+// eslint-disable-next-line no-console -- shiori: SUP-1234 expires=2026-06
+// shiori: ADR:0007
+// shiori:SUP-1234              // compact form
 ```
 
-`kind` field is registry-only (not in source comments). See ADR 004.
+`ref=` key is not valid (produces parse error). `kind` field is registry-only (not in source comments). See ADR 004.
 
 ### Design Decisions
 
@@ -75,3 +75,4 @@ ADRs are in `docs/decisions/`:
 - **002**: Annotation model generalization (suppression → annotation, multiple verbs)
 - **003**: `shiori: key=value` syntax migration (from `verb(<id>)` format)
 - **004**: `kind` field registry-only migration (from source comments to registry)
+- **007**: Positional ref syntax (`ref=` replaced by positional first token)

@@ -18,7 +18,7 @@ describe('CommentProvider', () => {
   describe('Path A: lint directive + shiori:', () => {
     it('detects stylelint-disable-next-line with shiori', () => {
       const input = makeInput(
-        '/* stylelint-disable-next-line plugin/baseline -- shiori: ref=SUP-1234 kind=compat expires=2026-06-01 */',
+        '/* stylelint-disable-next-line plugin/baseline -- shiori: SUP-1234 kind=compat expires=2026-06-01 */',
         'test.css',
       );
       const records = provider.scan(input).annotations;
@@ -33,7 +33,7 @@ describe('CommentProvider', () => {
 
     it('detects stylelint-disable-line with shiori', () => {
       const input = makeInput(
-        '.foo { color: red; } /* stylelint-disable-line color-named -- shiori: ref=SUP-5678 kind=waive */',
+        '.foo { color: red; } /* stylelint-disable-line color-named -- shiori: SUP-5678 kind=waive */',
         'test.css',
       );
       const records = provider.scan(input).annotations;
@@ -45,7 +45,7 @@ describe('CommentProvider', () => {
 
     it('detects eslint-disable-next-line with shiori and expires', () => {
       const input = makeInput(
-        '// eslint-disable-next-line @typescript-eslint/no-explicit-any -- shiori: ref=SUP-9999 kind=waive expires=2026-12-31',
+        '// eslint-disable-next-line @typescript-eslint/no-explicit-any -- shiori: SUP-9999 kind=waive expires=2026-12-31',
       );
       const records = provider.scan(input).annotations;
       assert.equal(records.length, 1);
@@ -57,7 +57,7 @@ describe('CommentProvider', () => {
 
     it('detects eslint-disable-line with shiori', () => {
       const input = makeInput(
-        'const x = 1; // eslint-disable-line @typescript-eslint/no-explicit-any -- shiori: ref=SUP-0001 kind=waive',
+        'const x = 1; // eslint-disable-line @typescript-eslint/no-explicit-any -- shiori: SUP-0001 kind=waive',
       );
       const records = provider.scan(input).annotations;
       assert.equal(records.length, 1);
@@ -82,7 +82,7 @@ describe('CommentProvider', () => {
   describe('multi-rule fan-out', () => {
     it('splits comma-separated rules into separate annotations', () => {
       const input = makeInput(
-        '// eslint-disable-next-line no-console, no-debugger -- shiori: ref=SUP-MULTI kind=waive',
+        '// eslint-disable-next-line no-console, no-debugger -- shiori: SUP-MULTI kind=waive',
       );
       const records = provider.scan(input).annotations;
       assert.equal(records.length, 2);
@@ -97,7 +97,7 @@ describe('CommentProvider', () => {
 
   describe('Path B: standalone shiori:', () => {
     it('detects standalone shiori comment (line)', () => {
-      const input = makeInput('// shiori: ref=ADR:0007 kind=design');
+      const input = makeInput('// shiori: ADR:0007 kind=design');
       const records = provider.scan(input).annotations;
       assert.equal(records.length, 1);
       assert.equal(records[0]!.ref, 'ADR:0007');
@@ -133,7 +133,7 @@ describe('CommentProvider', () => {
     });
 
     it('detects standalone shiori comment (block)', () => {
-      const input = makeInput('/* shiori: ref=ADR:0007 kind=design */');
+      const input = makeInput('/* shiori: ADR:0007 kind=design */');
       const records = provider.scan(input).annotations;
       assert.equal(records.length, 1);
       assert.equal(records[0]!.ref, 'ADR:0007');
@@ -142,7 +142,7 @@ describe('CommentProvider', () => {
     });
 
     it('detects standalone shiori in multi-line block comment', () => {
-      const input = makeInput('/*\n * shiori: ref=ADR:0007 kind=design\n */');
+      const input = makeInput('/*\n * shiori: ADR:0007 kind=design\n */');
       const records = provider.scan(input).annotations;
       assert.equal(records.length, 1);
       assert.equal(records[0]!.ref, 'ADR:0007');
@@ -195,7 +195,7 @@ describe('CommentProvider', () => {
 
     it('treats shiori:ignore with extra fields as simply ignored', () => {
       const input = makeInput(
-        '// eslint-disable-next-line no-console -- shiori:ignore ref=SUP-1234',
+        '// eslint-disable-next-line no-console -- shiori:ignore SUP-1234',
       );
       const records = provider.scan(input).annotations;
       assert.equal(records.length, 1);
@@ -204,19 +204,17 @@ describe('CommentProvider', () => {
       assert.equal(records[0]!.syntaxErrors, undefined);
     });
 
-    it('reports syntax-error when ref precedes ignore bare token', () => {
+    it('reports syntax-error when ref= (invalid key) precedes ignore bare token', () => {
       const input = makeInput(
         '// eslint-disable-next-line no-console -- shiori: ref=SUP-1234 ignore',
       );
       const records = provider.scan(input).annotations;
       assert.equal(records.length, 1);
-      // Path A parse: "ignore" is an unexpected bare token → syntax-error
-      assert.equal(records[0]!.ref, 'SUP-1234');
+      // ref= is now an invalid key, "ignore" is an unexpected bare token → 2 errors
+      assert.equal(records[0]!.ref, '');
       assert.equal(records[0]!.ignored, false);
       assert.ok(records[0]!.syntaxErrors);
-      assert.ok(
-        records[0]!.syntaxErrors!.some((e: string) => e.includes('ignore')),
-      );
+      assert.equal(records[0]!.syntaxErrors!.length, 2);
     });
 
     it('treats standalone shiori:ignore as bare ref shorthand', () => {
@@ -303,7 +301,7 @@ describe('CommentProvider', () => {
 
       it('does not produce candidate when directive has shiori:', () => {
         const input = makeInput(
-          '// eslint-disable-next-line no-console -- shiori: ref=SUP-1234',
+          '// eslint-disable-next-line no-console -- shiori: SUP-1234',
         );
         const result = provider.scan(input);
         assert.equal(result.annotations.length, 1);
@@ -432,7 +430,7 @@ describe('CommentProvider', () => {
   describe('edge cases', () => {
     it('produces undefined rule when no rules specified in directive', () => {
       const input = makeInput(
-        '// eslint-disable-next-line -- shiori: ref=SUP-NORULE kind=waive',
+        '// eslint-disable-next-line -- shiori: SUP-NORULE kind=waive',
       );
       const records = provider.scan(input).annotations;
       assert.equal(records.length, 1);
@@ -443,7 +441,7 @@ describe('CommentProvider', () => {
 
     it('handles quoted reason', () => {
       const input = makeInput(
-        '// eslint-disable-next-line no-console -- shiori: ref=SUP-1 reason="needed for debugging"',
+        '// eslint-disable-next-line no-console -- shiori: SUP-1 reason="needed for debugging"',
       );
       const records = provider.scan(input).annotations;
       assert.equal(records.length, 1);
@@ -454,7 +452,7 @@ describe('CommentProvider', () => {
 
     it('handles expires with YYYY-MM format', () => {
       const input = makeInput(
-        '// eslint-disable-next-line no-console -- shiori: ref=SUP-1 expires=2026-06',
+        '// eslint-disable-next-line no-console -- shiori: SUP-1 expires=2026-06',
       );
       const records = provider.scan(input).annotations;
       assert.equal(records.length, 1);

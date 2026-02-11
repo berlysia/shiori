@@ -1,8 +1,8 @@
-/* stylelint-disable-next-line plugin/baseline -- shiori: ref=SUP-1234 kind=compat expires=2026-06-01 */
+/* stylelint-disable-next-line plugin/baseline -- shiori: SUP-1234 kind=compat expires=2026-06-01 */
 .foo {
   display: flex;
 }
 
 .bar {
   color: red;
-} /* stylelint-disable-line color-named -- shiori: ref=SUP-5678 kind=waive */
+} /* stylelint-disable-line color-named -- shiori: SUP-5678 kind=waive */
