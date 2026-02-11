@@ -30,11 +30,6 @@ export const verifyCommand = define({
       required: true,
       description: 'Path to registry JSON file',
     },
-    ledger: {
-      type: 'string',
-      short: 'l',
-      description: 'Alias for --registry',
-    },
     format: {
       type: 'string',
       short: 'f',
@@ -60,12 +55,7 @@ export const verifyCommand = define({
     },
   },
   run: async (ctx) => {
-    const registryPath = ctx.values.registry ?? ctx.values.ledger;
-    if (!registryPath) {
-      console.error('Error: --registry or --ledger is required');
-      process.exitCode = 1;
-      return;
-    }
+    const registryPath = ctx.values.registry;
 
     const scanContent = await readFile(ctx.values.scan, 'utf-8');
     const scanData = JSON.parse(scanContent) as ShioriAnnotation[];
