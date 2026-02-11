@@ -1,35 +1,21 @@
-/** Annotation source type */
-export type AnnotationSource = 'comment' | 'native' | 'external';
-
-/** Default annotation verbs */
-export const DEFAULT_VERBS = ['waive', 'note', 'risk', 'migrate'] as const;
-
-/** A single annotation record extracted from source code */
-export interface AnnotationRecord {
-  /** ID extracted from verb(...). e.g. "SUP-1234" */
-  id: string;
-  /** Annotation verb. e.g. "waive", "note", "risk", "migrate" */
-  verb: string;
-  /** Tool that owns the suppressed rule. e.g. "stylelint", "eslint" */
-  tool?: string;
-  /** Subject (rule name). e.g. "plugin/baseline", "@typescript-eslint/no-explicit-any" */
-  subject?: string;
-  /** File path (relative) */
-  file: string;
-  /** Line number (1-indexed) */
-  line: number;
-  /** Source type */
-  source: AnnotationSource;
-  /** Raw comment string */
-  raw: string;
-  /** Meta information */
-  meta: Record<string, unknown>;
-  /** Provider name. e.g. "CommentProvider" */
-  provider: string;
+/** A single annotation extracted from source code */
+export interface ShioriAnnotation {
+  /** Reference ID. e.g. "SUP-1234", "ADR:0007". Empty string = malformed */
+  ref: string;
+  /** Annotation kind. e.g. "waive", "design", "compat" */
+  kind?: string;
+  /** Lint rule name. e.g. "plugin/baseline", "@typescript-eslint/no-explicit-any" */
+  rule?: string;
+  /** Expiration date (YYYY-MM-DD or YYYY-MM) */
+  expires?: string;
+  /** Reason text */
+  reason?: string;
+  /** Source location */
+  location: {
+    file: string;
+    line: number;
+  };
 }
-
-/** Registry entry kind */
-export type RegistryKind = 'stylelint' | 'eslint' | 'mixed';
 
 /** A single registry entry */
 export interface RegistryEntry {
@@ -39,11 +25,10 @@ export interface RegistryEntry {
   ticket: string | undefined;
   owner: string | undefined;
   notes: string | undefined;
-  kind: RegistryKind | undefined;
-  verb: string | undefined;
+  kind: string | undefined;
 }
 
-/** Full registry keyed by annotation ID */
+/** Full registry keyed by annotation ref */
 export type Registry = Record<string, RegistryEntry>;
 
 /** Verify issue type */
@@ -60,7 +45,7 @@ export type IssueSeverity = 'error' | 'warning';
 export interface VerifyIssue {
   type: VerifyIssueType;
   severity: IssueSeverity;
-  id: string;
+  ref: string;
   message: string;
   file: string | undefined;
   line: number | undefined;

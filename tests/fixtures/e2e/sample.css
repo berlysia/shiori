@@ -1,5 +1,5 @@
-/* stylelint-disable-next-line plugin/baseline -- waive(SUP-1001) expires=2026-06-01 */
+/* stylelint-disable-next-line plugin/baseline -- shiori: ref=SUP-1001 kind=compat expires=2026-06-01 */
 .flex { display: flex; }
 
-/* stylelint-disable-next-line plugin/no-unsupported -- waive(SUP-1002) */
+/* stylelint-disable-next-line plugin/no-unsupported -- shiori: ref=SUP-1002 kind=waive */
 .grid { display: grid; }

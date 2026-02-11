@@ -1,6 +1,6 @@
 import { define } from 'gunshi';
 import { readFile, writeFile } from 'node:fs/promises';
-import type { AnnotationRecord, VerifyIssueType } from '../core/types.ts';
+import type { ShioriAnnotation, VerifyIssueType } from '../core/types.ts';
 import { loadRegistry } from '../core/registry.ts';
 import {
   verify,
@@ -68,7 +68,7 @@ export const verifyCommand = define({
     }
 
     const scanContent = await readFile(ctx.values.scan, 'utf-8');
-    const scanData = JSON.parse(scanContent) as AnnotationRecord[];
+    const scanData = JSON.parse(scanContent) as ShioriAnnotation[];
 
     const { registry, errors: registryErrors } = await loadRegistry(registryPath);
     if (registryErrors.length > 0) {

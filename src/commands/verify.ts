@@ -1,7 +1,7 @@
 import type {
   IssueSeverity,
   Registry,
-  AnnotationRecord,
+  ShioriAnnotation,
   VerifyIssue,
   VerifyIssueType,
   VerifyResult,
@@ -10,8 +10,8 @@ import type {
 export type OutputFormat = 'json' | 'markdown';
 
 export interface VerifyOptions {
-  /** Annotation records from scan */
-  records: AnnotationRecord[];
+  /** Shiori annotations from scan */
+  records: ShioriAnnotation[];
   /** Registry data */
   registry: Registry;
   /** Issue types that cause exit code 1 */
@@ -52,6 +52,14 @@ function buildSummary(issues: VerifyIssue[]): VerifyResult['summary'] {
 }
 
 /**
+ * Normalize expires for comparison.
+ * YYYY-MM → YYYY-MM-99 to treat month-only as "end of month".
+ */
+function normalizeExpires(expires: string): string {
+  return expires.length === 7 ? expires + '-99' : expires;
+}
+
+/**
  * Verify scan results against registry, detecting issues.
  */
 export function verify(options: VerifyOptions): VerifyResult {
@@ -60,54 +68,54 @@ export function verify(options: VerifyOptions): VerifyResult {
   const todayStr = now.toISOString().slice(0, 10);
   const issues: VerifyIssue[] = [];
 
-  // Collect source IDs (excluding empty = malformed)
-  const sourceIds = new Set<string>();
+  // Collect source refs (excluding empty = malformed)
+  const sourceRefs = new Set<string>();
   for (const record of records) {
-    if (record.id !== '') {
-      sourceIds.add(record.id);
+    if (record.ref !== '') {
+      sourceRefs.add(record.ref);
     }
   }
 
-  // Check malformed (empty ID)
+  // Check malformed (empty ref)
   for (const record of records) {
-    if (record.id === '') {
+    if (record.ref === '') {
       issues.push({
         type: 'malformed',
         severity: determineSeverity('malformed', failOn, warnOn),
-        id: '',
+        ref: '',
         message: 'Annotation without tracking ID',
-        file: record.file,
-        line: record.line,
+        file: record.location.file,
+        line: record.location.line,
       });
     }
   }
 
-  // Check missing-in-registry (deduplicate by ID)
+  // Check missing-in-registry (deduplicate by ref)
   const reportedMissing = new Set<string>();
   for (const record of records) {
-    if (record.id === '') continue;
-    if (reportedMissing.has(record.id)) continue;
-    if (!(record.id in registry)) {
-      reportedMissing.add(record.id);
+    if (record.ref === '') continue;
+    if (reportedMissing.has(record.ref)) continue;
+    if (!(record.ref in registry)) {
+      reportedMissing.add(record.ref);
       issues.push({
         type: 'missing-in-registry',
         severity: determineSeverity('missing-in-registry', failOn, warnOn),
-        id: record.id,
-        message: `ID "${record.id}" found in source but not in registry`,
-        file: record.file,
-        line: record.line,
+        ref: record.ref,
+        message: `ID "${record.ref}" found in source but not in registry`,
+        file: record.location.file,
+        line: record.location.line,
       });
     }
   }
 
   // Check unused-in-source
-  for (const id of Object.keys(registry)) {
-    if (!sourceIds.has(id)) {
+  for (const ref of Object.keys(registry)) {
+    if (!sourceRefs.has(ref)) {
       issues.push({
         type: 'unused-in-source',
         severity: determineSeverity('unused-in-source', failOn, warnOn),
-        id,
-        message: `ID "${id}" exists in registry but not found in source`,
+        ref,
+        message: `ID "${ref}" exists in registry but not found in source`,
         file: undefined,
         line: undefined,
       });
@@ -115,16 +123,19 @@ export function verify(options: VerifyOptions): VerifyResult {
   }
 
   // Check expired (registry entries)
-  for (const [id, entry] of Object.entries(registry)) {
-    if (entry.expires && entry.expires < todayStr) {
-      issues.push({
-        type: 'expired',
-        severity: determineSeverity('expired', failOn, warnOn),
-        id,
-        message: `ID "${id}" expired on ${entry.expires}`,
-        file: undefined,
-        line: undefined,
-      });
+  for (const [ref, entry] of Object.entries(registry)) {
+    if (entry.expires) {
+      const norm = normalizeExpires(entry.expires);
+      if (norm < todayStr) {
+        issues.push({
+          type: 'expired',
+          severity: determineSeverity('expired', failOn, warnOn),
+          ref,
+          message: `ID "${ref}" expired on ${entry.expires}`,
+          file: undefined,
+          line: undefined,
+        });
+      }
     }
   }
 
@@ -169,11 +180,11 @@ export function formatVerifyResultAsMarkdown(result: VerifyResult): string {
     lines.push('');
     lines.push('## Errors');
     lines.push('');
-    lines.push('| ID | Type | File | Line | Message |');
-    lines.push('|----|------|------|------|---------|');
+    lines.push('| Ref | Type | File | Line | Message |');
+    lines.push('|-----|------|------|------|---------|');
     for (const issue of errors) {
       lines.push(
-        `| ${issue.id || '(none)'} | ${issue.type} | ${issue.file ?? '-'} | ${issue.line ?? '-'} | ${issue.message} |`,
+        `| ${issue.ref || '(none)'} | ${issue.type} | ${issue.file ?? '-'} | ${issue.line ?? '-'} | ${issue.message} |`,
       );
     }
   }
@@ -182,11 +193,11 @@ export function formatVerifyResultAsMarkdown(result: VerifyResult): string {
     lines.push('');
     lines.push('## Warnings');
     lines.push('');
-    lines.push('| ID | Type | File | Line | Message |');
-    lines.push('|----|------|------|------|---------|');
+    lines.push('| Ref | Type | File | Line | Message |');
+    lines.push('|-----|------|------|------|---------|');
     for (const issue of warnings) {
       lines.push(
-        `| ${issue.id || '(none)'} | ${issue.type} | ${issue.file ?? '-'} | ${issue.line ?? '-'} | ${issue.message} |`,
+        `| ${issue.ref || '(none)'} | ${issue.type} | ${issue.file ?? '-'} | ${issue.line ?? '-'} | ${issue.message} |`,
       );
     }
   }

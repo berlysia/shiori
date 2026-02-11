@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import fg from 'fast-glob';
-import type { AnnotationRecord } from '../core/types.ts';
+import type { ShioriAnnotation } from '../core/types.ts';
 import type { AnnotationProvider } from '../core/providers/AnnotationProvider.ts';
 
 export interface ScanOptions {
@@ -15,23 +15,26 @@ export interface ScanOptions {
 }
 
 export interface ScanResult {
-  /** Extracted records (stably sorted by id, verb, file, line) */
-  records: AnnotationRecord[];
+  /** Extracted annotations (stably sorted by ref, kind, location.file, location.line) */
+  records: ShioriAnnotation[];
   /** Number of files scanned */
   filesScanned: number;
 }
 
-function sortRecords(records: AnnotationRecord[]): AnnotationRecord[] {
+function sortRecords(records: ShioriAnnotation[]): ShioriAnnotation[] {
   return records.sort((a, b) => {
-    if (a.id !== b.id) return a.id.localeCompare(b.id);
-    if (a.verb !== b.verb) return a.verb.localeCompare(b.verb);
-    if (a.file !== b.file) return a.file.localeCompare(b.file);
-    return a.line - b.line;
+    if (a.ref !== b.ref) return a.ref.localeCompare(b.ref);
+    const aKind = a.kind ?? '';
+    const bKind = b.kind ?? '';
+    if (aKind !== bKind) return aKind.localeCompare(bKind);
+    if (a.location.file !== b.location.file)
+      return a.location.file.localeCompare(b.location.file);
+    return a.location.line - b.location.line;
   });
 }
 
 /**
- * Scan source files and extract annotation records.
+ * Scan source files and extract shiori annotations.
  */
 export async function scan(options: ScanOptions): Promise<ScanResult> {
   const files = await fg(options.patterns, {
@@ -41,7 +44,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
     absolute: false,
   });
 
-  const allRecords: AnnotationRecord[] = [];
+  const allRecords: ShioriAnnotation[] = [];
 
   for (const filePath of files) {
     const absolutePath = `${options.cwd}/${filePath}`;

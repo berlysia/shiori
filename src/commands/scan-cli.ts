@@ -8,7 +8,7 @@ const DEFAULT_IGNORE = ['**/node_modules/**', '**/dist/**', '**/.git/**'];
 
 export const scanCommand = define({
   name: 'scan',
-  description: 'Scan source files for annotations',
+  description: 'Scan source files for shiori annotations',
   rendering: { header: null },
   args: {
     patterns: {
@@ -37,11 +37,6 @@ export const scanCommand = define({
       description: 'Annotation provider. Default: "comment"',
       default: 'comment',
     },
-    verbs: {
-      type: 'string',
-      description:
-        'Annotation verbs to detect (comma-separated). Default: "waive,note,risk,migrate"',
-    },
   },
   run: async (ctx) => {
     const patterns = ctx.values.patterns
@@ -53,10 +48,7 @@ export const scanCommand = define({
       : DEFAULT_IGNORE;
 
     const cwd = ctx.values.cwd ?? process.cwd();
-    const verbs = ctx.values.verbs
-      ? ctx.values.verbs.split(',').map((s: string) => s.trim())
-      : undefined;
-    const provider = new CommentProvider(verbs ? { verbs } : undefined);
+    const provider = new CommentProvider();
 
     const result = await scan({ patterns, ignore, provider, cwd });
     const json = JSON.stringify(result.records, null, 2);

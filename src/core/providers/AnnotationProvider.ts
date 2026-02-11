@@ -1,4 +1,4 @@
-import type { AnnotationRecord } from '../types.ts';
+import type { ShioriAnnotation } from '../types.ts';
 
 /** Provider input: a single file to scan */
 export interface FileInput {
@@ -8,10 +8,10 @@ export interface FileInput {
   content: string;
 }
 
-/** Pluggable interface for extracting annotation records */
+/** Pluggable interface for extracting shiori annotations */
 export interface AnnotationProvider {
   /** Provider name */
   readonly name: string;
-  /** Extract AnnotationRecords from a single file */
-  scan(file: FileInput): AnnotationRecord[];
+  /** Extract ShioriAnnotations from a single file */
+  scan(file: FileInput): ShioriAnnotation[];
 }

@@ -1,20 +1,14 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { Registry, RegistryEntry, AnnotationRecord } from '../src/core/types.ts';
+import type { Registry, RegistryEntry, ShioriAnnotation } from '../src/core/types.ts';
 import { verify, formatVerifyResultAsMarkdown } from '../src/commands/verify.ts';
 
-function makeRecord(overrides: Partial<AnnotationRecord> = {}): AnnotationRecord {
+function makeAnnotation(overrides: Partial<ShioriAnnotation> = {}): ShioriAnnotation {
   return {
-    id: 'TEST-001',
-    verb: 'waive',
-    tool: 'eslint',
-    subject: 'no-console',
-    file: 'test.ts',
-    line: 1,
-    source: 'comment',
-    raw: '// eslint-disable-next-line no-console -- waive(TEST-001)',
-    meta: {},
-    provider: 'CommentProvider',
+    ref: 'TEST-001',
+    kind: 'waive',
+    rule: 'no-console',
+    location: { file: 'test.ts', line: 1 },
     ...overrides,
   };
 }
@@ -28,7 +22,6 @@ function makeRegistryEntry(overrides: Partial<RegistryEntry> = {}): RegistryEntr
     owner: undefined,
     notes: undefined,
     kind: undefined,
-    verb: undefined,
     ...overrides,
   };
 }
@@ -37,8 +30,8 @@ const referenceDate = new Date('2026-02-11T00:00:00Z');
 
 describe('verify', () => {
   describe('missing-in-registry', () => {
-    it('detects IDs in source but not in registry', () => {
-      const records = [makeRecord({ id: 'SUP-NEW' })];
+    it('detects refs in source but not in registry', () => {
+      const records = [makeAnnotation({ ref: 'SUP-NEW' })];
       const registry: Registry = {};
       const result = verify({
         records,
@@ -49,14 +42,14 @@ describe('verify', () => {
       });
       assert.equal(result.issues.length, 1);
       assert.equal(result.issues[0]!.type, 'missing-in-registry');
-      assert.equal(result.issues[0]!.id, 'SUP-NEW');
+      assert.equal(result.issues[0]!.ref, 'SUP-NEW');
       assert.equal(result.issues[0]!.severity, 'error');
     });
 
-    it('deduplicates missing IDs', () => {
+    it('deduplicates missing refs', () => {
       const records = [
-        makeRecord({ id: 'SUP-NEW', file: 'a.ts', line: 1 }),
-        makeRecord({ id: 'SUP-NEW', file: 'b.ts', line: 2 }),
+        makeAnnotation({ ref: 'SUP-NEW', location: { file: 'a.ts', line: 1 } }),
+        makeAnnotation({ ref: 'SUP-NEW', location: { file: 'b.ts', line: 2 } }),
       ];
       const result = verify({
         records,
@@ -71,8 +64,8 @@ describe('verify', () => {
   });
 
   describe('unused-in-source', () => {
-    it('detects IDs in registry but not in source', () => {
-      const records: AnnotationRecord[] = [];
+    it('detects refs in registry but not in source', () => {
+      const records: ShioriAnnotation[] = [];
       const registry: Registry = { 'SUP-OLD': makeRegistryEntry() };
       const result = verify({
         records,
@@ -83,14 +76,14 @@ describe('verify', () => {
       });
       assert.equal(result.issues.length, 1);
       assert.equal(result.issues[0]!.type, 'unused-in-source');
-      assert.equal(result.issues[0]!.id, 'SUP-OLD');
+      assert.equal(result.issues[0]!.ref, 'SUP-OLD');
       assert.equal(result.issues[0]!.severity, 'warning');
     });
   });
 
   describe('expired', () => {
     it('detects expired registry entries', () => {
-      const records = [makeRecord({ id: 'SUP-EXP' })];
+      const records = [makeAnnotation({ ref: 'SUP-EXP' })];
       const registry: Registry = {
         'SUP-EXP': makeRegistryEntry({ expires: '2025-01-01' }),
       };
@@ -107,7 +100,7 @@ describe('verify', () => {
     });
 
     it('does not flag future expires as expired', () => {
-      const records = [makeRecord({ id: 'SUP-FUT' })];
+      const records = [makeAnnotation({ ref: 'SUP-FUT' })];
       const registry: Registry = {
         'SUP-FUT': makeRegistryEntry({ expires: '2027-12-31' }),
       };
@@ -121,11 +114,28 @@ describe('verify', () => {
       const expired = result.issues.filter((i) => i.type === 'expired');
       assert.equal(expired.length, 0);
     });
+
+    it('normalizes YYYY-MM expires to end of month', () => {
+      const records = [makeAnnotation({ ref: 'SUP-MON' })];
+      const registry: Registry = {
+        'SUP-MON': makeRegistryEntry({ expires: '2026-02' }),
+      };
+      // 2026-02-11 should NOT treat 2026-02 as expired (it means end of Feb)
+      const result = verify({
+        records,
+        registry,
+        failOn: ['expired'],
+        warnOn: [],
+        now: referenceDate,
+      });
+      const expired = result.issues.filter((i) => i.type === 'expired');
+      assert.equal(expired.length, 0);
+    });
   });
 
   describe('malformed', () => {
-    it('detects records with empty id', () => {
-      const records = [makeRecord({ id: '' })];
+    it('detects records with empty ref', () => {
+      const records = [makeAnnotation({ ref: '' })];
       const registry: Registry = {};
       const result = verify({
         records,
@@ -143,7 +153,7 @@ describe('verify', () => {
 
   describe('no issues', () => {
     it('returns empty issues when everything matches', () => {
-      const records = [makeRecord({ id: 'SUP-OK' })];
+      const records = [makeAnnotation({ ref: 'SUP-OK' })];
       const registry: Registry = {
         'SUP-OK': makeRegistryEntry({ expires: '2027-12-31' }),
       };
@@ -161,7 +171,7 @@ describe('verify', () => {
 
   describe('severity control', () => {
     it('applies failOn as error and default as warning', () => {
-      const records = [makeRecord({ id: 'SUP-MISS' })];
+      const records = [makeAnnotation({ ref: 'SUP-MISS' })];
       const registry: Registry = { 'SUP-UNUSED': makeRegistryEntry() };
       const result = verify({
         records,
@@ -180,8 +190,8 @@ describe('verify', () => {
   describe('summary', () => {
     it('produces correct summary statistics', () => {
       const records = [
-        makeRecord({ id: 'SUP-MISS' }),
-        makeRecord({ id: '' }),
+        makeAnnotation({ ref: 'SUP-MISS' }),
+        makeAnnotation({ ref: '' }),
       ];
       const registry: Registry = {
         'SUP-UNUSED': makeRegistryEntry(),
@@ -207,7 +217,7 @@ describe('verify', () => {
 
   describe('formatVerifyResultAsMarkdown', () => {
     it('generates markdown with errors and warnings sections', () => {
-      const records = [makeRecord({ id: 'SUP-MISS' })];
+      const records = [makeAnnotation({ ref: 'SUP-MISS' })];
       const registry: Registry = {};
       const result = verify({
         records,
@@ -224,7 +234,7 @@ describe('verify', () => {
     });
 
     it('shows "No issues found" when clean', () => {
-      const records = [makeRecord({ id: 'SUP-OK' })];
+      const records = [makeAnnotation({ ref: 'SUP-OK' })];
       const registry: Registry = { 'SUP-OK': makeRegistryEntry() };
       const result = verify({
         records,

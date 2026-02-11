@@ -70,17 +70,20 @@ describe('CLI E2E', () => {
   });
 
   describe('scan command', () => {
-    it('outputs AnnotationRecord JSON to stdout', async () => {
+    it('outputs ShioriAnnotation JSON to stdout', async () => {
       const { stdout, exitCode } = await runCli([
         'scan',
         '--patterns',
         SCAN_PATTERNS,
       ]);
       assert.equal(exitCode, 0);
-      const records = JSON.parse(stdout) as unknown[];
+      const records = JSON.parse(stdout) as Array<{ ref: string; location: { file: string } }>;
       assert.ok(Array.isArray(records));
       // SUP-1001, SUP-1002, SUP-2001, SUP-2002, malformed(no-debugger)
       assert.equal(records.length, 5);
+      // Verify new field shape
+      assert.ok(records[0]!.ref !== undefined);
+      assert.ok(records[0]!.location !== undefined);
     });
 
     it('writes to file with --output', async () => {
@@ -96,23 +99,6 @@ describe('CLI E2E', () => {
       const content = await readFile(outputPath, 'utf-8');
       const records = JSON.parse(content) as unknown[];
       assert.equal(records.length, 5);
-    });
-
-    it('supports --verbs option', async () => {
-      const { stdout, exitCode } = await runCli([
-        'scan',
-        '--patterns',
-        SCAN_PATTERNS,
-        '--verbs',
-        'waive',
-      ]);
-      assert.equal(exitCode, 0);
-      const records = JSON.parse(stdout) as Array<{ verb: string }>;
-      assert.ok(Array.isArray(records));
-      // All records should have verb 'waive' (including malformed which defaults to waive)
-      for (const r of records) {
-        assert.equal(r.verb, 'waive');
-      }
     });
   });
 

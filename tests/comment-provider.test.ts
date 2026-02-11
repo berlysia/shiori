@@ -18,186 +18,171 @@ function loadFixture(name: string): string {
 }
 
 describe('CommentProvider', () => {
-  describe('stylelint detection', () => {
-    it('detects stylelint-disable-next-line with waive and expires', () => {
+  describe('Path A: lint directive + shiori:', () => {
+    it('detects stylelint-disable-next-line with shiori', () => {
       const input = makeInput(
-        '/* stylelint-disable-next-line plugin/baseline -- waive(SUP-1234) expires=2026-06-01 */',
+        '/* stylelint-disable-next-line plugin/baseline -- shiori: ref=SUP-1234 kind=compat expires=2026-06-01 */',
         'test.css',
       );
       const records = provider.scan(input);
       assert.equal(records.length, 1);
-      assert.equal(records[0]!.id, 'SUP-1234');
-      assert.equal(records[0]!.verb, 'waive');
-      assert.equal(records[0]!.tool, 'stylelint');
-      assert.equal(records[0]!.subject, 'plugin/baseline');
-      assert.equal(records[0]!.meta['expires'], '2026-06-01');
-      assert.equal(records[0]!.source, 'comment');
-      assert.equal(records[0]!.provider, 'CommentProvider');
-      assert.equal(records[0]!.line, 1);
+      assert.equal(records[0]!.ref, 'SUP-1234');
+      assert.equal(records[0]!.kind, 'compat');
+      assert.equal(records[0]!.rule, 'plugin/baseline');
+      assert.equal(records[0]!.expires, '2026-06-01');
+      assert.equal(records[0]!.location.file, 'test.css');
+      assert.equal(records[0]!.location.line, 1);
     });
 
-    it('detects stylelint-disable-line', () => {
+    it('detects stylelint-disable-line with shiori', () => {
       const input = makeInput(
-        '.foo { color: red; } /* stylelint-disable-line color-named -- waive(SUP-5678) */',
+        '.foo { color: red; } /* stylelint-disable-line color-named -- shiori: ref=SUP-5678 kind=waive */',
         'test.css',
       );
       const records = provider.scan(input);
       assert.equal(records.length, 1);
-      assert.equal(records[0]!.id, 'SUP-5678');
-      assert.equal(records[0]!.verb, 'waive');
-      assert.equal(records[0]!.tool, 'stylelint');
-      assert.equal(records[0]!.subject, 'color-named');
+      assert.equal(records[0]!.ref, 'SUP-5678');
+      assert.equal(records[0]!.kind, 'waive');
+      assert.equal(records[0]!.rule, 'color-named');
     });
-  });
 
-  describe('eslint detection', () => {
-    it('detects eslint-disable-next-line with waive and expires', () => {
+    it('detects eslint-disable-next-line with shiori and expires', () => {
       const input = makeInput(
-        '// eslint-disable-next-line @typescript-eslint/no-explicit-any -- waive(SUP-9999) expires=2026-12-31',
+        '// eslint-disable-next-line @typescript-eslint/no-explicit-any -- shiori: ref=SUP-9999 kind=waive expires=2026-12-31',
       );
       const records = provider.scan(input);
       assert.equal(records.length, 1);
-      assert.equal(records[0]!.id, 'SUP-9999');
-      assert.equal(records[0]!.verb, 'waive');
-      assert.equal(records[0]!.tool, 'eslint');
-      assert.equal(records[0]!.subject, '@typescript-eslint/no-explicit-any');
-      assert.equal(records[0]!.meta['expires'], '2026-12-31');
+      assert.equal(records[0]!.ref, 'SUP-9999');
+      assert.equal(records[0]!.kind, 'waive');
+      assert.equal(records[0]!.rule, '@typescript-eslint/no-explicit-any');
+      assert.equal(records[0]!.expires, '2026-12-31');
     });
 
-    it('detects eslint-disable-line', () => {
+    it('detects eslint-disable-line with shiori', () => {
       const input = makeInput(
-        'const x = 1; // eslint-disable-line @typescript-eslint/no-explicit-any -- waive(SUP-0001)',
+        'const x = 1; // eslint-disable-line @typescript-eslint/no-explicit-any -- shiori: ref=SUP-0001 kind=waive',
       );
       const records = provider.scan(input);
       assert.equal(records.length, 1);
-      assert.equal(records[0]!.id, 'SUP-0001');
-      assert.equal(records[0]!.verb, 'waive');
-      assert.equal(records[0]!.tool, 'eslint');
-      assert.equal(records[0]!.subject, '@typescript-eslint/no-explicit-any');
-      assert.equal(records[0]!.meta['expires'], undefined);
+      assert.equal(records[0]!.ref, 'SUP-0001');
+      assert.equal(records[0]!.kind, 'waive');
+      assert.equal(records[0]!.rule, '@typescript-eslint/no-explicit-any');
+      assert.equal(records[0]!.expires, undefined);
     });
   });
 
-  describe('multiple rules', () => {
-    it('splits comma-separated rules into separate records', () => {
+  describe('multi-rule fan-out', () => {
+    it('splits comma-separated rules into separate annotations', () => {
       const input = makeInput(
-        '// eslint-disable-next-line no-console, no-debugger -- waive(SUP-MULTI)',
+        '// eslint-disable-next-line no-console, no-debugger -- shiori: ref=SUP-MULTI kind=waive',
       );
       const records = provider.scan(input);
       assert.equal(records.length, 2);
-      assert.equal(records[0]!.subject, 'no-console');
-      assert.equal(records[1]!.subject, 'no-debugger');
-      assert.equal(records[0]!.id, 'SUP-MULTI');
-      assert.equal(records[1]!.id, 'SUP-MULTI');
-      assert.equal(records[0]!.verb, 'waive');
-      assert.equal(records[1]!.verb, 'waive');
+      assert.equal(records[0]!.rule, 'no-console');
+      assert.equal(records[1]!.rule, 'no-debugger');
+      assert.equal(records[0]!.ref, 'SUP-MULTI');
+      assert.equal(records[1]!.ref, 'SUP-MULTI');
+      assert.equal(records[0]!.kind, 'waive');
+      assert.equal(records[1]!.kind, 'waive');
     });
   });
 
-  describe('edge cases', () => {
-    it('produces empty id when verb() is absent', () => {
+  describe('Path B: standalone shiori:', () => {
+    it('detects standalone shiori comment (line)', () => {
+      const input = makeInput(
+        '// shiori: ref=ADR:0007 kind=design',
+      );
+      const records = provider.scan(input);
+      assert.equal(records.length, 1);
+      assert.equal(records[0]!.ref, 'ADR:0007');
+      assert.equal(records[0]!.kind, 'design');
+      assert.equal(records[0]!.rule, undefined);
+    });
+
+    it('detects standalone shiori comment (block)', () => {
+      const input = makeInput(
+        '/* shiori: ref=ADR:0007 kind=design */',
+      );
+      const records = provider.scan(input);
+      assert.equal(records.length, 1);
+      assert.equal(records[0]!.ref, 'ADR:0007');
+      assert.equal(records[0]!.kind, 'design');
+      assert.equal(records[0]!.rule, undefined);
+    });
+
+    it('detects standalone shiori in multi-line block comment', () => {
+      const input = makeInput(
+        '/*\n * shiori: ref=ADR:0007 kind=design\n */',
+      );
+      const records = provider.scan(input);
+      assert.equal(records.length, 1);
+      assert.equal(records[0]!.ref, 'ADR:0007');
+      assert.equal(records[0]!.kind, 'design');
+      assert.equal(records[0]!.location.line, 1);
+    });
+  });
+
+  describe('Path C: lint directive without shiori:', () => {
+    it('produces empty ref when shiori: is absent', () => {
       const input = makeInput(
         '// eslint-disable-next-line no-console',
       );
       const records = provider.scan(input);
       assert.equal(records.length, 1);
-      assert.equal(records[0]!.id, '');
-      assert.equal(records[0]!.verb, 'waive');
-      assert.equal(records[0]!.subject, 'no-console');
+      assert.equal(records[0]!.ref, '');
+      assert.equal(records[0]!.rule, 'no-console');
     });
 
-    it('produces undefined subject when no rules specified', () => {
+    it('produces empty ref for directive with -- but no shiori:', () => {
       const input = makeInput(
-        '// eslint-disable-next-line -- waive(SUP-NORULE)',
+        '// eslint-disable-next-line no-console -- some reason',
       );
       const records = provider.scan(input);
       assert.equal(records.length, 1);
-      assert.equal(records[0]!.id, 'SUP-NORULE');
-      assert.equal(records[0]!.verb, 'waive');
-      assert.equal(records[0]!.subject, undefined);
+      assert.equal(records[0]!.ref, '');
+      assert.equal(records[0]!.rule, 'no-console');
     });
+  });
 
+  describe('Path D: regular comments', () => {
     it('ignores regular comments', () => {
       const input = makeInput(
-        '// This is a regular comment with waive(FAKE-ID)\n/* Just a comment */',
+        '// This is a regular comment\n/* Just a comment */',
       );
       const records = provider.scan(input);
       assert.equal(records.length, 0);
     });
-
-    it('handles expires with quotes', () => {
-      const input = makeInput(
-        '/* stylelint-disable-next-line plugin/x -- waive(A) expires="2026-01-01" */',
-        'test.css',
-      );
-      const records = provider.scan(input);
-      assert.equal(records.length, 1);
-      assert.equal(records[0]!.meta['expires'], '2026-01-01');
-    });
-
-    it('handles expires without quotes', () => {
-      const input = makeInput(
-        '/* stylelint-disable-next-line plugin/y -- waive(B) expires=2026-02-02 */',
-        'test.css',
-      );
-      const records = provider.scan(input);
-      assert.equal(records.length, 1);
-      assert.equal(records[0]!.meta['expires'], '2026-02-02');
-    });
   });
 
-  describe('multi-verb support', () => {
-    it('detects note() verb', () => {
+  describe('edge cases', () => {
+    it('produces undefined rule when no rules specified in directive', () => {
       const input = makeInput(
-        '// eslint-disable-next-line no-console -- note(NOTE-1)',
+        '// eslint-disable-next-line -- shiori: ref=SUP-NORULE kind=waive',
       );
       const records = provider.scan(input);
       assert.equal(records.length, 1);
-      assert.equal(records[0]!.id, 'NOTE-1');
-      assert.equal(records[0]!.verb, 'note');
+      assert.equal(records[0]!.ref, 'SUP-NORULE');
+      assert.equal(records[0]!.kind, 'waive');
+      assert.equal(records[0]!.rule, undefined);
     });
 
-    it('detects risk() verb', () => {
+    it('handles quoted reason', () => {
       const input = makeInput(
-        '// eslint-disable-next-line @typescript-eslint/no-explicit-any -- risk(RISK-1)',
+        '// eslint-disable-next-line no-console -- shiori: ref=SUP-1 reason="needed for debugging"',
       );
       const records = provider.scan(input);
       assert.equal(records.length, 1);
-      assert.equal(records[0]!.id, 'RISK-1');
-      assert.equal(records[0]!.verb, 'risk');
+      assert.equal(records[0]!.ref, 'SUP-1');
+      assert.equal(records[0]!.reason, 'needed for debugging');
     });
 
-    it('detects migrate() verb', () => {
+    it('handles expires with YYYY-MM format', () => {
       const input = makeInput(
-        '// eslint-disable-next-line no-var -- migrate(MIG-1) expires=2026-12-31',
+        '// eslint-disable-next-line no-console -- shiori: ref=SUP-1 expires=2026-06',
       );
       const records = provider.scan(input);
       assert.equal(records.length, 1);
-      assert.equal(records[0]!.id, 'MIG-1');
-      assert.equal(records[0]!.verb, 'migrate');
-      assert.equal(records[0]!.meta['expires'], '2026-12-31');
-    });
-
-    it('respects custom verbs configuration', () => {
-      const customProvider = new CommentProvider({ verbs: ['waive', 'todo'] });
-      const input = makeInput(
-        '// eslint-disable-next-line no-console -- todo(TODO-1)',
-      );
-      const records = customProvider.scan(input);
-      assert.equal(records.length, 1);
-      assert.equal(records[0]!.id, 'TODO-1');
-      assert.equal(records[0]!.verb, 'todo');
-    });
-
-    it('does not detect verbs outside custom configuration', () => {
-      const customProvider = new CommentProvider({ verbs: ['waive'] });
-      const input = makeInput(
-        '// eslint-disable-next-line no-console -- note(NOTE-1)',
-      );
-      const records = customProvider.scan(input);
-      assert.equal(records.length, 1);
-      assert.equal(records[0]!.id, '');
-      assert.equal(records[0]!.verb, 'waive');
+      assert.equal(records[0]!.expires, '2026-06');
     });
   });
 
@@ -206,71 +191,70 @@ describe('CommentProvider', () => {
       const content = loadFixture('sample.css');
       const records = provider.scan({ path: 'sample.css', content });
       assert.equal(records.length, 2);
-      assert.equal(records[0]!.id, 'SUP-1234');
-      assert.equal(records[0]!.verb, 'waive');
-      assert.equal(records[0]!.line, 1);
-      assert.equal(records[1]!.id, 'SUP-5678');
-      assert.equal(records[1]!.verb, 'waive');
-      assert.equal(records[1]!.line, 4);
+      assert.equal(records[0]!.ref, 'SUP-1234');
+      assert.equal(records[0]!.kind, 'compat');
+      assert.equal(records[0]!.location.line, 1);
+      assert.equal(records[1]!.ref, 'SUP-5678');
+      assert.equal(records[1]!.kind, 'waive');
+      assert.equal(records[1]!.location.line, 4);
     });
 
     it('parses sample.ts correctly', () => {
       const content = loadFixture('sample.ts');
       const records = provider.scan({ path: 'sample.ts', content });
       assert.equal(records.length, 2);
-      assert.equal(records[0]!.id, 'SUP-9999');
-      assert.equal(records[0]!.verb, 'waive');
-      assert.equal(records[0]!.line, 1);
-      assert.equal(records[1]!.id, 'SUP-0001');
-      assert.equal(records[1]!.verb, 'waive');
-      assert.equal(records[1]!.line, 4);
+      assert.equal(records[0]!.ref, 'SUP-9999');
+      assert.equal(records[0]!.kind, 'waive');
+      assert.equal(records[0]!.location.line, 1);
+      assert.equal(records[1]!.ref, 'SUP-0001');
+      assert.equal(records[1]!.kind, 'waive');
+      assert.equal(records[1]!.location.line, 4);
     });
 
     it('parses edge-cases.ts correctly', () => {
       const content = loadFixture('edge-cases.ts');
       const records = provider.scan({ path: 'edge-cases.ts', content });
-      // Line 1: multi-rule (2 records), Line 4: no waive (1), Line 7: no rule (1)
+      // Line 1: multi-rule (2 records), Line 4: no shiori (1 malformed), Line 7: no rule (1)
       // Lines 9-10: regular comments (0)
       assert.equal(records.length, 4);
 
       // Multi-rule
-      assert.equal(records[0]!.subject, 'no-console');
-      assert.equal(records[1]!.subject, 'no-debugger');
-      assert.equal(records[0]!.id, 'SUP-MULTI');
-      assert.equal(records[0]!.verb, 'waive');
+      assert.equal(records[0]!.rule, 'no-console');
+      assert.equal(records[1]!.rule, 'no-debugger');
+      assert.equal(records[0]!.ref, 'SUP-MULTI');
+      assert.equal(records[0]!.kind, 'waive');
 
-      // No waive
-      assert.equal(records[2]!.id, '');
-      assert.equal(records[2]!.verb, 'waive');
-      assert.equal(records[2]!.subject, 'no-console');
+      // No shiori → malformed
+      assert.equal(records[2]!.ref, '');
+      assert.equal(records[2]!.rule, 'no-console');
 
       // No rule
-      assert.equal(records[3]!.id, 'SUP-NORULE');
-      assert.equal(records[3]!.verb, 'waive');
-      assert.equal(records[3]!.subject, undefined);
+      assert.equal(records[3]!.ref, 'SUP-NORULE');
+      assert.equal(records[3]!.kind, 'waive');
+      assert.equal(records[3]!.rule, undefined);
     });
 
-    it('parses multi-verb.ts correctly', () => {
-      const content = loadFixture('multi-verb.ts');
-      const records = provider.scan({ path: 'multi-verb.ts', content });
+    it('parses multi-kind.ts correctly', () => {
+      const content = loadFixture('multi-kind.ts');
+      const records = provider.scan({ path: 'multi-kind.ts', content });
       assert.equal(records.length, 4);
 
-      assert.equal(records[0]!.verb, 'note');
-      assert.equal(records[0]!.id, 'NOTE-1');
-      assert.equal(records[0]!.subject, 'no-console');
+      assert.equal(records[0]!.kind, 'note');
+      assert.equal(records[0]!.ref, 'NOTE-1');
+      assert.equal(records[0]!.rule, 'no-console');
 
-      assert.equal(records[1]!.verb, 'migrate');
-      assert.equal(records[1]!.id, 'MIG-1');
-      assert.equal(records[1]!.subject, 'no-var');
-      assert.equal(records[1]!.meta['expires'], '2026-12-31');
+      assert.equal(records[1]!.kind, 'migrate');
+      assert.equal(records[1]!.ref, 'MIG-1');
+      assert.equal(records[1]!.rule, 'no-var');
+      assert.equal(records[1]!.expires, '2026-12-31');
 
-      assert.equal(records[2]!.verb, 'risk');
-      assert.equal(records[2]!.id, 'RISK-1');
-      assert.equal(records[2]!.subject, '@typescript-eslint/no-explicit-any');
+      assert.equal(records[2]!.kind, 'risk');
+      assert.equal(records[2]!.ref, 'RISK-1');
+      assert.equal(records[2]!.rule, '@typescript-eslint/no-explicit-any');
 
-      assert.equal(records[3]!.verb, 'waive');
-      assert.equal(records[3]!.id, 'SUP-VERB');
-      assert.equal(records[3]!.subject, 'no-debugger');
+      assert.equal(records[3]!.kind, 'waive');
+      assert.equal(records[3]!.ref, 'SUP-VERB');
+      assert.equal(records[3]!.rule, 'no-debugger');
     });
   });
 });

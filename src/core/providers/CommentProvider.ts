@@ -1,141 +1,175 @@
-import type { AnnotationRecord } from '../types.ts';
-import { DEFAULT_VERBS } from '../types.ts';
+import type { ShioriAnnotation } from '../types.ts';
 import type { FileInput, AnnotationProvider } from './AnnotationProvider.ts';
+import { parseShioriFields } from '../parser.ts';
 
-const STYLELINT_DISABLE_RE =
-  /\/\*\s*stylelint-disable-(next-line|line)\s+([\s\S]+?)\s*\*\//;
+// Regex for block comments
+const BLOCK_COMMENT_RE = /\/\*[\s\S]*?\*\//g;
 
-const ESLINT_DISABLE_RE =
-  /\/\/\s*eslint-disable-(next-line|line)\s+(.*)/;
+// Regex for line comments
+const LINE_COMMENT_RE = /\/\/.*/g;
 
-const EXPIRES_RE = /expires=["']?(\d{4}-\d{2}-\d{2})["']?/;
+/** Lint directive patterns (captures: [1]=tool, [2]=directive-type, [3]=after-directive) */
+const STYLELINT_DIRECTIVE_RE =
+  /\b(stylelint)-disable-(next-line|line)\s+([\s\S]+)/;
+const ESLINT_DIRECTIVE_RE =
+  /\b(eslint)-disable-(next-line|line)\s+(.*)/;
 
-function buildVerbRegex(verbs: readonly string[]): RegExp {
-  const escaped = verbs.map((v) => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
-  return new RegExp(`(${escaped.join('|')})\\(([^)]+)\\)`);
+/** shiori: prefix detection */
+const SHIORI_PREFIX_RE = /\bshiori:\s*/;
+
+interface ExtractedComment {
+  text: string;
+  line: number;
 }
 
-interface ParsedDirective {
-  tool: string;
-  rules: string[];
-  verb: string;
-  id: string;
-  meta: Record<string, unknown>;
-  raw: string;
+function extractComments(content: string): ExtractedComment[] {
+  const comments: ExtractedComment[] = [];
+
+  // Extract block comments
+  for (const match of content.matchAll(BLOCK_COMMENT_RE)) {
+    const line = content.slice(0, match.index).split('\n').length;
+    // Normalize block comment: remove /* */, strip * prefixes, join lines
+    let text = match[0]!.slice(2, -2); // remove /* and */
+    text = text
+      .split('\n')
+      .map((l) => l.replace(/^\s*\*\s?/, ''))
+      .join(' ')
+      .trim();
+    comments.push({ text, line });
+  }
+
+  // Extract line comments
+  const lines = content.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const lineContent = lines[i]!;
+    const match = lineContent.match(LINE_COMMENT_RE);
+    if (match) {
+      const text = match[0]!.slice(2).trim(); // remove //
+      comments.push({ text, line: i + 1 });
+    }
+  }
+
+  return comments;
 }
 
 function parseRules(rulesStr: string): string[] {
-  const byComma = rulesStr.split(',').map((s) => s.trim()).filter(Boolean);
+  const byComma = rulesStr
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
   if (byComma.length > 1) {
     return byComma;
   }
   return rulesStr.split(/\s+/).filter(Boolean);
 }
 
-function parseDirective(
-  fullMatch: string,
-  afterDirective: string,
-  tool: string,
-  verbRe: RegExp,
-): ParsedDirective {
+interface ParsedDirective {
+  rules: string[];
+  shioriFieldsStr: string | undefined;
+}
+
+function parseDirectiveContent(afterDirective: string): ParsedDirective {
   const dashIndex = afterDirective.indexOf('--');
-  const rulesPart = dashIndex >= 0 ? afterDirective.slice(0, dashIndex) : afterDirective;
+  const rulesPart =
+    dashIndex >= 0 ? afterDirective.slice(0, dashIndex) : afterDirective;
   const metaPart = dashIndex >= 0 ? afterDirective.slice(dashIndex + 2) : '';
 
   const cleanRulesPart = rulesPart.replace(/\s*\*\/\s*$/, '').trim();
   const rules = cleanRulesPart ? parseRules(cleanRulesPart) : [];
 
-  const verbMatch = metaPart.match(verbRe);
-  const verb = verbMatch?.[1] ?? 'waive';
-  const id = verbMatch?.[2] ?? '';
+  // Check for shiori: prefix in meta part
+  const shioriMatch = metaPart.match(SHIORI_PREFIX_RE);
+  const shioriFieldsStr = shioriMatch
+    ? metaPart.slice(shioriMatch.index! + shioriMatch[0].length).trim()
+    : undefined;
 
-  const expiresMatch = metaPart.match(EXPIRES_RE);
-  const meta: Record<string, unknown> = {};
-  if (expiresMatch?.[1]) {
-    meta['expires'] = expiresMatch[1];
-  }
-
-  return {
-    tool,
-    rules,
-    verb,
-    id,
-    meta,
-    raw: fullMatch,
-  };
+  return { rules, shioriFieldsStr };
 }
 
-export interface CommentProviderOptions {
-  verbs?: readonly string[];
-}
-
-/** CommentProvider: extracts annotation records from disable comments */
+/** CommentProvider: extracts shiori annotations from comments */
 export class CommentProvider implements AnnotationProvider {
   readonly name = 'CommentProvider';
-  private readonly verbRe: RegExp;
 
-  constructor(options?: CommentProviderOptions) {
-    const verbs = options?.verbs ?? DEFAULT_VERBS;
-    this.verbRe = buildVerbRegex(verbs);
-  }
+  scan(file: FileInput): ShioriAnnotation[] {
+    const annotations: ShioriAnnotation[] = [];
+    const comments = extractComments(file.content);
 
-  scan(file: FileInput): AnnotationRecord[] {
-    const records: AnnotationRecord[] = [];
-    const lines = file.content.split('\n');
+    for (const comment of comments) {
+      const { text, line } = comment;
 
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i]!;
-      const lineNumber = i + 1;
+      // Try lint directive patterns first
+      const stylelintMatch = text.match(STYLELINT_DIRECTIVE_RE);
+      const eslintMatch = text.match(ESLINT_DIRECTIVE_RE);
 
-      let directive: ParsedDirective | undefined;
+      if (stylelintMatch || eslintMatch) {
+        const match = stylelintMatch ?? eslintMatch!;
+        const afterDirective = match[3]!;
+        const { rules, shioriFieldsStr } = parseDirectiveContent(afterDirective);
 
-      const stylelintMatch = line.match(STYLELINT_DISABLE_RE);
-      if (stylelintMatch) {
-        directive = parseDirective(stylelintMatch[0]!, stylelintMatch[2]!, 'stylelint', this.verbRe);
-      }
-
-      if (!directive) {
-        const eslintMatch = line.match(ESLINT_DISABLE_RE);
-        if (eslintMatch) {
-          directive = parseDirective(eslintMatch[0]!, eslintMatch[2]!, 'eslint', this.verbRe);
+        if (shioriFieldsStr !== undefined) {
+          // Path A: lint directive + shiori:
+          const fields = parseShioriFields(shioriFieldsStr);
+          if (rules.length === 0) {
+            annotations.push({
+              ref: fields.ref,
+              kind: fields.kind,
+              rule: undefined,
+              expires: fields.expires,
+              reason: fields.reason,
+              location: { file: file.path, line },
+            });
+          } else {
+            for (const rule of rules) {
+              annotations.push({
+                ref: fields.ref,
+                kind: fields.kind,
+                rule,
+                expires: fields.expires,
+                reason: fields.reason,
+                location: { file: file.path, line },
+              });
+            }
+          }
+        } else {
+          // Path C: lint directive without shiori: → malformed
+          if (rules.length === 0) {
+            annotations.push({
+              ref: '',
+              rule: undefined,
+              location: { file: file.path, line },
+            });
+          } else {
+            for (const rule of rules) {
+              annotations.push({
+                ref: '',
+                rule,
+                location: { file: file.path, line },
+              });
+            }
+          }
         }
-      }
-
-      if (!directive) {
         continue;
       }
 
-      if (directive.rules.length === 0) {
-        records.push({
-          id: directive.id,
-          verb: directive.verb,
-          tool: directive.tool,
-          subject: undefined,
-          file: file.path,
-          line: lineNumber,
-          source: 'comment',
-          raw: directive.raw,
-          meta: directive.meta,
-          provider: this.name,
+      // Path B: standalone shiori:
+      const shioriMatch = text.match(SHIORI_PREFIX_RE);
+      if (shioriMatch) {
+        const fieldsStr = text.slice(shioriMatch.index! + shioriMatch[0].length).trim();
+        const fields = parseShioriFields(fieldsStr);
+        annotations.push({
+          ref: fields.ref,
+          kind: fields.kind,
+          rule: undefined,
+          expires: fields.expires,
+          reason: fields.reason,
+          location: { file: file.path, line },
         });
-      } else {
-        for (const rule of directive.rules) {
-          records.push({
-            id: directive.id,
-            verb: directive.verb,
-            tool: directive.tool,
-            subject: rule,
-            file: file.path,
-            line: lineNumber,
-            source: 'comment',
-            raw: directive.raw,
-            meta: directive.meta,
-            provider: this.name,
-          });
-        }
+        continue;
       }
+
+      // Path D: regular comment → ignore
     }
 
-    return records;
+    return annotations;
   }
 }

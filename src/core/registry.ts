@@ -13,7 +13,7 @@ export interface RegistryLoadResult {
   errors: RegistryValidationError[];
 }
 
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const DATE_RE = /^\d{4}-\d{2}(-\d{2})?$/;
 
 function validateEntry(
   id: string,
@@ -51,7 +51,7 @@ function validateEntry(
   ) {
     errors.push({
       id,
-      message: 'invalid expires format, expected YYYY-MM-DD',
+      message: 'invalid expires format, expected YYYY-MM-DD or YYYY-MM',
     });
   }
 
@@ -70,13 +70,7 @@ function validateEntry(
       typeof raw['ticket'] === 'string' ? raw['ticket'] : undefined,
     owner: typeof raw['owner'] === 'string' ? raw['owner'] : undefined,
     notes: typeof raw['notes'] === 'string' ? raw['notes'] : undefined,
-    kind:
-      raw['kind'] === 'stylelint' ||
-      raw['kind'] === 'eslint' ||
-      raw['kind'] === 'mixed'
-        ? raw['kind']
-        : undefined,
-    verb: typeof raw['verb'] === 'string' ? raw['verb'] : undefined,
+    kind: typeof raw['kind'] === 'string' ? raw['kind'] : undefined,
   };
 
   return { entry, errors };
