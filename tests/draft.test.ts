@@ -10,6 +10,7 @@ function makeAnnotation(
     ref: 'TEST-001',
     rule: 'no-console',
     tagged: true,
+    ignored: false,
     location: { file: 'test.ts', line: 1 },
     ...overrides,
   };
@@ -57,6 +58,13 @@ describe('listDrafts', () => {
     ];
     const result = listDrafts(records);
     assert.equal(result.count, 0);
+  });
+
+  it('excludes ignored annotations from drafts', () => {
+    const records = [makeAnnotation({ ref: '', tagged: true, ignored: true })];
+    const result = listDrafts(records);
+    assert.equal(result.count, 0);
+    assert.equal(result.drafts.length, 0);
   });
 
   it('returns multiple drafts', () => {

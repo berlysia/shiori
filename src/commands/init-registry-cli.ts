@@ -1,6 +1,6 @@
 import { define } from 'gunshi';
 import { readFile } from 'node:fs/promises';
-import type { ShioriAnnotation } from '../core/types.ts';
+import type { ScanResult } from './scan.ts';
 import { loadRegistry, saveRegistry } from '../core/registry.ts';
 import { initRegistry } from './init-registry.ts';
 
@@ -30,7 +30,7 @@ export const initRegistryCommand = define({
   },
   run: async (ctx) => {
     const scanContent = await readFile(ctx.values.scan, 'utf-8');
-    const scanData = JSON.parse(scanContent) as ShioriAnnotation[];
+    const scanResult = JSON.parse(scanContent) as ScanResult;
 
     let existingRegistry;
     if (ctx.values.merge) {
@@ -38,7 +38,10 @@ export const initRegistryCommand = define({
       existingRegistry = registry;
     }
 
-    const registry = initRegistry({ records: scanData, existingRegistry });
+    const registry = initRegistry({
+      records: scanResult.annotations,
+      existingRegistry,
+    });
     await saveRegistry(ctx.values.output, registry);
 
     const entryCount = Object.keys(registry).length;

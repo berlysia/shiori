@@ -92,4 +92,54 @@ describe('parseShioriFields', () => {
       assert.equal(result.ref, '');
     });
   });
+
+  describe('errors', () => {
+    it('returns empty errors for valid input', () => {
+      const result = parseShioriFields('ref=SUP-1234');
+      assert.deepEqual(result.errors, []);
+    });
+
+    it('returns empty errors for bare ref shorthand', () => {
+      const result = parseShioriFields('SUP-1234');
+      assert.deepEqual(result.errors, []);
+    });
+
+    it('returns empty errors for empty input', () => {
+      const result = parseShioriFields('');
+      assert.deepEqual(result.errors, []);
+    });
+
+    it('detects empty value for ref=', () => {
+      const result = parseShioriFields('ref= expires=2026-06');
+      assert.equal(result.ref, '');
+      assert.equal(result.errors.length, 1);
+      assert.match(result.errors[0]!, /empty value.*ref/);
+    });
+
+    it('detects empty value for ref= at end of input', () => {
+      const result = parseShioriFields('ref=');
+      assert.equal(result.ref, '');
+      assert.equal(result.errors.length, 1);
+      assert.match(result.errors[0]!, /empty value.*ref/);
+    });
+
+    it('detects missing key before =', () => {
+      const result = parseShioriFields('=invalid');
+      assert.equal(result.errors.length, 1);
+      assert.match(result.errors[0]!, /missing key/);
+    });
+
+    it('detects unterminated quote', () => {
+      const result = parseShioriFields('ref=SUP-1 reason="unterminated');
+      assert.equal(result.ref, 'SUP-1');
+      assert.equal(result.reason, 'unterminated');
+      assert.equal(result.errors.length, 1);
+      assert.match(result.errors[0]!, /unterminated quote.*reason/);
+    });
+
+    it('collects multiple errors', () => {
+      const result = parseShioriFields('=bad ref=');
+      assert.equal(result.errors.length, 2);
+    });
+  });
 });

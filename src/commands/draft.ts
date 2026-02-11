@@ -9,6 +9,6 @@ export interface DraftResult {
  * Filter draft annotations: shiori-tagged but without a ref.
  */
 export function listDrafts(records: ShioriAnnotation[]): DraftResult {
-  const drafts = records.filter((r) => r.ref === '' && r.tagged);
+  const drafts = records.filter((r) => r.ref === '' && r.tagged && !r.ignored);
   return { drafts, count: drafts.length };
 }

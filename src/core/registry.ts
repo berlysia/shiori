@@ -66,8 +66,7 @@ function validateEntry(
       typeof raw['expires'] === 'string' && DATE_RE.test(raw['expires'])
         ? raw['expires']
         : undefined,
-    ticket:
-      typeof raw['ticket'] === 'string' ? raw['ticket'] : undefined,
+    ticket: typeof raw['ticket'] === 'string' ? raw['ticket'] : undefined,
     owner: typeof raw['owner'] === 'string' ? raw['owner'] : undefined,
     notes: typeof raw['notes'] === 'string' ? raw['notes'] : undefined,
     kind: typeof raw['kind'] === 'string' ? raw['kind'] : undefined,
@@ -80,7 +79,9 @@ function validateEntry(
  * Load a JSON registry file.
  * @throws if file cannot be read or JSON is invalid
  */
-export async function loadRegistry(filePath: string): Promise<RegistryLoadResult> {
+export async function loadRegistry(
+  filePath: string,
+): Promise<RegistryLoadResult> {
   const content = await readFile(filePath, 'utf-8');
   const parsed: unknown = JSON.parse(content);
 

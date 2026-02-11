@@ -1,7 +1,10 @@
 import { readFile } from 'node:fs/promises';
 import fg from 'fast-glob';
-import type { ShioriAnnotation } from '../core/types.ts';
-import type { AnnotationProvider } from '../core/providers/AnnotationProvider.ts';
+import type { ShioriAnnotation, ShioriCandidate } from '../core/types.ts';
+import type {
+  AnnotationProvider,
+  ProviderScanOptions,
+} from '../core/providers/AnnotationProvider.ts';
 
 export interface ScanOptions {
   /** Glob patterns to scan */
@@ -12,16 +15,20 @@ export interface ScanOptions {
   provider: AnnotationProvider;
   /** Working directory for glob resolution */
   cwd: string;
+  /** Provider scan options (candidate patterns etc.) */
+  providerOptions?: ProviderScanOptions;
 }
 
 export interface ScanResult {
   /** Extracted annotations (stably sorted by ref, location.file, location.line) */
-  records: ShioriAnnotation[];
+  annotations: ShioriAnnotation[];
+  /** Detected candidates (sorted by location.file, location.line) */
+  candidates: ShioriCandidate[];
   /** Number of files scanned */
   filesScanned: number;
 }
 
-function sortRecords(records: ShioriAnnotation[]): ShioriAnnotation[] {
+function sortAnnotations(records: ShioriAnnotation[]): ShioriAnnotation[] {
   return records.sort((a, b) => {
     if (a.ref !== b.ref) return a.ref.localeCompare(b.ref);
     if (a.location.file !== b.location.file)
@@ -30,8 +37,16 @@ function sortRecords(records: ShioriAnnotation[]): ShioriAnnotation[] {
   });
 }
 
+function sortCandidates(candidates: ShioriCandidate[]): ShioriCandidate[] {
+  return candidates.sort((a, b) => {
+    if (a.location.file !== b.location.file)
+      return a.location.file.localeCompare(b.location.file);
+    return a.location.line - b.location.line;
+  });
+}
+
 /**
- * Scan source files and extract shiori annotations.
+ * Scan source files and extract shiori annotations and candidates.
  */
 export async function scan(options: ScanOptions): Promise<ScanResult> {
   const files = await fg(options.patterns, {
@@ -41,17 +56,23 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
     absolute: false,
   });
 
-  const allRecords: ShioriAnnotation[] = [];
+  const allAnnotations: ShioriAnnotation[] = [];
+  const allCandidates: ShioriCandidate[] = [];
 
   for (const filePath of files) {
     const absolutePath = `${options.cwd}/${filePath}`;
     const content = await readFile(absolutePath, 'utf-8');
-    const records = options.provider.scan({ path: filePath, content });
-    allRecords.push(...records);
+    const result = options.provider.scan(
+      { path: filePath, content },
+      options.providerOptions,
+    );
+    allAnnotations.push(...result.annotations);
+    allCandidates.push(...result.candidates);
   }
 
   return {
-    records: sortRecords(allRecords),
+    annotations: sortAnnotations(allAnnotations),
+    candidates: sortCandidates(allCandidates),
     filesScanned: files.length,
   };
 }

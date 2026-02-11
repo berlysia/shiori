@@ -17,6 +17,7 @@ function makeAnnotation(
     ref: 'TEST-001',
     rule: 'no-console',
     tagged: true,
+    ignored: false,
     location: { file: 'test.ts', line: 1 },
     ...overrides,
   };
@@ -146,34 +147,88 @@ describe('verify', () => {
     });
   });
 
-  describe('malformed', () => {
-    it('detects records with empty ref and no shiori tag (malformed)', () => {
-      const records = [makeAnnotation({ ref: '', tagged: false })];
+  describe('syntax-error', () => {
+    it('detects records with syntax errors', () => {
+      const records = [
+        makeAnnotation({
+          ref: '',
+          tagged: true,
+          syntaxErrors: ["empty value for key 'ref'"],
+        }),
+      ];
       const registry: Registry = {};
       const result = verify({
         records,
         registry,
-        failOn: ['malformed'],
+        failOn: ['syntax-error'],
         warnOn: [],
         now: referenceDate,
       });
       assert.equal(result.issues.length, 1);
-      assert.equal(result.issues[0]!.type, 'malformed');
+      assert.equal(result.issues[0]!.type, 'syntax-error');
       assert.equal(result.issues[0]!.severity, 'error');
-      assert.equal(result.issues[0]!.message, 'Annotation without tracking ID');
+      assert.ok(result.issues[0]!.message.includes('empty value'));
     });
 
-    it('does not report draft annotations (tagged with empty ref)', () => {
+    it('does not report draft annotations (tagged with empty ref, no errors)', () => {
       const records = [makeAnnotation({ ref: '', tagged: true })];
       const registry: Registry = {};
       const result = verify({
         records,
         registry,
-        failOn: ['malformed'],
+        failOn: ['syntax-error'],
         warnOn: [],
         now: referenceDate,
       });
       assert.equal(result.issues.length, 0);
+    });
+
+    it('does not report annotations without syntax errors', () => {
+      const records = [makeAnnotation({ ref: 'SUP-OK', tagged: true })];
+      const registry: Registry = { 'SUP-OK': makeRegistryEntry() };
+      const result = verify({
+        records,
+        registry,
+        failOn: ['syntax-error'],
+        warnOn: [],
+        now: referenceDate,
+      });
+      assert.equal(result.issues.length, 0);
+    });
+  });
+
+  describe('ignored annotations', () => {
+    it('skips ignored annotations in verify', () => {
+      const records = [
+        makeAnnotation({ ref: 'SUP-IGN', tagged: true, ignored: true }),
+      ];
+      const registry: Registry = {};
+      const result = verify({
+        records,
+        registry,
+        failOn: ['missing-in-registry'],
+        warnOn: [],
+        now: referenceDate,
+      });
+      // Should not report missing-in-registry for ignored annotation
+      assert.equal(result.issues.length, 0);
+    });
+
+    it('does not count ignored annotations in source refs', () => {
+      const records = [
+        makeAnnotation({ ref: 'SUP-IGN', tagged: true, ignored: true }),
+      ];
+      const registry: Registry = { 'SUP-IGN': makeRegistryEntry() };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: ['unused-in-source'],
+        now: referenceDate,
+      });
+      // SUP-IGN is ignored, so registry entry appears unused
+      const unused = result.issues.filter((i) => i.type === 'unused-in-source');
+      assert.equal(unused.length, 1);
     });
   });
 
@@ -219,7 +274,11 @@ describe('verify', () => {
     it('produces correct summary statistics', () => {
       const records = [
         makeAnnotation({ ref: 'SUP-MISS' }),
-        makeAnnotation({ ref: '', tagged: false }),
+        makeAnnotation({
+          ref: '',
+          tagged: true,
+          syntaxErrors: ["empty value for key 'ref'"],
+        }),
       ];
       const registry: Registry = {
         'SUP-UNUSED': makeRegistryEntry(),
@@ -229,7 +288,7 @@ describe('verify', () => {
         records,
         registry,
         failOn: ['missing-in-registry', 'expired'],
-        warnOn: ['unused-in-source', 'malformed'],
+        warnOn: ['unused-in-source', 'syntax-error'],
         now: referenceDate,
       });
       // SUP-EXP is both unused-in-source and expired
@@ -239,7 +298,7 @@ describe('verify', () => {
       assert.equal(result.summary.byType['missing-in-registry'], 1);
       assert.equal(result.summary.byType['unused-in-source'], 2);
       assert.equal(result.summary.byType['expired'], 1);
-      assert.equal(result.summary.byType['malformed'], 1);
+      assert.equal(result.summary.byType['syntax-error'], 1);
     });
   });
 

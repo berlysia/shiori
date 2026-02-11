@@ -37,7 +37,7 @@ function buildSummary(issues: VerifyIssue[]): VerifyResult['summary'] {
     'missing-in-registry': 0,
     'unused-in-source': 0,
     expired: 0,
-    malformed: 0,
+    'syntax-error': 0,
   };
   let errors = 0;
   let warnings = 0;
@@ -68,22 +68,27 @@ export function verify(options: VerifyOptions): VerifyResult {
   const todayStr = now.toISOString().slice(0, 10);
   const issues: VerifyIssue[] = [];
 
-  // Collect source refs (excluding empty = malformed)
+  // Collect source refs (excluding empty refs and ignored annotations)
   const sourceRefs = new Set<string>();
   for (const record of records) {
-    if (record.ref !== '') {
+    if (record.ref !== '' && !record.ignored) {
       sourceRefs.add(record.ref);
     }
   }
 
-  // Check malformed (empty ref without shiori: marker; drafts are excluded)
+  // Check syntax-error (shiori: marker present but parse errors exist)
   for (const record of records) {
-    if (record.ref === '' && !record.tagged) {
+    if (record.ignored) continue;
+    if (
+      record.tagged &&
+      record.syntaxErrors &&
+      record.syntaxErrors.length > 0
+    ) {
       issues.push({
-        type: 'malformed',
-        severity: determineSeverity('malformed', failOn, warnOn),
-        ref: '',
-        message: 'Annotation without tracking ID',
+        type: 'syntax-error',
+        severity: determineSeverity('syntax-error', failOn, warnOn),
+        ref: record.ref,
+        message: `Syntax error: ${record.syntaxErrors.join('; ')}`,
         file: record.location.file,
         line: record.location.line,
       });
@@ -93,7 +98,7 @@ export function verify(options: VerifyOptions): VerifyResult {
   // Check missing-in-registry (deduplicate by ref)
   const reportedMissing = new Set<string>();
   for (const record of records) {
-    if (record.ref === '') continue;
+    if (record.ref === '' || record.ignored) continue;
     if (reportedMissing.has(record.ref)) continue;
     if (!(record.ref in registry)) {
       reportedMissing.add(record.ref);

@@ -1,6 +1,6 @@
 import { define } from 'gunshi';
 import { readFile, writeFile } from 'node:fs/promises';
-import type { ShioriAnnotation } from '../core/types.ts';
+import type { ScanResult } from './scan.ts';
 import { listDrafts } from './draft.ts';
 
 export const draftCommand = define({
@@ -22,9 +22,9 @@ export const draftCommand = define({
   },
   run: async (ctx) => {
     const scanContent = await readFile(ctx.values.scan, 'utf-8');
-    const records = JSON.parse(scanContent) as ShioriAnnotation[];
+    const scanResult = JSON.parse(scanContent) as ScanResult;
 
-    const result = listDrafts(records);
+    const result = listDrafts(scanResult.annotations);
     const json = JSON.stringify(result, null, 2);
 
     if (ctx.values.output) {

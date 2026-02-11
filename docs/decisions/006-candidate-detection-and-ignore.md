@@ -53,10 +53,10 @@ ADR 003 の内部モデルで `tag?: string // TODO, FIXME 等（将来拡張）
 
 #### 検出パターン
 
-| カテゴリ | パターン例 | デフォルト |
-| --- | --- | --- |
-| lint disable | `eslint-disable-*`, `stylelint-disable-*` | 有効 |
-| TODO 系 | `TODO`, `FIXME`, `HACK`, `XXX` | **無効（opt-in）** |
+| カテゴリ     | パターン例                                | デフォルト         |
+| ------------ | ----------------------------------------- | ------------------ |
+| lint disable | `eslint-disable-*`, `stylelint-disable-*` | 有効               |
+| TODO 系      | `TODO`, `FIXME`, `HACK`, `XXX`            | **無効（opt-in）** |
 
 - lint disable はプロジェクトで shiori を使う以上、常に候補となるためデフォルト有効
 - TODO 系は大規模プロジェクトで大量に出現し候補一覧のノイズになり得るため、opt-in とする
@@ -121,14 +121,14 @@ ADR 005 の draft（`shiori:` マーカーあり + ref なし）は維持する�
 
 ### 5. コメント分類の再整理
 
-| 条件 | 分類 | scan 出力 | verify 対象 |
-| --- | --- | --- | --- |
-| `shiori: ref=X` あり | tracked | あり | あり |
-| `shiori:ignore` あり | ignored | あり | なし |
-| `shiori:` あり + ref なし | draft | あり | なし |
-| `shiori:` あり + 構文壊れ | syntax-error | あり | あり |
-| パターンマッチ + `shiori:` なし | candidate | あり | なし |
-| 上記いずれにも該当しない | — | なし | なし |
+| 条件                            | 分類         | scan 出力 | verify 対象 |
+| ------------------------------- | ------------ | --------- | ----------- |
+| `shiori: ref=X` あり            | tracked      | あり      | あり        |
+| `shiori:ignore` あり            | ignored      | あり      | なし        |
+| `shiori:` あり + ref なし       | draft        | あり      | なし        |
+| `shiori:` あり + 構文壊れ       | syntax-error | あり      | あり        |
+| パターンマッチ + `shiori:` なし | candidate    | あり      | なし        |
+| 上記いずれにも該当しない        | —            | なし      | なし        |
 
 ### 6. 型設計の方向性
 
@@ -141,7 +141,7 @@ interface ShioriAnnotation {
   rule?: string;
   expires?: string;
   reason?: string;
-  ignored: boolean;       // shiori:ignore の有無（tagged を置き換え）
+  ignored: boolean; // shiori:ignore の有無（tagged を置き換え）
   location: { file: string; line: number };
 }
 
@@ -149,8 +149,8 @@ interface ShioriAnnotation {
 interface ShioriCandidate {
   /** 検出パターンのカテゴリ（"lint-disable", "todo" 等） */
   pattern: string;
-  rule?: string;          // lint disable の場合のルール名
-  text?: string;          // TODO テキスト等
+  rule?: string; // lint disable の場合のルール名
+  text?: string; // TODO テキスト等
   location: { file: string; line: number };
 }
 

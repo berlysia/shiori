@@ -3,7 +3,8 @@ export interface ParsedShioriFields {
   ref: string;
   expires?: string;
   reason?: string;
-  [key: string]: string | undefined;
+  errors: string[];
+  [key: string]: string | string[] | undefined;
 }
 
 /**
@@ -13,11 +14,12 @@ export interface ParsedShioriFields {
  */
 export function parseShioriFields(input: string): ParsedShioriFields {
   const fields: Record<string, string> = {};
+  const errors: string[] = [];
   const trimmed = input.trim();
 
   // Bare ref shorthand: a single non-empty token with no '='
   if (trimmed.length > 0 && !trimmed.includes('=') && !/\s/.test(trimmed)) {
-    return { ref: trimmed } as ParsedShioriFields;
+    return { ref: trimmed, errors } as ParsedShioriFields;
   }
 
   let i = 0;
@@ -30,6 +32,16 @@ export function parseShioriFields(input: string): ParsedShioriFields {
     const eqIdx = trimmed.indexOf('=', i);
     if (eqIdx === -1) break;
     const key = trimmed.slice(i, eqIdx);
+
+    // Missing key before '='
+    if (key === '') {
+      errors.push("missing key before '='");
+      i = eqIdx + 1;
+      // Skip value to continue parsing
+      while (i < trimmed.length && trimmed[i] !== ' ') i++;
+      continue;
+    }
+
     i = eqIdx + 1;
 
     // Read value
@@ -40,6 +52,7 @@ export function parseShioriFields(input: string): ParsedShioriFields {
       const closeIdx = trimmed.indexOf(quote, i);
       if (closeIdx === -1) {
         // Unterminated quote: take rest as value
+        errors.push(`unterminated quote for key '${key}'`);
         fields[key] = trimmed.slice(i);
         break;
       }
@@ -49,12 +62,20 @@ export function parseShioriFields(input: string): ParsedShioriFields {
       // Unquoted value: read until whitespace
       const start = i;
       while (i < trimmed.length && trimmed[i] !== ' ') i++;
-      fields[key] = trimmed.slice(start, i);
+      const value = trimmed.slice(start, i);
+
+      // Empty value (key= followed by space or EOF)
+      if (value === '') {
+        errors.push(`empty value for key '${key}'`);
+      }
+
+      fields[key] = value;
     }
   }
 
   return {
     ...fields,
     ref: fields['ref'] ?? '',
+    errors,
   } as ParsedShioriFields;
 }

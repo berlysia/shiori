@@ -2,6 +2,7 @@ import { define } from 'gunshi';
 import { writeFile } from 'node:fs/promises';
 import { scan } from './scan.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
+import { loadConfig } from '../core/config.ts';
 
 const DEFAULT_PATTERNS = ['**/*.{css,scss,pcss,js,ts,tsx,jsx}'];
 const DEFAULT_IGNORE = ['**/node_modules/**', '**/dist/**', '**/.git/**'];
@@ -32,6 +33,11 @@ export const scanCommand = define({
       type: 'string',
       description: 'Working directory. Default: process.cwd()',
     },
+    config: {
+      type: 'string',
+      short: 'c',
+      description: 'Path to directory containing .shiorirc.json. Default: cwd',
+    },
     provider: {
       type: 'string',
       description: 'Annotation provider. Default: "comment"',
@@ -48,22 +54,30 @@ export const scanCommand = define({
       : DEFAULT_IGNORE;
 
     const cwd = ctx.values.cwd ?? process.cwd();
+    const configDir = ctx.values.config ?? cwd;
+    const config = await loadConfig(configDir);
     const provider = new CommentProvider();
 
-    const result = await scan({ patterns, ignore, provider, cwd });
-    const json = JSON.stringify(result.records, null, 2);
+    const result = await scan({
+      patterns,
+      ignore,
+      provider,
+      cwd,
+      providerOptions: { candidatePatterns: config.candidatePatterns },
+    });
+    const json = JSON.stringify(result, null, 2);
 
     if (ctx.values.output) {
       await writeFile(ctx.values.output, json + '\n', 'utf-8');
       console.error(
-        `Wrote ${result.records.length} records to ${ctx.values.output}`,
+        `Wrote ${result.annotations.length} annotation(s) and ${result.candidates.length} candidate(s) to ${ctx.values.output}`,
       );
     } else {
       console.log(json);
     }
 
     console.error(
-      `Scanned ${result.filesScanned} files, found ${result.records.length} annotation(s)`,
+      `Scanned ${result.filesScanned} files, found ${result.annotations.length} annotation(s), ${result.candidates.length} candidate(s)`,
     );
   },
 });

@@ -1,5 +1,9 @@
 /* stylelint-disable-next-line plugin/x -- waive(A) expires="2026-01-01" */
-.a { color: red; }
+.a {
+  color: red;
+}
 
 /* stylelint-disable-next-line plugin/y -- waive(B) expires=2026-02-02 */
-.b { color: blue; }
+.b {
+  color: blue;
+}

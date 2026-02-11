@@ -49,13 +49,23 @@ describe('CLI E2E', () => {
     tmpDir = await mkdtemp(join(tmpdir(), 'shiori-e2e-'));
     scanResultPath = join(tmpDir, 'scan-result.json');
 
-    // Pre-run scan and save result for verify/init-registry tests
+    // Pre-run scan and save result for verify/init-registry/draft tests
     const { stdout } = await runCli(['scan', '--patterns', SCAN_PATTERNS]);
 
-    const records = JSON.parse(stdout) as unknown[];
-    assert.ok(Array.isArray(records), 'scan should output JSON array');
-    assert.ok(records.length > 0, 'scan should find records');
-    await writeFile(scanResultPath, JSON.stringify(records, null, 2), 'utf-8');
+    const scanResult = JSON.parse(stdout) as {
+      annotations: unknown[];
+      candidates: unknown[];
+      filesScanned: number;
+    };
+    assert.ok(
+      Array.isArray(scanResult.annotations),
+      'scan should output ScanResult with annotations array',
+    );
+    assert.ok(
+      scanResult.annotations.length > 0,
+      'scan should find annotations',
+    );
+    await writeFile(scanResultPath, stdout, 'utf-8');
   });
 
   after(async () => {
@@ -76,23 +86,27 @@ describe('CLI E2E', () => {
   });
 
   describe('scan command', () => {
-    it('outputs ShioriAnnotation JSON to stdout', async () => {
+    it('outputs ScanResult JSON to stdout', async () => {
       const { stdout, exitCode } = await runCli([
         'scan',
         '--patterns',
         SCAN_PATTERNS,
       ]);
       assert.equal(exitCode, 0);
-      const records = JSON.parse(stdout) as Array<{
-        ref: string;
-        location: { file: string };
-      }>;
-      assert.ok(Array.isArray(records));
-      // SUP-1001, SUP-1002, SUP-2001, SUP-2002, malformed(no-debugger), draft(no ref)
-      assert.equal(records.length, 6);
-      // Verify new field shape
-      assert.ok(records[0]!.ref !== undefined);
-      assert.ok(records[0]!.location !== undefined);
+      const scanResult = JSON.parse(stdout) as {
+        annotations: Array<{ ref: string; location: { file: string } }>;
+        candidates: Array<{ pattern: string }>;
+        filesScanned: number;
+      };
+      // SUP-1001, SUP-1002, SUP-2001, SUP-2002, draft(no ref)
+      assert.equal(scanResult.annotations.length, 5);
+      // Line 7: eslint-disable-next-line no-debugger → lint-disable candidate
+      assert.equal(scanResult.candidates.length, 1);
+      assert.equal(scanResult.candidates[0]!.pattern, 'lint-disable');
+      assert.equal(scanResult.filesScanned, 2);
+      // Verify annotation field shape
+      assert.ok(scanResult.annotations[0]!.ref !== undefined);
+      assert.ok(scanResult.annotations[0]!.location !== undefined);
     });
 
     it('writes to file with --output', async () => {
@@ -106,8 +120,12 @@ describe('CLI E2E', () => {
       ]);
       assert.equal(exitCode, 0);
       const content = await readFile(outputPath, 'utf-8');
-      const records = JSON.parse(content) as unknown[];
-      assert.equal(records.length, 6);
+      const scanResult = JSON.parse(content) as {
+        annotations: unknown[];
+        candidates: unknown[];
+      };
+      assert.equal(scanResult.annotations.length, 5);
+      assert.equal(scanResult.candidates.length, 1);
     });
   });
 
@@ -136,7 +154,7 @@ describe('CLI E2E', () => {
         '--registry',
         join(PROJECT_ROOT, REGISTRY_PATH),
         '--warn-on',
-        'missing-in-registry,unused-in-source,expired,malformed',
+        'missing-in-registry,unused-in-source,expired,syntax-error',
       ]);
       assert.equal(exitCode, 0);
     });
@@ -151,7 +169,7 @@ describe('CLI E2E', () => {
         '--format',
         'markdown',
         '--warn-on',
-        'missing-in-registry,unused-in-source,expired,malformed',
+        'missing-in-registry,unused-in-source,expired,syntax-error',
       ]);
       assert.equal(exitCode, 0);
       assert.ok(stdout.includes('# Annotation Registry Verification Report'));
@@ -167,7 +185,7 @@ describe('CLI E2E', () => {
         '--fail-on',
         'expired',
         '--warn-on',
-        'missing-in-registry,unused-in-source,malformed',
+        'missing-in-registry,unused-in-source,syntax-error',
       ]);
       const result = JSON.parse(stdout) as {
         issues: Array<{ type: string }>;

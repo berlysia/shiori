@@ -10,6 +10,33 @@ export interface ShioriAnnotation {
   reason?: string;
   /** Whether the annotation has an explicit `shiori:` marker in source */
   tagged: boolean;
+  /** Whether the annotation is explicitly ignored via shiori:ignore */
+  ignored: boolean;
+  /** Parser syntax errors, if any */
+  syntaxErrors?: string[];
+  /** Source location */
+  location: {
+    file: string;
+    line: number;
+  };
+}
+
+/** Candidate pattern category */
+export type CandidatePattern =
+  | 'lint-disable'
+  | 'todo'
+  | 'fixme'
+  | 'hack'
+  | 'xxx';
+
+/** A candidate comment detected by pattern matching (no shiori: marker) */
+export interface ShioriCandidate {
+  /** Detection pattern category */
+  pattern: CandidatePattern;
+  /** Lint rule name (for lint-disable pattern) */
+  rule?: string;
+  /** Comment text (for TODO/FIXME/HACK/XXX) */
+  text?: string;
   /** Source location */
   location: {
     file: string;
@@ -36,7 +63,7 @@ export type VerifyIssueType =
   | 'missing-in-registry'
   | 'unused-in-source'
   | 'expired'
-  | 'malformed';
+  | 'syntax-error';
 
 /** Issue severity */
 export type IssueSeverity = 'error' | 'warning';

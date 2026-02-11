@@ -1,8 +1,8 @@
 // eslint-disable-next-line no-console, no-debugger -- shiori: ref=SUP-MULTI kind=waive
-console.log("test");
+console.log('test');
 
 // eslint-disable-next-line no-console
-console.log("no shiori");
+console.log('no shiori');
 
 // eslint-disable-next-line -- shiori: ref=SUP-NORULE kind=waive
 doSomething();

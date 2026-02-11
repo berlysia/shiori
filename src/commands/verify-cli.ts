@@ -1,6 +1,7 @@
 import { define } from 'gunshi';
 import { readFile, writeFile } from 'node:fs/promises';
-import type { ShioriAnnotation, VerifyIssueType } from '../core/types.ts';
+import type { VerifyIssueType } from '../core/types.ts';
+import type { ScanResult } from './scan.ts';
 import { loadRegistry } from '../core/registry.ts';
 import {
   verify,
@@ -58,9 +59,10 @@ export const verifyCommand = define({
     const registryPath = ctx.values.registry;
 
     const scanContent = await readFile(ctx.values.scan, 'utf-8');
-    const scanData = JSON.parse(scanContent) as ShioriAnnotation[];
+    const scanResult = JSON.parse(scanContent) as ScanResult;
 
-    const { registry, errors: registryErrors } = await loadRegistry(registryPath);
+    const { registry, errors: registryErrors } =
+      await loadRegistry(registryPath);
     if (registryErrors.length > 0) {
       console.error('Registry validation errors:');
       for (const err of registryErrors) {
@@ -69,7 +71,7 @@ export const verifyCommand = define({
     }
 
     const result = verify({
-      records: scanData,
+      records: scanResult.annotations,
       registry,
       failOn: parseIssueTypes(ctx.values.failOn),
       warnOn: parseIssueTypes(ctx.values.warnOn),
