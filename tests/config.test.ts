@@ -96,6 +96,7 @@ describe('config', () => {
         hack: false,
         xxx: false,
       });
+      assert.equal(config.refPatterns, undefined);
     });
 
     it('overrides specific patterns', () => {
@@ -104,6 +105,16 @@ describe('config', () => {
       });
       assert.equal(config.candidatePatterns.todo, true);
       assert.equal(config.candidatePatterns['lint-disable'], true);
+    });
+
+    it('passes through refPatterns', () => {
+      const config = resolveConfig({
+        refPatterns: [
+          { match: 'JIRA:{id}', urlTemplate: 'https://jira.example.com/{id}' },
+        ],
+      });
+      assert.equal(config.refPatterns!.length, 1);
+      assert.equal(config.refPatterns![0]!.match, 'JIRA:{id}');
     });
   });
 });

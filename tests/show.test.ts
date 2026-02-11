@@ -33,16 +33,16 @@ describe('show', () => {
     makeAnnotation('SUP-999', 'src/util.ts', 10),
   ];
 
-  const namespaces = {
-    JIRA: { urlTemplate: 'https://jira.example.com/browse/{id}' },
-  };
+  const refPatterns = [
+    { match: 'JIRA:{id}', urlTemplate: 'https://jira.example.com/browse/{id}' },
+  ];
 
   it('returns full info for ref in registry and source', () => {
     const result = show({
       ref: 'JIRA:PROJ-123',
       registry,
       annotations,
-      namespaces,
+      refPatterns,
     });
 
     assert.equal(result.ref, 'JIRA:PROJ-123');
@@ -59,7 +59,7 @@ describe('show', () => {
       ref: 'SUP-999',
       registry,
       annotations,
-      namespaces,
+      refPatterns,
     });
 
     assert.equal(result.registryEntry, undefined);
@@ -74,7 +74,7 @@ describe('show', () => {
       ref: 'JIRA:OTHER-1',
       registry,
       annotations,
-      namespaces,
+      refPatterns,
     });
 
     assert.equal(result.registryEntry, undefined);
@@ -88,7 +88,7 @@ describe('show', () => {
       ref: 'JIRA:PROJ-123',
       registry: {},
       annotations: [],
-      namespaces,
+      refPatterns,
     });
 
     assert.equal(result.url, 'https://jira.example.com/browse/PROJ-123');
@@ -99,7 +99,7 @@ describe('show', () => {
       ref: 'JIRA:PROJ-123',
       registry,
       annotations,
-      namespaces: undefined,
+      refPatterns: undefined,
     });
 
     assert.equal(result.url, undefined);

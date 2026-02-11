@@ -4,7 +4,7 @@ import { resolve, dirname } from 'node:path';
 import type { ScanResult } from './scan.ts';
 import { loadRegistry, saveRegistry } from '../core/registry.ts';
 import { loadConfig } from '../core/config.ts';
-import { initRegistry, routeRegistryByNamespace } from './init-registry.ts';
+import { initRegistry, routeRegistryByPattern } from './init-registry.ts';
 
 export const initRegistryCommand = define({
   name: 'init-registry',
@@ -53,9 +53,9 @@ export const initRegistryCommand = define({
       existingRegistry,
     });
 
-    // Route entries by namespace if namespaces are configured
-    if (config.namespaces) {
-      const routed = routeRegistryByNamespace(registry, config.namespaces);
+    // Route entries by pattern if refPatterns are configured
+    if (config.refPatterns) {
+      const routed = routeRegistryByPattern(registry, config.refPatterns);
       const basePath = dirname(resolve(ctx.values.output));
 
       for (const [target, entries] of routed) {
@@ -69,7 +69,7 @@ export const initRegistryCommand = define({
           const targetPath = resolve(basePath, target);
           await saveRegistry(targetPath, entries);
           console.error(
-            `Generated namespace registry with ${Object.keys(entries).length} entries at ${targetPath}`,
+            `Generated pattern registry with ${Object.keys(entries).length} entries at ${targetPath}`,
           );
         }
       }

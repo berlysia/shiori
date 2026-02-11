@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { NamespaceConfig } from './namespace.ts';
+import type { RefPatternConfig } from './ref-pattern.ts';
 import type { CandidatePatternConfig } from './providers/AnnotationProvider.ts';
 import { DEFAULT_CANDIDATE_PATTERNS } from './providers/AnnotationProvider.ts';
 
@@ -8,15 +8,15 @@ import { DEFAULT_CANDIDATE_PATTERNS } from './providers/AnnotationProvider.ts';
 export interface ShioriConfig {
   /** Candidate detection pattern overrides */
   candidates?: Partial<CandidatePatternConfig>;
-  /** Namespace configuration for ref resolution */
-  namespaces?: Record<string, NamespaceConfig>;
+  /** Pattern-based ref resolution (ADR 012) */
+  refPatterns?: RefPatternConfig[];
 }
 
 /** Resolved configuration with all defaults applied */
 export interface ResolvedConfig {
   candidatePatterns: CandidatePatternConfig;
-  /** Namespace configuration (passed through as-is) */
-  namespaces: Record<string, NamespaceConfig> | undefined;
+  /** Pattern-based ref resolution (passed through as-is) */
+  refPatterns: RefPatternConfig[] | undefined;
 }
 
 const CONFIG_FILENAME = '.shiorirc.json';
@@ -38,7 +38,7 @@ export async function loadConfig(cwd: string): Promise<ResolvedConfig> {
       // No config file — use defaults
       return {
         candidatePatterns: { ...DEFAULT_CANDIDATE_PATTERNS },
-        namespaces: undefined,
+        refPatterns: undefined,
       };
     }
     throw err;
@@ -54,6 +54,6 @@ export function resolveConfig(raw: ShioriConfig): ResolvedConfig {
       ...DEFAULT_CANDIDATE_PATTERNS,
       ...raw.candidates,
     },
-    namespaces: raw.namespaces,
+    refPatterns: raw.refPatterns,
   };
 }

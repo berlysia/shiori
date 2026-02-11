@@ -3,14 +3,14 @@ import type {
   Registry,
   RegistryEntry,
 } from '../core/types.ts';
-import type { NamespaceConfig } from '../core/namespace.ts';
-import { resolveRefUrl } from '../core/namespace.ts';
+import type { RefPatternConfig } from '../core/ref-pattern.ts';
+import { resolveRefUrl } from '../core/ref-pattern.ts';
 
 export interface ShowInput {
   ref: string;
   registry: Registry;
   annotations: ShioriAnnotation[];
-  namespaces: Record<string, NamespaceConfig> | undefined;
+  refPatterns: RefPatternConfig[] | undefined;
 }
 
 export interface ShowResult {
@@ -25,7 +25,7 @@ export interface ShowResult {
  * Pure function — no IO.
  */
 export function show(input: ShowInput): ShowResult {
-  const { ref, registry, annotations, namespaces } = input;
+  const { ref, registry, annotations, refPatterns } = input;
 
   const registryEntry = registry[ref];
 
@@ -33,7 +33,7 @@ export function show(input: ShowInput): ShowResult {
     .filter((a) => a.ref === ref)
     .map((a) => ({ file: a.location.file, line: a.location.line }));
 
-  const url = resolveRefUrl(ref, namespaces);
+  const url = resolveRefUrl(ref, refPatterns);
 
   return {
     ref,

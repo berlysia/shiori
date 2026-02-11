@@ -54,7 +54,7 @@ export const showCommand = define({
       ref: ctx.values.ref,
       registry,
       annotations: scanResult.annotations,
-      namespaces: config.namespaces,
+      refPatterns: config.refPatterns,
     });
 
     console.log(JSON.stringify(result, null, 2));

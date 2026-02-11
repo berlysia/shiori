@@ -1,6 +1,6 @@
 import type { Registry, ShioriAnnotation } from '../core/types.ts';
-import type { NamespaceConfig } from '../core/namespace.ts';
-import { parseRef } from '../core/namespace.ts';
+import type { RefPatternConfig } from '../core/ref-pattern.ts';
+import { matchRefPattern } from '../core/ref-pattern.ts';
 
 export interface InitRegistryOptions {
   /** Shiori annotations from scan */
@@ -72,24 +72,23 @@ export function initRegistry(options: InitRegistryOptions): Registry {
 }
 
 /**
- * Route a registry into per-namespace registries based on namespace config.
- * Returns a map of registryFile → Registry, plus a "default" key for entries
- * without a matching namespace.
+ * Route a registry into per-pattern registries based on ref pattern config.
+ * Returns a map of registryFile → Registry, plus null key for entries
+ * without a matching pattern.
  */
-export function routeRegistryByNamespace(
+export function routeRegistryByPattern(
   registry: Registry,
-  namespaces: Record<string, NamespaceConfig> | undefined,
+  patterns: RefPatternConfig[] | undefined,
 ): Map<string | null, Registry> {
   const routed = new Map<string | null, Registry>();
 
   for (const [ref, entry] of Object.entries(registry)) {
-    const parsed = parseRef(ref);
     let target: string | null = null;
 
-    if (parsed.namespace && namespaces) {
-      const nsConfig = namespaces[parsed.namespace];
-      if (nsConfig?.registryFile) {
-        target = nsConfig.registryFile;
+    if (patterns) {
+      const match = matchRefPattern(ref, patterns);
+      if (match?.config.registryFile) {
+        target = match.config.registryFile;
       }
     }
 

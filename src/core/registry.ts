@@ -2,7 +2,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { extname, resolve, dirname } from 'node:path';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import type { Registry, RegistryEntry } from './types.ts';
-import type { NamespaceConfig } from './namespace.ts';
+import type { RefPatternConfig } from './ref-pattern.ts';
 
 /** Validation error for a registry entry */
 export interface RegistryValidationError {
@@ -129,7 +129,7 @@ export async function loadRegistry(
 export interface RegistryDuplicateWarning {
   ref: string;
   defaultFile: string;
-  namespaceFile: string;
+  patternFile: string;
 }
 
 /** Result of loading multiple registry files */
@@ -140,16 +140,16 @@ export interface MultiRegistryLoadResult {
 }
 
 /**
- * Load and merge registries: default registry + namespace-specific registries.
- * Namespace-specific files take precedence on key conflicts.
+ * Load and merge registries: default registry + pattern-specific registries.
+ * Pattern-specific files take precedence on key conflicts.
  *
  * @param defaultRegistryPath - Path to the default registry file
- * @param namespaces - Namespace configuration (may contain registryFile)
+ * @param patterns - Ref pattern configuration (may contain registryFile)
  * @param basePath - Base directory to resolve relative registryFile paths against
  */
 export async function loadMultiRegistry(
   defaultRegistryPath: string,
-  namespaces: Record<string, NamespaceConfig> | undefined,
+  patterns: RefPatternConfig[] | undefined,
   basePath?: string,
 ): Promise<MultiRegistryLoadResult> {
   const allErrors: RegistryValidationError[] = [];
@@ -160,28 +160,28 @@ export async function loadMultiRegistry(
   const merged: Registry = { ...defaultResult.registry };
   allErrors.push(...defaultResult.errors);
 
-  // 2. Load namespace-specific registries
-  if (namespaces) {
+  // 2. Load pattern-specific registries
+  if (patterns) {
     const resolveBase = basePath ?? dirname(defaultRegistryPath);
     const loaded = new Set<string>();
 
-    for (const [, nsConfig] of Object.entries(namespaces)) {
-      if (!nsConfig.registryFile) continue;
+    for (const pattern of patterns) {
+      if (!pattern.registryFile) continue;
 
-      const nsPath = resolve(resolveBase, nsConfig.registryFile);
-      if (loaded.has(nsPath)) continue;
-      loaded.add(nsPath);
+      const patternPath = resolve(resolveBase, pattern.registryFile);
+      if (loaded.has(patternPath)) continue;
+      loaded.add(patternPath);
 
-      const nsResult = await loadRegistry(nsPath);
-      allErrors.push(...nsResult.errors);
+      const patternResult = await loadRegistry(patternPath);
+      allErrors.push(...patternResult.errors);
 
-      // Merge: namespace file wins, track duplicates
-      for (const [ref, entry] of Object.entries(nsResult.registry)) {
+      // Merge: pattern file wins, track duplicates
+      for (const [ref, entry] of Object.entries(patternResult.registry)) {
         if (ref in merged) {
           duplicates.push({
             ref,
             defaultFile: defaultRegistryPath,
-            namespaceFile: nsConfig.registryFile,
+            patternFile: pattern.registryFile,
           });
         }
         merged[ref] = entry;
