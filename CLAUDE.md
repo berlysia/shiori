@@ -40,7 +40,7 @@ Source Files → CommentProvider.scan() → ShioriAnnotation[]
 
 - **types.ts** — All shared types (`ShioriAnnotation`, `Registry`, `VerifyIssue`, etc.)
 - **parser.ts** — `parseShioriFields()`: parses `shiori: <ref> [key=value ...]` annotation syntax
-- **registry.ts** — Registry loading, validation, saving
+- **registry.ts** — Registry loading, validation, saving (JSON and YAML formats, auto-detected by file extension)
 - **providers/AnnotationProvider.ts** — Provider interface (pluggable extraction)
 - **providers/CommentProvider.ts** — Current implementation: line-based text scanning for lint disable comments
 

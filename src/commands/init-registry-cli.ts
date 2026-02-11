@@ -19,7 +19,7 @@ export const initRegistryCommand = define({
       type: 'string',
       short: 'o',
       required: true,
-      description: 'Output registry JSON file path',
+      description: 'Output registry file path (.json, .yaml, .yml)',
     },
     merge: {
       type: 'string',

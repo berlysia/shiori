@@ -1,4 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises';
+import { extname } from 'node:path';
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import type { Registry, RegistryEntry } from './types.ts';
 
 /** Validation error for a registry entry */
@@ -11,6 +13,23 @@ export interface RegistryValidationError {
 export interface RegistryLoadResult {
   registry: Registry;
   errors: RegistryValidationError[];
+}
+
+type RegistryFormat = 'json' | 'yaml';
+
+function detectFormat(filePath: string): RegistryFormat {
+  const ext = extname(filePath).toLowerCase();
+  switch (ext) {
+    case '.json':
+      return 'json';
+    case '.yaml':
+    case '.yml':
+      return 'yaml';
+    default:
+      throw new Error(
+        `Unsupported registry file extension "${ext}". Expected .json, .yaml, or .yml`,
+      );
+  }
 }
 
 const DATE_RE = /^\d{4}-\d{2}(-\d{2})?$/;
@@ -76,17 +95,19 @@ function validateEntry(
 }
 
 /**
- * Load a JSON registry file.
- * @throws if file cannot be read or JSON is invalid
+ * Load a registry file (.json, .yaml, .yml).
+ * @throws if file cannot be read or content is invalid
  */
 export async function loadRegistry(
   filePath: string,
 ): Promise<RegistryLoadResult> {
   const content = await readFile(filePath, 'utf-8');
-  const parsed: unknown = JSON.parse(content);
+  const format = detectFormat(filePath);
+  const parsed: unknown =
+    format === 'json' ? JSON.parse(content) : parseYaml(content);
 
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-    throw new Error('Registry file must contain a JSON object');
+    throw new Error('Registry file must contain an object');
   }
 
   const registry: Registry = {};
@@ -104,12 +125,23 @@ export async function loadRegistry(
 }
 
 /**
- * Write a registry to a JSON file.
+ * Write a registry to a file (.json, .yaml, .yml).
  */
 export async function saveRegistry(
   filePath: string,
   registry: Registry,
 ): Promise<void> {
-  const json = JSON.stringify(registry, null, 2) + '\n';
-  await writeFile(filePath, json, 'utf-8');
+  const format = detectFormat(filePath);
+  let output: string;
+  if (format === 'json') {
+    output = JSON.stringify(registry, null, 2) + '\n';
+  } else {
+    // undefined フィールドを除去してから YAML 化
+    // yaml パッケージは undefined を null として出力するため
+    output = stringifyYaml(JSON.parse(JSON.stringify(registry)), {
+      indent: 2,
+      lineWidth: 0,
+    });
+  }
+  await writeFile(filePath, output, 'utf-8');
 }

@@ -1,0 +1,15 @@
+SUP-1001:
+  reason: vendor prefix fallback
+  target: 'iOS Safari < 17.4'
+  expires: '2026-06-01'
+SUP-1002:
+  reason: grid not supported in old browsers
+  target: IE 11
+SUP-2001:
+  reason: temporary workaround
+  target: all
+  expires: '2027-01-01'
+SUP-9999:
+  reason: this is no longer used
+  target: all
+  expires: '2025-01-01'

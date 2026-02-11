@@ -29,7 +29,7 @@ export const verifyCommand = define({
       type: 'string',
       short: 'r',
       required: true,
-      description: 'Path to registry JSON file',
+      description: 'Path to registry file (.json, .yaml, .yml)',
     },
     format: {
       type: 'string',

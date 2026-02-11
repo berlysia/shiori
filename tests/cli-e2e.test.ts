@@ -14,6 +14,7 @@ const PROJECT_ROOT = new URL('..', import.meta.url).pathname;
 // Relative patterns for fast-glob (resolved from PROJECT_ROOT as cwd)
 const SCAN_PATTERNS = 'tests/fixtures/e2e/**/*.css,tests/fixtures/e2e/**/*.ts';
 const REGISTRY_PATH = 'tests/fixtures/e2e/registry.json';
+const REGISTRY_YAML_PATH = 'tests/fixtures/e2e/registry.yaml';
 
 interface CliResult {
   stdout: string;
@@ -74,6 +75,8 @@ describe('CLI E2E', () => {
       'output-scan.json',
       'new-registry.json',
       'merged-registry.json',
+      'new-registry.yaml',
+      'merged-registry.yaml',
       'draft-result.json',
     ];
     for (const f of files) {
@@ -175,6 +178,23 @@ describe('CLI E2E', () => {
       assert.ok(stdout.includes('# Annotation Registry Verification Report'));
     });
 
+    it('works with YAML registry', async () => {
+      const { exitCode, stdout } = await runCli([
+        'verify',
+        '--scan',
+        scanResultPath,
+        '--registry',
+        join(PROJECT_ROOT, REGISTRY_YAML_PATH),
+        '--warn-on',
+        'missing-in-registry,unused-in-source,expired,syntax-error',
+      ]);
+      assert.equal(exitCode, 0);
+      const result = JSON.parse(stdout) as {
+        registryEntries: number;
+      };
+      assert.equal(result.registryEntries, 4);
+    });
+
     it('detects expired entries', async () => {
       const { stdout } = await runCli([
         'verify',
@@ -213,6 +233,39 @@ describe('CLI E2E', () => {
       >;
       assert.ok('SUP-1001' in registry);
       assert.equal(registry['SUP-1001']!.reason, 'TODO: fill in reason');
+    });
+
+    it('generates a YAML registry template', async () => {
+      const outputPath = join(tmpDir, 'new-registry.yaml');
+      const { exitCode } = await runCli([
+        'init-registry',
+        '--scan',
+        scanResultPath,
+        '--output',
+        outputPath,
+      ]);
+      assert.equal(exitCode, 0);
+      const content = await readFile(outputPath, 'utf-8');
+      assert.ok(!content.startsWith('{'), 'output should be YAML, not JSON');
+      assert.ok(content.includes('SUP-1001'));
+      assert.ok(content.includes('TODO: fill in reason'));
+    });
+
+    it('merges with YAML registry', async () => {
+      const outputPath = join(tmpDir, 'merged-registry.yaml');
+      const { exitCode } = await runCli([
+        'init-registry',
+        '--scan',
+        scanResultPath,
+        '--output',
+        outputPath,
+        '--merge',
+        join(PROJECT_ROOT, REGISTRY_YAML_PATH),
+      ]);
+      assert.equal(exitCode, 0);
+      const content = await readFile(outputPath, 'utf-8');
+      assert.ok(!content.startsWith('{'), 'output should be YAML, not JSON');
+      assert.ok(content.includes('vendor prefix fallback'));
     });
 
     it('merges with existing registry (preserves existing entries)', async () => {
