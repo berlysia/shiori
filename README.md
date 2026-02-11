@@ -1,17 +1,17 @@
-# lint-ledger
+# shiori
 
 Annotation tracking and governance tool.
 
 ## Purpose
 
-`lint-ledger` is a governance layer that recovers structured annotations — lint violations hidden by `disable` comments and other tracked exceptions — from source code, manages them in a ledger, and verifies them in CI.
+`shiori` is a governance layer that recovers structured annotations — lint violations hidden by `disable` comments and other tracked exceptions — from source code, manages them in a registry, and verifies them in CI.
 
 When developers use `stylelint-disable-next-line` or `eslint-disable-next-line`, those violations disappear from lint results entirely. This tool brings them back under organizational control by:
 
 - Scanning source code for annotated disable comments
 - Requiring each annotation to carry a tracking ID via `verb(<ID>)` (e.g. `waive(SUP-1234)`)
 - Supporting multiple annotation verbs: `waive`, `note`, `risk`, `migrate` (and custom verbs)
-- Verifying IDs against a JSON ledger with reason, ownership, and expiration
+- Verifying IDs against a JSON registry with reason, ownership, and expiration
 - Generating human-readable (Markdown) and machine-readable (JSON) reports
 
 ## Annotation Verbs
@@ -30,7 +30,7 @@ Custom verbs can be configured via the `--verbs` CLI option.
 ## Why Not a Lint Plugin?
 
 - `disable` comments make violations invisible to lint results. A plugin cannot reliably observe or report suppressed violations.
-- Plugins can enforce comment formatting (e.g., requiring an ID), but **ledger reconciliation, expiry detection, and inventory audits** are organizational concerns that bloat a plugin.
+- Plugins can enforce comment formatting (e.g., requiring an ID), but **registry reconciliation, expiry detection, and inventory audits** are organizational concerns that bloat a plugin.
 - This tool operates as an external CLI that handles extraction, reconciliation, and reporting — complementary to (not replacing) lint rules.
 
 ## Architecture: Provider Design
@@ -47,7 +47,7 @@ Annotation extraction is abstracted behind an `AnnotationProvider` interface, ma
                     ▼         ▼         ▼
              CommentProvider  (future)  (future)
              (disable comments) ESLint   Remote
-                              native    ledger
+                              native    registry
                               suppress.
 ```
 
@@ -56,7 +56,7 @@ Annotation extraction is abstracted behind an `AnnotationProvider` interface, ma
 **Future providers** (not yet implemented):
 - ESLint native suppressions (`eslint-suppressions.json`)
 - External JSON suppressions
-- Remote ledger APIs
+- Remote registry APIs
 
 ## Usage
 
@@ -84,7 +84,7 @@ console.log("debug output");
 var legacy = true;
 ```
 
-### Ledger Format
+### Registry Format
 
 A JSON file keyed by annotation ID:
 
@@ -105,7 +105,7 @@ A JSON file keyed by annotation ID:
 #### `scan` — Extract annotations from source
 
 ```bash
-lint-ledger scan \
+shiori scan \
   --patterns "src/**/*.{css,scss,ts,tsx}" \
   --output scan-result.json
 ```
@@ -117,43 +117,43 @@ Options:
 - `--cwd` — Working directory (default: `process.cwd()`)
 - `--verbs` — Annotation verbs to detect (comma-separated). Default: `waive,note,risk,migrate`
 
-#### `verify` — Reconcile scan results with ledger
+#### `verify` — Reconcile scan results with registry
 
 ```bash
-lint-ledger verify \
+shiori verify \
   --scan scan-result.json \
-  --ledger ledger.json \
-  --fail-on missing-in-ledger,expired \
+  --registry registry.json \
+  --fail-on missing-in-registry,expired \
   --warn-on unused-in-source
 ```
 
 Detects:
-- **missing-in-ledger** — ID in source but not in ledger
-- **unused-in-source** — ID in ledger but not in source
-- **expired** — Ledger entry past its `expires` date
+- **missing-in-registry** — ID in source but not in registry
+- **unused-in-source** — ID in registry but not in source
+- **expired** — Registry entry past its `expires` date
 - **malformed** — Annotation without tracking ID
 
 Options:
 - `--scan, -s` — Path to scan result JSON (required)
-- `--ledger, -l` — Path to ledger JSON (required)
-- `--registry, -r` — Alias for `--ledger`
+- `--registry, -r` — Path to registry JSON (required)
+- `--ledger, -l` — Alias for `--registry`
 - `--fail-on` — Issue types that cause exit code 1 (comma-separated)
 - `--warn-on` — Issue types reported as warnings (comma-separated)
 - `--format, -f` — Output format: `json` (default) or `markdown`
 - `--output, -o` — Output file (default: stdout)
 
-#### `init-ledger` — Generate ledger template
+#### `init-registry` — Generate registry template
 
 ```bash
-lint-ledger init-ledger \
+shiori init-registry \
   --scan scan-result.json \
-  --output ledger.json
+  --output registry.json
 
-# Merge with existing ledger (preserves existing entries)
-lint-ledger init-ledger \
+# Merge with existing registry (preserves existing entries)
+shiori init-registry \
   --scan scan-result.json \
-  --output ledger.json \
-  --merge existing-ledger.json
+  --output registry.json \
+  --merge existing-registry.json
 ```
 
 ## CI Integration
@@ -161,11 +161,11 @@ lint-ledger init-ledger \
 ### GitHub Actions
 
 ```yaml
-name: Annotation Ledger Check
+name: Annotation Registry Check
 on: [pull_request]
 
 jobs:
-  lint-ledger:
+  shiori:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -175,25 +175,25 @@ jobs:
       - run: npm ci
 
       - name: Scan annotations
-        run: npx lint-ledger scan --output scan-result.json
+        run: npx shiori scan --output scan-result.json
 
-      - name: Verify against ledger
+      - name: Verify against registry
         run: |
-          npx lint-ledger verify \
+          npx shiori verify \
             --scan scan-result.json \
-            --ledger ledger.json \
-            --fail-on missing-in-ledger,expired \
+            --registry registry.json \
+            --fail-on missing-in-registry,expired \
             --warn-on unused-in-source
 
       - name: Generate report
         if: always()
         run: |
-          npx lint-ledger verify \
+          npx shiori verify \
             --scan scan-result.json \
-            --ledger ledger.json \
+            --registry registry.json \
             --format markdown \
             --output report.md \
-            --warn-on missing-in-ledger,unused-in-source,expired,malformed
+            --warn-on missing-in-registry,unused-in-source,expired,malformed
 ```
 
 ## Development

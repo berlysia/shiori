@@ -13,7 +13,7 @@ const PROJECT_ROOT = new URL('..', import.meta.url).pathname;
 
 // Relative patterns for fast-glob (resolved from PROJECT_ROOT as cwd)
 const SCAN_PATTERNS = 'tests/fixtures/e2e/**/*.css,tests/fixtures/e2e/**/*.ts';
-const LEDGER_PATH = 'tests/fixtures/e2e/ledger.json';
+const REGISTRY_PATH = 'tests/fixtures/e2e/registry.json';
 
 interface CliResult {
   stdout: string;
@@ -42,10 +42,10 @@ describe('CLI E2E', () => {
   let scanResultPath: string;
 
   before(async () => {
-    tmpDir = await mkdtemp(join(tmpdir(), 'lint-ledger-e2e-'));
+    tmpDir = await mkdtemp(join(tmpdir(), 'shiori-e2e-'));
     scanResultPath = join(tmpDir, 'scan-result.json');
 
-    // Pre-run scan and save result for verify/init-ledger tests
+    // Pre-run scan and save result for verify/init-registry tests
     const { stdout } = await runCli([
       'scan',
       '--patterns',
@@ -59,7 +59,7 @@ describe('CLI E2E', () => {
   });
 
   after(async () => {
-    const files = ['scan-result.json', 'output-scan.json', 'new-ledger.json', 'merged-ledger.json'];
+    const files = ['scan-result.json', 'output-scan.json', 'new-registry.json', 'merged-registry.json'];
     for (const f of files) {
       try {
         await unlink(join(tmpDir, f));
@@ -117,16 +117,16 @@ describe('CLI E2E', () => {
   });
 
   describe('verify command', () => {
-    it('exits 1 when missing-in-ledger with --fail-on', async () => {
-      // SUP-2002 is not in ledger -> missing-in-ledger
+    it('exits 1 when missing-in-registry with --fail-on', async () => {
+      // SUP-2002 is not in registry -> missing-in-registry
       const { exitCode, stdout } = await runCli([
         'verify',
         '--scan',
         scanResultPath,
-        '--ledger',
-        join(PROJECT_ROOT, LEDGER_PATH),
+        '--registry',
+        join(PROJECT_ROOT, REGISTRY_PATH),
         '--fail-on',
-        'missing-in-ledger',
+        'missing-in-registry',
       ]);
       assert.equal(exitCode, 1);
       const result = JSON.parse(stdout) as { summary: { errors: number } };
@@ -138,10 +138,10 @@ describe('CLI E2E', () => {
         'verify',
         '--scan',
         scanResultPath,
-        '--ledger',
-        join(PROJECT_ROOT, LEDGER_PATH),
+        '--registry',
+        join(PROJECT_ROOT, REGISTRY_PATH),
         '--warn-on',
-        'missing-in-ledger,unused-in-source,expired,malformed',
+        'missing-in-registry,unused-in-source,expired,malformed',
       ]);
       assert.equal(exitCode, 0);
     });
@@ -151,15 +151,15 @@ describe('CLI E2E', () => {
         'verify',
         '--scan',
         scanResultPath,
-        '--ledger',
-        join(PROJECT_ROOT, LEDGER_PATH),
+        '--registry',
+        join(PROJECT_ROOT, REGISTRY_PATH),
         '--format',
         'markdown',
         '--warn-on',
-        'missing-in-ledger,unused-in-source,expired,malformed',
+        'missing-in-registry,unused-in-source,expired,malformed',
       ]);
       assert.equal(exitCode, 0);
-      assert.ok(stdout.includes('# Annotation Ledger Verification Report'));
+      assert.ok(stdout.includes('# Annotation Registry Verification Report'));
     });
 
     it('detects expired entries', async () => {
@@ -167,12 +167,12 @@ describe('CLI E2E', () => {
         'verify',
         '--scan',
         scanResultPath,
-        '--ledger',
-        join(PROJECT_ROOT, LEDGER_PATH),
+        '--registry',
+        join(PROJECT_ROOT, REGISTRY_PATH),
         '--fail-on',
         'expired',
         '--warn-on',
-        'missing-in-ledger,unused-in-source,malformed',
+        'missing-in-registry,unused-in-source,malformed',
       ]);
       const result = JSON.parse(stdout) as {
         issues: Array<{ type: string }>;
@@ -182,11 +182,11 @@ describe('CLI E2E', () => {
     });
   });
 
-  describe('init-ledger command', () => {
-    it('generates a ledger template', async () => {
-      const outputPath = join(tmpDir, 'new-ledger.json');
+  describe('init-registry command', () => {
+    it('generates a registry template', async () => {
+      const outputPath = join(tmpDir, 'new-registry.json');
       const { exitCode } = await runCli([
-        'init-ledger',
+        'init-registry',
         '--scan',
         scanResultPath,
         '--output',
@@ -194,29 +194,29 @@ describe('CLI E2E', () => {
       ]);
       assert.equal(exitCode, 0);
       const content = await readFile(outputPath, 'utf-8');
-      const ledger = JSON.parse(content) as Record<string, { reason: string }>;
-      assert.ok('SUP-1001' in ledger);
-      assert.equal(ledger['SUP-1001']!.reason, 'TODO: fill in reason');
+      const registry = JSON.parse(content) as Record<string, { reason: string }>;
+      assert.ok('SUP-1001' in registry);
+      assert.equal(registry['SUP-1001']!.reason, 'TODO: fill in reason');
     });
 
-    it('merges with existing ledger', async () => {
-      const outputPath = join(tmpDir, 'merged-ledger.json');
+    it('merges with existing registry', async () => {
+      const outputPath = join(tmpDir, 'merged-registry.json');
       const { exitCode } = await runCli([
-        'init-ledger',
+        'init-registry',
         '--scan',
         scanResultPath,
         '--output',
         outputPath,
         '--merge',
-        join(PROJECT_ROOT, LEDGER_PATH),
+        join(PROJECT_ROOT, REGISTRY_PATH),
       ]);
       assert.equal(exitCode, 0);
       const content = await readFile(outputPath, 'utf-8');
-      const ledger = JSON.parse(content) as Record<string, { reason: string }>;
+      const registry = JSON.parse(content) as Record<string, { reason: string }>;
       // Existing entry preserved
-      assert.equal(ledger['SUP-1001']!.reason, 'vendor prefix fallback');
+      assert.equal(registry['SUP-1001']!.reason, 'vendor prefix fallback');
       // New entry gets placeholder
-      assert.equal(ledger['SUP-2002']!.reason, 'TODO: fill in reason');
+      assert.equal(registry['SUP-2002']!.reason, 'TODO: fill in reason');
     });
   });
 });

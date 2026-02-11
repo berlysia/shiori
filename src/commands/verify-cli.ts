@@ -1,7 +1,7 @@
 import { define } from 'gunshi';
 import { readFile, writeFile } from 'node:fs/promises';
 import type { AnnotationRecord, VerifyIssueType } from '../core/types.ts';
-import { loadLedger } from '../core/ledger.ts';
+import { loadRegistry } from '../core/registry.ts';
 import {
   verify,
   formatVerifyResultAsMarkdown,
@@ -24,16 +24,16 @@ export const verifyCommand = define({
       required: true,
       description: 'Path to scan result JSON file',
     },
-    ledger: {
-      type: 'string',
-      short: 'l',
-      required: true,
-      description: 'Path to ledger JSON file',
-    },
     registry: {
       type: 'string',
       short: 'r',
-      description: 'Alias for --ledger',
+      required: true,
+      description: 'Path to registry JSON file',
+    },
+    ledger: {
+      type: 'string',
+      short: 'l',
+      description: 'Alias for --registry',
     },
     format: {
       type: 'string',
@@ -45,7 +45,7 @@ export const verifyCommand = define({
       type: 'string',
       toKebab: true,
       description:
-        'Issue types to fail on (comma-separated). Example: "missing-in-ledger,expired"',
+        'Issue types to fail on (comma-separated). Example: "missing-in-registry,expired"',
     },
     warnOn: {
       type: 'string',
@@ -60,27 +60,27 @@ export const verifyCommand = define({
     },
   },
   run: async (ctx) => {
-    const scanContent = await readFile(ctx.values.scan, 'utf-8');
-    const scanData = JSON.parse(scanContent) as AnnotationRecord[];
-
-    const ledgerPath = ctx.values.ledger ?? ctx.values.registry;
-    if (!ledgerPath) {
-      console.error('Error: --ledger or --registry is required');
+    const registryPath = ctx.values.registry ?? ctx.values.ledger;
+    if (!registryPath) {
+      console.error('Error: --registry or --ledger is required');
       process.exitCode = 1;
       return;
     }
 
-    const { ledger, errors: ledgerErrors } = await loadLedger(ledgerPath);
-    if (ledgerErrors.length > 0) {
-      console.error('Ledger validation errors:');
-      for (const err of ledgerErrors) {
+    const scanContent = await readFile(ctx.values.scan, 'utf-8');
+    const scanData = JSON.parse(scanContent) as AnnotationRecord[];
+
+    const { registry, errors: registryErrors } = await loadRegistry(registryPath);
+    if (registryErrors.length > 0) {
+      console.error('Registry validation errors:');
+      for (const err of registryErrors) {
         console.error(`  ${err.id}: ${err.message}`);
       }
     }
 
     const result = verify({
       records: scanData,
-      ledger,
+      registry,
       failOn: parseIssueTypes(ctx.values.failOn),
       warnOn: parseIssueTypes(ctx.values.warnOn),
     });

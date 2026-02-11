@@ -1,16 +1,16 @@
 import { readFile, writeFile } from 'node:fs/promises';
-import type { Ledger, LedgerEntry } from './types.ts';
+import type { Registry, RegistryEntry } from './types.ts';
 
-/** Validation error for a ledger entry */
-export interface LedgerValidationError {
+/** Validation error for a registry entry */
+export interface RegistryValidationError {
   id: string;
   message: string;
 }
 
-/** Result of loading a ledger file */
-export interface LedgerLoadResult {
-  ledger: Ledger;
-  errors: LedgerValidationError[];
+/** Result of loading a registry file */
+export interface RegistryLoadResult {
+  registry: Registry;
+  errors: RegistryValidationError[];
 }
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -18,8 +18,8 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 function validateEntry(
   id: string,
   value: unknown,
-): { entry: LedgerEntry | undefined; errors: LedgerValidationError[] } {
-  const errors: LedgerValidationError[] = [];
+): { entry: RegistryEntry | undefined; errors: RegistryValidationError[] } {
+  const errors: RegistryValidationError[] = [];
 
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     return {
@@ -56,7 +56,7 @@ function validateEntry(
   }
 
   // Build entry even with errors (best-effort)
-  const entry: LedgerEntry = {
+  const entry: RegistryEntry = {
     reason: typeof raw['reason'] === 'string' ? raw['reason'] : '',
     target:
       typeof raw['target'] === 'string' || Array.isArray(raw['target'])
@@ -83,38 +83,38 @@ function validateEntry(
 }
 
 /**
- * Load a JSON ledger file.
+ * Load a JSON registry file.
  * @throws if file cannot be read or JSON is invalid
  */
-export async function loadLedger(filePath: string): Promise<LedgerLoadResult> {
+export async function loadRegistry(filePath: string): Promise<RegistryLoadResult> {
   const content = await readFile(filePath, 'utf-8');
   const parsed: unknown = JSON.parse(content);
 
   if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-    throw new Error('Ledger file must contain a JSON object');
+    throw new Error('Registry file must contain a JSON object');
   }
 
-  const ledger: Ledger = {};
-  const errors: LedgerValidationError[] = [];
+  const registry: Registry = {};
+  const errors: RegistryValidationError[] = [];
 
   for (const [id, value] of Object.entries(parsed as Record<string, unknown>)) {
     const result = validateEntry(id, value);
     if (result.entry) {
-      ledger[id] = result.entry;
+      registry[id] = result.entry;
     }
     errors.push(...result.errors);
   }
 
-  return { ledger, errors };
+  return { registry, errors };
 }
 
 /**
- * Write a ledger to a JSON file.
+ * Write a registry to a JSON file.
  */
-export async function saveLedger(
+export async function saveRegistry(
   filePath: string,
-  ledger: Ledger,
+  registry: Registry,
 ): Promise<void> {
-  const json = JSON.stringify(ledger, null, 2) + '\n';
+  const json = JSON.stringify(registry, null, 2) + '\n';
   await writeFile(filePath, json, 'utf-8');
 }

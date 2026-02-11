@@ -2,23 +2,23 @@
 import { cli, define } from 'gunshi';
 import { scanCommand } from './commands/scan-cli.ts';
 import { verifyCommand } from './commands/verify-cli.ts';
-import { initLedgerCommand } from './commands/init-ledger-cli.ts';
+import { initRegistryCommand } from './commands/init-registry-cli.ts';
 
 const main = define({
-  name: 'lint-ledger',
+  name: 'shiori',
   description: 'Annotation tracking and governance tool',
   run: () => {
-    console.log('Run "lint-ledger --help" for usage information.');
+    console.log('Run "shiori --help" for usage information.');
   },
 });
 
 await cli(process.argv.slice(2), main, {
-  name: 'lint-ledger',
+  name: 'shiori',
   version: '0.0.1',
   description: 'Track and govern source code annotations',
   subCommands: {
     scan: scanCommand,
     verify: verifyCommand,
-    'init-ledger': initLedgerCommand,
+    'init-registry': initRegistryCommand,
   },
 });

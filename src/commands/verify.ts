@@ -1,6 +1,6 @@
 import type {
   IssueSeverity,
-  Ledger,
+  Registry,
   AnnotationRecord,
   VerifyIssue,
   VerifyIssueType,
@@ -12,8 +12,8 @@ export type OutputFormat = 'json' | 'markdown';
 export interface VerifyOptions {
   /** Annotation records from scan */
   records: AnnotationRecord[];
-  /** Ledger data */
-  ledger: Ledger;
+  /** Registry data */
+  registry: Registry;
   /** Issue types that cause exit code 1 */
   failOn: VerifyIssueType[];
   /** Issue types reported as warnings */
@@ -34,7 +34,7 @@ function determineSeverity(
 
 function buildSummary(issues: VerifyIssue[]): VerifyResult['summary'] {
   const byType: Record<VerifyIssueType, number> = {
-    'missing-in-ledger': 0,
+    'missing-in-registry': 0,
     'unused-in-source': 0,
     expired: 0,
     malformed: 0,
@@ -52,10 +52,10 @@ function buildSummary(issues: VerifyIssue[]): VerifyResult['summary'] {
 }
 
 /**
- * Verify scan results against ledger, detecting issues.
+ * Verify scan results against registry, detecting issues.
  */
 export function verify(options: VerifyOptions): VerifyResult {
-  const { records, ledger, failOn, warnOn } = options;
+  const { records, registry, failOn, warnOn } = options;
   const now = options.now ?? new Date();
   const todayStr = now.toISOString().slice(0, 10);
   const issues: VerifyIssue[] = [];
@@ -82,18 +82,18 @@ export function verify(options: VerifyOptions): VerifyResult {
     }
   }
 
-  // Check missing-in-ledger (deduplicate by ID)
+  // Check missing-in-registry (deduplicate by ID)
   const reportedMissing = new Set<string>();
   for (const record of records) {
     if (record.id === '') continue;
     if (reportedMissing.has(record.id)) continue;
-    if (!(record.id in ledger)) {
+    if (!(record.id in registry)) {
       reportedMissing.add(record.id);
       issues.push({
-        type: 'missing-in-ledger',
-        severity: determineSeverity('missing-in-ledger', failOn, warnOn),
+        type: 'missing-in-registry',
+        severity: determineSeverity('missing-in-registry', failOn, warnOn),
         id: record.id,
-        message: `ID "${record.id}" found in source but not in ledger`,
+        message: `ID "${record.id}" found in source but not in registry`,
         file: record.file,
         line: record.line,
       });
@@ -101,21 +101,21 @@ export function verify(options: VerifyOptions): VerifyResult {
   }
 
   // Check unused-in-source
-  for (const id of Object.keys(ledger)) {
+  for (const id of Object.keys(registry)) {
     if (!sourceIds.has(id)) {
       issues.push({
         type: 'unused-in-source',
         severity: determineSeverity('unused-in-source', failOn, warnOn),
         id,
-        message: `ID "${id}" exists in ledger but not found in source`,
+        message: `ID "${id}" exists in registry but not found in source`,
         file: undefined,
         line: undefined,
       });
     }
   }
 
-  // Check expired (ledger entries)
-  for (const [id, entry] of Object.entries(ledger)) {
+  // Check expired (registry entries)
+  for (const [id, entry] of Object.entries(registry)) {
     if (entry.expires && entry.expires < todayStr) {
       issues.push({
         type: 'expired',
@@ -133,7 +133,7 @@ export function verify(options: VerifyOptions): VerifyResult {
     issues,
     summary: buildSummary(issues),
     scannedRecords: records.length,
-    ledgerEntries: Object.keys(ledger).length,
+    registryEntries: Object.keys(registry).length,
   };
 }
 
@@ -143,11 +143,11 @@ export function verify(options: VerifyOptions): VerifyResult {
 export function formatVerifyResultAsMarkdown(result: VerifyResult): string {
   const lines: string[] = [];
 
-  lines.push('# Annotation Ledger Verification Report');
+  lines.push('# Annotation Registry Verification Report');
   lines.push('');
   lines.push(`**Date:** ${result.timestamp}`);
   lines.push(
-    `**Scanned records:** ${result.scannedRecords} | **Ledger entries:** ${result.ledgerEntries}`,
+    `**Scanned records:** ${result.scannedRecords} | **Registry entries:** ${result.registryEntries}`,
   );
   lines.push('');
   lines.push('## Summary');

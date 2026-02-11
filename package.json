@@ -1,9 +1,9 @@
 {
-  "name": "lint-ledger",
+  "name": "shiori",
   "version": "0.0.1",
   "type": "module",
   "bin": {
-    "lint-ledger": "./dist/src/cli.js"
+    "shiori": "./dist/src/cli.js"
   },
   "exports": {
     ".": {
@@ -11,6 +11,7 @@
     }
   },
   "scripts": {
+    "clean": "rm -rf dist",
     "build": "tsc",
     "test": "node --experimental-strip-types --test tests/**/*.test.ts",
     "typecheck": "tsc --noEmit",

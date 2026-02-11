@@ -28,27 +28,27 @@ export interface AnnotationRecord {
   provider: string;
 }
 
-/** Ledger entry kind */
-export type LedgerKind = 'stylelint' | 'eslint' | 'mixed';
+/** Registry entry kind */
+export type RegistryKind = 'stylelint' | 'eslint' | 'mixed';
 
-/** A single ledger entry */
-export interface LedgerEntry {
+/** A single registry entry */
+export interface RegistryEntry {
   reason: string;
   target: string | string[];
   expires: string | undefined;
   ticket: string | undefined;
   owner: string | undefined;
   notes: string | undefined;
-  kind: LedgerKind | undefined;
+  kind: RegistryKind | undefined;
   verb: string | undefined;
 }
 
-/** Full ledger keyed by annotation ID */
-export type Ledger = Record<string, LedgerEntry>;
+/** Full registry keyed by annotation ID */
+export type Registry = Record<string, RegistryEntry>;
 
 /** Verify issue type */
 export type VerifyIssueType =
-  | 'missing-in-ledger'
+  | 'missing-in-registry'
   | 'unused-in-source'
   | 'expired'
   | 'malformed';
@@ -77,5 +77,5 @@ export interface VerifyResult {
     byType: Record<VerifyIssueType, number>;
   };
   scannedRecords: number;
-  ledgerEntries: number;
+  registryEntries: number;
 }

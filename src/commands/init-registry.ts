@@ -1,17 +1,17 @@
 import type {
-  Ledger,
-  LedgerKind,
+  Registry,
+  RegistryKind,
   AnnotationRecord,
 } from '../core/types.ts';
 
-export interface InitLedgerOptions {
+export interface InitRegistryOptions {
   /** Annotation records from scan */
   records: AnnotationRecord[];
-  /** Existing ledger to merge with (existing entries are preserved) */
-  existingLedger?: Ledger;
+  /** Existing registry to merge with (existing entries are preserved) */
+  existingRegistry?: Registry;
 }
 
-function inferKind(records: AnnotationRecord[]): LedgerKind {
+function inferKind(records: AnnotationRecord[]): RegistryKind {
   const tools = new Set(records.map((r) => r.tool));
   if (tools.size === 1) {
     const tool = [...tools][0]!;
@@ -34,11 +34,11 @@ function inferExpires(records: AnnotationRecord[]): string | undefined {
 }
 
 /**
- * Generate a ledger scaffold from scan results.
+ * Generate a registry scaffold from scan results.
  * Existing entries are preserved; new entries get placeholder values.
  */
-export function initLedger(options: InitLedgerOptions): Ledger {
-  const { records, existingLedger = {} } = options;
+export function initRegistry(options: InitRegistryOptions): Registry {
+  const { records, existingRegistry = {} } = options;
 
   // Group records by ID (skip empty IDs)
   const byId = new Map<string, AnnotationRecord[]>();
@@ -52,16 +52,16 @@ export function initLedger(options: InitLedgerOptions): Ledger {
     }
   }
 
-  // Build result ledger sorted by ID
+  // Build result registry sorted by ID
   const sortedIds = [...byId.keys()].sort((a, b) => a.localeCompare(b));
-  const ledger: Ledger = {};
+  const registry: Registry = {};
 
   for (const id of sortedIds) {
-    if (id in existingLedger) {
-      ledger[id] = existingLedger[id]!;
+    if (id in existingRegistry) {
+      registry[id] = existingRegistry[id]!;
     } else {
       const idRecords = byId.get(id)!;
-      ledger[id] = {
+      registry[id] = {
         reason: 'TODO: fill in reason',
         target: 'TODO: fill in target',
         expires: inferExpires(idRecords),
@@ -74,12 +74,12 @@ export function initLedger(options: InitLedgerOptions): Ledger {
     }
   }
 
-  // Also include existing ledger entries not in scan
-  for (const [id, entry] of Object.entries(existingLedger)) {
-    if (!(id in ledger)) {
-      ledger[id] = entry;
+  // Also include existing registry entries not in scan
+  for (const [id, entry] of Object.entries(existingRegistry)) {
+    if (!(id in registry)) {
+      registry[id] = entry;
     }
   }
 
-  return ledger;
+  return registry;
 }
