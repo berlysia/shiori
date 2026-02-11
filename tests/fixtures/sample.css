@@ -1,0 +1,4 @@
+/* stylelint-disable-next-line plugin/baseline -- waive(SUP-1234) expires=2026-06-01 */
+.foo { display: flex; }
+
+.bar { color: red; } /* stylelint-disable-line color-named -- waive(SUP-5678) */

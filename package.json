@@ -1,0 +1,34 @@
+{
+  "name": "lint-ledger",
+  "version": "0.0.1",
+  "type": "module",
+  "bin": {
+    "lint-ledger": "./dist/src/cli.js"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/src/core/types.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "node --experimental-strip-types --test tests/**/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint src/ tests/",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "engines": {
+    "node": ">=22.6.0"
+  },
+  "dependencies": {
+    "fast-glob": "^3.3.3",
+    "gunshi": "^0.27.6"
+  },
+  "devDependencies": {
+    "@types/node": "25.2.0",
+    "oxlint": "1.43.0",
+    "prettier": "^3.8.1",
+    "typescript": "^5.9.3"
+  }
+}
