@@ -9,8 +9,8 @@
     ".": {
       "import": "./dist/src/core/types.js"
     },
-    "./core/namespace": {
-      "import": "./dist/src/core/namespace.js"
+    "./core/ref-pattern": {
+      "import": "./dist/src/core/ref-pattern.js"
     },
     "./commands/show": {
       "import": "./dist/src/commands/show.js"
