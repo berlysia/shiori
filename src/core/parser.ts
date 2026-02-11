@@ -1,7 +1,6 @@
 /** Parsed shiori fields from a key=value string */
 export interface ParsedShioriFields {
   ref: string;
-  kind?: string;
   expires?: string;
   reason?: string;
   [key: string]: string | undefined;

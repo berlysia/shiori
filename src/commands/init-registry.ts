@@ -7,12 +7,6 @@ export interface InitRegistryOptions {
   existingRegistry?: Registry;
 }
 
-function inferKindFromAnnotations(records: ShioriAnnotation[]): string | undefined {
-  const kinds = new Set(records.map((r) => r.kind).filter(Boolean));
-  if (kinds.size === 1) return [...kinds][0];
-  return kinds.size > 1 ? 'mixed' : undefined;
-}
-
 function inferExpires(records: ShioriAnnotation[]): string | undefined {
   let earliest: string | undefined;
   for (const r of records) {
@@ -60,7 +54,7 @@ export function initRegistry(options: InitRegistryOptions): Registry {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: inferKindFromAnnotations(refRecords),
+        kind: undefined,
       };
     }
   }

@@ -2,8 +2,6 @@
 export interface ShioriAnnotation {
   /** Reference ID. e.g. "SUP-1234", "ADR:0007". Empty string = malformed */
   ref: string;
-  /** Annotation kind. e.g. "waive", "design", "compat" */
-  kind?: string;
   /** Lint rule name. e.g. "plugin/baseline", "@typescript-eslint/no-explicit-any" */
   rule?: string;
   /** Expiration date (YYYY-MM-DD or YYYY-MM) */

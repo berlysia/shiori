@@ -9,8 +9,8 @@ Annotation tracking and governance tool.
 When developers use `stylelint-disable-next-line` or `eslint-disable-next-line`, those violations disappear from lint results entirely. This tool brings them back under organizational control by:
 
 - Scanning source code for `shiori:` annotations (in lint disable comments and standalone)
-- Requiring each annotation to carry a tracking reference via `shiori: ref=<ID>` (e.g. `shiori: ref=SUP-1234 kind=waive`)
-- Supporting annotation classification via `kind` field: `waive`, `design`, `compat`, `risk`, `migrate` (and custom kinds)
+- Requiring each annotation to carry a tracking reference via `shiori: ref=<ID>` (e.g. `shiori: ref=SUP-1234`)
+- Supporting annotation classification via `kind` field in the registry: `waive`, `design`, `compat`, `risk`, `migrate` (and custom kinds)
 - Verifying references against a JSON registry with reason, ownership, and expiration
 - Generating human-readable (Markdown) and machine-readable (JSON) reports
 
@@ -19,7 +19,7 @@ When developers use `stylelint-disable-next-line` or `eslint-disable-next-line`,
 Annotations use the `shiori:` prefix with `key=value` fields. The `ref` field is required; all others are optional.
 
 ```
-shiori: ref=<ID> [kind=<type>] [expires=<date>] [reason=<text>]
+shiori: ref=<ID> [expires=<date>] [reason=<text>]
 ```
 
 A bare ref shorthand is also supported:
@@ -30,12 +30,13 @@ shiori:<ID>
 
 ### Fields
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `ref` | **Yes** | Tracking reference (e.g. `SUP-1234`, `JIRA:PROJ-123`, `ADR:0007`) |
-| `kind` | No | Annotation classification: `waive`, `design`, `compat`, `risk`, `migrate`, etc. |
-| `expires` | No | Expiration date (`YYYY-MM-DD` or `YYYY-MM`) |
-| `reason` | No | Free-text description |
+| Field     | Required | Description                                                       |
+| --------- | -------- | ----------------------------------------------------------------- |
+| `ref`     | **Yes**  | Tracking reference (e.g. `SUP-1234`, `JIRA:PROJ-123`, `ADR:0007`) |
+| `expires` | No       | Expiration date (`YYYY-MM-DD` or `YYYY-MM`)                       |
+| `reason`  | No       | Free-text description                                             |
+
+> **Note:** The `kind` field (annotation classification: `waive`, `design`, `compat`, `risk`, `migrate`, etc.) is managed in the registry, not in source comments. See [ADR 004](docs/decisions/004-kind-registry-only.md).
 
 See [ADR 003](docs/decisions/003-shiori-intent-layer-migration.md) for the syntax design rationale.
 
@@ -66,6 +67,7 @@ Annotation extraction is abstracted behind an `AnnotationProvider` interface, ma
 **Current:** `CommentProvider` — line-based text scanning for `shiori:` annotations in `stylelint-disable-*`, `eslint-disable-*`, and standalone comments.
 
 **Future providers** (not yet implemented):
+
 - ESLint native suppressions (`eslint-suppressions.json`)
 - External JSON suppressions
 - Remote registry APIs
@@ -79,25 +81,27 @@ Each tracked comment must include a `shiori:` annotation with at least a `ref` f
 **Lint disable comments (ESLint / stylelint):**
 
 ```typescript
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- shiori: ref=SUP-5678 kind=waive expires=2026-12-31
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- shiori: ref=SUP-5678 expires=2026-12-31
 const data: any = fetchLegacyAPI();
 
-// eslint-disable-next-line no-console -- shiori: ref=NOTE-1 kind=design
-console.log("debug output");
+// eslint-disable-next-line no-console -- shiori: ref=NOTE-1
+console.log('debug output');
 
-// eslint-disable-next-line no-var -- shiori: ref=MIG-1 kind=migrate expires=2026-12-31
+// eslint-disable-next-line no-var -- shiori: ref=MIG-1 expires=2026-12-31
 var legacy = true;
 ```
 
 ```css
-/* stylelint-disable-next-line plugin/baseline -- shiori: ref=SUP-1234 kind=compat expires=2026-06-01 */
-.foo { display: flex; }
+/* stylelint-disable-next-line plugin/baseline -- shiori: ref=SUP-1234 expires=2026-06-01 */
+.foo {
+  display: flex;
+}
 ```
 
 **Standalone annotations (no lint directive):**
 
 ```typescript
-// shiori: ref=ADR:0007 kind=design
+// shiori: ref=ADR:0007
 // shiori:SUP-1234
 ```
 
@@ -112,7 +116,8 @@ A JSON file keyed by annotation ref:
     "target": ["iOS Safari < 17.4", "old Android WebView"],
     "expires": "2026-06-01",
     "ticket": "CSS-1234",
-    "owner": "team-frontend"
+    "owner": "team-frontend",
+    "kind": "compat"
   }
 }
 ```
@@ -128,6 +133,7 @@ shiori scan \
 ```
 
 Options:
+
 - `--patterns, -p` — Glob patterns (comma-separated). Default: `**/*.{css,scss,pcss,js,ts,tsx,jsx}`
 - `--ignore, -i` — Exclude patterns. Default: `**/node_modules/**,**/dist/**,**/.git/**`
 - `--output, -o` — Output file (default: stdout)
@@ -145,12 +151,14 @@ shiori verify \
 ```
 
 Detects:
+
 - **missing-in-registry** — ref in source but not in registry
 - **unused-in-source** — ref in registry but not in source
 - **expired** — Registry entry past its `expires` date
 - **malformed** — Annotation without `ref` field
 
 Options:
+
 - `--scan, -s` — Path to scan result JSON (required)
 - `--registry, -r` — Path to registry JSON (required)
 - `--fail-on` — Issue types that cause exit code 1 (comma-separated)

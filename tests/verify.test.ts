@@ -1,19 +1,29 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { Registry, RegistryEntry, ShioriAnnotation } from '../src/core/types.ts';
-import { verify, formatVerifyResultAsMarkdown } from '../src/commands/verify.ts';
+import type {
+  Registry,
+  RegistryEntry,
+  ShioriAnnotation,
+} from '../src/core/types.ts';
+import {
+  verify,
+  formatVerifyResultAsMarkdown,
+} from '../src/commands/verify.ts';
 
-function makeAnnotation(overrides: Partial<ShioriAnnotation> = {}): ShioriAnnotation {
+function makeAnnotation(
+  overrides: Partial<ShioriAnnotation> = {},
+): ShioriAnnotation {
   return {
     ref: 'TEST-001',
-    kind: 'waive',
     rule: 'no-console',
     location: { file: 'test.ts', line: 1 },
     ...overrides,
   };
 }
 
-function makeRegistryEntry(overrides: Partial<RegistryEntry> = {}): RegistryEntry {
+function makeRegistryEntry(
+  overrides: Partial<RegistryEntry> = {},
+): RegistryEntry {
   return {
     reason: 'test reason',
     target: 'all',
@@ -58,7 +68,9 @@ describe('verify', () => {
         warnOn: [],
         now: referenceDate,
       });
-      const missing = result.issues.filter((i) => i.type === 'missing-in-registry');
+      const missing = result.issues.filter(
+        (i) => i.type === 'missing-in-registry',
+      );
       assert.equal(missing.length, 1);
     });
   });
@@ -180,7 +192,9 @@ describe('verify', () => {
         warnOn: [],
         now: referenceDate,
       });
-      const missing = result.issues.find((i) => i.type === 'missing-in-registry');
+      const missing = result.issues.find(
+        (i) => i.type === 'missing-in-registry',
+      );
       const unused = result.issues.find((i) => i.type === 'unused-in-source');
       assert.equal(missing?.severity, 'error');
       assert.equal(unused?.severity, 'warning');

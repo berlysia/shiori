@@ -19,6 +19,7 @@ pnpm format:check     # Check formatting
 ```
 
 Run a single test file:
+
 ```bash
 node --experimental-strip-types --test tests/parser.test.ts
 ```
@@ -59,14 +60,18 @@ Each command has a pure logic module and a CLI wrapper (e.g., `scan.ts` + `scan-
 Current syntax uses `shiori: key=value` format with `ref` as the required field:
 
 ```typescript
-// eslint-disable-next-line no-console -- shiori: ref=SUP-1234 kind=waive expires=2026-06
-// shiori: ref=ADR:0007 kind=design
+// eslint-disable-next-line no-console -- shiori: ref=SUP-1234 expires=2026-06
+// shiori: ref=ADR:0007
 // shiori:SUP-1234              // bare ref shorthand
 ```
+
+`kind` field is registry-only (not in source comments). See ADR 004.
 
 ### Design Decisions
 
 ADRs are in `docs/decisions/`:
+
 - **001**: External CLI over lint plugin (disable comments are invisible to lint results)
 - **002**: Annotation model generalization (suppression → annotation, multiple verbs)
 - **003**: `shiori: key=value` syntax migration (from `verb(<id>)` format)
+- **004**: `kind` field registry-only migration (from source comments to registry)

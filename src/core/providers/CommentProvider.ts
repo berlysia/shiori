@@ -11,8 +11,7 @@ const LINE_COMMENT_RE = /\/\/.*/g;
 /** Lint directive patterns (captures: [1]=tool, [2]=directive-type, [3]=after-directive) */
 const STYLELINT_DIRECTIVE_RE =
   /\b(stylelint)-disable-(next-line|line)\s+([\s\S]+)/;
-const ESLINT_DIRECTIVE_RE =
-  /\b(eslint)-disable-(next-line|line)\s+(.*)/;
+const ESLINT_DIRECTIVE_RE = /\b(eslint)-disable-(next-line|line)\s+(.*)/;
 
 /** shiori: prefix detection */
 const SHIORI_PREFIX_RE = /\bshiori:\s*/;
@@ -104,7 +103,8 @@ export class CommentProvider implements AnnotationProvider {
       if (stylelintMatch || eslintMatch) {
         const match = stylelintMatch ?? eslintMatch!;
         const afterDirective = match[3]!;
-        const { rules, shioriFieldsStr } = parseDirectiveContent(afterDirective);
+        const { rules, shioriFieldsStr } =
+          parseDirectiveContent(afterDirective);
 
         if (shioriFieldsStr !== undefined) {
           // Path A: lint directive + shiori:
@@ -112,7 +112,6 @@ export class CommentProvider implements AnnotationProvider {
           if (rules.length === 0) {
             annotations.push({
               ref: fields.ref,
-              kind: fields.kind,
               rule: undefined,
               expires: fields.expires,
               reason: fields.reason,
@@ -122,7 +121,6 @@ export class CommentProvider implements AnnotationProvider {
             for (const rule of rules) {
               annotations.push({
                 ref: fields.ref,
-                kind: fields.kind,
                 rule,
                 expires: fields.expires,
                 reason: fields.reason,
@@ -154,11 +152,12 @@ export class CommentProvider implements AnnotationProvider {
       // Path B: standalone shiori:
       const shioriMatch = text.match(SHIORI_PREFIX_RE);
       if (shioriMatch) {
-        const fieldsStr = text.slice(shioriMatch.index! + shioriMatch[0].length).trim();
+        const fieldsStr = text
+          .slice(shioriMatch.index! + shioriMatch[0].length)
+          .trim();
         const fields = parseShioriFields(fieldsStr);
         annotations.push({
           ref: fields.ref,
-          kind: fields.kind,
           rule: undefined,
           expires: fields.expires,
           reason: fields.reason,

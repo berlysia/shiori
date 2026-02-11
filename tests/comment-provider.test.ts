@@ -11,10 +11,7 @@ function makeInput(content: string, path = 'test.ts'): FileInput {
 }
 
 function loadFixture(name: string): string {
-  return readFileSync(
-    new URL(`./fixtures/${name}`, import.meta.url),
-    'utf-8',
-  );
+  return readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf-8');
 }
 
 describe('CommentProvider', () => {
@@ -27,7 +24,6 @@ describe('CommentProvider', () => {
       const records = provider.scan(input);
       assert.equal(records.length, 1);
       assert.equal(records[0]!.ref, 'SUP-1234');
-      assert.equal(records[0]!.kind, 'compat');
       assert.equal(records[0]!.rule, 'plugin/baseline');
       assert.equal(records[0]!.expires, '2026-06-01');
       assert.equal(records[0]!.location.file, 'test.css');
@@ -42,7 +38,6 @@ describe('CommentProvider', () => {
       const records = provider.scan(input);
       assert.equal(records.length, 1);
       assert.equal(records[0]!.ref, 'SUP-5678');
-      assert.equal(records[0]!.kind, 'waive');
       assert.equal(records[0]!.rule, 'color-named');
     });
 
@@ -53,7 +48,6 @@ describe('CommentProvider', () => {
       const records = provider.scan(input);
       assert.equal(records.length, 1);
       assert.equal(records[0]!.ref, 'SUP-9999');
-      assert.equal(records[0]!.kind, 'waive');
       assert.equal(records[0]!.rule, '@typescript-eslint/no-explicit-any');
       assert.equal(records[0]!.expires, '2026-12-31');
     });
@@ -65,7 +59,6 @@ describe('CommentProvider', () => {
       const records = provider.scan(input);
       assert.equal(records.length, 1);
       assert.equal(records[0]!.ref, 'SUP-0001');
-      assert.equal(records[0]!.kind, 'waive');
       assert.equal(records[0]!.rule, '@typescript-eslint/no-explicit-any');
       assert.equal(records[0]!.expires, undefined);
     });
@@ -77,7 +70,6 @@ describe('CommentProvider', () => {
       const records = provider.scan(input);
       assert.equal(records.length, 1);
       assert.equal(records[0]!.ref, 'SUP-1234');
-      assert.equal(records[0]!.kind, undefined);
       assert.equal(records[0]!.rule, 'no-console');
     });
   });
@@ -93,20 +85,15 @@ describe('CommentProvider', () => {
       assert.equal(records[1]!.rule, 'no-debugger');
       assert.equal(records[0]!.ref, 'SUP-MULTI');
       assert.equal(records[1]!.ref, 'SUP-MULTI');
-      assert.equal(records[0]!.kind, 'waive');
-      assert.equal(records[1]!.kind, 'waive');
     });
   });
 
   describe('Path B: standalone shiori:', () => {
     it('detects standalone shiori comment (line)', () => {
-      const input = makeInput(
-        '// shiori: ref=ADR:0007 kind=design',
-      );
+      const input = makeInput('// shiori: ref=ADR:0007 kind=design');
       const records = provider.scan(input);
       assert.equal(records.length, 1);
       assert.equal(records[0]!.ref, 'ADR:0007');
-      assert.equal(records[0]!.kind, 'design');
       assert.equal(records[0]!.rule, undefined);
     });
 
@@ -115,7 +102,6 @@ describe('CommentProvider', () => {
       const records = provider.scan(input);
       assert.equal(records.length, 1);
       assert.equal(records[0]!.ref, 'SUP-1234');
-      assert.equal(records[0]!.kind, undefined);
       assert.equal(records[0]!.rule, undefined);
     });
 
@@ -124,7 +110,6 @@ describe('CommentProvider', () => {
       const records = provider.scan(input);
       assert.equal(records.length, 1);
       assert.equal(records[0]!.ref, 'JIRA:PROJ-123');
-      assert.equal(records[0]!.kind, undefined);
       assert.equal(records[0]!.rule, undefined);
     });
 
@@ -133,38 +118,29 @@ describe('CommentProvider', () => {
       const records = provider.scan(input);
       assert.equal(records.length, 1);
       assert.equal(records[0]!.ref, 'ADR:0007');
-      assert.equal(records[0]!.kind, undefined);
       assert.equal(records[0]!.rule, undefined);
     });
 
     it('detects standalone shiori comment (block)', () => {
-      const input = makeInput(
-        '/* shiori: ref=ADR:0007 kind=design */',
-      );
+      const input = makeInput('/* shiori: ref=ADR:0007 kind=design */');
       const records = provider.scan(input);
       assert.equal(records.length, 1);
       assert.equal(records[0]!.ref, 'ADR:0007');
-      assert.equal(records[0]!.kind, 'design');
       assert.equal(records[0]!.rule, undefined);
     });
 
     it('detects standalone shiori in multi-line block comment', () => {
-      const input = makeInput(
-        '/*\n * shiori: ref=ADR:0007 kind=design\n */',
-      );
+      const input = makeInput('/*\n * shiori: ref=ADR:0007 kind=design\n */');
       const records = provider.scan(input);
       assert.equal(records.length, 1);
       assert.equal(records[0]!.ref, 'ADR:0007');
-      assert.equal(records[0]!.kind, 'design');
       assert.equal(records[0]!.location.line, 1);
     });
   });
 
   describe('Path C: lint directive without shiori:', () => {
     it('produces empty ref when shiori: is absent', () => {
-      const input = makeInput(
-        '// eslint-disable-next-line no-console',
-      );
+      const input = makeInput('// eslint-disable-next-line no-console');
       const records = provider.scan(input);
       assert.equal(records.length, 1);
       assert.equal(records[0]!.ref, '');
@@ -200,7 +176,6 @@ describe('CommentProvider', () => {
       const records = provider.scan(input);
       assert.equal(records.length, 1);
       assert.equal(records[0]!.ref, 'SUP-NORULE');
-      assert.equal(records[0]!.kind, 'waive');
       assert.equal(records[0]!.rule, undefined);
     });
 
@@ -230,10 +205,8 @@ describe('CommentProvider', () => {
       const records = provider.scan({ path: 'sample.css', content });
       assert.equal(records.length, 2);
       assert.equal(records[0]!.ref, 'SUP-1234');
-      assert.equal(records[0]!.kind, 'compat');
       assert.equal(records[0]!.location.line, 1);
       assert.equal(records[1]!.ref, 'SUP-5678');
-      assert.equal(records[1]!.kind, 'waive');
       assert.equal(records[1]!.location.line, 4);
     });
 
@@ -242,10 +215,8 @@ describe('CommentProvider', () => {
       const records = provider.scan({ path: 'sample.ts', content });
       assert.equal(records.length, 2);
       assert.equal(records[0]!.ref, 'SUP-9999');
-      assert.equal(records[0]!.kind, 'waive');
       assert.equal(records[0]!.location.line, 1);
       assert.equal(records[1]!.ref, 'SUP-0001');
-      assert.equal(records[1]!.kind, 'waive');
       assert.equal(records[1]!.location.line, 4);
     });
 
@@ -260,7 +231,6 @@ describe('CommentProvider', () => {
       assert.equal(records[0]!.rule, 'no-console');
       assert.equal(records[1]!.rule, 'no-debugger');
       assert.equal(records[0]!.ref, 'SUP-MULTI');
-      assert.equal(records[0]!.kind, 'waive');
 
       // No shiori → malformed
       assert.equal(records[2]!.ref, '');
@@ -268,7 +238,6 @@ describe('CommentProvider', () => {
 
       // No rule
       assert.equal(records[3]!.ref, 'SUP-NORULE');
-      assert.equal(records[3]!.kind, 'waive');
       assert.equal(records[3]!.rule, undefined);
     });
 
@@ -277,20 +246,16 @@ describe('CommentProvider', () => {
       const records = provider.scan({ path: 'multi-kind.ts', content });
       assert.equal(records.length, 4);
 
-      assert.equal(records[0]!.kind, 'note');
       assert.equal(records[0]!.ref, 'NOTE-1');
       assert.equal(records[0]!.rule, 'no-console');
 
-      assert.equal(records[1]!.kind, 'migrate');
       assert.equal(records[1]!.ref, 'MIG-1');
       assert.equal(records[1]!.rule, 'no-var');
       assert.equal(records[1]!.expires, '2026-12-31');
 
-      assert.equal(records[2]!.kind, 'risk');
       assert.equal(records[2]!.ref, 'RISK-1');
       assert.equal(records[2]!.rule, '@typescript-eslint/no-explicit-any');
 
-      assert.equal(records[3]!.kind, 'waive');
       assert.equal(records[3]!.ref, 'SUP-VERB');
       assert.equal(records[3]!.rule, 'no-debugger');
     });

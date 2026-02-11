@@ -15,7 +15,7 @@ export interface ScanOptions {
 }
 
 export interface ScanResult {
-  /** Extracted annotations (stably sorted by ref, kind, location.file, location.line) */
+  /** Extracted annotations (stably sorted by ref, location.file, location.line) */
   records: ShioriAnnotation[];
   /** Number of files scanned */
   filesScanned: number;
@@ -24,9 +24,6 @@ export interface ScanResult {
 function sortRecords(records: ShioriAnnotation[]): ShioriAnnotation[] {
   return records.sort((a, b) => {
     if (a.ref !== b.ref) return a.ref.localeCompare(b.ref);
-    const aKind = a.kind ?? '';
-    const bKind = b.kind ?? '';
-    if (aKind !== bKind) return aKind.localeCompare(bKind);
     if (a.location.file !== b.location.file)
       return a.location.file.localeCompare(b.location.file);
     return a.location.line - b.location.line;
