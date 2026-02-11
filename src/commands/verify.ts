@@ -1,7 +1,7 @@
 import type {
   IssueSeverity,
   Ledger,
-  SuppressionRecord,
+  AnnotationRecord,
   VerifyIssue,
   VerifyIssueType,
   VerifyResult,
@@ -10,8 +10,8 @@ import type {
 export type OutputFormat = 'json' | 'markdown';
 
 export interface VerifyOptions {
-  /** Suppression records from scan */
-  records: SuppressionRecord[];
+  /** Annotation records from scan */
+  records: AnnotationRecord[];
   /** Ledger data */
   ledger: Ledger;
   /** Issue types that cause exit code 1 */
@@ -75,7 +75,7 @@ export function verify(options: VerifyOptions): VerifyResult {
         type: 'malformed',
         severity: determineSeverity('malformed', failOn, warnOn),
         id: '',
-        message: 'Suppression comment without waive() ID',
+        message: 'Annotation without tracking ID',
         file: record.file,
         line: record.line,
       });
@@ -143,7 +143,7 @@ export function verify(options: VerifyOptions): VerifyResult {
 export function formatVerifyResultAsMarkdown(result: VerifyResult): string {
   const lines: string[] = [];
 
-  lines.push('# Lint Ledger Verification Report');
+  lines.push('# Annotation Ledger Verification Report');
   lines.push('');
   lines.push(`**Date:** ${result.timestamp}`);
   lines.push(

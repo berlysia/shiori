@@ -1,31 +1,32 @@
 import type {
   Ledger,
   LedgerKind,
-  SuppressionRecord,
+  AnnotationRecord,
 } from '../core/types.ts';
 
 export interface InitLedgerOptions {
-  /** Suppression records from scan */
-  records: SuppressionRecord[];
+  /** Annotation records from scan */
+  records: AnnotationRecord[];
   /** Existing ledger to merge with (existing entries are preserved) */
   existingLedger?: Ledger;
 }
 
-function inferKind(records: SuppressionRecord[]): LedgerKind {
-  const linters = new Set(records.map((r) => r.linter));
-  if (linters.size === 1) {
-    const linter = [...linters][0]!;
-    if (linter === 'stylelint' || linter === 'eslint') return linter;
+function inferKind(records: AnnotationRecord[]): LedgerKind {
+  const tools = new Set(records.map((r) => r.tool));
+  if (tools.size === 1) {
+    const tool = [...tools][0]!;
+    if (tool === 'stylelint' || tool === 'eslint') return tool;
   }
   return 'mixed';
 }
 
-function inferExpires(records: SuppressionRecord[]): string | undefined {
+function inferExpires(records: AnnotationRecord[]): string | undefined {
   let earliest: string | undefined;
   for (const r of records) {
-    if (r.meta.expires) {
-      if (!earliest || r.meta.expires < earliest) {
-        earliest = r.meta.expires;
+    const expires = r.meta['expires'];
+    if (typeof expires === 'string') {
+      if (!earliest || expires < earliest) {
+        earliest = expires;
       }
     }
   }
@@ -40,7 +41,7 @@ export function initLedger(options: InitLedgerOptions): Ledger {
   const { records, existingLedger = {} } = options;
 
   // Group records by ID (skip empty IDs)
-  const byId = new Map<string, SuppressionRecord[]>();
+  const byId = new Map<string, AnnotationRecord[]>();
   for (const record of records) {
     if (record.id === '') continue;
     const existing = byId.get(record.id);
@@ -68,6 +69,7 @@ export function initLedger(options: InitLedgerOptions): Ledger {
         owner: undefined,
         notes: undefined,
         kind: inferKind(idRecords),
+        verb: undefined,
       };
     }
   }

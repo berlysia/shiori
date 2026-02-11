@@ -8,7 +8,7 @@ const DEFAULT_IGNORE = ['**/node_modules/**', '**/dist/**', '**/.git/**'];
 
 export const scanCommand = define({
   name: 'scan',
-  description: 'Scan source files for lint suppression comments',
+  description: 'Scan source files for annotations',
   rendering: { header: null },
   args: {
     patterns: {
@@ -34,8 +34,13 @@ export const scanCommand = define({
     },
     provider: {
       type: 'string',
-      description: 'Suppression provider. Default: "comment"',
+      description: 'Annotation provider. Default: "comment"',
       default: 'comment',
+    },
+    verbs: {
+      type: 'string',
+      description:
+        'Annotation verbs to detect (comma-separated). Default: "waive,note,risk,migrate"',
     },
   },
   run: async (ctx) => {
@@ -48,7 +53,10 @@ export const scanCommand = define({
       : DEFAULT_IGNORE;
 
     const cwd = ctx.values.cwd ?? process.cwd();
-    const provider = new CommentProvider();
+    const verbs = ctx.values.verbs
+      ? ctx.values.verbs.split(',').map((s: string) => s.trim())
+      : undefined;
+    const provider = new CommentProvider(verbs ? { verbs } : undefined);
 
     const result = await scan({ patterns, ignore, provider, cwd });
     const json = JSON.stringify(result.records, null, 2);
@@ -63,7 +71,7 @@ export const scanCommand = define({
     }
 
     console.error(
-      `Scanned ${result.filesScanned} files, found ${result.records.length} suppression(s)`,
+      `Scanned ${result.filesScanned} files, found ${result.records.length} annotation(s)`,
     );
   },
 });

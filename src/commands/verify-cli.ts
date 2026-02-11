@@ -1,6 +1,6 @@
 import { define } from 'gunshi';
 import { readFile, writeFile } from 'node:fs/promises';
-import type { SuppressionRecord, VerifyIssueType } from '../core/types.ts';
+import type { AnnotationRecord, VerifyIssueType } from '../core/types.ts';
 import { loadLedger } from '../core/ledger.ts';
 import {
   verify,
@@ -15,7 +15,7 @@ function parseIssueTypes(value: string | undefined): VerifyIssueType[] {
 
 export const verifyCommand = define({
   name: 'verify',
-  description: 'Verify scan results against the ledger',
+  description: 'Verify annotations against the registry',
   rendering: { header: null },
   args: {
     scan: {
@@ -29,6 +29,11 @@ export const verifyCommand = define({
       short: 'l',
       required: true,
       description: 'Path to ledger JSON file',
+    },
+    registry: {
+      type: 'string',
+      short: 'r',
+      description: 'Alias for --ledger',
     },
     format: {
       type: 'string',
@@ -56,11 +61,16 @@ export const verifyCommand = define({
   },
   run: async (ctx) => {
     const scanContent = await readFile(ctx.values.scan, 'utf-8');
-    const scanData = JSON.parse(scanContent) as SuppressionRecord[];
+    const scanData = JSON.parse(scanContent) as AnnotationRecord[];
 
-    const { ledger, errors: ledgerErrors } = await loadLedger(
-      ctx.values.ledger,
-    );
+    const ledgerPath = ctx.values.ledger ?? ctx.values.registry;
+    if (!ledgerPath) {
+      console.error('Error: --ledger or --registry is required');
+      process.exitCode = 1;
+      return;
+    }
+
+    const { ledger, errors: ledgerErrors } = await loadLedger(ledgerPath);
     if (ledgerErrors.length > 0) {
       console.error('Ledger validation errors:');
       for (const err of ledgerErrors) {

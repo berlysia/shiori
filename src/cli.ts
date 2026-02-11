@@ -6,7 +6,7 @@ import { initLedgerCommand } from './commands/init-ledger-cli.ts';
 
 const main = define({
   name: 'lint-ledger',
-  description: 'Lint suppression ledger management tool',
+  description: 'Annotation tracking and governance tool',
   run: () => {
     console.log('Run "lint-ledger --help" for usage information.');
   },
@@ -15,7 +15,7 @@ const main = define({
 await cli(process.argv.slice(2), main, {
   name: 'lint-ledger',
   version: '0.0.1',
-  description: 'Manage lint suppression exceptions with a ledger',
+  description: 'Track and govern source code annotations',
   subCommands: {
     scan: scanCommand,
     verify: verifyCommand,

@@ -1,6 +1,6 @@
 import { define } from 'gunshi';
 import { readFile } from 'node:fs/promises';
-import type { SuppressionRecord } from '../core/types.ts';
+import type { AnnotationRecord } from '../core/types.ts';
 import { loadLedger, saveLedger } from '../core/ledger.ts';
 import { initLedger } from './init-ledger.ts';
 
@@ -30,7 +30,7 @@ export const initLedgerCommand = define({
   },
   run: async (ctx) => {
     const scanContent = await readFile(ctx.values.scan, 'utf-8');
-    const scanData = JSON.parse(scanContent) as SuppressionRecord[];
+    const scanData = JSON.parse(scanContent) as AnnotationRecord[];
 
     let existingLedger;
     if (ctx.values.merge) {

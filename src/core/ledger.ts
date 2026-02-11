@@ -76,6 +76,7 @@ function validateEntry(
       raw['kind'] === 'mixed'
         ? raw['kind']
         : undefined,
+    verb: typeof raw['verb'] === 'string' ? raw['verb'] : undefined,
   };
 
   return { entry, errors };

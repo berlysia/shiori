@@ -1,36 +1,37 @@
 import { readFile } from 'node:fs/promises';
 import fg from 'fast-glob';
-import type { SuppressionRecord } from '../core/types.ts';
-import type { SuppressionProvider } from '../core/providers/SuppressionProvider.ts';
+import type { AnnotationRecord } from '../core/types.ts';
+import type { AnnotationProvider } from '../core/providers/AnnotationProvider.ts';
 
 export interface ScanOptions {
   /** Glob patterns to scan */
   patterns: string[];
   /** Glob patterns to exclude */
   ignore: string[];
-  /** Suppression provider to use */
-  provider: SuppressionProvider;
+  /** Annotation provider to use */
+  provider: AnnotationProvider;
   /** Working directory for glob resolution */
   cwd: string;
 }
 
 export interface ScanResult {
-  /** Extracted records (stably sorted by id, file, line) */
-  records: SuppressionRecord[];
+  /** Extracted records (stably sorted by id, verb, file, line) */
+  records: AnnotationRecord[];
   /** Number of files scanned */
   filesScanned: number;
 }
 
-function sortRecords(records: SuppressionRecord[]): SuppressionRecord[] {
+function sortRecords(records: AnnotationRecord[]): AnnotationRecord[] {
   return records.sort((a, b) => {
     if (a.id !== b.id) return a.id.localeCompare(b.id);
+    if (a.verb !== b.verb) return a.verb.localeCompare(b.verb);
     if (a.file !== b.file) return a.file.localeCompare(b.file);
     return a.line - b.line;
   });
 }
 
 /**
- * Scan source files and extract lint suppression records.
+ * Scan source files and extract annotation records.
  */
 export async function scan(options: ScanOptions): Promise<ScanResult> {
   const files = await fg(options.patterns, {
@@ -40,7 +41,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
     absolute: false,
   });
 
-  const allRecords: SuppressionRecord[] = [];
+  const allRecords: AnnotationRecord[] = [];
 
   for (const filePath of files) {
     const absolutePath = `${options.cwd}/${filePath}`;
