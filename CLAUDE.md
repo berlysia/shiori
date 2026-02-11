@@ -83,3 +83,26 @@ ADRs are in `docs/decisions/`:
 - **008**: Namespace resolution (`parseRef()` and `resolveRefUrl()` for `NAMESPACE:id` refs)
 - **009**: `shiori show` command (ref information lookup with registry, source locations, URL)
 - **010**: Multi-registry loading (namespace-based registry file splitting)
+- **011**: JSON Schema registry validation (proposed)
+- **012**: Pattern-based ref resolution (supersedes ADR 008)
+
+## Dogfooding: shiori で自身の開発を追跡
+
+開発中に遭遇した技術的決定・TODO・ワークアラウンドは shiori 自身を使ってコード内アノテーションとレジストリで管理する。
+
+### 使い方
+
+コード内でメモしたいことがあれば `shiori:` アノテーションを書く:
+
+```typescript
+// shiori: DEV-001 reason=workaround for X
+// eslint-disable-next-line some-rule -- shiori: DEV-002 expires=2026-06
+```
+
+レジストリ (`shiori-registry.json`) にエントリを追加して構造化情報を保存する。
+
+### 運用ルール
+
+- ref のプレフィックスは `DEV-` (開発メモ)、`ADR-` (設計決定参照) を使用
+- `expires` は期限のあるワークアラウンドに必ず設定
+- `pnpm build && shiori verify` で整合性を確認
