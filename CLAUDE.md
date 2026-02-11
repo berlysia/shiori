@@ -70,5 +70,3 @@ ADRs are in `docs/decisions/`:
 - **001**: External CLI over lint plugin (disable comments are invisible to lint results)
 - **002**: Annotation model generalization (suppression → annotation, multiple verbs)
 - **003**: `shiori: key=value` syntax migration (from `verb(<id>)` format)
-
-Note: README still shows old `verb(<id>)` syntax examples; the codebase has migrated to `shiori: key=value` per ADR 003.

@@ -8,24 +8,36 @@ Annotation tracking and governance tool.
 
 When developers use `stylelint-disable-next-line` or `eslint-disable-next-line`, those violations disappear from lint results entirely. This tool brings them back under organizational control by:
 
-- Scanning source code for annotated disable comments
-- Requiring each annotation to carry a tracking ID via `verb(<ID>)` (e.g. `waive(SUP-1234)`)
-- Supporting multiple annotation verbs: `waive`, `note`, `risk`, `migrate` (and custom verbs)
-- Verifying IDs against a JSON registry with reason, ownership, and expiration
+- Scanning source code for `shiori:` annotations (in lint disable comments and standalone)
+- Requiring each annotation to carry a tracking reference via `shiori: ref=<ID>` (e.g. `shiori: ref=SUP-1234 kind=waive`)
+- Supporting annotation classification via `kind` field: `waive`, `design`, `compat`, `risk`, `migrate` (and custom kinds)
+- Verifying references against a JSON registry with reason, ownership, and expiration
 - Generating human-readable (Markdown) and machine-readable (JSON) reports
 
-## Annotation Verbs
+## Annotation Syntax
 
-Each disable comment can use one of the following verbs to classify the exception:
+Annotations use the `shiori:` prefix with `key=value` fields. The `ref` field is required; all others are optional.
 
-| Verb | Purpose | Example |
-|------|---------|---------|
-| `waive` | Permanent or long-lived exception | `waive(SUP-1234)` |
-| `note` | Informational annotation | `note(NOTE-1)` |
-| `risk` | Known risk acceptance | `risk(RISK-1)` |
-| `migrate` | Temporary during migration | `migrate(MIG-1) expires=2026-12-31` |
+```
+shiori: ref=<ID> [kind=<type>] [expires=<date>] [reason=<text>]
+```
 
-Custom verbs can be configured via the `--verbs` CLI option.
+A bare ref shorthand is also supported:
+
+```
+shiori:<ID>
+```
+
+### Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `ref` | **Yes** | Tracking reference (e.g. `SUP-1234`, `JIRA:PROJ-123`, `ADR:0007`) |
+| `kind` | No | Annotation classification: `waive`, `design`, `compat`, `risk`, `migrate`, etc. |
+| `expires` | No | Expiration date (`YYYY-MM-DD` or `YYYY-MM`) |
+| `reason` | No | Free-text description |
+
+See [ADR 003](docs/decisions/003-shiori-intent-layer-migration.md) for the syntax design rationale.
 
 ## Why Not a Lint Plugin?
 
@@ -38,20 +50,20 @@ Custom verbs can be configured via the `--verbs` CLI option.
 Annotation extraction is abstracted behind an `AnnotationProvider` interface, making the tool independent of any specific lint tool's internals.
 
 ```
-┌─────────────┐     ┌──────────────────────┐     ┌─────────┐
-│ Source Files │────▶│  AnnotationProvider   │────▶│ Records │
-└─────────────┘     │  (pluggable)          │     └─────────┘
+┌─────────────┐     ┌──────────────────────┐     ┌─────────────────────┐
+│ Source Files │────▶│  AnnotationProvider   │────▶│ ShioriAnnotation[]  │
+└─────────────┘     │  (pluggable)          │     └─────────────────────┘
                     └──────────────────────┘
                               │
                     ┌─────────┼─────────┐
                     ▼         ▼         ▼
              CommentProvider  (future)  (future)
-             (disable comments) ESLint   Remote
+             (shiori: prefix)  ESLint   Remote
                               native    registry
                               suppress.
 ```
 
-**Current:** `CommentProvider` — line-based text scanning for `stylelint-disable-*` and `eslint-disable-*` comments.
+**Current:** `CommentProvider` — line-based text scanning for `shiori:` annotations in `stylelint-disable-*`, `eslint-disable-*`, and standalone comments.
 
 **Future providers** (not yet implemented):
 - ESLint native suppressions (`eslint-suppressions.json`)
@@ -62,31 +74,36 @@ Annotation extraction is abstracted behind an `AnnotationProvider` interface, ma
 
 ### Comment Convention
 
-Each disable comment must include a verb with tracking ID: `verb(<ID>)`. An `expires=YYYY-MM-DD` is recommended.
+Each tracked comment must include a `shiori:` annotation with at least a `ref` field. Place the annotation after the `--` separator in lint disable comments, or as a standalone comment.
 
-**stylelint:**
+**Lint disable comments (ESLint / stylelint):**
+
+```typescript
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- shiori: ref=SUP-5678 kind=waive expires=2026-12-31
+const data: any = fetchLegacyAPI();
+
+// eslint-disable-next-line no-console -- shiori: ref=NOTE-1 kind=design
+console.log("debug output");
+
+// eslint-disable-next-line no-var -- shiori: ref=MIG-1 kind=migrate expires=2026-12-31
+var legacy = true;
+```
 
 ```css
-/* stylelint-disable-next-line plugin/baseline -- waive(SUP-1234) expires=2026-06-01 */
+/* stylelint-disable-next-line plugin/baseline -- shiori: ref=SUP-1234 kind=compat expires=2026-06-01 */
 .foo { display: flex; }
 ```
 
-**ESLint:**
+**Standalone annotations (no lint directive):**
 
 ```typescript
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- waive(SUP-5678) expires=2026-12-31
-const data: any = fetchLegacyAPI();
-
-// eslint-disable-next-line no-console -- note(NOTE-1)
-console.log("debug output");
-
-// eslint-disable-next-line no-var -- migrate(MIG-1) expires=2026-12-31
-var legacy = true;
+// shiori: ref=ADR:0007 kind=design
+// shiori:SUP-1234
 ```
 
 ### Registry Format
 
-A JSON file keyed by annotation ID:
+A JSON file keyed by annotation ref:
 
 ```json
 {
@@ -115,7 +132,7 @@ Options:
 - `--ignore, -i` — Exclude patterns. Default: `**/node_modules/**,**/dist/**,**/.git/**`
 - `--output, -o` — Output file (default: stdout)
 - `--cwd` — Working directory (default: `process.cwd()`)
-- `--verbs` — Annotation verbs to detect (comma-separated). Default: `waive,note,risk,migrate`
+- `--provider` — Annotation provider. Default: `comment`
 
 #### `verify` — Reconcile scan results with registry
 
@@ -128,15 +145,14 @@ shiori verify \
 ```
 
 Detects:
-- **missing-in-registry** — ID in source but not in registry
-- **unused-in-source** — ID in registry but not in source
+- **missing-in-registry** — ref in source but not in registry
+- **unused-in-source** — ref in registry but not in source
 - **expired** — Registry entry past its `expires` date
-- **malformed** — Annotation without tracking ID
+- **malformed** — Annotation without `ref` field
 
 Options:
 - `--scan, -s` — Path to scan result JSON (required)
 - `--registry, -r` — Path to registry JSON (required)
-- `--ledger, -l` — Alias for `--registry`
 - `--fail-on` — Issue types that cause exit code 1 (comma-separated)
 - `--warn-on` — Issue types reported as warnings (comma-separated)
 - `--format, -f` — Output format: `json` (default) or `markdown`
