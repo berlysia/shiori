@@ -8,6 +8,8 @@ export interface ParsedRef {
 /** Namespace configuration */
 export interface NamespaceConfig {
   urlTemplate: string;
+  /** Per-namespace registry file path (JSON/YAML, auto-detected by extension) */
+  registryFile?: string;
 }
 
 /**

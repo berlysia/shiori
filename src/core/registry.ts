@@ -1,7 +1,8 @@
 import { readFile, writeFile } from 'node:fs/promises';
-import { extname } from 'node:path';
+import { extname, resolve, dirname } from 'node:path';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import type { Registry, RegistryEntry } from './types.ts';
+import type { NamespaceConfig } from './namespace.ts';
 
 /** Validation error for a registry entry */
 export interface RegistryValidationError {
@@ -122,6 +123,73 @@ export async function loadRegistry(
   }
 
   return { registry, errors };
+}
+
+/** Duplicate key warning from multi-registry merge */
+export interface RegistryDuplicateWarning {
+  ref: string;
+  defaultFile: string;
+  namespaceFile: string;
+}
+
+/** Result of loading multiple registry files */
+export interface MultiRegistryLoadResult {
+  registry: Registry;
+  errors: RegistryValidationError[];
+  duplicates: RegistryDuplicateWarning[];
+}
+
+/**
+ * Load and merge registries: default registry + namespace-specific registries.
+ * Namespace-specific files take precedence on key conflicts.
+ *
+ * @param defaultRegistryPath - Path to the default registry file
+ * @param namespaces - Namespace configuration (may contain registryFile)
+ * @param basePath - Base directory to resolve relative registryFile paths against
+ */
+export async function loadMultiRegistry(
+  defaultRegistryPath: string,
+  namespaces: Record<string, NamespaceConfig> | undefined,
+  basePath?: string,
+): Promise<MultiRegistryLoadResult> {
+  const allErrors: RegistryValidationError[] = [];
+  const duplicates: RegistryDuplicateWarning[] = [];
+
+  // 1. Load default registry
+  const defaultResult = await loadRegistry(defaultRegistryPath);
+  const merged: Registry = { ...defaultResult.registry };
+  allErrors.push(...defaultResult.errors);
+
+  // 2. Load namespace-specific registries
+  if (namespaces) {
+    const resolveBase = basePath ?? dirname(defaultRegistryPath);
+    const loaded = new Set<string>();
+
+    for (const [, nsConfig] of Object.entries(namespaces)) {
+      if (!nsConfig.registryFile) continue;
+
+      const nsPath = resolve(resolveBase, nsConfig.registryFile);
+      if (loaded.has(nsPath)) continue;
+      loaded.add(nsPath);
+
+      const nsResult = await loadRegistry(nsPath);
+      allErrors.push(...nsResult.errors);
+
+      // Merge: namespace file wins, track duplicates
+      for (const [ref, entry] of Object.entries(nsResult.registry)) {
+        if (ref in merged) {
+          duplicates.push({
+            ref,
+            defaultFile: defaultRegistryPath,
+            namespaceFile: nsConfig.registryFile,
+          });
+        }
+        merged[ref] = entry;
+      }
+    }
+  }
+
+  return { registry: merged, errors: allErrors, duplicates };
 }
 
 /**

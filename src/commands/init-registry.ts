@@ -1,4 +1,6 @@
 import type { Registry, ShioriAnnotation } from '../core/types.ts';
+import type { NamespaceConfig } from '../core/namespace.ts';
+import { parseRef } from '../core/namespace.ts';
 
 export interface InitRegistryOptions {
   /** Shiori annotations from scan */
@@ -67,4 +69,37 @@ export function initRegistry(options: InitRegistryOptions): Registry {
   }
 
   return registry;
+}
+
+/**
+ * Route a registry into per-namespace registries based on namespace config.
+ * Returns a map of registryFile → Registry, plus a "default" key for entries
+ * without a matching namespace.
+ */
+export function routeRegistryByNamespace(
+  registry: Registry,
+  namespaces: Record<string, NamespaceConfig> | undefined,
+): Map<string | null, Registry> {
+  const routed = new Map<string | null, Registry>();
+
+  for (const [ref, entry] of Object.entries(registry)) {
+    const parsed = parseRef(ref);
+    let target: string | null = null;
+
+    if (parsed.namespace && namespaces) {
+      const nsConfig = namespaces[parsed.namespace];
+      if (nsConfig?.registryFile) {
+        target = nsConfig.registryFile;
+      }
+    }
+
+    const existing = routed.get(target);
+    if (existing) {
+      existing[ref] = entry;
+    } else {
+      routed.set(target, { [ref]: entry });
+    }
+  }
+
+  return routed;
 }
