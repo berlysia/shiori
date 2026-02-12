@@ -1,10 +1,19 @@
 {
-  "name": "shiori",
+  "name": "@berlysia/shiori",
   "version": "0.0.1",
+  "description": "Annotation tracking and governance CLI tool for recovering structured annotations from source code",
   "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/berlysia/shiori.git"
+  },
   "bin": {
     "shiori": "./dist/src/cli.js"
   },
+  "files": [
+    "dist/src/"
+  ],
   "exports": {
     ".": {
       "import": "./dist/src/core/types.js"
