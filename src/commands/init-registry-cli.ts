@@ -1,29 +1,28 @@
 import { define } from 'gunshi';
-import { readFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
-import type { ScanResult } from './scan.ts';
 import { loadRegistry, saveRegistry } from '../core/registry.ts';
 import { loadConfig } from '../core/config.ts';
+import { loadScanResult } from '../core/scan-result-loader.ts';
 import { initRegistry, routeRegistryByPattern } from './init-registry.ts';
 
 export const initRegistryCommand = define({
   name: 'init-registry',
   description: 'Generate a registry template from scan results',
-  examples: `  # Generate a new registry from scan results
-  shiori init-registry -s scan-result.json -o registry.json
+  examples: `  # Generate a new registry (auto-detect scan result)
+  shiori init-registry -o registry.json
 
-  # Merge with existing registry (preserves existing entries)
-  shiori init-registry -s scan-result.json -o registry.json --merge existing-registry.json
+  # Merge with existing registry
+  shiori init-registry -o registry.json --merge existing-registry.json
 
-  # Generate YAML registry
-  shiori init-registry -s scan-result.json -o registry.yaml`,
+  # Pipe from scan
+  shiori scan | shiori init-registry -o registry.json`,
   rendering: { header: null },
   args: {
     scan: {
       type: 'string',
       short: 's',
-      required: true,
-      description: 'Path to scan result JSON file',
+      description:
+        'Path to scan result JSON (default: .config/shiori/scan-result.json or stdin)',
     },
     output: {
       type: 'string',
@@ -37,18 +36,26 @@ export const initRegistryCommand = define({
       description:
         'Existing registry to merge with (preserves existing entries)',
     },
+    cwd: {
+      type: 'string',
+      description: 'Working directory. Default: process.cwd()',
+    },
     config: {
       type: 'string',
       short: 'c',
-      description: 'Path to directory containing .shiorirc.json. Default: cwd',
+      description:
+        'Path to directory containing config.json. Default: <cwd>/.config/shiori',
     },
   },
   run: async (ctx) => {
-    const configDir = ctx.values.config ?? process.cwd();
-    const config = await loadConfig(configDir);
+    const cwd = ctx.values.cwd ?? process.cwd();
+    const config = await loadConfig(cwd, ctx.values.config);
 
-    const scanContent = await readFile(ctx.values.scan, 'utf-8');
-    const scanResult = JSON.parse(scanContent) as ScanResult;
+    const scanResult = await loadScanResult({
+      explicitPath: ctx.values.scan,
+      config,
+      cwd,
+    });
 
     let existingRegistry;
     if (ctx.values.merge) {

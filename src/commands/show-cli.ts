@@ -1,53 +1,64 @@
 import { define } from 'gunshi';
-import { readFile } from 'node:fs/promises';
-import type { ScanResult } from './scan.ts';
 import { loadRegistry } from '../core/registry.ts';
-import { loadConfig } from '../core/config.ts';
+import { loadConfig, resolveRegistryPath } from '../core/config.ts';
+import { loadScanResult } from '../core/scan-result-loader.ts';
 import { show, isFound } from './show.ts';
 
 export const showCommand = define({
   name: 'show',
   description: 'Show information about a specific ref',
-  examples: `  # Look up a ref with namespace
-  shiori show --ref JIRA:PROJ-123 -s scan-result.json -r registry.json
+  examples: `  # Look up a ref (auto-detect scan result and registry)
+  shiori show --ref JIRA-123
 
-  # Look up a simple ref
+  # Explicit paths
   shiori show --ref SUP-1234 -s scan-result.json -r registry.json`,
   rendering: { header: null },
   args: {
     ref: {
       type: 'string',
       required: true,
-      description: 'The ref to look up (e.g. "JIRA:PROJ-123", "SUP-1234")',
+      description: 'The ref to look up (e.g. "JIRA-123", "SUP-1234")',
     },
     scan: {
       type: 'string',
       short: 's',
-      required: true,
-      description: 'Path to scan result JSON file',
+      description:
+        'Path to scan result JSON (default: .config/shiori/scan-result.json or stdin)',
     },
     registry: {
       type: 'string',
       short: 'r',
-      required: true,
-      description: 'Path to registry file (.json, .yaml, .yml)',
+      description:
+        'Path to registry file (auto-detected from config or shiori-registry.json)',
+    },
+    cwd: {
+      type: 'string',
+      description: 'Working directory. Default: process.cwd()',
     },
     config: {
       type: 'string',
       short: 'c',
-      description: 'Path to directory containing .shiorirc.json. Default: cwd',
+      description:
+        'Path to directory containing config.json. Default: <cwd>/.config/shiori',
     },
   },
   run: async (ctx) => {
-    const configDir = ctx.values.config ?? process.cwd();
-    const config = await loadConfig(configDir);
+    const cwd = ctx.values.cwd ?? process.cwd();
+    const config = await loadConfig(cwd, ctx.values.config);
 
-    const scanContent = await readFile(ctx.values.scan, 'utf-8');
-    const scanResult = JSON.parse(scanContent) as ScanResult;
+    const scanResult = await loadScanResult({
+      explicitPath: ctx.values.scan,
+      config,
+      cwd,
+    });
 
-    const { registry, errors: registryErrors } = await loadRegistry(
+    const registryPath = await resolveRegistryPath(
       ctx.values.registry,
+      config,
+      cwd,
     );
+    const { registry, errors: registryErrors } =
+      await loadRegistry(registryPath);
     if (registryErrors.length > 0) {
       console.error('Registry validation errors:');
       for (const err of registryErrors) {

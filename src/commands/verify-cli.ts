@@ -1,8 +1,9 @@
 import { define } from 'gunshi';
-import { readFile, writeFile } from 'node:fs/promises';
+import { writeFile } from 'node:fs/promises';
 import type { VerifyIssueType } from '../core/types.ts';
-import type { ScanResult } from './scan.ts';
 import { loadRegistry } from '../core/registry.ts';
+import { loadConfig, resolveRegistryPath } from '../core/config.ts';
+import { loadScanResult } from '../core/scan-result-loader.ts';
 import {
   verify,
   formatVerifyResultAsMarkdown,
@@ -17,29 +18,30 @@ function parseIssueTypes(value: string | undefined): VerifyIssueType[] {
 export const verifyCommand = define({
   name: 'verify',
   description: 'Verify annotations against the registry',
-  examples: `  # CI: fail on missing or expired annotations
-  shiori verify -s scan-result.json -r registry.json \\
-    --fail-on missing-in-registry,expired --warn-on unused-in-source
+  examples: `  # Verify with auto-detected scan result and registry
+  shiori verify --fail-on missing-in-registry,expired
 
-  # Generate a Markdown report
-  shiori verify -s scan-result.json -r registry.json -f markdown -o report.md
+  # Pipe from scan
+  shiori scan | shiori verify --fail-on expired
 
-  # Warn-only mode (no failure exit code)
-  shiori verify -s scan-result.json -r registry.json \\
-    --warn-on missing-in-registry,unused-in-source,expired`,
+  # Explicit paths
+  shiori verify -s scan-result.json -r registry.json --fail-on expired
+
+  # Markdown report
+  shiori verify -f markdown -o report.md`,
   rendering: { header: null },
   args: {
     scan: {
       type: 'string',
       short: 's',
-      required: true,
-      description: 'Path to scan result JSON file',
+      description:
+        'Path to scan result JSON (default: .config/shiori/scan-result.json or stdin)',
     },
     registry: {
       type: 'string',
       short: 'r',
-      required: true,
-      description: 'Path to registry file (.json, .yaml, .yml)',
+      description:
+        'Path to registry file (auto-detected from config or shiori-registry.json)',
     },
     format: {
       type: 'string',
@@ -64,13 +66,32 @@ export const verifyCommand = define({
       short: 'o',
       description: 'Output file path. If omitted, writes to stdout',
     },
+    cwd: {
+      type: 'string',
+      description: 'Working directory. Default: process.cwd()',
+    },
+    config: {
+      type: 'string',
+      short: 'c',
+      description:
+        'Path to directory containing config.json. Default: <cwd>/.config/shiori',
+    },
   },
   run: async (ctx) => {
-    const registryPath = ctx.values.registry;
+    const cwd = ctx.values.cwd ?? process.cwd();
+    const config = await loadConfig(cwd, ctx.values.config);
 
-    const scanContent = await readFile(ctx.values.scan, 'utf-8');
-    const scanResult = JSON.parse(scanContent) as ScanResult;
+    const scanResult = await loadScanResult({
+      explicitPath: ctx.values.scan,
+      config,
+      cwd,
+    });
 
+    const registryPath = await resolveRegistryPath(
+      ctx.values.registry,
+      config,
+      cwd,
+    );
     const { registry, errors: registryErrors } =
       await loadRegistry(registryPath);
     if (registryErrors.length > 0) {

@@ -1,33 +1,53 @@
 import { define } from 'gunshi';
-import { readFile, writeFile } from 'node:fs/promises';
-import type { ScanResult } from './scan.ts';
+import { writeFile } from 'node:fs/promises';
+import { loadConfig } from '../core/config.ts';
+import { loadScanResult } from '../core/scan-result-loader.ts';
 import { listDrafts } from './draft.ts';
 
 export const draftCommand = define({
   name: 'draft',
   description: 'List draft annotations (shiori-tagged without ref)',
-  examples: `  # List drafts from scan results
-  shiori draft -s scan-result.json
+  examples: `  # List drafts (auto-detect scan result)
+  shiori draft
+
+  # Pipe from scan
+  shiori scan | shiori draft
 
   # Save draft list to file
-  shiori draft -s scan-result.json -o drafts.json`,
+  shiori draft -o drafts.json`,
   rendering: { header: null },
   args: {
     scan: {
       type: 'string',
       short: 's',
-      required: true,
-      description: 'Path to scan result JSON file',
+      description:
+        'Path to scan result JSON (default: .config/shiori/scan-result.json or stdin)',
     },
     output: {
       type: 'string',
       short: 'o',
       description: 'Output file path. If omitted, writes to stdout',
     },
+    cwd: {
+      type: 'string',
+      description: 'Working directory. Default: process.cwd()',
+    },
+    config: {
+      type: 'string',
+      short: 'c',
+      description:
+        'Path to directory containing config.json. Default: <cwd>/.config/shiori',
+    },
   },
   run: async (ctx) => {
-    const scanContent = await readFile(ctx.values.scan, 'utf-8');
-    const scanResult = JSON.parse(scanContent) as ScanResult;
+    const cwd = ctx.values.cwd ?? process.cwd();
+    const config = await loadConfig(cwd, ctx.values.config);
+
+    const scanResult = await loadScanResult({
+      explicitPath: ctx.values.scan,
+      config,
+      cwd,
+    });
 
     const result = listDrafts(scanResult.annotations);
     const json = JSON.stringify(result, null, 2);

@@ -1,6 +1,7 @@
 import { define } from 'gunshi';
-import { readFile, writeFile } from 'node:fs/promises';
-import type { ScanResult } from './scan.ts';
+import { writeFile } from 'node:fs/promises';
+import { loadConfig } from '../core/config.ts';
+import { loadScanResult } from '../core/scan-result-loader.ts';
 import {
   listCandidates,
   formatCandidatesAsMarkdown,
@@ -10,18 +11,21 @@ import {
 export const candidatesCommand = define({
   name: 'candidates',
   description: 'List candidate annotations from scan results',
-  examples: `  # List candidates as JSON
-  shiori candidates -s scan-result.json
+  examples: `  # List candidates (auto-detect scan result)
+  shiori candidates
 
-  # Generate Markdown report of candidates
+  # Pipe from scan
+  shiori scan | shiori candidates -f markdown
+
+  # Explicit path
   shiori candidates -s scan-result.json -f markdown -o candidates.md`,
   rendering: { header: null },
   args: {
     scan: {
       type: 'string',
       short: 's',
-      required: true,
-      description: 'Path to scan result JSON file',
+      description:
+        'Path to scan result JSON (default: .config/shiori/scan-result.json or stdin)',
     },
     format: {
       type: 'string',
@@ -34,10 +38,26 @@ export const candidatesCommand = define({
       short: 'o',
       description: 'Output file path. If omitted, writes to stdout',
     },
+    cwd: {
+      type: 'string',
+      description: 'Working directory. Default: process.cwd()',
+    },
+    config: {
+      type: 'string',
+      short: 'c',
+      description:
+        'Path to directory containing config.json. Default: <cwd>/.config/shiori',
+    },
   },
   run: async (ctx) => {
-    const scanContent = await readFile(ctx.values.scan, 'utf-8');
-    const scanResult = JSON.parse(scanContent) as ScanResult;
+    const cwd = ctx.values.cwd ?? process.cwd();
+    const config = await loadConfig(cwd, ctx.values.config);
+
+    const scanResult = await loadScanResult({
+      explicitPath: ctx.values.scan,
+      config,
+      cwd,
+    });
 
     const result = listCandidates(scanResult.candidates);
 

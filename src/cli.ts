@@ -6,21 +6,22 @@ import { initRegistryCommand } from './commands/init-registry-cli.ts';
 import { draftCommand } from './commands/draft-cli.ts';
 import { candidatesCommand } from './commands/candidates-cli.ts';
 import { showCommand } from './commands/show-cli.ts';
+import { checkCommand } from './commands/check-cli.ts';
 
 const main = define({
   name: 'shiori',
   description: 'Annotation tracking and governance tool',
-  examples: `  # Typical workflow: scan → verify
-  shiori scan --output scan-result.json
-  shiori verify -s scan-result.json -r registry.json --fail-on missing-in-registry,expired
+  examples: `  # One-shot scan + verify
+  shiori check --fail-on missing-in-registry,expired
 
-  # Bootstrap a new registry from existing annotations
-  shiori scan --output scan-result.json
-  shiori init-registry -s scan-result.json -o registry.json
+  # Two-step with default paths
+  shiori scan && shiori verify --fail-on expired
 
-  # Find untracked lint disable comments
-  shiori scan --output scan-result.json
-  shiori candidates -s scan-result.json -f markdown`,
+  # Pipe workflow
+  shiori scan | shiori verify --fail-on expired
+
+  # Bootstrap a new registry
+  shiori scan && shiori init-registry -o registry.json`,
   run: () => {
     console.log('Run "shiori --help" for usage information.');
   },
@@ -33,6 +34,7 @@ await cli(process.argv.slice(2), main, {
   subCommands: {
     scan: scanCommand,
     verify: verifyCommand,
+    check: checkCommand,
     'init-registry': initRegistryCommand,
     draft: draftCommand,
     candidates: candidatesCommand,

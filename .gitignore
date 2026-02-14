@@ -1,3 +1,4 @@
 node_modules/
 dist/
 .tmp/
+.config/shiori/scan-result.json

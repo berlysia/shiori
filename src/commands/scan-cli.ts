@@ -1,5 +1,6 @@
 import { define } from 'gunshi';
-import { writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
 import { scan } from './scan.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
 import { loadConfig } from '../core/config.ts';
@@ -10,14 +11,17 @@ const DEFAULT_IGNORE = ['**/node_modules/**', '**/dist/**', '**/.git/**'];
 export const scanCommand = define({
   name: 'scan',
   description: 'Scan source files for shiori annotations',
-  examples: `  # Scan TypeScript and CSS files, save to file
-  shiori scan --patterns "src/**/*.{css,scss,ts,tsx}" --output scan-result.json
+  examples: `  # Scan and auto-save to .config/shiori/scan-result.json
+  shiori scan
 
-  # Scan with custom ignore patterns
-  shiori scan -p "**/*.js" -i "**/test/**,**/vendor/**"
+  # Pipe to other commands
+  shiori scan | shiori verify
 
-  # Output to stdout (pipe to other tools)
-  shiori scan`,
+  # Scan with custom patterns
+  shiori scan -p "src/**/*.{css,scss,ts,tsx}"
+
+  # Explicit output path
+  shiori scan -o scan-result.json`,
   rendering: { header: null },
   args: {
     patterns: {
@@ -35,7 +39,8 @@ export const scanCommand = define({
     output: {
       type: 'string',
       short: 'o',
-      description: 'Output file path. If omitted, writes to stdout',
+      description:
+        'Output file path. If omitted: TTY saves to .config/shiori/scan-result.json, pipe outputs to stdout',
     },
     cwd: {
       type: 'string',
@@ -44,7 +49,8 @@ export const scanCommand = define({
     config: {
       type: 'string',
       short: 'c',
-      description: 'Path to directory containing .shiorirc.json. Default: cwd',
+      description:
+        'Path to directory containing config.json. Default: <cwd>/.config/shiori',
     },
     provider: {
       type: 'string',
@@ -53,17 +59,17 @@ export const scanCommand = define({
     },
   },
   run: async (ctx) => {
+    const cwd = ctx.values.cwd ?? process.cwd();
+    const config = await loadConfig(cwd, ctx.values.config);
+
     const patterns = ctx.values.patterns
       ? ctx.values.patterns.split(',').map((s: string) => s.trim())
-      : DEFAULT_PATTERNS;
+      : (config.scanPatterns ?? DEFAULT_PATTERNS);
 
     const ignore = ctx.values.ignore
       ? ctx.values.ignore.split(',').map((s: string) => s.trim())
-      : DEFAULT_IGNORE;
+      : (config.scanIgnore ?? DEFAULT_IGNORE);
 
-    const cwd = ctx.values.cwd ?? process.cwd();
-    const configDir = ctx.values.config ?? cwd;
-    const config = await loadConfig(configDir);
     const provider = new CommentProvider();
 
     const result = await scan({
@@ -76,11 +82,21 @@ export const scanCommand = define({
     const json = JSON.stringify(result, null, 2);
 
     if (ctx.values.output) {
+      // Explicit --output: write to specified path
       await writeFile(ctx.values.output, json + '\n', 'utf-8');
       console.error(
         `Wrote ${result.annotations.length} annotation(s) and ${result.candidates.length} candidate(s) to ${ctx.values.output}`,
       );
+    } else if (process.stdout.isTTY) {
+      // TTY: auto-save to config path
+      const outputPath = join(cwd, config.paths.scanResult);
+      await mkdir(dirname(outputPath), { recursive: true });
+      await writeFile(outputPath, json + '\n', 'utf-8');
+      console.error(
+        `Wrote ${result.annotations.length} annotation(s) and ${result.candidates.length} candidate(s) to ${config.paths.scanResult}`,
+      );
     } else {
+      // Pipe/redirect: stdout
       console.log(json);
     }
 
