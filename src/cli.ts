@@ -28,7 +28,23 @@ const main = define({
   # Add new refs to registry
   shiori scan && shiori update`,
   run: () => {
-    console.log('Run "shiori --help" for usage information.');
+    console.error(`shiori - Annotation tracking and governance tool
+
+Workflow:
+  shiori init                    Set up shiori in your project
+  shiori check                   Scan and verify against registry
+  shiori update                  Add new refs to the registry
+  shiori check --fail-on ...     Enforce governance in CI
+
+Other commands:
+  shiori scan                    Extract annotations from source
+  shiori verify                  Verify scan results against registry
+  shiori show --ref <ref>        Look up a specific ref
+  shiori candidates              List untracked lint disable comments
+  shiori draft                   List annotations without a ref
+  shiori docs                    Show full documentation
+
+Run "shiori <command> --help" for details on each command.`);
   },
 });
 
