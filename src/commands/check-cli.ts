@@ -7,7 +7,10 @@ import { loadRegistry } from '../core/registry.ts';
 import { scan } from './scan.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
 import { check, type OutputFormat } from './check.ts';
-import { formatVerifyResultAsMarkdown } from './verify.ts';
+import {
+  formatVerifyResultAsMarkdown,
+  formatActionHints,
+} from './verify.ts';
 
 const DEFAULT_PATTERNS = ['**/*.{css,scss,pcss,js,ts,tsx,jsx}'];
 const DEFAULT_IGNORE = ['**/node_modules/**', '**/dist/**', '**/.git/**'];
@@ -163,6 +166,10 @@ export const checkCommand = define({
       console.error(`Report written to ${ctx.values.output}`);
     } else {
       console.log(output);
+    }
+
+    for (const hint of formatActionHints(verifyResult)) {
+      console.error(hint);
     }
 
     if (verifyResult.summary.errors > 0) {

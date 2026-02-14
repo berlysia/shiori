@@ -8,6 +8,7 @@ import type {
 import {
   verify,
   formatVerifyResultAsMarkdown,
+  formatActionHints,
 } from '../src/commands/verify.ts';
 
 function makeAnnotation(
@@ -299,6 +300,116 @@ describe('verify', () => {
       assert.equal(result.summary.byType['unused-in-source'], 2);
       assert.equal(result.summary.byType['expired'], 1);
       assert.equal(result.summary.byType['syntax-error'], 1);
+    });
+  });
+
+  describe('formatActionHints', () => {
+    it('returns all-passed message when no issues', () => {
+      const records = [makeAnnotation({ ref: 'SUP-OK' })];
+      const registry: Registry = { 'SUP-OK': makeRegistryEntry() };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+      });
+      const hints = formatActionHints(result);
+      assert.equal(hints.length, 1);
+      assert.ok(hints[0]!.includes('All checks passed'));
+    });
+
+    it('shows hint for missing-in-registry', () => {
+      const records = [makeAnnotation({ ref: 'SUP-NEW' })];
+      const result = verify({
+        records,
+        registry: {},
+        failOn: ['missing-in-registry'],
+        warnOn: [],
+        now: referenceDate,
+      });
+      const hints = formatActionHints(result);
+      assert.ok(hints.some((h) => h.includes('missing-in-registry')));
+      assert.ok(hints.some((h) => h.includes('shiori update')));
+    });
+
+    it('shows hint for unused-in-source', () => {
+      const records: ShioriAnnotation[] = [];
+      const registry: Registry = { 'SUP-OLD': makeRegistryEntry() };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: ['unused-in-source'],
+        now: referenceDate,
+      });
+      const hints = formatActionHints(result);
+      assert.ok(hints.some((h) => h.includes('unused-in-source')));
+      assert.ok(hints.some((h) => h.includes('Remove stale entries')));
+    });
+
+    it('shows hint for expired', () => {
+      const records = [makeAnnotation({ ref: 'SUP-EXP' })];
+      const registry: Registry = {
+        'SUP-EXP': makeRegistryEntry({ expires: '2025-01-01' }),
+      };
+      const result = verify({
+        records,
+        registry,
+        failOn: ['expired'],
+        warnOn: [],
+        now: referenceDate,
+      });
+      const hints = formatActionHints(result);
+      assert.ok(hints.some((h) => h.includes('expired')));
+      assert.ok(hints.some((h) => h.includes('extend expires')));
+    });
+
+    it('shows hint for syntax-error', () => {
+      const records = [
+        makeAnnotation({
+          ref: '',
+          tagged: true,
+          syntaxErrors: ["empty value for key 'ref'"],
+        }),
+      ];
+      const result = verify({
+        records,
+        registry: {},
+        failOn: ['syntax-error'],
+        warnOn: [],
+        now: referenceDate,
+      });
+      const hints = formatActionHints(result);
+      assert.ok(hints.some((h) => h.includes('syntax-error')));
+      assert.ok(hints.some((h) => h.includes('Fix annotation syntax')));
+    });
+
+    it('shows multiple hints for combined issues', () => {
+      const records = [
+        makeAnnotation({ ref: 'SUP-MISS' }),
+        makeAnnotation({
+          ref: '',
+          tagged: true,
+          syntaxErrors: ["empty value for key 'ref'"],
+        }),
+      ];
+      const registry: Registry = {
+        'SUP-UNUSED': makeRegistryEntry(),
+        'SUP-EXP': makeRegistryEntry({ expires: '2025-01-01' }),
+      };
+      const result = verify({
+        records,
+        registry,
+        failOn: ['missing-in-registry', 'expired'],
+        warnOn: ['unused-in-source', 'syntax-error'],
+        now: referenceDate,
+      });
+      const hints = formatActionHints(result);
+      assert.ok(hints.some((h) => h.includes('missing-in-registry')));
+      assert.ok(hints.some((h) => h.includes('unused-in-source')));
+      assert.ok(hints.some((h) => h.includes('expired')));
+      assert.ok(hints.some((h) => h.includes('syntax-error')));
     });
   });
 

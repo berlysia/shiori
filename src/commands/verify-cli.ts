@@ -7,6 +7,7 @@ import { loadScanResult } from '../core/scan-result-loader.ts';
 import {
   verify,
   formatVerifyResultAsMarkdown,
+  formatActionHints,
   type OutputFormat,
 } from './verify.ts';
 
@@ -119,6 +120,10 @@ export const verifyCommand = define({
       console.error(`Report written to ${ctx.values.output}`);
     } else {
       console.log(output);
+    }
+
+    for (const hint of formatActionHints(result)) {
+      console.error(hint);
     }
 
     if (result.summary.errors > 0) {

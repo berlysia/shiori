@@ -215,3 +215,43 @@ export function formatVerifyResultAsMarkdown(result: VerifyResult): string {
   lines.push('');
   return lines.join('\n');
 }
+
+/**
+ * Generate action hints based on verify result issue types.
+ * Intended for stderr output to guide users on next steps.
+ */
+export function formatActionHints(result: VerifyResult): string[] {
+  const hints: string[] = [];
+  const { byType } = result.summary;
+
+  if (result.summary.total === 0) {
+    hints.push('All checks passed. Registry is in sync with source.');
+    return hints;
+  }
+
+  hints.push('');
+  hints.push('Action hints:');
+
+  if (byType['missing-in-registry'] > 0) {
+    hints.push(
+      `  missing-in-registry (${byType['missing-in-registry']}): Run "shiori update" to add new refs, then fill in reason/owner/expires.`,
+    );
+  }
+  if (byType['unused-in-source'] > 0) {
+    hints.push(
+      `  unused-in-source (${byType['unused-in-source']}): Remove stale entries from the registry, or re-add the annotation in source.`,
+    );
+  }
+  if (byType['expired'] > 0) {
+    hints.push(
+      `  expired (${byType['expired']}): Resolve the underlying issue and remove the annotation, or extend expires in the registry.`,
+    );
+  }
+  if (byType['syntax-error'] > 0) {
+    hints.push(
+      `  syntax-error (${byType['syntax-error']}): Fix annotation syntax. Expected: "shiori: <ref> [key=value ...]"`,
+    );
+  }
+
+  return hints;
+}
