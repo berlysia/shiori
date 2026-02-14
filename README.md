@@ -41,6 +41,31 @@ See [ADR 007](docs/decisions/007-positional-ref-syntax.md) for the positional re
 - Plugins can enforce comment formatting (e.g., requiring an ID), but **registry reconciliation, expiry detection, and inventory audits** are organizational concerns that bloat a plugin.
 - This tool operates as an external CLI that handles extraction, reconciliation, and reporting — complementary to (not replacing) lint rules.
 
+## Quick Start
+
+```bash
+# 1. Install
+pnpm add -D @berlysia/shiori
+
+# 2. Initialize (scans source, creates registry)
+shiori init
+
+# 3. Review and fill in registry entries
+#    Edit .config/shiori/registry.json — add reason, owner, expires
+
+# 4. Check annotations against registry
+shiori check
+
+# 5. Fix issues
+shiori update          # adds missing refs to registry
+shiori check           # re-verify
+
+# 6. Add to CI
+shiori check --fail-on missing-in-registry,expired
+```
+
+Workflow: `init` → `check` → `update` → `check` → CI
+
 ## Architecture: Provider Design
 
 Annotation extraction is abstracted behind an `AnnotationProvider` interface, making the tool independent of any specific lint tool's internals.
@@ -119,6 +144,35 @@ A JSON file keyed by annotation ref:
 
 ### Commands
 
+#### `init` — Initialize shiori in a project
+
+```bash
+shiori init
+shiori init --registry custom-registry.yaml
+shiori init -p "src/**/*.ts"
+```
+
+Scans source files, creates a config directory, generates a registry template, and updates `.gitignore`. Run once to set up shiori in your project.
+
+#### `check` — Scan and verify in one step
+
+```bash
+shiori check
+shiori check --fail-on missing-in-registry,expired
+shiori check -f markdown -o report.md
+```
+
+One-shot command that scans source and verifies against the registry. Recommended for both development and CI.
+
+#### `update` — Add new refs to the registry
+
+```bash
+shiori update
+shiori update --registry custom-registry.yaml
+```
+
+Scans source and adds any new refs to the registry as stub entries. Fill in reason, owner, and expires after running.
+
 #### `scan` — Extract annotations from source
 
 ```bash
@@ -160,20 +214,6 @@ Options:
 - `--warn-on` — Issue types reported as warnings (comma-separated)
 - `--format, -f` — Output format: `json` (default) or `markdown`
 - `--output, -o` — Output file (default: stdout)
-
-#### `init-registry` — Generate registry template
-
-```bash
-shiori init-registry \
-  --scan scan-result.json \
-  --output registry.json
-
-# Merge with existing registry (preserves existing entries)
-shiori init-registry \
-  --scan scan-result.json \
-  --output registry.json \
-  --merge existing-registry.json
-```
 
 #### `draft` — List draft annotations
 
@@ -243,26 +283,12 @@ jobs:
           node-version: 22
       - run: npm ci
 
-      - name: Scan annotations
-        run: npx shiori scan --output scan-result.json
-
-      - name: Verify against registry
-        run: |
-          npx shiori verify \
-            --scan scan-result.json \
-            --registry registry.json \
-            --fail-on missing-in-registry,expired \
-            --warn-on unused-in-source
+      - name: Check annotations
+        run: npx shiori check --fail-on missing-in-registry,expired
 
       - name: Generate report
         if: always()
-        run: |
-          npx shiori verify \
-            --scan scan-result.json \
-            --registry registry.json \
-            --format markdown \
-            --output report.md \
-            --warn-on missing-in-registry,unused-in-source,expired,syntax-error
+        run: npx shiori check -f markdown -o report.md
 ```
 
 ## Development
