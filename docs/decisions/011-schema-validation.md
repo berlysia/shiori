@@ -218,7 +218,7 @@ interface NamespaceConfig {
 ```json
 {
   "$schema": "https://shiori.example.com/schemas/shiorirc.schema.json",
-  "namespaces": { "..." : "..." }
+  "namespaces": { "...": "..." }
 }
 ```
 
@@ -273,6 +273,7 @@ interface RegistryEntry extends RegistryEntryBase {
 ```
 
 shiori 内部のコマンド（`verify()`, `show()` 等）はこの型で動作する:
+
 - `verify()`: `entry.expires` へのアクセスは `RegistryEntryBase` で型定義済み。カスタムスキーマが `expires` を含まない場合でも、JSON parse 結果は `undefined` になるため実行時エラーにはならない
 - `show()`: `RegistryEntryBase` のフィールドは従来通り表示し、index signature 経由の追加フィールドは「カスタムフィールド」セクションで表示する
 
@@ -302,7 +303,7 @@ export interface JiraRegistryEntry {
   expires?: string;
   ticket: string;
   owner?: string;
-  priority?: "critical" | "high" | "medium" | "low";
+  priority?: 'critical' | 'high' | 'medium' | 'low';
 }
 ```
 
@@ -315,9 +316,9 @@ import type { JiraRegistryEntry } from 'node_modules/.shiori/types/JIRA';
 
 // 型安全なアクセス
 const entry = getTypedEntry<JiraRegistryEntry>(registry, 'JIRA:PROJ-123');
-entry.ticket;    // string — 型エラーなし
-entry.priority;  // "critical" | "high" | "medium" | "low" | undefined
-entry.foo;       // コンパイルエラー
+entry.ticket; // string — 型エラーなし
+entry.priority; // "critical" | "high" | "medium" | "low" | undefined
+entry.foo; // コンパイルエラー
 ```
 
 **生成タイミング**:
@@ -336,9 +337,9 @@ interface SchemaValidationError {
   ref: string;
   message: string;
   /** JSON Schema validation 固有の情報 */
-  schemaPath?: string;    // 違反したスキーマ内のパス
-  instancePath?: string;  // 検証対象の JSON パス
-  keyword?: string;       // 違反した制約の種類 (required, pattern, enum 等)
+  schemaPath?: string; // 違反したスキーマ内のパス
+  instancePath?: string; // 検証対象の JSON パス
+  keyword?: string; // 違反した制約の種類 (required, pattern, enum 等)
 }
 ```
 
@@ -350,7 +351,7 @@ type VerifyIssueType =
   | 'unused-in-source'
   | 'expired'
   | 'syntax-error'
-  | 'schema-violation';  // 新規追加
+  | 'schema-violation'; // 新規追加
 ```
 
 `schema-violation` のデフォルト severity は `warning` とする。既存の CI パイプラインが新しい issue type で意図せず失敗することを防ぐ。将来的に `--strict-schema` オプションで `error` に昇格可能にする。
@@ -377,7 +378,12 @@ function validateEntry(
 ```ts
 // 使用例
 const resolver = await buildSchemaResolver(config.namespaces, basePath);
-const result = await loadMultiRegistry(registryPath, config.namespaces, basePath, resolver);
+const result = await loadMultiRegistry(
+  registryPath,
+  config.namespaces,
+  basePath,
+  resolver,
+);
 ```
 
 `buildSchemaResolver` の内部では Decision セクション 1 のスキーマ解決の優先順位に従い、`entrySchema` → `node_modules/.shiori/schemas/<NAMESPACE>.json` → `_default.json` の順で探索する。
@@ -398,15 +404,15 @@ const result = await loadMultiRegistry(registryPath, config.namespaces, basePath
 
 ### 8. エッジケースの扱い
 
-| ケース | 扱い |
-| --- | --- |
-| namespace なしの ref（例: `SUP-1234`） | デフォルトスキーマで検証 |
-| namespace パターン不一致のコロン付き ref（例: `abc:def`） | namespace なしと判定（ADR 008 準拠）、デフォルトスキーマで検証 |
-| draft state（ref が空文字列） | スキーマ検証をスキップ（ref がないため namespace 判定不可） |
-| entrySchema なしの namespace | デフォルトスキーマで検証。namespace 設定は urlTemplate/registryFile にのみ影響 |
-| スキーマファイルが存在しない | デフォルトスキーマにフォールバック + warning |
-| スキーマファイルが不正な JSON | デフォルトスキーマにフォールバック + warning |
-| スキーマファイルが不正な JSON Schema | デフォルトスキーマにフォールバック + warning |
+| ケース                                                    | 扱い                                                                           |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| namespace なしの ref（例: `SUP-1234`）                    | デフォルトスキーマで検証                                                       |
+| namespace パターン不一致のコロン付き ref（例: `abc:def`） | namespace なしと判定（ADR 008 準拠）、デフォルトスキーマで検証                 |
+| draft state（ref が空文字列）                             | スキーマ検証をスキップ（ref がないため namespace 判定不可）                    |
+| entrySchema なしの namespace                              | デフォルトスキーマで検証。namespace 設定は urlTemplate/registryFile にのみ影響 |
+| スキーマファイルが存在しない                              | デフォルトスキーマにフォールバック + warning                                   |
+| スキーマファイルが不正な JSON                             | デフォルトスキーマにフォールバック + warning                                   |
+| スキーマファイルが不正な JSON Schema                      | デフォルトスキーマにフォールバック + warning                                   |
 
 ## Alternatives Considered
 
@@ -452,14 +458,14 @@ namespace ごとに JSON Schema ファイルを参照し、汎用的なスキー
 
 ### 既存コマンドへの影響
 
-| コマンド      | 影響                                                                              |
-| ------------- | --------------------------------------------------------------------------------- |
-| verify        | スキーマバリデーションを追加。`schema-violation` issue を報告                      |
-| init-registry | namespace のスキーマに従ったエントリ雛形を生成可能に                               |
-| scan          | なし（レジストリを読まない）                                                      |
-| show          | カスタムフィールドも表示に含める                                                  |
-| draft         | なし                                                                              |
-| candidates    | なし                                                                              |
+| コマンド      | 影響                                                          |
+| ------------- | ------------------------------------------------------------- |
+| verify        | スキーマバリデーションを追加。`schema-violation` issue を報告 |
+| init-registry | namespace のスキーマに従ったエントリ雛形を生成可能に          |
+| scan          | なし（レジストリを読まない）                                  |
+| show          | カスタムフィールドも表示に含める                              |
+| draft         | なし                                                          |
+| candidates    | なし                                                          |
 
 ### ファイル構成の変化
 

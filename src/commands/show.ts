@@ -45,5 +45,7 @@ export function show(input: ShowInput): ShowResult {
 
 /** Whether the show result found any information */
 export function isFound(result: ShowResult): boolean {
-  return result.registryEntry !== undefined || result.sourceLocations.length > 0;
+  return (
+    result.registryEntry !== undefined || result.sourceLocations.length > 0
+  );
 }

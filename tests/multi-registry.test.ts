@@ -44,7 +44,10 @@ describe('loadMultiRegistry', () => {
     );
 
     const result = await loadMultiRegistry(defaultPath, [
-      { match: 'JIRA:{id}', urlTemplate: 'https://jira.example.com/browse/{id}' },
+      {
+        match: 'JIRA:{id}',
+        urlTemplate: 'https://jira.example.com/browse/{id}',
+      },
     ]);
     assert.equal(Object.keys(result.registry).length, 1);
     assert.equal(result.duplicates.length, 0);
@@ -94,7 +97,10 @@ describe('loadMultiRegistry', () => {
     await writeFile(
       jiraPath,
       JSON.stringify({
-        'JIRA:PROJ-123': { reason: 'authoritative entry', target: 'src/api.ts' },
+        'JIRA:PROJ-123': {
+          reason: 'authoritative entry',
+          target: 'src/api.ts',
+        },
       }),
     );
 
@@ -106,7 +112,10 @@ describe('loadMultiRegistry', () => {
       },
     ]);
 
-    assert.equal(result.registry['JIRA:PROJ-123']!.reason, 'authoritative entry');
+    assert.equal(
+      result.registry['JIRA:PROJ-123']!.reason,
+      'authoritative entry',
+    );
     assert.equal(result.duplicates.length, 1);
     assert.equal(result.duplicates[0]!.ref, 'JIRA:PROJ-123');
   });
@@ -245,7 +254,10 @@ describe('routeRegistryByPattern', () => {
 
   it('routes all to default when pattern has no registryFile', () => {
     const patterns = [
-      { match: 'JIRA:{id}', urlTemplate: 'https://jira.example.com/browse/{id}' },
+      {
+        match: 'JIRA:{id}',
+        urlTemplate: 'https://jira.example.com/browse/{id}',
+      },
     ];
     const routed = routeRegistryByPattern(registry, patterns);
     assert.equal(routed.size, 1);

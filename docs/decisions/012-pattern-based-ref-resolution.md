@@ -61,16 +61,16 @@ interface RefPatternConfig {
 
 `{id}` を含むパターン文字列を正規表現に変換する:
 
-| パターン | 生成される正規表現 | マッチ例 | `{id}` |
-| --- | --- | --- | --- |
-| `JIRA-{id}` | `^JIRA-(.+)$` | `JIRA-123` | `123` |
-| `ADR-{id}` | `^ADR-(.+)$` | `ADR-0007` | `0007` |
-| `{id}` | `^(.+)$` | 何でもマッチ | ref 全体 |
+| パターン    | 生成される正規表現 | マッチ例     | `{id}`   |
+| ----------- | ------------------ | ------------ | -------- |
+| `JIRA-{id}` | `^JIRA-(.+)$`      | `JIRA-123`   | `123`    |
+| `ADR-{id}`  | `^ADR-(.+)$`       | `ADR-0007`   | `0007`   |
+| `{id}`      | `^(.+)$`           | 何でもマッチ | ref 全体 |
 
 `{id}` を含まないリテラルパターンも許可する（完全一致）:
 
-| パターン | マッチ例 |
-| --- | --- |
+| パターン            | マッチ例                 |
+| ------------------- | ------------------------ |
 | `LEGACY-WORKAROUND` | `LEGACY-WORKAROUND` のみ |
 
 ### `resolveRefUrl()` の置換
@@ -153,11 +153,11 @@ namespace 構文が不要になるため、ref はプロジェクトが自由に
 
 ### 他 ADR への影響
 
-| ADR | 影響 |
-| --- | --- |
-| **009 (show)** | `ShowInput.namespaces` → `ShowInput.refPatterns` に変更。`resolveRefUrl()` の引数がパターン配列に変わる |
-| **010 (multi-registry)** | `NamespaceConfig.registryFile` → `RefPatternConfig.registryFile` に移行。ルーティングが namespace ベースからパターンベースに変わる |
-| **011 (schema validation)** | `NamespaceConfig.entrySchema` → `RefPatternConfig.entrySchema` に移行。スキーマ解決が namespace ベースからパターンベースに変わる |
+| ADR                         | 影響                                                                                                                               |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **009 (show)**              | `ShowInput.namespaces` → `ShowInput.refPatterns` に変更。`resolveRefUrl()` の引数がパターン配列に変わる                            |
+| **010 (multi-registry)**    | `NamespaceConfig.registryFile` → `RefPatternConfig.registryFile` に移行。ルーティングが namespace ベースからパターンベースに変わる |
+| **011 (schema validation)** | `NamespaceConfig.entrySchema` → `RefPatternConfig.entrySchema` に移行。スキーマ解決が namespace ベースからパターンベースに変わる   |
 
 ### Migration
 

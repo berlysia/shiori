@@ -6,7 +6,10 @@ import type { RefPatternConfig } from '../src/core/ref-pattern.ts';
 describe('matchRefPattern', () => {
   it('matches {id} pattern and captures id', () => {
     const patterns: RefPatternConfig[] = [
-      { match: 'JIRA-{id}', urlTemplate: 'https://jira.example.com/browse/{id}' },
+      {
+        match: 'JIRA-{id}',
+        urlTemplate: 'https://jira.example.com/browse/{id}',
+      },
     ];
     const result = matchRefPattern('JIRA-PROJ-123', patterns);
     assert.ok(result);
@@ -25,7 +28,10 @@ describe('matchRefPattern', () => {
 
   it('matches colon-based pattern for backward compat (JIRA:{id})', () => {
     const patterns: RefPatternConfig[] = [
-      { match: 'JIRA:{id}', urlTemplate: 'https://jira.example.com/browse/{id}' },
+      {
+        match: 'JIRA:{id}',
+        urlTemplate: 'https://jira.example.com/browse/{id}',
+      },
     ];
     const result = matchRefPattern('JIRA:PROJ-123', patterns);
     assert.ok(result);
@@ -52,26 +58,20 @@ describe('matchRefPattern', () => {
   });
 
   it('matches literal pattern (no {id}) with exact match', () => {
-    const patterns: RefPatternConfig[] = [
-      { match: 'LEGACY-WORKAROUND' },
-    ];
+    const patterns: RefPatternConfig[] = [{ match: 'LEGACY-WORKAROUND' }];
     const result = matchRefPattern('LEGACY-WORKAROUND', patterns);
     assert.ok(result);
     assert.equal(result.captures.id, 'LEGACY-WORKAROUND');
   });
 
   it('does not match literal pattern partially', () => {
-    const patterns: RefPatternConfig[] = [
-      { match: 'LEGACY' },
-    ];
+    const patterns: RefPatternConfig[] = [{ match: 'LEGACY' }];
     const result = matchRefPattern('LEGACY-EXTRA', patterns);
     assert.equal(result, undefined);
   });
 
   it('returns undefined when no pattern matches', () => {
-    const patterns: RefPatternConfig[] = [
-      { match: 'JIRA-{id}' },
-    ];
+    const patterns: RefPatternConfig[] = [{ match: 'JIRA-{id}' }];
     const result = matchRefPattern('ADR-0007', patterns);
     assert.equal(result, undefined);
   });
@@ -87,9 +87,7 @@ describe('matchRefPattern', () => {
   });
 
   it('escapes regex special characters in pattern literal parts', () => {
-    const patterns: RefPatternConfig[] = [
-      { match: 'PROJ.{id}' },
-    ];
+    const patterns: RefPatternConfig[] = [{ match: 'PROJ.{id}' }];
     // Should match: dot is literal
     const result = matchRefPattern('PROJ.123', patterns);
     assert.ok(result);
@@ -101,17 +99,13 @@ describe('matchRefPattern', () => {
   });
 
   it('returns undefined for empty ref', () => {
-    const patterns: RefPatternConfig[] = [
-      { match: 'JIRA-{id}' },
-    ];
+    const patterns: RefPatternConfig[] = [{ match: 'JIRA-{id}' }];
     const result = matchRefPattern('', patterns);
     assert.equal(result, undefined);
   });
 
   it('matches {id} at the start of pattern ({id}-SUFFIX)', () => {
-    const patterns: RefPatternConfig[] = [
-      { match: '{id}-SUFFIX' },
-    ];
+    const patterns: RefPatternConfig[] = [{ match: '{id}-SUFFIX' }];
     const result = matchRefPattern('abc-def-SUFFIX', patterns);
     assert.ok(result);
     assert.equal(result.captures.id, 'abc-def');
@@ -121,7 +115,10 @@ describe('matchRefPattern', () => {
 describe('resolveRefUrl', () => {
   it('resolves URL with {id} substitution', () => {
     const patterns: RefPatternConfig[] = [
-      { match: 'JIRA:{id}', urlTemplate: 'https://jira.example.com/browse/{id}' },
+      {
+        match: 'JIRA:{id}',
+        urlTemplate: 'https://jira.example.com/browse/{id}',
+      },
     ];
     const url = resolveRefUrl('JIRA:PROJ-123', patterns);
     assert.equal(url, 'https://jira.example.com/browse/PROJ-123');
@@ -149,16 +146,17 @@ describe('resolveRefUrl', () => {
   });
 
   it('returns undefined when matched pattern has no urlTemplate', () => {
-    const patterns: RefPatternConfig[] = [
-      { match: 'JIRA:{id}' },
-    ];
+    const patterns: RefPatternConfig[] = [{ match: 'JIRA:{id}' }];
     const url = resolveRefUrl('JIRA:PROJ-123', patterns);
     assert.equal(url, undefined);
   });
 
   it('resolves colon-based ref', () => {
     const patterns: RefPatternConfig[] = [
-      { match: 'JIRA:{id}', urlTemplate: 'https://jira.example.com/browse/{id}' },
+      {
+        match: 'JIRA:{id}',
+        urlTemplate: 'https://jira.example.com/browse/{id}',
+      },
       { match: 'ADR:{id}', urlTemplate: 'docs/decisions/{id}.md' },
     ];
     const url = resolveRefUrl('ADR:0007', patterns);
