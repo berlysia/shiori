@@ -10,6 +10,17 @@ import { showCommand } from './commands/show-cli.ts';
 const main = define({
   name: 'shiori',
   description: 'Annotation tracking and governance tool',
+  examples: `  # Typical workflow: scan → verify
+  shiori scan --output scan-result.json
+  shiori verify -s scan-result.json -r registry.json --fail-on missing-in-registry,expired
+
+  # Bootstrap a new registry from existing annotations
+  shiori scan --output scan-result.json
+  shiori init-registry -s scan-result.json -o registry.json
+
+  # Find untracked lint disable comments
+  shiori scan --output scan-result.json
+  shiori candidates -s scan-result.json -f markdown`,
   run: () => {
     console.log('Run "shiori --help" for usage information.');
   },

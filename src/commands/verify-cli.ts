@@ -17,6 +17,16 @@ function parseIssueTypes(value: string | undefined): VerifyIssueType[] {
 export const verifyCommand = define({
   name: 'verify',
   description: 'Verify annotations against the registry',
+  examples: `  # CI: fail on missing or expired annotations
+  shiori verify -s scan-result.json -r registry.json \\
+    --fail-on missing-in-registry,expired --warn-on unused-in-source
+
+  # Generate a Markdown report
+  shiori verify -s scan-result.json -r registry.json -f markdown -o report.md
+
+  # Warn-only mode (no failure exit code)
+  shiori verify -s scan-result.json -r registry.json \\
+    --warn-on missing-in-registry,unused-in-source,expired`,
   rendering: { header: null },
   args: {
     scan: {

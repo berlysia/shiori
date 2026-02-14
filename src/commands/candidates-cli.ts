@@ -10,6 +10,11 @@ import {
 export const candidatesCommand = define({
   name: 'candidates',
   description: 'List candidate annotations from scan results',
+  examples: `  # List candidates as JSON
+  shiori candidates -s scan-result.json
+
+  # Generate Markdown report of candidates
+  shiori candidates -s scan-result.json -f markdown -o candidates.md`,
   rendering: { header: null },
   args: {
     scan: {

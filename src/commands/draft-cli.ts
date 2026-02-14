@@ -6,6 +6,11 @@ import { listDrafts } from './draft.ts';
 export const draftCommand = define({
   name: 'draft',
   description: 'List draft annotations (shiori-tagged without ref)',
+  examples: `  # List drafts from scan results
+  shiori draft -s scan-result.json
+
+  # Save draft list to file
+  shiori draft -s scan-result.json -o drafts.json`,
   rendering: { header: null },
   args: {
     scan: {

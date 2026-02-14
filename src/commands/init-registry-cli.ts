@@ -9,6 +9,14 @@ import { initRegistry, routeRegistryByPattern } from './init-registry.ts';
 export const initRegistryCommand = define({
   name: 'init-registry',
   description: 'Generate a registry template from scan results',
+  examples: `  # Generate a new registry from scan results
+  shiori init-registry -s scan-result.json -o registry.json
+
+  # Merge with existing registry (preserves existing entries)
+  shiori init-registry -s scan-result.json -o registry.json --merge existing-registry.json
+
+  # Generate YAML registry
+  shiori init-registry -s scan-result.json -o registry.yaml`,
   rendering: { header: null },
   args: {
     scan: {

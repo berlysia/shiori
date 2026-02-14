@@ -8,6 +8,11 @@ import { show, isFound } from './show.ts';
 export const showCommand = define({
   name: 'show',
   description: 'Show information about a specific ref',
+  examples: `  # Look up a ref with namespace
+  shiori show --ref JIRA:PROJ-123 -s scan-result.json -r registry.json
+
+  # Look up a simple ref
+  shiori show --ref SUP-1234 -s scan-result.json -r registry.json`,
   rendering: { header: null },
   args: {
     ref: {

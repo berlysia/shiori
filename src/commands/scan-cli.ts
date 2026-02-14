@@ -10,6 +10,14 @@ const DEFAULT_IGNORE = ['**/node_modules/**', '**/dist/**', '**/.git/**'];
 export const scanCommand = define({
   name: 'scan',
   description: 'Scan source files for shiori annotations',
+  examples: `  # Scan TypeScript and CSS files, save to file
+  shiori scan --patterns "src/**/*.{css,scss,ts,tsx}" --output scan-result.json
+
+  # Scan with custom ignore patterns
+  shiori scan -p "**/*.js" -i "**/test/**,**/vendor/**"
+
+  # Output to stdout (pipe to other tools)
+  shiori scan`,
   rendering: { header: null },
   args: {
     patterns: {
