@@ -8,6 +8,7 @@ import { updateCommand } from './commands/update-cli.ts';
 import { draftCommand } from './commands/draft-cli.ts';
 import { candidatesCommand } from './commands/candidates-cli.ts';
 import { showCommand } from './commands/show-cli.ts';
+import { docsCommand } from './commands/docs-cli.ts';
 
 const main = define({
   name: 'shiori',
@@ -44,5 +45,6 @@ await cli(process.argv.slice(2), main, {
     draft: draftCommand,
     candidates: candidatesCommand,
     show: showCommand,
+    docs: docsCommand,
   },
 });
