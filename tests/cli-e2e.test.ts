@@ -50,7 +50,7 @@ describe('CLI E2E', () => {
     tmpDir = await mkdtemp(join(tmpdir(), 'shiori-e2e-'));
     scanResultPath = join(tmpDir, 'scan-result.json');
 
-    // Pre-run scan and save result for verify/init-registry/draft tests
+    // Pre-run scan and save result for verify/update/draft tests
     const { stdout } = await runCli(['scan', '--patterns', SCAN_PATTERNS]);
 
     const scanResult = JSON.parse(stdout) as {
@@ -73,10 +73,8 @@ describe('CLI E2E', () => {
     const files = [
       'scan-result.json',
       'output-scan.json',
-      'new-registry.json',
-      'merged-registry.json',
-      'new-registry.yaml',
-      'merged-registry.yaml',
+      'updated-registry.json',
+      'updated-registry.yaml',
       'draft-result.json',
     ];
     for (const f of files) {
@@ -215,69 +213,22 @@ describe('CLI E2E', () => {
     });
   });
 
-  describe('init-registry command', () => {
-    it('generates a registry template', async () => {
-      const outputPath = join(tmpDir, 'new-registry.json');
-      const { exitCode } = await runCli([
-        'init-registry',
-        '--scan',
-        scanResultPath,
-        '--output',
-        outputPath,
-      ]);
-      assert.equal(exitCode, 0);
-      const content = await readFile(outputPath, 'utf-8');
-      const registry = JSON.parse(content) as Record<
-        string,
-        { reason: string }
-      >;
-      assert.ok('SUP-1001' in registry);
-      assert.equal(registry['SUP-1001']!.reason, 'TODO: fill in reason');
-    });
-
-    it('generates a YAML registry template', async () => {
-      const outputPath = join(tmpDir, 'new-registry.yaml');
-      const { exitCode } = await runCli([
-        'init-registry',
-        '--scan',
-        scanResultPath,
-        '--output',
-        outputPath,
-      ]);
-      assert.equal(exitCode, 0);
-      const content = await readFile(outputPath, 'utf-8');
-      assert.ok(!content.startsWith('{'), 'output should be YAML, not JSON');
-      assert.ok(content.includes('SUP-1001'));
-      assert.ok(content.includes('TODO: fill in reason'));
-    });
-
-    it('merges with YAML registry', async () => {
-      const outputPath = join(tmpDir, 'merged-registry.yaml');
-      const { exitCode } = await runCli([
-        'init-registry',
-        '--scan',
-        scanResultPath,
-        '--output',
-        outputPath,
-        '--merge',
-        join(PROJECT_ROOT, REGISTRY_YAML_PATH),
-      ]);
-      assert.equal(exitCode, 0);
-      const content = await readFile(outputPath, 'utf-8');
-      assert.ok(!content.startsWith('{'), 'output should be YAML, not JSON');
-      assert.ok(content.includes('vendor prefix fallback'));
-    });
-
-    it('merges with existing registry (preserves existing entries)', async () => {
-      const outputPath = join(tmpDir, 'merged-registry.json');
-      const { exitCode } = await runCli([
-        'init-registry',
-        '--scan',
-        scanResultPath,
-        '--output',
-        outputPath,
-        '--merge',
+  describe('update command', () => {
+    it('merges new refs into existing registry', async () => {
+      // Copy fixture registry to tmpDir so update can write to it
+      const registryContent = await readFile(
         join(PROJECT_ROOT, REGISTRY_PATH),
+        'utf-8',
+      );
+      const outputPath = join(tmpDir, 'updated-registry.json');
+      await writeFile(outputPath, registryContent, 'utf-8');
+
+      const { exitCode, stderr } = await runCli([
+        'update',
+        '--scan',
+        scanResultPath,
+        '--registry',
+        outputPath,
       ]);
       assert.equal(exitCode, 0);
       const content = await readFile(outputPath, 'utf-8');
@@ -289,6 +240,45 @@ describe('CLI E2E', () => {
       assert.equal(registry['SUP-1001']!.reason, 'vendor prefix fallback');
       // New entry gets placeholder
       assert.equal(registry['SUP-2002']!.reason, 'TODO: fill in reason');
+      assert.ok(stderr.includes('Added'));
+    });
+
+    it('reports up to date when no new refs', async () => {
+      // Create a registry that already has all refs
+      const fullRegistryContent = await readFile(
+        join(PROJECT_ROOT, REGISTRY_PATH),
+        'utf-8',
+      );
+      const fullRegistry = JSON.parse(fullRegistryContent) as Record<
+        string,
+        unknown
+      >;
+      // Add all scan refs to make it complete
+      fullRegistry['SUP-2002'] = {
+        reason: 'existing',
+        target: 'test',
+        expires: undefined,
+        ticket: undefined,
+        owner: undefined,
+        notes: undefined,
+        kind: undefined,
+      };
+      const outputPath = join(tmpDir, 'updated-registry.json');
+      await writeFile(
+        outputPath,
+        JSON.stringify(fullRegistry, null, 2),
+        'utf-8',
+      );
+
+      const { exitCode, stderr } = await runCli([
+        'update',
+        '--scan',
+        scanResultPath,
+        '--registry',
+        outputPath,
+      ]);
+      assert.equal(exitCode, 0);
+      assert.ok(stderr.includes('up to date'));
     });
   });
 

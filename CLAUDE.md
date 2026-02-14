@@ -99,7 +99,7 @@ ADRs are in `docs/decisions/`:
 // eslint-disable-next-line some-rule -- shiori: DEV-002 expires=2026-06
 ```
 
-レジストリ (`shiori-registry.json`) にエントリを追加して構造化情報を保存する。
+レジストリ (`.config/shiori/registry.json`) にエントリを追加して構造化情報を保存する。
 
 ### 運用ルール
 

@@ -1,21 +1,21 @@
 import { define } from 'gunshi';
 import { resolve, dirname } from 'node:path';
 import { loadRegistry, saveRegistry } from '../core/registry.ts';
-import { loadConfig } from '../core/config.ts';
+import { loadConfig, resolveRegistryPath } from '../core/config.ts';
 import { loadScanResult } from '../core/scan-result-loader.ts';
-import { initRegistry, routeRegistryByPattern } from './init-registry.ts';
+import { initRegistry, routeRegistryByPattern } from './registry-generator.ts';
 
-export const initRegistryCommand = define({
-  name: 'init-registry',
-  description: 'Generate a registry template from scan results',
-  examples: `  # Generate a new registry (auto-detect scan result)
-  shiori init-registry -o registry.json
-
-  # Merge with existing registry
-  shiori init-registry -o registry.json --merge existing-registry.json
+export const updateCommand = define({
+  name: 'update',
+  description: 'Add new refs from scan results to existing registry',
+  examples: `  # Update registry with new refs (auto-detect paths)
+  shiori scan && shiori update
 
   # Pipe from scan
-  shiori scan | shiori init-registry -o registry.json`,
+  shiori scan | shiori update
+
+  # Specify registry path
+  shiori update -r custom-registry.json`,
   rendering: { header: null },
   args: {
     scan: {
@@ -24,17 +24,11 @@ export const initRegistryCommand = define({
       description:
         'Path to scan result JSON (default: .config/shiori/scan-result.json or stdin)',
     },
-    output: {
+    registry: {
       type: 'string',
-      short: 'o',
-      required: true,
-      description: 'Output registry file path (.json, .yaml, .yml)',
-    },
-    merge: {
-      type: 'string',
-      short: 'm',
+      short: 'r',
       description:
-        'Existing registry to merge with (preserves existing entries)',
+        'Path to registry file (auto-detected from config or .config/shiori/registry.json)',
     },
     cwd: {
       type: 'string',
@@ -57,42 +51,51 @@ export const initRegistryCommand = define({
       cwd,
     });
 
-    let existingRegistry;
-    if (ctx.values.merge) {
-      const { registry } = await loadRegistry(ctx.values.merge);
-      existingRegistry = registry;
-    }
+    const registryPath = await resolveRegistryPath(
+      ctx.values.registry,
+      config,
+      cwd,
+    );
+    const { registry: existingRegistry } = await loadRegistry(registryPath);
 
     const registry = initRegistry({
       records: scanResult.annotations,
       existingRegistry,
     });
 
+    // Count new entries
+    const newRefs = Object.keys(registry).filter(
+      (ref) => !(ref in existingRegistry),
+    );
+
     // Route entries by pattern if refPatterns are configured
     if (config.refPatterns) {
       const routed = routeRegistryByPattern(registry, config.refPatterns);
-      const basePath = dirname(resolve(ctx.values.output));
+      const basePath = dirname(resolve(registryPath));
 
       for (const [target, entries] of routed) {
         if (target === null) {
-          // Default registry
-          await saveRegistry(ctx.values.output, entries);
+          await saveRegistry(registryPath, entries);
           console.error(
-            `Generated default registry with ${Object.keys(entries).length} entries at ${ctx.values.output}`,
+            `Updated default registry (${Object.keys(entries).length} entries) at ${registryPath}`,
           );
         } else {
           const targetPath = resolve(basePath, target);
           await saveRegistry(targetPath, entries);
           console.error(
-            `Generated pattern registry with ${Object.keys(entries).length} entries at ${targetPath}`,
+            `Updated pattern registry (${Object.keys(entries).length} entries) at ${targetPath}`,
           );
         }
       }
     } else {
-      await saveRegistry(ctx.values.output, registry);
-      const entryCount = Object.keys(registry).length;
+      await saveRegistry(registryPath, registry);
+    }
+
+    if (newRefs.length === 0) {
+      console.error('Registry is up to date (no new refs)');
+    } else {
       console.error(
-        `Generated registry with ${entryCount} entries at ${ctx.values.output}`,
+        `Added ${newRefs.length} new ref(s): ${newRefs.join(', ')}`,
       );
     }
   },

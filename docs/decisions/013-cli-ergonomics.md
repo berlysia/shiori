@@ -27,8 +27,8 @@ shiori show --ref DEV-001 -s scan-result.json -r registry.json
 <project>/
 ├── .config/shiori/
 │   ├── config.json           # 設定ファイル（tracked）
+│   ├── registry.json         # レジストリ（tracked）
 │   └── scan-result.json      # スキャン結果（gitignored、ephemeral）
-├── shiori-registry.json      # レジストリ（tracked、既存）
 ```
 
 ### 2. 設定ファイルスキーマの拡張
@@ -74,7 +74,7 @@ interface ShioriConfig {
 
 1. `--registry <path>` 明示引数（最優先）
 2. `config.paths.registry`
-3. `shiori-registry.json`（cwd）
+3. `.config/shiori/registry.json`（cwd）
 4. 全て失敗 → エラー（試行したパスを一覧表示）
 
 ファイル存在チェック（`access()`）で最初に見つかったパスを使用。

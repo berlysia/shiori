@@ -4,7 +4,7 @@ import { writeFile, mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { loadMultiRegistry } from '../src/core/registry.ts';
-import { routeRegistryByPattern } from '../src/commands/init-registry.ts';
+import { routeRegistryByPattern } from '../src/commands/registry-generator.ts';
 import type { Registry } from '../src/core/types.ts';
 
 describe('loadMultiRegistry', () => {

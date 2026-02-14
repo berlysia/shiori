@@ -161,23 +161,25 @@ describe('config', () => {
       assert.equal(result, '/explicit/path.json');
     });
 
-    it('finds shiori-registry.json in cwd', async () => {
+    it('finds .config/shiori/registry.json in cwd', async () => {
       const projectDir = join(tmpDir, 'registry-test');
-      await mkdir(projectDir, { recursive: true });
-      await writeFile(join(projectDir, 'shiori-registry.json'), '{}', 'utf-8');
+      const registryDir = join(projectDir, '.config', 'shiori');
+      await mkdir(registryDir, { recursive: true });
+      await writeFile(join(registryDir, 'registry.json'), '{}', 'utf-8');
 
       const result = await resolveRegistryPath(
         undefined,
         resolveConfig({}),
         projectDir,
       );
-      assert.equal(result, join(projectDir, 'shiori-registry.json'));
+      assert.equal(result, join(registryDir, 'registry.json'));
     });
 
     it('prefers config.paths.registry over default', async () => {
       const projectDir = join(tmpDir, 'registry-priority');
-      await mkdir(projectDir, { recursive: true });
-      await writeFile(join(projectDir, 'shiori-registry.json'), '{}', 'utf-8');
+      const registryDir = join(projectDir, '.config', 'shiori');
+      await mkdir(registryDir, { recursive: true });
+      await writeFile(join(registryDir, 'registry.json'), '{}', 'utf-8');
       await writeFile(join(projectDir, 'custom-registry.json'), '{}', 'utf-8');
 
       const config = resolveConfig({

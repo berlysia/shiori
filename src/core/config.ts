@@ -7,8 +7,8 @@ import { DEFAULT_CANDIDATE_PATTERNS } from './providers/AnnotationProvider.ts';
 /** Default path for scan result (relative to cwd) */
 export const DEFAULT_SCAN_RESULT_PATH = '.config/shiori/scan-result.json';
 
-/** Default registry filename (relative to cwd) */
-export const DEFAULT_REGISTRY_FILENAME = 'shiori-registry.json';
+/** Default registry path (relative to cwd) */
+export const DEFAULT_REGISTRY_PATH = '.config/shiori/registry.json';
 
 /** Shape of .config/shiori/config.json (ADR 013) */
 export interface ShioriConfig {
@@ -101,7 +101,7 @@ export function resolveConfig(raw: ShioriConfig): ResolvedConfig {
  * Resolve registry file path by checking candidates in order:
  * 1. Explicit --registry argument
  * 2. config.paths.registry
- * 3. shiori-registry.json (cwd)
+ * 3. .config/shiori/registry.json (cwd)
  *
  * Returns the first path that exists on disk.
  * Throws if none found.
@@ -125,8 +125,8 @@ export async function resolveRegistryPath(
   }
 
   candidates.push({
-    label: DEFAULT_REGISTRY_FILENAME,
-    path: join(cwd, DEFAULT_REGISTRY_FILENAME),
+    label: DEFAULT_REGISTRY_PATH,
+    path: join(cwd, DEFAULT_REGISTRY_PATH),
   });
 
   for (const candidate of candidates) {

@@ -29,7 +29,7 @@ export const showCommand = define({
       type: 'string',
       short: 'r',
       description:
-        'Path to registry file (auto-detected from config or shiori-registry.json)',
+        'Path to registry file (auto-detected from config or .config/shiori/registry.json)',
     },
     cwd: {
       type: 'string',
