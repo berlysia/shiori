@@ -3,11 +3,7 @@ import { mkdir, writeFile, appendFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { scan } from './scan.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
-import {
-  loadConfig,
-  DEFAULT_SCAN_RESULT_PATH,
-  DEFAULT_REGISTRY_PATH,
-} from '../core/config.ts';
+import { loadConfig, DEFAULT_REGISTRY_PATH } from '../core/config.ts';
 import { saveRegistry } from '../core/registry.ts';
 import { initRegistry } from './registry-generator.ts';
 import { fileExists, fileContainsLine } from './init.ts';
@@ -138,11 +134,21 @@ export const initCommand = define({
     console.error('');
     console.error('Next steps:');
     console.error(
-      '  1. Review and fill in .config/shiori/registry.json entries',
+      '  1. Review and fill in registry entries (reason, owner, expires):',
     );
-    console.error('  2. Run "shiori check" to verify');
-
-    // Also save scan result path for convenience
-    console.error(`  3. Scan result saved to ${DEFAULT_SCAN_RESULT_PATH}`);
+    console.error('     .config/shiori/registry.json');
+    console.error(
+      '  2. Run "shiori check" to verify annotations match the registry',
+    );
+    console.error(
+      '  3. Fix issues: "shiori update" adds missing refs to the registry',
+    );
+    console.error(
+      '  4. Add "shiori check --fail-on missing-in-registry,expired" to CI',
+    );
+    console.error('');
+    console.error('Workflow: init → check → update → check → CI');
+    console.error('');
+    console.error('Run "shiori docs" for full documentation.');
   },
 });
