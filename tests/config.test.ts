@@ -102,6 +102,75 @@ describe('config', () => {
         SyntaxError,
       );
     });
+
+    it('loads from config.yaml', async () => {
+      const configDir = join(tmpDir, 'yaml-config', '.config', 'shiori');
+      await mkdir(configDir, { recursive: true });
+      await writeFile(
+        join(configDir, 'config.yaml'),
+        'candidates:\n  todo: true\n  fixme: true\n',
+        'utf-8',
+      );
+
+      const config = await loadConfig(join(tmpDir, 'yaml-config'));
+      assert.equal(config.candidatePatterns['lint-disable'], true);
+      assert.equal(config.candidatePatterns.todo, true);
+      assert.equal(config.candidatePatterns.fixme, true);
+      assert.equal(config.candidatePatterns.hack, false);
+    });
+
+    it('prefers config.yaml over config.json', async () => {
+      const configDir = join(tmpDir, 'yaml-priority', '.config', 'shiori');
+      await mkdir(configDir, { recursive: true });
+      await writeFile(
+        join(configDir, 'config.yaml'),
+        'candidates:\n  todo: true\n',
+        'utf-8',
+      );
+      await writeFile(
+        join(configDir, 'config.json'),
+        JSON.stringify({ candidates: { hack: true } }),
+        'utf-8',
+      );
+
+      const config = await loadConfig(join(tmpDir, 'yaml-priority'));
+      assert.equal(config.candidatePatterns.todo, true);
+      assert.equal(config.candidatePatterns.hack, false);
+    });
+
+    it('throws on invalid YAML', async () => {
+      const configDir = join(tmpDir, 'invalid-yaml', '.config', 'shiori');
+      await mkdir(configDir, { recursive: true });
+      await writeFile(
+        join(configDir, 'config.yaml'),
+        '  bad:\n yaml: [unclosed',
+        'utf-8',
+      );
+
+      await assert.rejects(
+        () => loadConfig(join(tmpDir, 'invalid-yaml')),
+        /Error/,
+      );
+    });
+
+    it('returns defaults for comment-only YAML', async () => {
+      const configDir = join(tmpDir, 'comment-yaml', '.config', 'shiori');
+      await mkdir(configDir, { recursive: true });
+      await writeFile(
+        join(configDir, 'config.yaml'),
+        '# shiori configuration\n# all commented out\n',
+        'utf-8',
+      );
+
+      const config = await loadConfig(join(tmpDir, 'comment-yaml'));
+      assert.deepEqual(config.candidatePatterns, {
+        'lint-disable': true,
+        todo: false,
+        fixme: false,
+        hack: false,
+        xxx: false,
+      });
+    });
   });
 
   describe('resolveConfig', () => {

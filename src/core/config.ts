@@ -1,5 +1,6 @@
 import { access, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { parse as parseYaml } from 'yaml';
 import type { RefPatternConfig } from './ref-pattern.ts';
 import type { CandidatePatternConfig } from './providers/AnnotationProvider.ts';
 import { DEFAULT_CANDIDATE_PATTERNS } from './providers/AnnotationProvider.ts';
@@ -10,7 +11,7 @@ export const DEFAULT_SCAN_RESULT_PATH = '.config/shiori/scan-result.json';
 /** Default registry path (relative to cwd) */
 export const DEFAULT_REGISTRY_PATH = '.config/shiori/registry.json';
 
-/** Shape of .config/shiori/config.json (ADR 013) */
+/** Shape of .config/shiori/config.{yaml,yml,json} (ADR 013) */
 export interface ShioriConfig {
   /** Candidate detection pattern overrides */
   candidates?: Partial<CandidatePatternConfig>;
@@ -49,35 +50,46 @@ export interface ResolvedConfig {
 }
 
 const CONFIG_DIR = '.config/shiori';
-const CONFIG_FILENAME = 'config.json';
+/** Config file candidates in priority order: yaml (canonical) → yml (common abbreviation) → json (backward compat) */
+export const CONFIG_FILENAMES = [
+  'config.yaml',
+  'config.yml',
+  'config.json',
+] as const;
 
 /**
- * Load .config/shiori/config.json from the given directory, merging with defaults.
- * Returns default config if the file does not exist.
+ * Load config from the given directory, merging with defaults.
+ * Searches for config.yaml → config.yml → config.json and loads the first one found.
+ * Returns default config if no file exists.
  *
  * @param cwd - working directory
- * @param configDir - explicit config directory (from --config flag). If provided, looks for config.json inside it.
+ * @param configDir - explicit config directory (from --config flag). If provided, looks for config files inside it.
  */
 export async function loadConfig(
   cwd: string,
   configDir?: string,
 ): Promise<ResolvedConfig> {
   const dir = configDir ?? join(cwd, CONFIG_DIR);
-  const configPath = join(dir, CONFIG_FILENAME);
-  let raw: ShioriConfig = {};
 
-  try {
-    const content = await readFile(configPath, 'utf-8');
-    raw = JSON.parse(content) as ShioriConfig;
-  } catch (err: unknown) {
-    const e = err as { code?: string };
-    if (e.code === 'ENOENT') {
-      return resolveConfig({});
+  for (const filename of CONFIG_FILENAMES) {
+    const configPath = join(dir, filename);
+    let content: string;
+    try {
+      content = await readFile(configPath, 'utf-8');
+    } catch (err: unknown) {
+      const e = err as { code?: string };
+      if (e.code === 'ENOENT') continue;
+      throw err;
     }
-    throw err;
+
+    const raw: ShioriConfig = filename.endsWith('.json')
+      ? (JSON.parse(content) as ShioriConfig)
+      : ((parseYaml(content) as ShioriConfig) ?? {});
+
+    return resolveConfig(raw);
   }
 
-  return resolveConfig(raw);
+  return resolveConfig({});
 }
 
 /** Merge user config with defaults */

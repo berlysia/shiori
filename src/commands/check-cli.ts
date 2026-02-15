@@ -7,10 +7,7 @@ import { loadRegistry } from '../core/registry.ts';
 import { scan } from './scan.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
 import { check, type OutputFormat } from './check.ts';
-import {
-  formatVerifyResultAsMarkdown,
-  formatActionHints,
-} from './verify.ts';
+import { formatVerifyResultAsMarkdown, formatActionHints } from './verify.ts';
 
 const DEFAULT_PATTERNS = ['**/*.{css,scss,pcss,js,ts,tsx,jsx}'];
 const DEFAULT_IGNORE = ['**/node_modules/**', '**/dist/**', '**/.git/**'];
@@ -91,7 +88,7 @@ export const checkCommand = define({
       type: 'string',
       short: 'c',
       description:
-        'Path to directory containing config.json. Default: <cwd>/.config/shiori',
+        'Path to config directory (YAML/JSON auto-detected). Default: <cwd>/.config/shiori',
     },
   },
   run: async (ctx) => {

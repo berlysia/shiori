@@ -50,7 +50,7 @@ export const scanCommand = define({
       type: 'string',
       short: 'c',
       description:
-        'Path to directory containing config.json. Default: <cwd>/.config/shiori',
+        'Path to config directory (YAML/JSON auto-detected). Default: <cwd>/.config/shiori',
     },
     provider: {
       type: 'string',
@@ -95,9 +95,7 @@ export const scanCommand = define({
       const outputPath = join(cwd, config.paths.scanResult);
       await mkdir(dirname(outputPath), { recursive: true });
       await writeFile(outputPath, json + '\n', 'utf-8');
-      console.log(
-        formatScanResultForDisplay(result, config.paths.scanResult),
-      );
+      console.log(formatScanResultForDisplay(result, config.paths.scanResult));
     } else {
       // Pipe/redirect: stdout JSON + stderr stats
       console.log(json);

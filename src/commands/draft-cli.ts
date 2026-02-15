@@ -36,7 +36,7 @@ export const draftCommand = define({
       type: 'string',
       short: 'c',
       description:
-        'Path to directory containing config.json. Default: <cwd>/.config/shiori',
+        'Path to config directory (YAML/JSON auto-detected). Default: <cwd>/.config/shiori',
     },
   },
   run: async (ctx) => {

@@ -3,7 +3,11 @@ import { mkdir, writeFile, appendFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { scan } from './scan.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
-import { loadConfig, DEFAULT_REGISTRY_PATH } from '../core/config.ts';
+import {
+  loadConfig,
+  DEFAULT_REGISTRY_PATH,
+  CONFIG_FILENAMES,
+} from '../core/config.ts';
 import { saveRegistry } from '../core/registry.ts';
 import { initRegistry } from './registry-generator.ts';
 import { fileExists, fileContainsLine } from './init.ts';
@@ -51,7 +55,7 @@ export const initCommand = define({
       type: 'string',
       short: 'c',
       description:
-        'Path to directory containing config.json. Default: <cwd>/.config/shiori',
+        'Path to config directory (YAML/JSON auto-detected). Default: <cwd>/.config/shiori',
     },
   },
   run: async (ctx) => {
@@ -59,15 +63,21 @@ export const initCommand = define({
     const config = await loadConfig(cwd, ctx.values.config);
     const steps: string[] = [];
 
-    // 1. Create config directory and config.json
+    // 1. Create config directory and config.yaml
     const configDir = join(cwd, '.config', 'shiori');
-    const configPath = join(configDir, 'config.json');
-    if (await fileExists(configPath)) {
-      steps.push('config: .config/shiori/config.json already exists, skipped');
+    const existingConfig = await findExistingConfig(configDir);
+    if (existingConfig) {
+      steps.push(
+        `config: .config/shiori/${existingConfig} already exists, skipped`,
+      );
     } else {
       await mkdir(configDir, { recursive: true });
-      await writeFile(configPath, '{}\n', 'utf-8');
-      steps.push('config: created .config/shiori/config.json');
+      await writeFile(
+        join(configDir, 'config.yaml'),
+        CONFIG_YAML_TEMPLATE,
+        'utf-8',
+      );
+      steps.push('config: created .config/shiori/config.yaml');
     }
 
     // 2. Scan source files
@@ -152,3 +162,50 @@ export const initCommand = define({
     console.error('Run "shiori docs" for full documentation.');
   },
 });
+
+/** Check if any config file already exists in the directory */
+async function findExistingConfig(
+  configDir: string,
+): Promise<string | undefined> {
+  for (const filename of CONFIG_FILENAMES) {
+    if (await fileExists(join(configDir, filename))) {
+      return filename;
+    }
+  }
+  return undefined;
+}
+
+const CONFIG_YAML_TEMPLATE = `# shiori configuration
+# See: https://github.com/berlysia/shiori
+
+# Scan options: default glob patterns for source file scanning
+# scan:
+#   patterns:
+#     - "**/*.{js,ts,tsx,jsx}"
+#     - "**/*.{css,scss,pcss}"
+#   ignore:
+#     - "**/node_modules/**"
+#     - "**/dist/**"
+#     - "**/.git/**"
+
+# File paths (relative to project root)
+# paths:
+#   scanResult: ".config/shiori/scan-result.json"  # scan result cache
+#   registry: ".config/shiori/registry.json"        # annotation registry
+
+# Candidate detection patterns: which comment patterns to detect as candidates
+# candidates:
+#   lint-disable: true   # eslint-disable, stylelint-disable, etc.
+#   todo: false           # TODO comments
+#   fixme: false          # FIXME comments
+#   hack: false           # HACK comments
+#   xxx: false            # XXX comments
+
+# Pattern-based ref resolution (see docs/decisions/012)
+# refPatterns:
+#   - match: "JIRA-{id}"
+#     urlTemplate: "https://jira.example.com/browse/{id}"
+#     registryFile: ".config/shiori/registry-jira.json"
+#   - match: "ADR-{id}"
+#     urlTemplate: "docs/decisions/{id}.md"
+`;
