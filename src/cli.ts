@@ -9,6 +9,8 @@ import { draftCommand } from './commands/draft-cli.ts';
 import { candidatesCommand } from './commands/candidates-cli.ts';
 import { showCommand } from './commands/show-cli.ts';
 import { docsCommand } from './commands/docs-cli.ts';
+import { jumpCommand } from './commands/jump-cli.ts';
+import { watchCommand } from './commands/watch-cli.ts';
 
 const main = define({
   name: 'shiori',
@@ -26,7 +28,10 @@ const main = define({
   shiori scan | shiori verify --fail-on expired
 
   # Add new refs to registry
-  shiori scan && shiori update`,
+  shiori scan && shiori update
+
+  # Keep scan-result fresh while editing
+  shiori watch`,
   run: () => {
     console.error(`shiori - Annotation tracking and governance tool
 
@@ -34,12 +39,14 @@ Workflow:
   shiori init                    Set up shiori in your project
   shiori check                   Scan and verify against registry
   shiori update                  Add new refs to the registry
+  shiori watch                   Refresh scan result on each save
   shiori check --fail-on ...     Enforce governance in CI
 
 Other commands:
   shiori scan                    Extract annotations from source
   shiori verify                  Verify scan results against registry
   shiori show --ref <ref>        Look up a specific ref
+  shiori jump --ref <ref>        Print source location as file:line
   shiori candidates              List untracked lint disable comments
   shiori draft                   List annotations without a ref
   shiori docs                    Show full documentation
@@ -61,6 +68,8 @@ await cli(process.argv.slice(2), main, {
     draft: draftCommand,
     candidates: candidatesCommand,
     show: showCommand,
+    jump: jumpCommand,
+    watch: watchCommand,
     docs: docsCommand,
   },
 });

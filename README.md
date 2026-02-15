@@ -265,6 +265,39 @@ Options:
 - `--registry, -r` — Path to registry file (required)
 - `--config, -c` — Path to directory containing `.shiorirc.json` (default: cwd)
 
+#### `jump` — Resolve ref to source location
+
+```bash
+shiori jump --ref SUP-1234
+shiori jump --ref SUP-1234 --all
+```
+
+Prints `file:line` output for terminal-based jump workflows (`less +{line} {file}` etc.). Exit code `0` if found, `1` if not found.
+
+Options:
+
+- `--ref` — The ref to resolve (required)
+- `--all` — Print all matching locations (default: first only)
+- `--scan, -s` — Path to scan result JSON (default: auto-detect / stdin)
+
+#### `watch` — Refresh scan result on save
+
+```bash
+shiori watch
+shiori watch --sync-registry
+shiori watch --once
+```
+
+Watches files and refreshes `.config/shiori/scan-result.json` whenever files are saved. With `--sync-registry`, it also merges newly found refs into the registry.
+
+Options:
+
+- `--once` — Run one refresh and exit (for scripts/CI)
+- `--sync-registry` — Also merge refs into registry on each refresh
+- `--registry, -r` — Registry path override (used with `--sync-registry`)
+- `--output, -o` — Scan-result output path override
+- `--debounce-ms` — Debounce interval (default: `250`)
+
 ## CI Integration
 
 ### GitHub Actions
