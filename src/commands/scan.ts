@@ -46,6 +46,53 @@ function sortCandidates(candidates: ShioriCandidate[]): ShioriCandidate[] {
 }
 
 /**
+ * Format a scan result as a human-readable string for TTY output.
+ */
+export function formatScanResultForDisplay(
+  result: ScanResult,
+  savedTo?: string,
+): string {
+  const lines: string[] = [];
+
+  lines.push(`Scanned ${result.filesScanned} files`);
+
+  if (result.annotations.length > 0) {
+    lines.push('');
+    lines.push(`Annotations (${result.annotations.length}):`);
+    for (const a of result.annotations) {
+      const ref = a.ref || '(draft)';
+      const loc = `${a.location.file}:${a.location.line}`;
+      const parts = [
+        `  ${ref}`,
+        loc,
+        ...(a.rule ? [a.rule] : []),
+        ...(a.expires ? [`expires=${a.expires}`] : []),
+        ...(a.reason ? [`reason=${a.reason}`] : []),
+      ];
+      lines.push(parts.join('   '));
+    }
+  }
+
+  if (result.candidates.length > 0) {
+    lines.push('');
+    lines.push(`Candidates (${result.candidates.length}):`);
+    for (const c of result.candidates) {
+      const loc = `${c.location.file}:${c.location.line}`;
+      const detail = c.rule ?? c.text ?? '';
+      const parts = [`  ${loc}`, c.pattern, ...(detail ? [detail] : [])];
+      lines.push(parts.join('   '));
+    }
+  }
+
+  if (savedTo) {
+    lines.push('');
+    lines.push(`Saved to ${savedTo}`);
+  }
+
+  return lines.join('\n');
+}
+
+/**
  * Scan source files and extract shiori annotations and candidates.
  */
 export async function scan(options: ScanOptions): Promise<ScanResult> {

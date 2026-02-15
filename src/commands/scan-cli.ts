@@ -1,7 +1,7 @@
 import { define } from 'gunshi';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { scan } from './scan.ts';
+import { scan, formatScanResultForDisplay } from './scan.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
 import { loadConfig } from '../core/config.ts';
 
@@ -87,21 +87,23 @@ export const scanCommand = define({
       console.error(
         `Wrote ${result.annotations.length} annotation(s) and ${result.candidates.length} candidate(s) to ${ctx.values.output}`,
       );
+      console.error(
+        `Scanned ${result.filesScanned} files, found ${result.annotations.length} annotation(s), ${result.candidates.length} candidate(s)`,
+      );
     } else if (process.stdout.isTTY) {
-      // TTY: auto-save to config path
+      // TTY: auto-save + human-readable output to stdout
       const outputPath = join(cwd, config.paths.scanResult);
       await mkdir(dirname(outputPath), { recursive: true });
       await writeFile(outputPath, json + '\n', 'utf-8');
-      console.error(
-        `Wrote ${result.annotations.length} annotation(s) and ${result.candidates.length} candidate(s) to ${config.paths.scanResult}`,
+      console.log(
+        formatScanResultForDisplay(result, config.paths.scanResult),
       );
     } else {
-      // Pipe/redirect: stdout
+      // Pipe/redirect: stdout JSON + stderr stats
       console.log(json);
+      console.error(
+        `Scanned ${result.filesScanned} files, found ${result.annotations.length} annotation(s), ${result.candidates.length} candidate(s)`,
+      );
     }
-
-    console.error(
-      `Scanned ${result.filesScanned} files, found ${result.annotations.length} annotation(s), ${result.candidates.length} candidate(s)`,
-    );
   },
 });
