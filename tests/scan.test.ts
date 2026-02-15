@@ -1,9 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type {
-  ShioriAnnotation,
-  ShioriCandidate,
-} from '../src/core/types.ts';
+import type { ShioriAnnotation, ShioriCandidate } from '../src/core/types.ts';
 import {
   formatScanResultForDisplay,
   type ScanResult,
