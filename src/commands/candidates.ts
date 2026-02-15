@@ -32,16 +32,17 @@ export function formatCandidatesAsMarkdown(result: CandidatesResult): string {
   lines.push(`Found **${result.count}** candidate(s).`);
   lines.push('');
 
-  // Group by pattern
-  const byPattern = new Map<string, ShioriCandidate[]>();
+  // Group by pattern + directive
+  const byGroup = new Map<string, ShioriCandidate[]>();
   for (const c of result.candidates) {
-    const group = byPattern.get(c.pattern) ?? [];
+    const key = c.directive ? `${c.pattern} / ${c.directive}` : c.pattern;
+    const group = byGroup.get(key) ?? [];
     group.push(c);
-    byPattern.set(c.pattern, group);
+    byGroup.set(key, group);
   }
 
-  for (const [pattern, items] of byPattern) {
-    lines.push(`## ${pattern} (${items.length})`);
+  for (const [groupKey, items] of byGroup) {
+    lines.push(`## ${groupKey} (${items.length})`);
     lines.push('');
     for (const item of items) {
       const parts = [`- \`${item.location.file}:${item.location.line}\``];

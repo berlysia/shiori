@@ -2,8 +2,14 @@ import { access, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import type { RefPatternConfig } from './ref-pattern.ts';
-import type { CandidatePatternConfig } from './providers/AnnotationProvider.ts';
-import { DEFAULT_CANDIDATE_PATTERNS } from './providers/AnnotationProvider.ts';
+import type {
+  CandidatePatternConfig,
+  ResolvedCandidatePatterns,
+} from './providers/AnnotationProvider.ts';
+import {
+  DEFAULT_CANDIDATE_PATTERNS,
+  resolveCandidatePatterns,
+} from './providers/AnnotationProvider.ts';
 
 /** Default path for scan result (relative to cwd) */
 export const DEFAULT_SCAN_RESULT_PATH = '.config/shiori/scan-result.json';
@@ -35,7 +41,7 @@ export interface ShioriConfig {
 
 /** Resolved configuration with all defaults applied */
 export interface ResolvedConfig {
-  candidatePatterns: CandidatePatternConfig;
+  candidatePatterns: ResolvedCandidatePatterns;
   /** Pattern-based ref resolution (passed through as-is) */
   refPatterns: RefPatternConfig[] | undefined;
   /** Resolved scan patterns (undefined = use command defaults) */
@@ -95,10 +101,10 @@ export async function loadConfig(
 /** Merge user config with defaults */
 export function resolveConfig(raw: ShioriConfig): ResolvedConfig {
   return {
-    candidatePatterns: {
+    candidatePatterns: resolveCandidatePatterns({
       ...DEFAULT_CANDIDATE_PATTERNS,
       ...raw.candidates,
-    },
+    }),
     refPatterns: raw.refPatterns,
     scanPatterns: raw.scan?.patterns,
     scanIgnore: raw.scan?.ignore,

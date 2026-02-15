@@ -9,6 +9,17 @@ import {
   resolveRegistryPath,
   DEFAULT_SCAN_RESULT_PATH,
 } from '../src/core/config.ts';
+import type { ResolvedCandidatePatterns } from '../src/core/providers/AnnotationProvider.ts';
+
+/** Extract enabled map from resolved patterns for a given entry */
+function getEnabledMap(
+  patterns: ResolvedCandidatePatterns,
+  entry: string,
+): Record<string, boolean> {
+  const matchers = patterns.entries[entry];
+  if (!matchers) return {};
+  return Object.fromEntries(matchers.map((m) => [m.name, m.enabled]));
+}
 
 describe('config', () => {
   let tmpDir: string;
@@ -25,8 +36,22 @@ describe('config', () => {
   describe('loadConfig', () => {
     it('returns defaults when no config file exists', async () => {
       const config = await loadConfig(tmpDir);
-      assert.deepEqual(config.candidatePatterns, {
-        'lint-disable': true,
+      // Default: eslint and stylelint enabled with all directives
+      assert.deepEqual(getEnabledMap(config.candidatePatterns, 'eslint'), {
+        'disable-next-line': true,
+        'disable-line': true,
+      });
+      assert.deepEqual(getEnabledMap(config.candidatePatterns, 'stylelint'), {
+        'disable-next-line': true,
+        'disable-line': true,
+      });
+      // typescript not in defaults
+      assert.deepEqual(
+        getEnabledMap(config.candidatePatterns, 'typescript'),
+        {},
+      );
+      // keywords disabled by default
+      assert.deepEqual(getEnabledMap(config.candidatePatterns, 'keywords'), {
         todo: false,
         fixme: false,
         hack: false,
@@ -43,15 +68,25 @@ describe('config', () => {
       await mkdir(configDir, { recursive: true });
       await writeFile(
         join(configDir, 'config.json'),
-        JSON.stringify({ candidates: { todo: true, fixme: true } }),
+        JSON.stringify({
+          candidates: { keywords: { todo: true, fixme: true } },
+        }),
         'utf-8',
       );
 
       const config = await loadConfig(join(tmpDir, 'new-format'));
-      assert.equal(config.candidatePatterns['lint-disable'], true);
-      assert.equal(config.candidatePatterns.todo, true);
-      assert.equal(config.candidatePatterns.fixme, true);
-      assert.equal(config.candidatePatterns.hack, false);
+      // eslint still enabled (from defaults)
+      assert.deepEqual(getEnabledMap(config.candidatePatterns, 'eslint'), {
+        'disable-next-line': true,
+        'disable-line': true,
+      });
+      // keywords: todo and fixme explicitly true, others default enabled (builtin)
+      const kwMap = getEnabledMap(config.candidatePatterns, 'keywords');
+      assert.equal(kwMap.todo, true);
+      assert.equal(kwMap.fixme, true);
+      // hack and xxx are builtins not explicitly set in CandidateToolConfig → default enabled
+      assert.equal(kwMap.hack, true);
+      assert.equal(kwMap.xxx, true);
     });
 
     it('uses explicit configDir when provided', async () => {
@@ -59,12 +94,13 @@ describe('config', () => {
       await mkdir(customDir, { recursive: true });
       await writeFile(
         join(customDir, 'config.json'),
-        JSON.stringify({ candidates: { hack: true } }),
+        JSON.stringify({ candidates: { keywords: { hack: true } } }),
         'utf-8',
       );
 
       const config = await loadConfig(tmpDir, customDir);
-      assert.equal(config.candidatePatterns.hack, true);
+      const kwMap = getEnabledMap(config.candidatePatterns, 'keywords');
+      assert.equal(kwMap.hack, true);
     });
 
     it('loads scan and paths config', async () => {
@@ -108,15 +144,18 @@ describe('config', () => {
       await mkdir(configDir, { recursive: true });
       await writeFile(
         join(configDir, 'config.yaml'),
-        'candidates:\n  todo: true\n  fixme: true\n',
+        'candidates:\n  keywords:\n    todo: true\n    fixme: true\n',
         'utf-8',
       );
 
       const config = await loadConfig(join(tmpDir, 'yaml-config'));
-      assert.equal(config.candidatePatterns['lint-disable'], true);
-      assert.equal(config.candidatePatterns.todo, true);
-      assert.equal(config.candidatePatterns.fixme, true);
-      assert.equal(config.candidatePatterns.hack, false);
+      assert.deepEqual(getEnabledMap(config.candidatePatterns, 'eslint'), {
+        'disable-next-line': true,
+        'disable-line': true,
+      });
+      const kwMap = getEnabledMap(config.candidatePatterns, 'keywords');
+      assert.equal(kwMap.todo, true);
+      assert.equal(kwMap.fixme, true);
     });
 
     it('prefers config.yaml over config.json', async () => {
@@ -124,18 +163,20 @@ describe('config', () => {
       await mkdir(configDir, { recursive: true });
       await writeFile(
         join(configDir, 'config.yaml'),
-        'candidates:\n  todo: true\n',
+        'candidates:\n  keywords:\n    todo: true\n',
         'utf-8',
       );
       await writeFile(
         join(configDir, 'config.json'),
-        JSON.stringify({ candidates: { hack: true } }),
+        JSON.stringify({ candidates: { keywords: { hack: true } } }),
         'utf-8',
       );
 
       const config = await loadConfig(join(tmpDir, 'yaml-priority'));
-      assert.equal(config.candidatePatterns.todo, true);
-      assert.equal(config.candidatePatterns.hack, false);
+      const kwMap = getEnabledMap(config.candidatePatterns, 'keywords');
+      assert.equal(kwMap.todo, true);
+      // hack not in yaml config → still enabled (builtin default in CandidateToolConfig)
+      assert.equal(kwMap.hack, true);
     });
 
     it('throws on invalid YAML', async () => {
@@ -163,21 +204,68 @@ describe('config', () => {
       );
 
       const config = await loadConfig(join(tmpDir, 'comment-yaml'));
-      assert.deepEqual(config.candidatePatterns, {
-        'lint-disable': true,
+      assert.deepEqual(getEnabledMap(config.candidatePatterns, 'eslint'), {
+        'disable-next-line': true,
+        'disable-line': true,
+      });
+      assert.deepEqual(getEnabledMap(config.candidatePatterns, 'keywords'), {
         todo: false,
         fixme: false,
         hack: false,
         xxx: false,
       });
     });
+
+    it('resolves per-tool config from YAML', async () => {
+      const configDir = join(tmpDir, 'per-tool-yaml', '.config', 'shiori');
+      await mkdir(configDir, { recursive: true });
+      await writeFile(
+        join(configDir, 'config.yaml'),
+        [
+          'candidates:',
+          '  eslint: true',
+          '  stylelint:',
+          '    disable-next-line: true',
+          '    disable-line: false',
+          '  typescript:',
+          '    ts-ignore: true',
+          '    ts-expect-error: false',
+          '  keywords:',
+          '    todo: true',
+        ].join('\n'),
+        'utf-8',
+      );
+
+      const config = await loadConfig(join(tmpDir, 'per-tool-yaml'));
+      assert.deepEqual(getEnabledMap(config.candidatePatterns, 'eslint'), {
+        'disable-next-line': true,
+        'disable-line': true,
+      });
+      assert.deepEqual(getEnabledMap(config.candidatePatterns, 'stylelint'), {
+        'disable-next-line': true,
+        'disable-line': false,
+      });
+      assert.deepEqual(getEnabledMap(config.candidatePatterns, 'typescript'), {
+        'ts-ignore': true,
+        'ts-expect-error': false,
+      });
+      const kwMap = getEnabledMap(config.candidatePatterns, 'keywords');
+      assert.equal(kwMap.todo, true);
+    });
   });
 
   describe('resolveConfig', () => {
     it('returns defaults for empty config', () => {
       const config = resolveConfig({});
-      assert.deepEqual(config.candidatePatterns, {
-        'lint-disable': true,
+      assert.deepEqual(getEnabledMap(config.candidatePatterns, 'eslint'), {
+        'disable-next-line': true,
+        'disable-line': true,
+      });
+      assert.deepEqual(getEnabledMap(config.candidatePatterns, 'stylelint'), {
+        'disable-next-line': true,
+        'disable-line': true,
+      });
+      assert.deepEqual(getEnabledMap(config.candidatePatterns, 'keywords'), {
         todo: false,
         fixme: false,
         hack: false,
@@ -192,10 +280,37 @@ describe('config', () => {
 
     it('overrides specific patterns', () => {
       const config = resolveConfig({
-        candidates: { todo: true },
+        candidates: { keywords: { todo: true } },
       });
-      assert.equal(config.candidatePatterns.todo, true);
-      assert.equal(config.candidatePatterns['lint-disable'], true);
+      const kwMap = getEnabledMap(config.candidatePatterns, 'keywords');
+      assert.equal(kwMap.todo, true);
+      // eslint still enabled from defaults
+      assert.deepEqual(getEnabledMap(config.candidatePatterns, 'eslint'), {
+        'disable-next-line': true,
+        'disable-line': true,
+      });
+    });
+
+    it('resolves boolean tool config to all directives', () => {
+      const config = resolveConfig({
+        candidates: { eslint: false },
+      });
+      assert.deepEqual(getEnabledMap(config.candidatePatterns, 'eslint'), {
+        'disable-next-line': false,
+        'disable-line': false,
+      });
+    });
+
+    it('merges per-directive config with defaults', () => {
+      const config = resolveConfig({
+        candidates: {
+          eslint: { 'disable-next-line': false },
+        },
+      });
+      assert.deepEqual(getEnabledMap(config.candidatePatterns, 'eslint'), {
+        'disable-next-line': false,
+        'disable-line': true,
+      });
     });
 
     it('passes through refPatterns', () => {
@@ -217,6 +332,50 @@ describe('config', () => {
       assert.deepEqual(config.scanIgnore, ['dist/**']);
       assert.equal(config.paths.scanResult, 'out/scan.json');
       assert.equal(config.paths.registry, 'my-registry.json');
+    });
+
+    it('resolves _matchers merge with builtins', () => {
+      const config = resolveConfig({
+        candidates: {
+          keywords: {
+            _matchers: {
+              note: {
+                pattern: '^NOTE\\b:?\\s*(.*)',
+                text: true,
+              },
+            },
+            note: true,
+            todo: true,
+          },
+        },
+      });
+      const kwMap = getEnabledMap(config.candidatePatterns, 'keywords');
+      assert.equal(kwMap.note, true);
+      assert.equal(kwMap.todo, true);
+      // builtins not explicitly set → default enabled
+      assert.equal(kwMap.fixme, true);
+      assert.equal(kwMap.hack, true);
+      assert.equal(kwMap.xxx, true);
+    });
+
+    it('_matchers-added matchers default to disabled', () => {
+      const config = resolveConfig({
+        candidates: {
+          keywords: {
+            _matchers: {
+              note: {
+                pattern: '^NOTE\\b:?\\s*(.*)',
+                text: true,
+              },
+            },
+            todo: true,
+          },
+        },
+      });
+      const kwMap = getEnabledMap(config.candidatePatterns, 'keywords');
+      // note not explicitly set → default disabled (added via _matchers, not builtin)
+      assert.equal(kwMap.note, false);
+      assert.equal(kwMap.todo, true);
     });
   });
 

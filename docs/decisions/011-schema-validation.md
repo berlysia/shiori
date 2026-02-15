@@ -183,14 +183,31 @@ interface NamespaceConfig {
   "properties": {
     "candidates": {
       "type": "object",
-      "properties": {
-        "lint-disable": { "type": "boolean" },
-        "todo": { "type": "boolean" },
-        "fixme": { "type": "boolean" },
-        "hack": { "type": "boolean" },
-        "xxx": { "type": "boolean" }
-      },
-      "additionalProperties": false
+      "additionalProperties": {
+        "oneOf": [
+          { "type": "boolean" },
+          {
+            "type": "object",
+            "properties": {
+              "_matchers": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "object",
+                  "required": ["pattern"],
+                  "properties": {
+                    "pattern": { "type": "string" },
+                    "rules": { "type": "string", "enum": ["csv", "single"] },
+                    "separator": { "type": "string" },
+                    "text": { "type": "boolean" }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            },
+            "additionalProperties": { "type": "boolean" }
+          }
+        ]
+      }
     },
     "namespaces": {
       "type": "object",

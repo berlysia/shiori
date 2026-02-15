@@ -2,7 +2,12 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { CommentProvider } from '../src/core/providers/CommentProvider.ts';
-import type { FileInput } from '../src/core/providers/AnnotationProvider.ts';
+import type {
+  FileInput,
+  CandidatePatternConfig,
+  ResolvedCandidatePatterns,
+} from '../src/core/providers/AnnotationProvider.ts';
+import { resolveCandidatePatterns } from '../src/core/providers/AnnotationProvider.ts';
 
 const provider = new CommentProvider();
 
@@ -12,6 +17,13 @@ function makeInput(content: string, path = 'test.ts'): FileInput {
 
 function loadFixture(name: string): string {
   return readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf-8');
+}
+
+/** Helper to create resolved patterns from user-facing config */
+function makePatterns(
+  config: CandidatePatternConfig,
+): ResolvedCandidatePatterns {
+  return resolveCandidatePatterns(config);
 }
 
 describe('CommentProvider', () => {
@@ -75,6 +87,28 @@ describe('CommentProvider', () => {
       assert.equal(records.length, 1);
       assert.equal(records[0]!.ref, 'SUP-1234');
       assert.equal(records[0]!.rule, 'no-console');
+      assert.equal(records[0]!.tagged, true);
+    });
+
+    it('detects @ts-ignore with shiori', () => {
+      const input = makeInput(
+        '// @ts-ignore shiori: SUP-TS01 reason="legacy code"',
+      );
+      const records = provider.scan(input).annotations;
+      assert.equal(records.length, 1);
+      assert.equal(records[0]!.ref, 'SUP-TS01');
+      assert.equal(records[0]!.reason, 'legacy code');
+      assert.equal(records[0]!.tagged, true);
+    });
+
+    it('detects @ts-expect-error with shiori', () => {
+      const input = makeInput(
+        '// @ts-expect-error shiori: SUP-TS02 expires=2026-06',
+      );
+      const records = provider.scan(input).annotations;
+      assert.equal(records.length, 1);
+      assert.equal(records[0]!.ref, 'SUP-TS02');
+      assert.equal(records[0]!.expires, '2026-06');
       assert.equal(records[0]!.tagged, true);
     });
   });
@@ -226,6 +260,21 @@ describe('CommentProvider', () => {
       assert.equal(records[0]!.ignored, false);
       assert.equal(records[0]!.tagged, true);
     });
+
+    it('detects shiori:ignore on @ts-ignore', () => {
+      const input = makeInput('// @ts-ignore shiori:ignore');
+      const records = provider.scan(input, {
+        candidatePatterns: makePatterns({
+          eslint: true,
+          stylelint: true,
+          typescript: true,
+        }),
+      }).annotations;
+      assert.equal(records.length, 1);
+      assert.equal(records[0]!.ref, '');
+      assert.equal(records[0]!.ignored, true);
+      assert.equal(records[0]!.tagged, true);
+    });
   });
 
   describe('Path D: regular comments', () => {
@@ -239,13 +288,14 @@ describe('CommentProvider', () => {
   });
 
   describe('candidate detection', () => {
-    describe('lint-disable candidates (Path C)', () => {
-      it('produces lint-disable candidate for directive without shiori:', () => {
+    describe('eslint candidates (Path C)', () => {
+      it('produces eslint candidate for directive without shiori:', () => {
         const input = makeInput('// eslint-disable-next-line no-console');
         const result = provider.scan(input);
         assert.equal(result.annotations.length, 0);
         assert.equal(result.candidates.length, 1);
-        assert.equal(result.candidates[0]!.pattern, 'lint-disable');
+        assert.equal(result.candidates[0]!.pattern, 'eslint');
+        assert.equal(result.candidates[0]!.directive, 'disable-next-line');
         assert.equal(result.candidates[0]!.rule, 'no-console');
         assert.equal(result.candidates[0]!.location.file, 'test.ts');
         assert.equal(result.candidates[0]!.location.line, 1);
@@ -269,34 +319,44 @@ describe('CommentProvider', () => {
         const result = provider.scan(input);
         assert.equal(result.annotations.length, 0);
         assert.equal(result.candidates.length, 1);
-        assert.equal(result.candidates[0]!.pattern, 'lint-disable');
+        assert.equal(result.candidates[0]!.pattern, 'eslint');
+        assert.equal(result.candidates[0]!.directive, 'disable-next-line');
         assert.equal(result.candidates[0]!.rule, 'no-console');
       });
 
-      it('produces candidate for stylelint directive without shiori:', () => {
-        const input = makeInput(
-          '/* stylelint-disable-next-line color-named */',
-          'test.css',
-        );
-        const result = provider.scan(input);
-        assert.equal(result.annotations.length, 0);
-        assert.equal(result.candidates.length, 1);
-        assert.equal(result.candidates[0]!.pattern, 'lint-disable');
-        assert.equal(result.candidates[0]!.rule, 'color-named');
-      });
-
-      it('does not produce candidate when lint-disable pattern is disabled', () => {
+      it('does not produce candidate when eslint is disabled', () => {
         const input = makeInput('// eslint-disable-next-line no-console');
         const result = provider.scan(input, {
-          candidatePatterns: {
-            'lint-disable': false,
-            todo: false,
-            fixme: false,
-            hack: false,
-            xxx: false,
-          },
+          candidatePatterns: makePatterns({
+            eslint: false,
+            stylelint: false,
+          }),
         });
         assert.equal(result.candidates.length, 0);
+      });
+
+      it('does not produce candidate when specific directive is disabled', () => {
+        const input = makeInput('// eslint-disable-next-line no-console');
+        const result = provider.scan(input, {
+          candidatePatterns: makePatterns({
+            eslint: { 'disable-next-line': false },
+            stylelint: true,
+          }),
+        });
+        assert.equal(result.candidates.length, 0);
+      });
+
+      it('produces candidate when only disable-line is disabled', () => {
+        const input = makeInput('// eslint-disable-next-line no-console');
+        const result = provider.scan(input, {
+          candidatePatterns: makePatterns({
+            eslint: { 'disable-line': false },
+            stylelint: true,
+          }),
+        });
+        assert.equal(result.candidates.length, 1);
+        assert.equal(result.candidates[0]!.pattern, 'eslint');
+        assert.equal(result.candidates[0]!.directive, 'disable-next-line');
       });
 
       it('does not produce candidate when directive has shiori:', () => {
@@ -309,20 +369,109 @@ describe('CommentProvider', () => {
       });
     });
 
-    describe('TODO/FIXME/HACK/XXX candidates (Path D)', () => {
+    describe('stylelint candidates (Path C)', () => {
+      it('produces stylelint candidate for directive without shiori:', () => {
+        const input = makeInput(
+          '/* stylelint-disable-next-line color-named */',
+          'test.css',
+        );
+        const result = provider.scan(input);
+        assert.equal(result.annotations.length, 0);
+        assert.equal(result.candidates.length, 1);
+        assert.equal(result.candidates[0]!.pattern, 'stylelint');
+        assert.equal(result.candidates[0]!.directive, 'disable-next-line');
+        assert.equal(result.candidates[0]!.rule, 'color-named');
+      });
+
+      it('does not produce candidate when stylelint is disabled', () => {
+        const input = makeInput(
+          '/* stylelint-disable-next-line color-named */',
+          'test.css',
+        );
+        const result = provider.scan(input, {
+          candidatePatterns: makePatterns({
+            eslint: true,
+            stylelint: false,
+          }),
+        });
+        assert.equal(result.candidates.length, 0);
+      });
+    });
+
+    describe('TypeScript directive candidates', () => {
+      it('detects @ts-ignore as candidate', () => {
+        const input = makeInput('// @ts-ignore');
+        const result = provider.scan(input, {
+          candidatePatterns: makePatterns({
+            eslint: true,
+            stylelint: true,
+            typescript: true,
+          }),
+        });
+        assert.equal(result.candidates.length, 1);
+        assert.equal(result.candidates[0]!.pattern, 'typescript');
+        assert.equal(result.candidates[0]!.directive, 'ts-ignore');
+      });
+
+      it('detects @ts-expect-error as candidate', () => {
+        const input = makeInput('// @ts-expect-error');
+        const result = provider.scan(input, {
+          candidatePatterns: makePatterns({
+            eslint: true,
+            stylelint: true,
+            typescript: true,
+          }),
+        });
+        assert.equal(result.candidates.length, 1);
+        assert.equal(result.candidates[0]!.pattern, 'typescript');
+        assert.equal(result.candidates[0]!.directive, 'ts-expect-error');
+      });
+
+      it('does not detect TypeScript directives when typescript is disabled', () => {
+        const input = makeInput('// @ts-ignore');
+        const result = provider.scan(input, {
+          candidatePatterns: makePatterns({
+            eslint: true,
+            stylelint: true,
+            typescript: false,
+          }),
+        });
+        assert.equal(result.candidates.length, 0);
+      });
+
+      it('does not detect TypeScript directives by default (not in default config)', () => {
+        const input = makeInput('// @ts-ignore');
+        const result = provider.scan(input);
+        assert.equal(result.candidates.length, 0);
+      });
+
+      it('respects per-directive control for TypeScript', () => {
+        const input = makeInput('// @ts-ignore\n// @ts-expect-error');
+        const result = provider.scan(input, {
+          candidatePatterns: makePatterns({
+            eslint: true,
+            stylelint: true,
+            typescript: { 'ts-ignore': true, 'ts-expect-error': false },
+          }),
+        });
+        assert.equal(result.candidates.length, 1);
+        assert.equal(result.candidates[0]!.directive, 'ts-ignore');
+      });
+    });
+
+    describe('keyword candidates', () => {
       it('detects TODO keyword', () => {
         const input = makeInput('// TODO: fix this later');
         const result = provider.scan(input, {
-          candidatePatterns: {
-            'lint-disable': true,
-            todo: true,
-            fixme: false,
-            hack: false,
-            xxx: false,
-          },
+          candidatePatterns: makePatterns({
+            eslint: true,
+            stylelint: true,
+            keywords: { todo: true },
+          }),
         });
         assert.equal(result.candidates.length, 1);
-        assert.equal(result.candidates[0]!.pattern, 'todo');
+        assert.equal(result.candidates[0]!.pattern, 'keywords');
+        assert.equal(result.candidates[0]!.directive, 'todo');
         assert.equal(result.candidates[0]!.text, 'fix this later');
         assert.equal(result.candidates[0]!.location.line, 1);
       });
@@ -330,52 +479,49 @@ describe('CommentProvider', () => {
       it('detects FIXME keyword', () => {
         const input = makeInput('// FIXME broken edge case');
         const result = provider.scan(input, {
-          candidatePatterns: {
-            'lint-disable': true,
-            todo: false,
-            fixme: true,
-            hack: false,
-            xxx: false,
-          },
+          candidatePatterns: makePatterns({
+            eslint: true,
+            stylelint: true,
+            keywords: { fixme: true },
+          }),
         });
         assert.equal(result.candidates.length, 1);
-        assert.equal(result.candidates[0]!.pattern, 'fixme');
+        assert.equal(result.candidates[0]!.pattern, 'keywords');
+        assert.equal(result.candidates[0]!.directive, 'fixme');
         assert.equal(result.candidates[0]!.text, 'broken edge case');
       });
 
       it('detects HACK keyword', () => {
         const input = makeInput('// HACK workaround for bug');
         const result = provider.scan(input, {
-          candidatePatterns: {
-            'lint-disable': true,
-            todo: false,
-            fixme: false,
-            hack: true,
-            xxx: false,
-          },
+          candidatePatterns: makePatterns({
+            eslint: true,
+            stylelint: true,
+            keywords: { hack: true },
+          }),
         });
         assert.equal(result.candidates.length, 1);
-        assert.equal(result.candidates[0]!.pattern, 'hack');
+        assert.equal(result.candidates[0]!.pattern, 'keywords');
+        assert.equal(result.candidates[0]!.directive, 'hack');
         assert.equal(result.candidates[0]!.text, 'workaround for bug');
       });
 
       it('detects XXX keyword', () => {
         const input = makeInput('// XXX needs review');
         const result = provider.scan(input, {
-          candidatePatterns: {
-            'lint-disable': true,
-            todo: false,
-            fixme: false,
-            hack: false,
-            xxx: true,
-          },
+          candidatePatterns: makePatterns({
+            eslint: true,
+            stylelint: true,
+            keywords: { xxx: true },
+          }),
         });
         assert.equal(result.candidates.length, 1);
-        assert.equal(result.candidates[0]!.pattern, 'xxx');
+        assert.equal(result.candidates[0]!.pattern, 'keywords');
+        assert.equal(result.candidates[0]!.directive, 'xxx');
         assert.equal(result.candidates[0]!.text, 'needs review');
       });
 
-      it('ignores TODO when todo pattern is disabled (default)', () => {
+      it('ignores TODO when keywords are disabled (default)', () => {
         const input = makeInput('// TODO: fix this later');
         const result = provider.scan(input);
         assert.equal(result.candidates.length, 0);
@@ -384,13 +530,11 @@ describe('CommentProvider', () => {
       it('ignores lowercase todo', () => {
         const input = makeInput('// todo: fix this');
         const result = provider.scan(input, {
-          candidatePatterns: {
-            'lint-disable': true,
-            todo: true,
-            fixme: false,
-            hack: false,
-            xxx: false,
-          },
+          candidatePatterns: makePatterns({
+            eslint: true,
+            stylelint: true,
+            keywords: true,
+          }),
         });
         assert.equal(result.candidates.length, 0);
       });
@@ -398,13 +542,11 @@ describe('CommentProvider', () => {
       it('captures text after TODO without colon', () => {
         const input = makeInput('// TODO fix this');
         const result = provider.scan(input, {
-          candidatePatterns: {
-            'lint-disable': true,
-            todo: true,
-            fixme: false,
-            hack: false,
-            xxx: false,
-          },
+          candidatePatterns: makePatterns({
+            eslint: true,
+            stylelint: true,
+            keywords: { todo: true },
+          }),
         });
         assert.equal(result.candidates.length, 1);
         assert.equal(result.candidates[0]!.text, 'fix this');
@@ -413,16 +555,121 @@ describe('CommentProvider', () => {
       it('returns undefined text for TODO with no description', () => {
         const input = makeInput('// TODO');
         const result = provider.scan(input, {
-          candidatePatterns: {
-            'lint-disable': true,
-            todo: true,
-            fixme: false,
-            hack: false,
-            xxx: false,
-          },
+          candidatePatterns: makePatterns({
+            eslint: true,
+            stylelint: true,
+            keywords: { todo: true },
+          }),
         });
         assert.equal(result.candidates.length, 1);
         assert.equal(result.candidates[0]!.text, undefined);
+      });
+
+      it('detects keywords with boolean shorthand (all enabled)', () => {
+        const input = makeInput(
+          '// TODO task1\n// FIXME task2\n// HACK task3\n// XXX task4',
+        );
+        const result = provider.scan(input, {
+          candidatePatterns: makePatterns({
+            eslint: true,
+            stylelint: true,
+            keywords: true,
+          }),
+        });
+        assert.equal(result.candidates.length, 4);
+        assert.equal(result.candidates[0]!.directive, 'todo');
+        assert.equal(result.candidates[1]!.directive, 'fixme');
+        assert.equal(result.candidates[2]!.directive, 'hack');
+        assert.equal(result.candidates[3]!.directive, 'xxx');
+      });
+    });
+
+    describe('custom _matchers', () => {
+      it('detects custom tool via _matchers', () => {
+        const input = makeInput('// biome-ignore lint/style/useConst: reason');
+        const result = provider.scan(input, {
+          candidatePatterns: makePatterns({
+            biome: {
+              _matchers: {
+                ignore: {
+                  pattern: '\\bbiome-ignore\\s+(.*)',
+                  rules: 'single',
+                  separator: ':',
+                },
+              },
+              ignore: true,
+            },
+          }),
+        });
+        assert.equal(result.candidates.length, 1);
+        assert.equal(result.candidates[0]!.pattern, 'biome');
+        assert.equal(result.candidates[0]!.directive, 'ignore');
+        assert.equal(result.candidates[0]!.rule, 'lint/style/useConst');
+      });
+
+      it('detects shiori: in custom tool meta part', () => {
+        const input = makeInput(
+          '// biome-ignore lint/style/useConst: shiori: SUP-BIOME',
+        );
+        const result = provider.scan(input, {
+          candidatePatterns: makePatterns({
+            biome: {
+              _matchers: {
+                ignore: {
+                  pattern: '\\bbiome-ignore\\s+(.*)',
+                  rules: 'single',
+                  separator: ':',
+                },
+              },
+              ignore: true,
+            },
+          }),
+        });
+        assert.equal(result.annotations.length, 1);
+        assert.equal(result.annotations[0]!.ref, 'SUP-BIOME');
+        assert.equal(result.annotations[0]!.rule, 'lint/style/useConst');
+        assert.equal(result.candidates.length, 0);
+      });
+
+      it('adds keyword via _matchers', () => {
+        const input = makeInput('// NOTE: important detail');
+        const result = provider.scan(input, {
+          candidatePatterns: makePatterns({
+            keywords: {
+              _matchers: {
+                note: {
+                  pattern: '^NOTE\\b:?\\s*(.*)',
+                  text: true,
+                },
+              },
+              note: true,
+              todo: true,
+            },
+          }),
+        });
+        assert.equal(result.candidates.length, 1);
+        assert.equal(result.candidates[0]!.pattern, 'keywords');
+        assert.equal(result.candidates[0]!.directive, 'note');
+        assert.equal(result.candidates[0]!.text, 'important detail');
+      });
+
+      it('_matchers-added matcher defaults to disabled without explicit true', () => {
+        const input = makeInput('// NOTE: important detail');
+        const result = provider.scan(input, {
+          candidatePatterns: makePatterns({
+            keywords: {
+              _matchers: {
+                note: {
+                  pattern: '^NOTE\\b:?\\s*(.*)',
+                  text: true,
+                },
+              },
+              todo: true,
+              // note not explicitly set → disabled
+            },
+          }),
+        });
+        assert.equal(result.candidates.length, 0);
       });
     });
   });

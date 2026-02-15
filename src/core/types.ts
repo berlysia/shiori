@@ -21,19 +21,16 @@ export interface ShioriAnnotation {
   };
 }
 
-/** Candidate pattern category */
-export type CandidatePattern =
-  | 'lint-disable'
-  | 'todo'
-  | 'fixme'
-  | 'hack'
-  | 'xxx';
+/** Candidate pattern category (tool name like 'eslint', 'stylelint', 'typescript' or keyword like 'todo', 'fixme') */
+export type CandidatePattern = string;
 
 /** A candidate comment detected by pattern matching (no shiori: marker) */
 export interface ShioriCandidate {
-  /** Detection pattern category */
+  /** Detection pattern category (tool name or keyword) */
   pattern: CandidatePattern;
-  /** Lint rule name (for lint-disable pattern) */
+  /** Directive type (e.g. 'disable-next-line', 'ts-ignore') */
+  directive?: string;
+  /** Lint rule name (for lint tool patterns) */
   rule?: string;
   /** Comment text (for TODO/FIXME/HACK/XXX) */
   text?: string;

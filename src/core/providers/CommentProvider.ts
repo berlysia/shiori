@@ -4,9 +4,13 @@ import type {
   AnnotationProvider,
   ProviderResult,
   ProviderScanOptions,
-  CandidatePatternConfig,
+  ResolvedCandidatePatterns,
+  ResolvedMatcher,
 } from './AnnotationProvider.ts';
-import { DEFAULT_CANDIDATE_PATTERNS } from './AnnotationProvider.ts';
+import {
+  DEFAULT_CANDIDATE_PATTERNS,
+  resolveCandidatePatterns,
+} from './AnnotationProvider.ts';
 import { parseShioriFields } from '../parser.ts';
 
 // Regex for block comments
@@ -15,19 +19,15 @@ const BLOCK_COMMENT_RE = /\/\*[\s\S]*?\*\//g;
 // Regex for line comments
 const LINE_COMMENT_RE = /\/\/.*/g;
 
-/** Lint directive patterns (captures: [1]=tool, [2]=directive-type, [3]=after-directive) */
-const STYLELINT_DIRECTIVE_RE =
-  /\b(stylelint)-disable-(next-line|line)\s+([\s\S]+)/;
-const ESLINT_DIRECTIVE_RE = /\b(eslint)-disable-(next-line|line)\s+(.*)/;
-
 /** shiori: prefix detection */
 const SHIORI_PREFIX_RE = /\bshiori:\s*/;
 
 /** shiori:ignore detection — must be checked before parseShioriFields */
 const SHIORI_IGNORE_RE = /\bshiori:ignore\b/;
 
-/** TODO-like keyword patterns at comment start (case-sensitive) */
-const TODO_KEYWORD_RE = /^(TODO|FIXME|HACK|XXX)\b:?\s*(.*)/;
+/** Default resolved patterns (used when no options provided) */
+const DEFAULT_RESOLVED_PATTERNS: ResolvedCandidatePatterns =
+  resolveCandidatePatterns(DEFAULT_CANDIDATE_PATTERNS);
 
 interface ExtractedComment {
   text: string;
@@ -64,7 +64,7 @@ function extractComments(content: string): ExtractedComment[] {
   return comments;
 }
 
-function parseRules(rulesStr: string): string[] {
+function parseRulesCsv(rulesStr: string): string[] {
   const byComma = rulesStr
     .split(',')
     .map((s) => s.trim())
@@ -75,26 +75,64 @@ function parseRules(rulesStr: string): string[] {
   return rulesStr.split(/\s+/).filter(Boolean);
 }
 
-interface ParsedDirective {
+interface ParsedMatcherResult {
   rules: string[];
   shioriFieldsStr: string | undefined;
   isIgnored: boolean;
+  capturedText: string | undefined;
 }
 
-function parseDirectiveContent(afterDirective: string): ParsedDirective {
-  const dashIndex = afterDirective.indexOf('--');
-  const rulesPart =
-    dashIndex >= 0 ? afterDirective.slice(0, dashIndex) : afterDirective;
-  const metaPart = dashIndex >= 0 ? afterDirective.slice(dashIndex + 2) : '';
+/**
+ * Generic parse function for matcher rest content.
+ *
+ * separator null → rulesPart='', metaPart=rest
+ * separator set → split at first separator
+ *
+ * rules:
+ *   'csv' → comma-split → space fallback
+ *   'single' → single rule
+ *   null → no rules
+ *
+ * Always searches metaPart for shiori: / shiori:ignore
+ */
+function parseMatcherRest(
+  rest: string,
+  matcher: ResolvedMatcher,
+): ParsedMatcherResult {
+  let rulesPart: string;
+  let metaPart: string;
 
+  if (matcher.separator != null) {
+    const sepIndex = rest.indexOf(matcher.separator);
+    if (sepIndex >= 0) {
+      rulesPart = rest.slice(0, sepIndex);
+      metaPart = rest.slice(sepIndex + matcher.separator.length);
+    } else {
+      rulesPart = rest;
+      metaPart = '';
+    }
+  } else {
+    rulesPart = '';
+    metaPart = rest;
+  }
+
+  // Clean trailing block comment artifacts
   const cleanRulesPart = rulesPart.replace(/\s*\*\/\s*$/, '').trim();
-  const rules = cleanRulesPart ? parseRules(cleanRulesPart) : [];
 
-  // Check for shiori:ignore first (before general shiori: prefix)
+  // Extract rules
+  let rules: string[];
+  if (matcher.rules === 'csv') {
+    rules = cleanRulesPart ? parseRulesCsv(cleanRulesPart) : [];
+  } else if (matcher.rules === 'single') {
+    rules = cleanRulesPart ? [cleanRulesPart] : [];
+  } else {
+    rules = [];
+  }
+
+  // Check for shiori:ignore first
   const ignoreMatch = metaPart.match(SHIORI_IGNORE_RE);
   if (ignoreMatch) {
-    // shiori:ignore takes precedence — extra fields after it are simply discarded
-    return { rules, shioriFieldsStr: undefined, isIgnored: true };
+    return { rules, shioriFieldsStr: undefined, isIgnored: true, capturedText: undefined };
   }
 
   // Check for shiori: prefix in meta part
@@ -103,16 +141,13 @@ function parseDirectiveContent(afterDirective: string): ParsedDirective {
     ? metaPart.slice(shioriMatch.index! + shioriMatch[0].length).trim()
     : undefined;
 
-  return { rules, shioriFieldsStr, isIgnored: false };
-}
+  // Capture text if configured
+  const capturedText = matcher.captureText
+    ? (rest.trim() || undefined)
+    : undefined;
 
-/** Map TODO keyword to CandidatePattern */
-const KEYWORD_TO_PATTERN: Record<string, ShioriCandidate['pattern']> = {
-  TODO: 'todo',
-  FIXME: 'fixme',
-  HACK: 'hack',
-  XXX: 'xxx',
-};
+  return { rules, shioriFieldsStr, isIgnored: false, capturedText };
+}
 
 /** CommentProvider: extracts shiori annotations and candidates from comments */
 export class CommentProvider implements AnnotationProvider {
@@ -121,62 +156,52 @@ export class CommentProvider implements AnnotationProvider {
   scan(file: FileInput, options?: ProviderScanOptions): ProviderResult {
     const annotations: ShioriAnnotation[] = [];
     const candidates: ShioriCandidate[] = [];
-    const patterns: CandidatePatternConfig =
-      options?.candidatePatterns ?? DEFAULT_CANDIDATE_PATTERNS;
+    const patterns: ResolvedCandidatePatterns =
+      options?.candidatePatterns ?? DEFAULT_RESOLVED_PATTERNS;
     const comments = extractComments(file.content);
 
     for (const comment of comments) {
       const { text, line } = comment;
 
-      // Try lint directive patterns first
-      const stylelintMatch = text.match(STYLELINT_DIRECTIVE_RE);
-      const eslintMatch = text.match(ESLINT_DIRECTIVE_RE);
+      // Try all entry matchers
+      let matched = false;
+      for (const [entryName, matchers] of Object.entries(patterns.entries)) {
+        if (matched) break;
+        for (const matcher of matchers) {
+          const m = text.match(matcher.pattern);
+          if (!m) continue;
 
-      if (stylelintMatch || eslintMatch) {
-        const match = stylelintMatch ?? eslintMatch!;
-        const afterDirective = match[3]!;
-        const { rules, shioriFieldsStr, isIgnored } =
-          parseDirectiveContent(afterDirective);
+          matched = true;
+          const rest = (m[1] ?? '').trim();
+          const parsed = parseMatcherRest(rest, matcher);
 
-        if (isIgnored) {
-          // shiori:ignore detected — always treated as ignored
-          const pushIgnored = (rule: string | undefined) => {
-            annotations.push({
-              ref: '',
-              rule,
-              tagged: true,
-              ignored: true,
-              location: { file: file.path, line },
-            });
-          };
-          if (rules.length === 0) {
-            pushIgnored(undefined);
-          } else {
-            for (const rule of rules) {
-              pushIgnored(rule);
+          if (parsed.isIgnored) {
+            // shiori:ignore detected
+            const pushIgnored = (rule: string | undefined) => {
+              annotations.push({
+                ref: '',
+                rule,
+                tagged: true,
+                ignored: true,
+                location: { file: file.path, line },
+              });
+            };
+            if (parsed.rules.length === 0) {
+              pushIgnored(undefined);
+            } else {
+              for (const rule of parsed.rules) {
+                pushIgnored(rule);
+              }
             }
-          }
-        } else if (shioriFieldsStr !== undefined) {
-          // Path A: lint directive + shiori:
-          const fields = parseShioriFields(shioriFieldsStr);
-          const syntaxErrors =
-            fields.errors.length > 0 ? fields.errors : undefined;
-          if (rules.length === 0) {
-            annotations.push({
-              ref: fields.ref,
-              rule: undefined,
-              expires: fields.expires,
-              reason: fields.reason,
-              tagged: true,
-              ignored: false,
-              syntaxErrors,
-              location: { file: file.path, line },
-            });
-          } else {
-            for (const rule of rules) {
+          } else if (parsed.shioriFieldsStr !== undefined) {
+            // Path A: matcher + shiori:
+            const fields = parseShioriFields(parsed.shioriFieldsStr);
+            const syntaxErrors =
+              fields.errors.length > 0 ? fields.errors : undefined;
+            if (parsed.rules.length === 0) {
               annotations.push({
                 ref: fields.ref,
-                rule,
+                rule: undefined,
                 expires: fields.expires,
                 reason: fields.reason,
                 tagged: true,
@@ -184,29 +209,51 @@ export class CommentProvider implements AnnotationProvider {
                 syntaxErrors,
                 location: { file: file.path, line },
               });
+            } else {
+              for (const rule of parsed.rules) {
+                annotations.push({
+                  ref: fields.ref,
+                  rule,
+                  expires: fields.expires,
+                  reason: fields.reason,
+                  tagged: true,
+                  ignored: false,
+                  syntaxErrors,
+                  location: { file: file.path, line },
+                });
+              }
             }
-          }
-        } else if (patterns['lint-disable']) {
-          // Path C: lint directive without shiori: → candidate
-          if (rules.length === 0) {
-            candidates.push({
-              pattern: 'lint-disable',
-              location: { file: file.path, line },
-            });
-          } else {
-            for (const rule of rules) {
+          } else if (matcher.enabled) {
+            // Path C: matcher without shiori: → candidate
+            const directive =
+              matcher.name !== 'default' ? matcher.name : undefined;
+            if (parsed.rules.length === 0) {
               candidates.push({
-                pattern: 'lint-disable',
-                rule,
+                pattern: entryName,
+                directive,
+                text: parsed.capturedText,
                 location: { file: file.path, line },
               });
+            } else {
+              for (const rule of parsed.rules) {
+                candidates.push({
+                  pattern: entryName,
+                  directive,
+                  rule,
+                  text: parsed.capturedText,
+                  location: { file: file.path, line },
+                });
+              }
             }
           }
+
+          break; // First match wins within this entry
         }
-        continue;
       }
 
-      // Path B: standalone shiori: (shiori:ignore on standalone is treated as normal parse — bare ref 'ignore')
+      if (matched) continue;
+
+      // Path B: standalone shiori: (no matcher matched)
       const shioriMatch = text.match(SHIORI_PREFIX_RE);
       if (shioriMatch) {
         const fieldsStr = text
@@ -225,21 +272,6 @@ export class CommentProvider implements AnnotationProvider {
           syntaxErrors,
           location: { file: file.path, line },
         });
-        continue;
-      }
-
-      // Path D: check for TODO/FIXME/HACK/XXX keywords
-      const todoMatch = text.match(TODO_KEYWORD_RE);
-      if (todoMatch) {
-        const keyword = todoMatch[1]!;
-        const pattern = KEYWORD_TO_PATTERN[keyword];
-        if (pattern && patterns[pattern]) {
-          candidates.push({
-            pattern,
-            text: todoMatch[2]?.trim() || undefined,
-            location: { file: file.path, line },
-          });
-        }
         continue;
       }
 
