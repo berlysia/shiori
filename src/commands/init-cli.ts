@@ -193,13 +193,26 @@ const CONFIG_YAML_TEMPLATE = `# shiori configuration
 #   scanResult: ".config/shiori/scan-result.json"  # scan result cache
 #   registry: ".config/shiori/registry.json"        # annotation registry
 
-# Candidate detection patterns: which comment patterns to detect as candidates
+# Candidate detection: which comment patterns to detect as candidates
+# Built-in tools: eslint, stylelint, typescript, keywords
 # candidates:
-#   lint-disable: true   # eslint-disable, stylelint-disable, etc.
-#   todo: false           # TODO comments
-#   fixme: false          # FIXME comments
-#   hack: false           # HACK comments
-#   xxx: false            # XXX comments
+#   eslint: true            # eslint-disable-next-line, eslint-disable-line
+#   stylelint: true         # stylelint-disable-next-line, stylelint-disable-line
+#   typescript: false       # @ts-ignore, @ts-expect-error
+#   keywords: false         # TODO, FIXME, HACK, XXX comments
+#
+# Per-matcher control (advanced):
+#   eslint:
+#     disable-next-line: true
+#     disable-line: false
+#
+# Custom matchers:
+#   my-tool:
+#     _matchers:
+#       my-directive:
+#         pattern: "\\bmy-tool-disable\\s+(.*)"
+#         rules: csv
+#         separator: "--"
 
 # Pattern-based ref resolution (see docs/decisions/012)
 # refPatterns:
