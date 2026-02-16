@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [22]
+        node-version: [18, 20, 22]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -20,8 +20,12 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
+        if: matrix.node-version == 22
       - run: pnpm lint
+        if: matrix.node-version == 22
       - run: pnpm format:check
+        if: matrix.node-version == 22
       - run: pnpm test
+        if: matrix.node-version == 22
       - run: pnpm build
       - run: node dist/src/cli.js --help

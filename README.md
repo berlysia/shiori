@@ -324,12 +324,17 @@ jobs:
         run: npx shiori check -f markdown -o report.md
 ```
 
+## Requirements
+
+- **Runtime (npm package users):** Node.js >= 18.0.0
+- **Development:** Node.js >= 22.6.0 (required for `--experimental-strip-types` in tests)
+
 ## Development
 
 ```bash
 pnpm install
 pnpm build
-pnpm test
+pnpm test          # Requires Node.js >= 22.6.0
 pnpm typecheck
 pnpm lint
 ```

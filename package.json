@@ -39,7 +39,7 @@
   },
   "packageManager": "pnpm@10.27.0",
   "engines": {
-    "node": ">=22.6.0"
+    "node": ">=18.0.0"
   },
   "dependencies": {
     "fast-glob": "^3.3.3",
