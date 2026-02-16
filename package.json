@@ -16,12 +16,15 @@
   ],
   "exports": {
     ".": {
+      "types": "./dist/src/core/types.d.ts",
       "import": "./dist/src/core/types.js"
     },
     "./core/ref-pattern": {
+      "types": "./dist/src/core/ref-pattern.d.ts",
       "import": "./dist/src/core/ref-pattern.js"
     },
     "./commands/show": {
+      "types": "./dist/src/commands/show.d.ts",
       "import": "./dist/src/commands/show.js"
     }
   },
@@ -34,6 +37,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
+  "packageManager": "pnpm@10.27.0",
   "engines": {
     "node": ">=22.6.0"
   },
