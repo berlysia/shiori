@@ -785,4 +785,265 @@ describe('CommentProvider', () => {
       assert.equal(records[3]!.tagged, true);
     });
   });
+
+  describe('multi-language comment support (ADR 017)', () => {
+    describe('hash-style comments', () => {
+      it('detects standalone shiori in Python comment', () => {
+        const input = makeInput('# shiori: SUP-001', 'test.py');
+        const result = provider.scan(input);
+        assert.equal(result.annotations.length, 1);
+        assert.equal(result.annotations[0]!.ref, 'SUP-001');
+        assert.equal(result.annotations[0]!.rule, undefined);
+        assert.equal(result.annotations[0]!.tagged, true);
+      });
+
+      it('detects shiori with key=value in Ruby comment', () => {
+        const input = makeInput('# shiori: SUP-002 expires=2026-06', 'test.rb');
+        const result = provider.scan(input);
+        assert.equal(result.annotations.length, 1);
+        assert.equal(result.annotations[0]!.ref, 'SUP-002');
+        assert.equal(result.annotations[0]!.expires, '2026-06');
+      });
+
+      it('detects shiori in Shell comment', () => {
+        const input = makeInput('# shiori: SUP-003', 'test.sh');
+        const result = provider.scan(input);
+        assert.equal(result.annotations.length, 1);
+        assert.equal(result.annotations[0]!.ref, 'SUP-003');
+      });
+
+      it('detects shiori in YAML comment', () => {
+        const input = makeInput('# shiori: ADR:0017', 'config.yaml');
+        const result = provider.scan(input);
+        assert.equal(result.annotations.length, 1);
+        assert.equal(result.annotations[0]!.ref, 'ADR:0017');
+      });
+
+      it('detects shiori in TOML comment', () => {
+        const input = makeInput('# shiori: CFG-001', 'config.toml');
+        const result = provider.scan(input);
+        assert.equal(result.annotations.length, 1);
+        assert.equal(result.annotations[0]!.ref, 'CFG-001');
+      });
+
+      it('detects bare ref shorthand in hash comment', () => {
+        const input = makeInput('# shiori:SUP-1234', 'test.py');
+        const result = provider.scan(input);
+        assert.equal(result.annotations.length, 1);
+        assert.equal(result.annotations[0]!.ref, 'SUP-1234');
+      });
+
+      it('detects draft annotation in hash comment', () => {
+        const input = makeInput('# shiori:', 'test.py');
+        const result = provider.scan(input);
+        assert.equal(result.annotations.length, 1);
+        assert.equal(result.annotations[0]!.ref, '');
+      });
+
+      it('detects eslint candidate in hash comment when eslint pattern enabled', () => {
+        const input = makeInput(
+          '# eslint-disable-next-line no-console',
+          'test.py',
+        );
+        const result = provider.scan(input);
+        assert.equal(result.candidates.length, 1);
+        assert.equal(result.candidates[0]!.pattern, 'eslint');
+        assert.equal(result.candidates[0]!.rule, 'no-console');
+      });
+
+      it('detects shiori:ignore in hash comment', () => {
+        const input = makeInput(
+          '# eslint-disable-next-line no-console -- shiori:ignore',
+          'test.py',
+        );
+        const result = provider.scan(input);
+        assert.equal(result.annotations.length, 1);
+        assert.equal(result.annotations[0]!.ignored, true);
+        assert.equal(result.annotations[0]!.rule, 'no-console');
+      });
+
+      it('does not produce annotations from regular hash comments', () => {
+        const input = makeInput('# This is a regular comment', 'test.py');
+        const result = provider.scan(input);
+        assert.equal(result.annotations.length, 0);
+        assert.equal(result.candidates.length, 0);
+      });
+
+      it('handles multiple hash comments', () => {
+        const input = makeInput(
+          '# shiori: SUP-001\nx = 1\n# shiori: SUP-002',
+          'test.py',
+        );
+        const result = provider.scan(input);
+        assert.equal(result.annotations.length, 2);
+        assert.equal(result.annotations[0]!.ref, 'SUP-001');
+        assert.equal(result.annotations[0]!.location.line, 1);
+        assert.equal(result.annotations[1]!.ref, 'SUP-002');
+        assert.equal(result.annotations[1]!.location.line, 3);
+      });
+
+      it('does not detect C-style comments in Python files', () => {
+        const input = makeInput('// shiori: SUP-001', 'test.py');
+        const result = provider.scan(input);
+        assert.equal(result.annotations.length, 0);
+      });
+    });
+
+    describe('HTML-style comments', () => {
+      it('detects standalone shiori in HTML comment', () => {
+        const input = makeInput('<!-- shiori: SUP-001 -->', 'test.html');
+        const result = provider.scan(input);
+        assert.equal(result.annotations.length, 1);
+        assert.equal(result.annotations[0]!.ref, 'SUP-001');
+        assert.equal(result.annotations[0]!.tagged, true);
+      });
+
+      it('detects shiori with key=value in HTML comment', () => {
+        const input = makeInput(
+          '<!-- shiori: SUP-002 expires=2026-06 reason="legacy markup" -->',
+          'test.html',
+        );
+        const result = provider.scan(input);
+        assert.equal(result.annotations.length, 1);
+        assert.equal(result.annotations[0]!.ref, 'SUP-002');
+        assert.equal(result.annotations[0]!.expires, '2026-06');
+        assert.equal(result.annotations[0]!.reason, 'legacy markup');
+      });
+
+      it('detects shiori in XML comment', () => {
+        const input = makeInput('<!-- shiori: XML-001 -->', 'test.xml');
+        const result = provider.scan(input);
+        assert.equal(result.annotations.length, 1);
+        assert.equal(result.annotations[0]!.ref, 'XML-001');
+      });
+
+      it('detects shiori in SVG comment', () => {
+        const input = makeInput('<!-- shiori: SVG-001 -->', 'test.svg');
+        const result = provider.scan(input);
+        assert.equal(result.annotations.length, 1);
+        assert.equal(result.annotations[0]!.ref, 'SVG-001');
+      });
+
+      it('detects eslint directive in HTML comment', () => {
+        const input = makeInput(
+          '<!-- eslint-disable-next-line vue/no-v-html -- shiori: SUP-VUE -->',
+          'test.html',
+        );
+        const result = provider.scan(input);
+        assert.equal(result.annotations.length, 1);
+        assert.equal(result.annotations[0]!.ref, 'SUP-VUE');
+        assert.equal(result.annotations[0]!.rule, 'vue/no-v-html');
+      });
+
+      it('detects shiori in multi-line HTML comment', () => {
+        const input = makeInput('<!--\n  shiori: SUP-ML\n-->', 'test.html');
+        const result = provider.scan(input);
+        assert.equal(result.annotations.length, 1);
+        assert.equal(result.annotations[0]!.ref, 'SUP-ML');
+      });
+
+      it('does not detect C-style comments in HTML files', () => {
+        const input = makeInput('// shiori: SUP-001', 'test.html');
+        const result = provider.scan(input);
+        assert.equal(result.annotations.length, 0);
+      });
+
+      it('does not produce annotations from regular HTML comments', () => {
+        const input = makeInput('<!-- Just a comment -->', 'test.html');
+        const result = provider.scan(input);
+        assert.equal(result.annotations.length, 0);
+        assert.equal(result.candidates.length, 0);
+      });
+    });
+
+    describe('SQL-style comments (dashdash)', () => {
+      it('detects standalone shiori in SQL line comment', () => {
+        const input = makeInput('-- shiori: SQL-001', 'test.sql');
+        const result = provider.scan(input);
+        assert.equal(result.annotations.length, 1);
+        assert.equal(result.annotations[0]!.ref, 'SQL-001');
+        assert.equal(result.annotations[0]!.tagged, true);
+      });
+
+      it('detects shiori in SQL block comment', () => {
+        const input = makeInput('/* shiori: SQL-002 */', 'test.sql');
+        const result = provider.scan(input);
+        assert.equal(result.annotations.length, 1);
+        assert.equal(result.annotations[0]!.ref, 'SQL-002');
+      });
+
+      it('does not detect C-style line comment in SQL files', () => {
+        const input = makeInput('// shiori: SUP-001', 'test.sql');
+        const result = provider.scan(input);
+        assert.equal(result.annotations.length, 0);
+      });
+    });
+
+    describe('Lua-style comments', () => {
+      it('detects standalone shiori in Lua line comment', () => {
+        const input = makeInput('-- shiori: LUA-001', 'test.lua');
+        const result = provider.scan(input);
+        assert.equal(result.annotations.length, 1);
+        assert.equal(result.annotations[0]!.ref, 'LUA-001');
+        assert.equal(result.annotations[0]!.tagged, true);
+      });
+
+      it('detects shiori in Lua block comment', () => {
+        const input = makeInput('--[[ shiori: LUA-002 ]]', 'test.lua');
+        const result = provider.scan(input);
+        assert.equal(result.annotations.length, 1);
+        assert.equal(result.annotations[0]!.ref, 'LUA-002');
+      });
+
+      it('does not confuse block comment opener with line comment', () => {
+        const input = makeInput(
+          '--[[ shiori: LUA-BLOCK ]]\n-- shiori: LUA-LINE',
+          'test.lua',
+        );
+        const result = provider.scan(input);
+        assert.equal(result.annotations.length, 2);
+        assert.equal(result.annotations[0]!.ref, 'LUA-BLOCK');
+        assert.equal(result.annotations[1]!.ref, 'LUA-LINE');
+      });
+    });
+
+    describe('fallback for unknown extensions', () => {
+      it('uses C-style syntax for unknown extensions', () => {
+        const input = makeInput('// shiori: UNK-001', 'test.unknown');
+        const result = provider.scan(input);
+        assert.equal(result.annotations.length, 1);
+        assert.equal(result.annotations[0]!.ref, 'UNK-001');
+      });
+
+      it('uses C-style block comment for unknown extensions', () => {
+        const input = makeInput('/* shiori: UNK-002 */', 'test.xyz');
+        const result = provider.scan(input);
+        assert.equal(result.annotations.length, 1);
+        assert.equal(result.annotations[0]!.ref, 'UNK-002');
+      });
+    });
+
+    describe('C-style still works (backward compatibility)', () => {
+      it('detects line comment in .ts file', () => {
+        const input = makeInput('// shiori: SUP-001', 'test.ts');
+        const result = provider.scan(input);
+        assert.equal(result.annotations.length, 1);
+        assert.equal(result.annotations[0]!.ref, 'SUP-001');
+      });
+
+      it('detects block comment in .css file', () => {
+        const input = makeInput('/* shiori: SUP-001 */', 'test.css');
+        const result = provider.scan(input);
+        assert.equal(result.annotations.length, 1);
+        assert.equal(result.annotations[0]!.ref, 'SUP-001');
+      });
+
+      it('Vue files use C-style', () => {
+        const input = makeInput('// shiori: VUE-001', 'test.vue');
+        const result = provider.scan(input);
+        assert.equal(result.annotations.length, 1);
+        assert.equal(result.annotations[0]!.ref, 'VUE-001');
+      });
+    });
+  });
 });

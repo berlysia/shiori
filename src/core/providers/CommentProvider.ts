@@ -12,12 +12,8 @@ import {
   resolveCandidatePatterns,
 } from './AnnotationProvider.ts';
 import { parseShioriFields } from '../parser.ts';
-
-// Regex for block comments
-const BLOCK_COMMENT_RE = /\/\*[\s\S]*?\*\//g;
-
-// Regex for line comments
-const LINE_COMMENT_RE = /\/\/.*/g;
+import type { CommentSyntax } from '../comment-syntax.ts';
+import { getCommentSyntax } from '../comment-syntax.ts';
 
 /** Annotation prefix detection (matches "shiori" followed by colon) */
 const SHIORI_PREFIX_RE = /\bshiori:\s*/;
@@ -34,30 +30,74 @@ interface ExtractedComment {
   line: number;
 }
 
-function extractComments(content: string): ExtractedComment[] {
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function extractComments(
+  content: string,
+  syntax: CommentSyntax,
+): ExtractedComment[] {
   const comments: ExtractedComment[] = [];
 
   // Extract block comments
-  for (const match of content.matchAll(BLOCK_COMMENT_RE)) {
-    const line = content.slice(0, match.index).split('\n').length;
-    // Normalize block comment: remove /* */, strip * prefixes, join lines
-    let text = match[0]!.slice(2, -2); // remove /* and */
-    text = text
-      .split('\n')
-      .map((l) => l.replace(/^\s*\*\s?/, ''))
-      .join(' ')
-      .trim();
-    comments.push({ text, line });
+  if (syntax.block) {
+    for (const blockSyn of syntax.block) {
+      const openEsc = escapeRegex(blockSyn.open);
+      const closeEsc = escapeRegex(blockSyn.close);
+      const blockRe = new RegExp(openEsc + '[\\s\\S]*?' + closeEsc, 'g');
+      const openLen = blockSyn.open.length;
+      const closeLen = blockSyn.close.length;
+
+      for (const match of content.matchAll(blockRe)) {
+        const line = content.slice(0, match.index).split('\n').length;
+        let text = match[0]!.slice(openLen, -closeLen);
+        if (blockSyn.open === '/*') {
+          // For /* */ style, strip leading * from lines (JSDoc convention)
+          text = text
+            .split('\n')
+            .map((l) => l.replace(/^\s*\*\s?/, ''))
+            .join(' ')
+            .trim();
+        } else {
+          text = text
+            .split('\n')
+            .map((l) => l.trim())
+            .join(' ')
+            .trim();
+        }
+        comments.push({ text, line });
+      }
+    }
   }
 
   // Extract line comments
-  const lines = content.split('\n');
-  for (let i = 0; i < lines.length; i++) {
-    const lineContent = lines[i]!;
-    const match = lineContent.match(LINE_COMMENT_RE);
-    if (match) {
-      const text = match[0]!.slice(2).trim(); // remove //
-      comments.push({ text, line: i + 1 });
+  if (syntax.line) {
+    // Build line regexes with negative lookahead for block openers sharing the same prefix
+    const blockOpenPrefixes = (syntax.block ?? []).map((b) => b.open);
+    const lineRegexes = syntax.line.map((prefix) => {
+      const escaped = escapeRegex(prefix);
+      const exclusions = blockOpenPrefixes
+        .filter((bp) => bp.startsWith(prefix) && bp !== prefix)
+        .map((bp) => `(?!${escapeRegex(bp.slice(prefix.length))})`);
+      const pattern =
+        exclusions.length > 0
+          ? escaped + exclusions.join('') + '.*'
+          : escaped + '.*';
+      return { prefix, regex: new RegExp(pattern) };
+    });
+
+    const lines = content.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      const lineContent = lines[i]!;
+      for (const { prefix, regex } of lineRegexes) {
+        const match = lineContent.match(regex);
+        if (match) {
+          const text = match[0]!.slice(prefix.length).trim();
+          comments.push({ text, line: i + 1 });
+          break; // First matching prefix wins for this line
+        }
+      }
     }
   }
 
@@ -163,7 +203,8 @@ export class CommentProvider implements AnnotationProvider {
     const candidates: ShioriCandidate[] = [];
     const patterns: ResolvedCandidatePatterns =
       options?.candidatePatterns ?? DEFAULT_RESOLVED_PATTERNS;
-    const comments = extractComments(file.content);
+    const syntax = getCommentSyntax(file.path);
+    const comments = extractComments(file.content, syntax);
 
     for (const comment of comments) {
       const { text, line } = comment;
