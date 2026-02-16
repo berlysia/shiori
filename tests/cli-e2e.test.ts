@@ -453,4 +453,160 @@ describe('CLI E2E', () => {
       assert.equal(registry['SUP-2002']!.reason, 'TODO: fill in reason');
     });
   });
+
+  describe('verify --format sarif', () => {
+    it('outputs valid SARIF JSON', async () => {
+      const { stdout, exitCode } = await runCli([
+        'verify',
+        '--scan',
+        scanResultPath,
+        '--registry',
+        join(PROJECT_ROOT, REGISTRY_PATH),
+        '--format',
+        'sarif',
+        '--warn-on',
+        'missing-in-registry,unused-in-source,expired,syntax-error',
+      ]);
+      assert.equal(exitCode, 0);
+      const sarif = JSON.parse(stdout) as {
+        version: string;
+        runs: Array<{
+          tool: { driver: { name: string } };
+          results: unknown[];
+        }>;
+      };
+      assert.equal(sarif.version, '2.1.0');
+      assert.equal(sarif.runs[0]!.tool.driver.name, 'shiori');
+      assert.ok(Array.isArray(sarif.runs[0]!.results));
+    });
+  });
+
+  describe('verify --format jsonl', () => {
+    it('outputs one JSON per line', async () => {
+      const { stdout, exitCode } = await runCli([
+        'verify',
+        '--scan',
+        scanResultPath,
+        '--registry',
+        join(PROJECT_ROOT, REGISTRY_PATH),
+        '--format',
+        'jsonl',
+        '--warn-on',
+        'missing-in-registry,unused-in-source,expired,syntax-error',
+      ]);
+      assert.equal(exitCode, 0);
+      const lines = stdout.trim().split('\n');
+      for (const line of lines) {
+        const parsed = JSON.parse(line) as { type: string };
+        assert.ok(parsed.type);
+      }
+    });
+  });
+
+  describe('verify --format summary', () => {
+    it('outputs summary JSON with totals', async () => {
+      const { stdout, exitCode } = await runCli([
+        'verify',
+        '--scan',
+        scanResultPath,
+        '--registry',
+        join(PROJECT_ROOT, REGISTRY_PATH),
+        '--format',
+        'summary',
+        '--warn-on',
+        'missing-in-registry,unused-in-source,expired,syntax-error',
+      ]);
+      assert.equal(exitCode, 0);
+      const summary = JSON.parse(stdout) as {
+        totals: {
+          annotations: number;
+          candidates: number;
+        };
+        byRule: Record<string, number>;
+      };
+      assert.ok(summary.totals.annotations >= 0);
+      assert.equal(summary.totals.candidates, 0); // verify has no candidates
+      assert.ok(typeof summary.byRule === 'object');
+    });
+  });
+
+  describe('check --format sarif', () => {
+    it('outputs valid SARIF JSON', async () => {
+      const { stdout, exitCode } = await runCli([
+        'check',
+        '--patterns',
+        SCAN_PATTERNS,
+        '--ignore',
+        SCAN_IGNORE,
+        '--registry',
+        join(PROJECT_ROOT, REGISTRY_PATH),
+        '--format',
+        'sarif',
+        '--warn-on',
+        'missing-in-registry,unused-in-source,expired,syntax-error',
+      ]);
+      assert.equal(exitCode, 0);
+      const sarif = JSON.parse(stdout) as {
+        version: string;
+        runs: Array<{
+          tool: { driver: { name: string } };
+        }>;
+      };
+      assert.equal(sarif.version, '2.1.0');
+      assert.equal(sarif.runs[0]!.tool.driver.name, 'shiori');
+    });
+  });
+
+  describe('check --format jsonl', () => {
+    it('outputs one JSON per line', async () => {
+      const { stdout, exitCode } = await runCli([
+        'check',
+        '--patterns',
+        SCAN_PATTERNS,
+        '--ignore',
+        SCAN_IGNORE,
+        '--registry',
+        join(PROJECT_ROOT, REGISTRY_PATH),
+        '--format',
+        'jsonl',
+        '--warn-on',
+        'missing-in-registry,unused-in-source,expired,syntax-error',
+      ]);
+      assert.equal(exitCode, 0);
+      const lines = stdout.trim().split('\n');
+      for (const line of lines) {
+        const parsed = JSON.parse(line) as { type: string };
+        assert.ok(parsed.type);
+      }
+    });
+  });
+
+  describe('check --format summary', () => {
+    it('outputs summary JSON with totals and candidates', async () => {
+      const { stdout, exitCode } = await runCli([
+        'check',
+        '--patterns',
+        SCAN_PATTERNS,
+        '--ignore',
+        SCAN_IGNORE,
+        '--registry',
+        join(PROJECT_ROOT, REGISTRY_PATH),
+        '--format',
+        'summary',
+        '--warn-on',
+        'missing-in-registry,unused-in-source,expired,syntax-error',
+      ]);
+      assert.equal(exitCode, 0);
+      const summary = JSON.parse(stdout) as {
+        totals: {
+          annotations: number;
+          candidates: number;
+        };
+        byRule: Record<string, number>;
+      };
+      assert.ok(summary.totals.annotations > 0);
+      assert.ok(summary.totals.candidates >= 0); // check includes candidates
+      assert.ok(typeof summary.byRule === 'object');
+    });
+  });
 });

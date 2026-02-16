@@ -8,8 +8,11 @@ import {
   verify,
   formatVerifyResultAsMarkdown,
   formatActionHints,
-  type OutputFormat,
 } from './verify.ts';
+import type { OutputFormat } from '../formatters/types.ts';
+import { formatAsJsonl } from '../formatters/jsonl.ts';
+import { formatAsSarif } from '../formatters/sarif.ts';
+import { formatAsSummary } from '../formatters/summary.ts';
 
 function parseIssueTypes(value: string | undefined): VerifyIssueType[] {
   if (!value) return [];
@@ -47,7 +50,8 @@ export const verifyCommand = define({
     format: {
       type: 'string',
       short: 'f',
-      description: 'Output format: "json" or "markdown". Default: "json"',
+      description:
+        'Output format: "json", "markdown", "sarif", "summary", "jsonl". Default: "json"',
       default: 'json',
     },
     failOn: {
@@ -110,10 +114,29 @@ export const verifyCommand = define({
     });
 
     const format = (ctx.values.format ?? 'json') as OutputFormat;
-    const output =
-      format === 'markdown'
-        ? formatVerifyResultAsMarkdown(result)
-        : JSON.stringify(result, null, 2);
+    let output: string;
+    switch (format) {
+      case 'markdown':
+        output = formatVerifyResultAsMarkdown(result);
+        break;
+      case 'sarif':
+        output = formatAsSarif(result);
+        break;
+      case 'summary':
+        output = formatAsSummary({
+          verifyResult: result,
+          annotations: scanResult.annotations,
+          candidates: [],
+          registry,
+        });
+        break;
+      case 'jsonl':
+        output = formatAsJsonl(result);
+        break;
+      default:
+        output = JSON.stringify(result, null, 2);
+        break;
+    }
 
     if (ctx.values.output) {
       await writeFile(ctx.values.output, output + '\n', 'utf-8');

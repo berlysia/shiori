@@ -8,7 +8,7 @@ import type {
 } from '../core/types.ts';
 import { isValidRef } from './registry-generator.ts';
 
-export type OutputFormat = 'json' | 'markdown';
+export type { OutputFormat } from '../formatters/types.ts';
 
 export interface VerifyOptions {
   /** Shiori annotations from scan */

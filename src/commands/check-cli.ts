@@ -6,8 +6,12 @@ import { loadConfig, resolveRegistryPath } from '../core/config.ts';
 import { loadRegistry } from '../core/registry.ts';
 import { scan } from './scan.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
-import { check, type OutputFormat } from './check.ts';
+import { check } from './check.ts';
 import { formatVerifyResultAsMarkdown, formatActionHints } from './verify.ts';
+import type { OutputFormat } from '../formatters/types.ts';
+import { formatAsJsonl } from '../formatters/jsonl.ts';
+import { formatAsSarif } from '../formatters/sarif.ts';
+import { formatAsSummary } from '../formatters/summary.ts';
 
 const DEFAULT_PATTERNS = ['**/*.{css,scss,pcss,js,ts,tsx,jsx}'];
 const DEFAULT_IGNORE = ['**/node_modules/**', '**/dist/**', '**/.git/**'];
@@ -66,7 +70,8 @@ export const checkCommand = define({
     format: {
       type: 'string',
       short: 'f',
-      description: 'Output format: "json" or "markdown". Default: "json"',
+      description:
+        'Output format: "json", "markdown", "sarif", "summary", "jsonl". Default: "json"',
       default: 'json',
     },
     output: {
@@ -153,10 +158,29 @@ export const checkCommand = define({
     });
 
     const format = (ctx.values.format ?? 'json') as OutputFormat;
-    const output =
-      format === 'markdown'
-        ? formatVerifyResultAsMarkdown(verifyResult)
-        : JSON.stringify(verifyResult, null, 2);
+    let output: string;
+    switch (format) {
+      case 'markdown':
+        output = formatVerifyResultAsMarkdown(verifyResult);
+        break;
+      case 'sarif':
+        output = formatAsSarif(verifyResult);
+        break;
+      case 'summary':
+        output = formatAsSummary({
+          verifyResult,
+          annotations: scanResult.annotations,
+          candidates: scanResult.candidates,
+          registry,
+        });
+        break;
+      case 'jsonl':
+        output = formatAsJsonl(verifyResult);
+        break;
+      default:
+        output = JSON.stringify(verifyResult, null, 2);
+        break;
+    }
 
     if (ctx.values.output) {
       await writeFile(ctx.values.output, output + '\n', 'utf-8');
