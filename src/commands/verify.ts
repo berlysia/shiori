@@ -6,6 +6,7 @@ import type {
   VerifyIssueType,
   VerifyResult,
 } from '../core/types.ts';
+import { isValidRef } from './registry-generator.ts';
 
 export type OutputFormat = 'json' | 'markdown';
 
@@ -38,6 +39,7 @@ function buildSummary(issues: VerifyIssue[]): VerifyResult['summary'] {
     'unused-in-source': 0,
     expired: 0,
     'syntax-error': 0,
+    'ref-format': 0,
   };
   let errors = 0;
   let warnings = 0;
@@ -76,7 +78,7 @@ export function verify(options: VerifyOptions): VerifyResult {
     }
   }
 
-  // Check syntax-error (shiori: marker present but parse errors exist)
+  // Check syntax-error (annotation marker present but parse errors exist)
   for (const record of records) {
     if (record.ignored) continue;
     if (
@@ -89,6 +91,24 @@ export function verify(options: VerifyOptions): VerifyResult {
         severity: determineSeverity('syntax-error', failOn, warnOn),
         ref: record.ref,
         message: `Syntax error: ${record.syntaxErrors.join('; ')}`,
+        file: record.location.file,
+        line: record.location.line,
+      });
+    }
+  }
+
+  // Check ref-format (ADR 015-B: warn about invalid ref formats, deduplicate by ref)
+  const reportedRefFormat = new Set<string>();
+  for (const record of records) {
+    if (record.ref === '' || record.ignored) continue;
+    if (reportedRefFormat.has(record.ref)) continue;
+    if (!isValidRef(record.ref)) {
+      reportedRefFormat.add(record.ref);
+      issues.push({
+        type: 'ref-format',
+        severity: determineSeverity('ref-format', failOn, warnOn),
+        ref: record.ref,
+        message: `Invalid ref format "${record.ref}": expected uppercase prefix with alphanumeric segments (e.g. SUP-1234, ADR:0007)`,
         file: record.location.file,
         line: record.location.line,
       });
@@ -250,6 +270,11 @@ export function formatActionHints(result: VerifyResult): string[] {
   if (byType['syntax-error'] > 0) {
     hints.push(
       `  syntax-error (${byType['syntax-error']}): Fix annotation syntax. Expected: "shiori: <ref> [key=value ...]"`,
+    );
+  }
+  if (byType['ref-format'] > 0) {
+    hints.push(
+      `  ref-format (${byType['ref-format']}): Fix ref format. Expected: uppercase prefix with alphanumeric segments (e.g. SUP-1234, ADR:0007)`,
     );
   }
 

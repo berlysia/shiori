@@ -198,6 +198,64 @@ describe('verify', () => {
     });
   });
 
+  describe('ref-format', () => {
+    it('detects invalid ref format', () => {
+      const records = [makeAnnotation({ ref: 'marker)' })];
+      const registry: Registry = {};
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: ['ref-format'],
+        now: referenceDate,
+      });
+      const refFormat = result.issues.filter((i) => i.type === 'ref-format');
+      assert.equal(refFormat.length, 1);
+      assert.equal(refFormat[0]!.severity, 'warning');
+      assert.ok(refFormat[0]!.message.includes('Invalid ref format'));
+    });
+
+    it('does not flag valid refs', () => {
+      const records = [
+        makeAnnotation({ ref: 'SUP-1234' }),
+        makeAnnotation({ ref: 'ADR:0007' }),
+        makeAnnotation({ ref: 'JIRA:PROJ-123' }),
+        makeAnnotation({ ref: 'DEV-001' }),
+      ];
+      const registry: Registry = {
+        'SUP-1234': makeRegistryEntry(),
+        'ADR:0007': makeRegistryEntry(),
+        'JIRA:PROJ-123': makeRegistryEntry(),
+        'DEV-001': makeRegistryEntry(),
+      };
+      const result = verify({
+        records,
+        registry,
+        failOn: ['ref-format'],
+        warnOn: [],
+        now: referenceDate,
+      });
+      const refFormat = result.issues.filter((i) => i.type === 'ref-format');
+      assert.equal(refFormat.length, 0);
+    });
+
+    it('deduplicates ref-format issues by ref', () => {
+      const records = [
+        makeAnnotation({ ref: 'bad!ref', location: { file: 'a.ts', line: 1 } }),
+        makeAnnotation({ ref: 'bad!ref', location: { file: 'b.ts', line: 2 } }),
+      ];
+      const result = verify({
+        records,
+        registry: {},
+        failOn: [],
+        warnOn: ['ref-format'],
+        now: referenceDate,
+      });
+      const refFormat = result.issues.filter((i) => i.type === 'ref-format');
+      assert.equal(refFormat.length, 1);
+    });
+  });
+
   describe('ignored annotations', () => {
     it('skips ignored annotations in verify', () => {
       const records = [

@@ -2,6 +2,19 @@ import type { Registry, ShioriAnnotation } from '../core/types.ts';
 import type { RefPatternConfig } from '../core/ref-pattern.ts';
 import { matchRefPattern } from '../core/ref-pattern.ts';
 
+/**
+ * Ref format validation pattern (ADR 015-B).
+ * Allows: SUP-1234, ADR:0007, JIRA:PROJ-123, DEV-001, MIG-1
+ * Rejects: prefix, marker, ');', backtick, arrow, (no
+ */
+export const REF_PATTERN =
+  /^[A-Z][A-Z0-9]*(?:[-:][A-Za-z0-9][-A-Za-z0-9._]*)*$/;
+
+/** Check if a ref matches the expected format */
+export function isValidRef(ref: string): boolean {
+  return REF_PATTERN.test(ref);
+}
+
 export interface InitRegistryOptions {
   /** Shiori annotations from scan */
   records: ShioriAnnotation[];
@@ -28,10 +41,11 @@ function inferExpires(records: ShioriAnnotation[]): string | undefined {
 export function initRegistry(options: InitRegistryOptions): Registry {
   const { records, existingRegistry = {} } = options;
 
-  // Group records by ref (skip empty refs)
+  // Group records by ref (skip empty refs and invalid ref formats)
   const byRef = new Map<string, ShioriAnnotation[]>();
   for (const record of records) {
     if (record.ref === '') continue;
+    if (!isValidRef(record.ref)) continue;
     const existing = byRef.get(record.ref);
     if (existing) {
       existing.push(record);

@@ -40,6 +40,11 @@ export const updateCommand = define({
       description:
         'Path to config directory (YAML/JSON auto-detected). Default: <cwd>/.config/shiori',
     },
+    'dry-run': {
+      type: 'boolean',
+      short: 'n',
+      description: 'Preview changes without writing to registry',
+    },
   },
   run: async (ctx) => {
     const cwd = ctx.values.cwd ?? process.cwd();
@@ -67,6 +72,19 @@ export const updateCommand = define({
     const newRefs = Object.keys(registry).filter(
       (ref) => !(ref in existingRegistry),
     );
+
+    const dryRun = ctx.values['dry-run'] ?? false;
+
+    if (dryRun) {
+      if (newRefs.length === 0) {
+        console.error('Registry is up to date (no new refs)');
+      } else {
+        console.error(
+          `Would add ${newRefs.length} new ref(s): ${newRefs.join(', ')}`,
+        );
+      }
+      return;
+    }
 
     // Route entries by pattern if refPatterns are configured
     if (config.refPatterns) {

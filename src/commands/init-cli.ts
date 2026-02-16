@@ -13,7 +13,19 @@ import { initRegistry } from './registry-generator.ts';
 import { fileExists, fileContainsLine } from './init.ts';
 
 const DEFAULT_PATTERNS = ['**/*.{css,scss,pcss,js,ts,tsx,jsx}'];
-const DEFAULT_IGNORE = ['**/node_modules/**', '**/dist/**', '**/.git/**'];
+const DEFAULT_IGNORE = [
+  '**/node_modules/**',
+  '**/dist/**',
+  '**/.git/**',
+  // Test files (ADR 015-A: prevent false positives from string literals in tests)
+  '**/tests/**',
+  '**/test/**',
+  '**/__tests__/**',
+  '**/*.test.*',
+  '**/*.spec.*',
+  // Config directory (prevent scanning registry/config files)
+  '**/.config/**',
+];
 
 const GITIGNORE_ENTRY = '.config/shiori/scan-result.json';
 
@@ -187,6 +199,12 @@ const CONFIG_YAML_TEMPLATE = `# shiori configuration
 #     - "**/node_modules/**"
 #     - "**/dist/**"
 #     - "**/.git/**"
+#     - "**/tests/**"
+#     - "**/test/**"
+#     - "**/__tests__/**"
+#     - "**/*.test.*"
+#     - "**/*.spec.*"
+#     - "**/.config/**"
 
 # File paths (relative to project root)
 # paths:

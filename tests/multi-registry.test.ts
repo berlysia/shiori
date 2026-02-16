@@ -4,8 +4,12 @@ import { writeFile, mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { loadMultiRegistry } from '../src/core/registry.ts';
-import { routeRegistryByPattern } from '../src/commands/registry-generator.ts';
-import type { Registry } from '../src/core/types.ts';
+import {
+  routeRegistryByPattern,
+  initRegistry,
+  isValidRef,
+} from '../src/commands/registry-generator.ts';
+import type { Registry, ShioriAnnotation } from '../src/core/types.ts';
 
 describe('loadMultiRegistry', () => {
   let tmpDir: string;
@@ -262,5 +266,80 @@ describe('routeRegistryByPattern', () => {
     const routed = routeRegistryByPattern(registry, patterns);
     assert.equal(routed.size, 1);
     assert.equal(Object.keys(routed.get(null)!).length, 3);
+  });
+});
+
+function makeAnnotation(
+  overrides: Partial<ShioriAnnotation> = {},
+): ShioriAnnotation {
+  return {
+    ref: 'TEST-001',
+    rule: 'no-console',
+    tagged: true,
+    ignored: false,
+    location: { file: 'test.ts', line: 1 },
+    ...overrides,
+  };
+}
+
+describe('isValidRef', () => {
+  it('accepts valid refs', () => {
+    assert.equal(isValidRef('SUP-1234'), true);
+    assert.equal(isValidRef('ADR:0007'), true);
+    assert.equal(isValidRef('JIRA:PROJ-123'), true);
+    assert.equal(isValidRef('DEV-001'), true);
+    assert.equal(isValidRef('MIG-1'), true);
+  });
+
+  it('rejects invalid refs', () => {
+    assert.equal(isValidRef('prefix'), false);
+    assert.equal(isValidRef('marker'), false);
+    assert.equal(isValidRef("');"), false);
+    assert.equal(isValidRef('`'), false);
+    assert.equal(isValidRef('→'), false);
+    assert.equal(isValidRef('(no'), false);
+    assert.equal(isValidRef("SUP-1234');"), false);
+    assert.equal(isValidRef("ignore');"), false);
+  });
+
+  it('rejects empty string', () => {
+    assert.equal(isValidRef(''), false);
+  });
+});
+
+describe('initRegistry ref validation', () => {
+  it('filters out invalid refs from generated registry', () => {
+    const records = [
+      makeAnnotation({ ref: 'SUP-1234' }),
+      makeAnnotation({ ref: 'marker)' }),
+      makeAnnotation({ ref: "');", location: { file: 'test.ts', line: 2 } }),
+      makeAnnotation({
+        ref: 'DEV-001',
+        location: { file: 'test.ts', line: 3 },
+      }),
+    ];
+    const registry = initRegistry({ records });
+    assert.ok('SUP-1234' in registry);
+    assert.ok('DEV-001' in registry);
+    assert.ok(!('marker)' in registry));
+    assert.ok(!("');" in registry));
+  });
+
+  it('preserves existing registry entries regardless of ref format', () => {
+    const records = [makeAnnotation({ ref: 'SUP-1234' })];
+    const existingRegistry: Registry = {
+      'legacy-ref': {
+        reason: 'legacy',
+        target: 'all',
+        expires: undefined,
+        ticket: undefined,
+        owner: undefined,
+        notes: undefined,
+        kind: undefined,
+      },
+    };
+    const registry = initRegistry({ records, existingRegistry });
+    assert.ok('SUP-1234' in registry);
+    assert.ok('legacy-ref' in registry);
   });
 });

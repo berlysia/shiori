@@ -8,9 +8,9 @@ export interface ShioriAnnotation {
   expires?: string;
   /** Reason text */
   reason?: string;
-  /** Whether the annotation has an explicit `shiori:` marker in source */
+  /** Whether the annotation has an explicit annotation marker in source */
   tagged: boolean;
-  /** Whether the annotation is explicitly ignored via shiori:ignore */
+  /** Whether the annotation is explicitly ignored via the ignore directive */
   ignored: boolean;
   /** Parser syntax errors, if any */
   syntaxErrors?: string[];
@@ -24,7 +24,7 @@ export interface ShioriAnnotation {
 /** Candidate pattern category (tool name like 'eslint', 'stylelint', 'typescript' or keyword like 'todo', 'fixme') */
 export type CandidatePattern = string;
 
-/** A candidate comment detected by pattern matching (no shiori: marker) */
+/** A candidate comment detected by pattern matching (no annotation marker) */
 export interface ShioriCandidate {
   /** Detection pattern category (tool name or keyword) */
   pattern: CandidatePattern;
@@ -60,7 +60,8 @@ export type VerifyIssueType =
   | 'missing-in-registry'
   | 'unused-in-source'
   | 'expired'
-  | 'syntax-error';
+  | 'syntax-error'
+  | 'ref-format';
 
 /** Issue severity */
 export type IssueSeverity = 'error' | 'warning';

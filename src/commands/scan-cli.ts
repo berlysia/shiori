@@ -6,7 +6,19 @@ import { CommentProvider } from '../core/providers/CommentProvider.ts';
 import { loadConfig } from '../core/config.ts';
 
 const DEFAULT_PATTERNS = ['**/*.{css,scss,pcss,js,ts,tsx,jsx}'];
-const DEFAULT_IGNORE = ['**/node_modules/**', '**/dist/**', '**/.git/**'];
+const DEFAULT_IGNORE = [
+  '**/node_modules/**',
+  '**/dist/**',
+  '**/.git/**',
+  // Test files (ADR 015-A: prevent false positives from string literals in tests)
+  '**/tests/**',
+  '**/test/**',
+  '**/__tests__/**',
+  '**/*.test.*',
+  '**/*.spec.*',
+  // Config directory (prevent scanning registry/config files)
+  '**/.config/**',
+];
 
 export const scanCommand = define({
   name: 'scan',

@@ -19,10 +19,10 @@ const BLOCK_COMMENT_RE = /\/\*[\s\S]*?\*\//g;
 // Regex for line comments
 const LINE_COMMENT_RE = /\/\/.*/g;
 
-/** shiori: prefix detection */
+/** Annotation prefix detection (matches "shiori" followed by colon) */
 const SHIORI_PREFIX_RE = /\bshiori:\s*/;
 
-/** shiori:ignore detection — must be checked before parseShioriFields */
+/** Ignore directive detection — must be checked before parseShioriFields */
 const SHIORI_IGNORE_RE = /\bshiori:ignore\b/;
 
 /** Default resolved patterns (used when no options provided) */
@@ -93,7 +93,7 @@ interface ParsedMatcherResult {
  *   'single' → single rule
  *   null → no rules
  *
- * Always searches metaPart for shiori: / shiori:ignore
+ * Always searches metaPart for annotation prefix / ignore directive
  */
 function parseMatcherRest(
   rest: string,
@@ -129,13 +129,18 @@ function parseMatcherRest(
     rules = [];
   }
 
-  // Check for shiori:ignore first
+  // Check for ignore directive first
   const ignoreMatch = metaPart.match(SHIORI_IGNORE_RE);
   if (ignoreMatch) {
-    return { rules, shioriFieldsStr: undefined, isIgnored: true, capturedText: undefined };
+    return {
+      rules,
+      shioriFieldsStr: undefined,
+      isIgnored: true,
+      capturedText: undefined,
+    };
   }
 
-  // Check for shiori: prefix in meta part
+  // Check for annotation prefix in meta part
   const shioriMatch = metaPart.match(SHIORI_PREFIX_RE);
   const shioriFieldsStr = shioriMatch
     ? metaPart.slice(shioriMatch.index! + shioriMatch[0].length).trim()
@@ -143,7 +148,7 @@ function parseMatcherRest(
 
   // Capture text if configured
   const capturedText = matcher.captureText
-    ? (rest.trim() || undefined)
+    ? rest.trim() || undefined
     : undefined;
 
   return { rules, shioriFieldsStr, isIgnored: false, capturedText };
@@ -176,7 +181,7 @@ export class CommentProvider implements AnnotationProvider {
           const parsed = parseMatcherRest(rest, matcher);
 
           if (parsed.isIgnored) {
-            // shiori:ignore detected
+            // Ignore directive detected
             const pushIgnored = (rule: string | undefined) => {
               annotations.push({
                 ref: '',
@@ -194,7 +199,7 @@ export class CommentProvider implements AnnotationProvider {
               }
             }
           } else if (parsed.shioriFieldsStr !== undefined) {
-            // Path A: matcher + shiori:
+            // Path A: matcher + annotation prefix
             const fields = parseShioriFields(parsed.shioriFieldsStr);
             const syntaxErrors =
               fields.errors.length > 0 ? fields.errors : undefined;
@@ -224,7 +229,7 @@ export class CommentProvider implements AnnotationProvider {
               }
             }
           } else if (matcher.enabled) {
-            // Path C: matcher without shiori: → candidate
+            // Path C: matcher without annotation prefix → candidate
             const directive =
               matcher.name !== 'default' ? matcher.name : undefined;
             if (parsed.rules.length === 0) {
@@ -253,7 +258,7 @@ export class CommentProvider implements AnnotationProvider {
 
       if (matched) continue;
 
-      // Path B: standalone shiori: (no matcher matched)
+      // Path B: standalone annotation prefix (no matcher matched)
       const shioriMatch = text.match(SHIORI_PREFIX_RE);
       if (shioriMatch) {
         const fieldsStr = text
