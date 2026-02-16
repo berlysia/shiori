@@ -62,7 +62,13 @@ describe('CLI E2E', () => {
     scanResultPath = join(tmpDir, 'scan-result.json');
 
     // Pre-run scan and save result for verify/update/draft tests
-    const { stdout } = await runCli(['scan', '--patterns', SCAN_PATTERNS, '--ignore', SCAN_IGNORE]);
+    const { stdout } = await runCli([
+      'scan',
+      '--patterns',
+      SCAN_PATTERNS,
+      '--ignore',
+      SCAN_IGNORE,
+    ]);
 
     const scanResult = JSON.parse(stdout) as {
       annotations: unknown[];
