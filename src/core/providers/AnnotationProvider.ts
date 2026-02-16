@@ -127,8 +127,8 @@ export function resolveCandidatePatterns(
     if (typeof entryValue === 'boolean') {
       // Boolean shorthand: all matchers enabled/disabled with same value
       const allMatchers = { ...builtinMatchers };
-      entries[entryName] = Object.entries(allMatchers).map(
-        ([name, mc]) => resolveOneMatcher(name, mc, entryValue),
+      entries[entryName] = Object.entries(allMatchers).map(([name, mc]) =>
+        resolveOneMatcher(name, mc, entryValue),
       );
     } else {
       // CandidateToolConfig: per-matcher control with optional _matchers

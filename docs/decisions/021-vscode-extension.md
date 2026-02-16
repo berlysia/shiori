@@ -64,29 +64,29 @@ VSCode Extension
 
 #### Phase 1: 基本機能（v0.1.0）
 
-| 機能 | 実装方式 | 説明 |
-|------|----------|------|
-| **インライン診断** | `shiori check --format json` → DiagnosticCollection | verify issues をエディタ内に波線表示 |
-| **ホバー情報** | `show()` API | `shiori:` アノテーション上のホバーでレジストリ情報を表示 |
-| **ドキュメントリンク** | `resolveRefUrl()` API | ref を外部 URL（JIRA、GitHub Issue 等）へのクリック可能リンクに変換 |
-| **ファイル保存時の自動検証** | File Watcher + CLI spawn | 保存時に該当ファイルの診断を更新 |
+| 機能                         | 実装方式                                            | 説明                                                                |
+| ---------------------------- | --------------------------------------------------- | ------------------------------------------------------------------- |
+| **インライン診断**           | `shiori check --format json` → DiagnosticCollection | verify issues をエディタ内に波線表示                                |
+| **ホバー情報**               | `show()` API                                        | `shiori:` アノテーション上のホバーでレジストリ情報を表示            |
+| **ドキュメントリンク**       | `resolveRefUrl()` API                               | ref を外部 URL（JIRA、GitHub Issue 等）へのクリック可能リンクに変換 |
+| **ファイル保存時の自動検証** | File Watcher + CLI spawn                            | 保存時に該当ファイルの診断を更新                                    |
 
 #### Phase 2: 生産性向上（v0.2.0）
 
-| 機能 | 実装方式 | 説明 |
-|------|----------|------|
-| **候補ハイライト** | `shiori candidates --format json` | 未追跡の lint disable コメントを情報レベルで表示 |
-| **Quick Fix: アノテーション追加** | Code Action Provider | 候補に対して `shiori:` アノテーションを挿入する Quick Fix を提供 |
-| **CodeLens** | `show()` API | アノテーション行の上に ref 情報（期限、担当者）を表示 |
-| **Go to Definition** | アノテーション → レジストリファイル内の該当エントリへジャンプ |
+| 機能                              | 実装方式                                                      | 説明                                                             |
+| --------------------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------- |
+| **候補ハイライト**                | `shiori candidates --format json`                             | 未追跡の lint disable コメントを情報レベルで表示                 |
+| **Quick Fix: アノテーション追加** | Code Action Provider                                          | 候補に対して `shiori:` アノテーションを挿入する Quick Fix を提供 |
+| **CodeLens**                      | `show()` API                                                  | アノテーション行の上に ref 情報（期限、担当者）を表示            |
+| **Go to Definition**              | アノテーション → レジストリファイル内の該当エントリへジャンプ |
 
 #### Phase 3: ワークフロー統合（v0.3.0 以降で検討）
 
-| 機能 | 説明 |
-|------|------|
-| **ステータスバー** | ワークスペース全体のアノテーション数・期限切れ数を常時表示 |
-| **TreeView** | サイドバーでレジストリ全体をブラウズ |
-| **レジストリ編集補助** | レジストリ JSON/YAML のスキーマ補完・バリデーション |
+| 機能                   | 説明                                                       |
+| ---------------------- | ---------------------------------------------------------- |
+| **ステータスバー**     | ワークスペース全体のアノテーション数・期限切れ数を常時表示 |
+| **TreeView**           | サイドバーでレジストリ全体をブラウズ                       |
+| **レジストリ編集補助** | レジストリ JSON/YAML のスキーマ補完・バリデーション        |
 
 ### 診断の重大度マッピング
 
@@ -94,10 +94,10 @@ shiori の verify issue type を VSCode の DiagnosticSeverity にマッピン�
 
 ```typescript
 const severityMap: Record<string, vscode.DiagnosticSeverity> = {
-  'expired':              vscode.DiagnosticSeverity.Error,
-  'missing-in-registry':  vscode.DiagnosticSeverity.Warning,
-  'syntax-error':         vscode.DiagnosticSeverity.Error,
-  'unused-in-source':     vscode.DiagnosticSeverity.Warning,  // レジストリファイル上に表示
+  expired: vscode.DiagnosticSeverity.Error,
+  'missing-in-registry': vscode.DiagnosticSeverity.Warning,
+  'syntax-error': vscode.DiagnosticSeverity.Error,
+  'unused-in-source': vscode.DiagnosticSeverity.Warning, // レジストリファイル上に表示
 };
 ```
 

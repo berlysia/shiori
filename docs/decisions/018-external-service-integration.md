@@ -8,12 +8,12 @@ Proposed
 
 shiori は現在 JSON/YAML 出力までを提供し、外部サービスとの連携はユーザー任せになっている。競合ツールとの比較:
 
-| ツール | チケット連携 | 通知 | ダッシュボード |
-|--------|------------|------|--------------|
-| DebtBomb | Jira/Linear 自動作成 | Slack/Discord/Teams | - |
-| eslint-seatbelt | - | - | Datadog 連携 |
-| SonarQube | Jira 連携 | 多数 | 組み込み |
-| **shiori** | - | - | - |
+| ツール          | チケット連携         | 通知                | ダッシュボード |
+| --------------- | -------------------- | ------------------- | -------------- |
+| DebtBomb        | Jira/Linear 自動作成 | Slack/Discord/Teams | -              |
+| eslint-seatbelt | -                    | -                   | Datadog 連携   |
+| SonarQube       | Jira 連携            | 多数                | 組み込み       |
+| **shiori**      | -                    | -                   | -              |
 
 実務のチームでは以下のワークフローが求められる:
 
@@ -54,12 +54,14 @@ shiori check --format summary
 ```
 
 **SARIF（Static Analysis Results Interchange Format）** を優先する理由:
+
 - GitHub Code Scanning が SARIF をネイティブサポート
 - PR 上にアノテーション警告として表示される
 - VS Code の SARIF Viewer 等のエコシステムが利用可能
 - 他の静的解析ツールとの結果統合が可能
 
 **サマリー JSON の構造**:
+
 ```json
 {
   "timestamp": "2026-02-16T00:00:00Z",
@@ -131,7 +133,7 @@ done
   with:
     command: check
     sarif: true
-    comment: true  # PR にサマリーコメント
+    comment: true # PR にサマリーコメント
 ```
 
 ### 実装の段階

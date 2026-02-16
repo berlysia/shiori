@@ -10,12 +10,12 @@ shiori の最大の採用障壁は初期導入コストにある。
 
 競合ツールとの比較:
 
-| ツール | 導入時のソースコード変更 | 初期コスト |
-|--------|------------------------|-----------|
-| ESLint Bulk Suppressions | 不要（`--suppress-all` で自動生成） | ゼロ |
-| eslint-seatbelt | 不要（TSV にカウントを記録） | ゼロ |
-| DebtBomb | 必要（`@debtbomb()` コメントを手書き） | 高い |
-| **shiori** | 必要（`shiori:` コメントを手書き） | 高い |
+| ツール                   | 導入時のソースコード変更               | 初期コスト |
+| ------------------------ | -------------------------------------- | ---------- |
+| ESLint Bulk Suppressions | 不要（`--suppress-all` で自動生成）    | ゼロ       |
+| eslint-seatbelt          | 不要（TSV にカウントを記録）           | ゼロ       |
+| DebtBomb                 | 必要（`@debtbomb()` コメントを手書き） | 高い       |
+| **shiori**               | 必要（`shiori:` コメントを手書き）     | 高い       |
 
 shiori は `shiori:` コメントをソースコードに記述する必要があるが、既存コードベースに数百の lint disable comment がある場合、手作業での導入は非現実的。現在の `candidates` コマンドは未追跡の disable comment を検出できるが、`shiori:` コメントの自動挿入は行わない。
 

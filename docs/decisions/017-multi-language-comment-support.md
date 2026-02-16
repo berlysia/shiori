@@ -15,25 +15,25 @@ const LINE_COMMENT_RE = /\/\/.*/g;
 
 これにより以下の言語では動作するが:
 
-| 言語 | `//` | `/* */` | 動作 |
-|------|------|---------|------|
-| JavaScript/TypeScript | Yes | Yes | OK |
-| CSS/SCSS | No | Yes | 部分的 |
-| Java/C/C++/C#/Go/Rust/Swift/Kotlin | Yes | Yes | OK |
+| 言語                               | `//` | `/* */` | 動作   |
+| ---------------------------------- | ---- | ------- | ------ |
+| JavaScript/TypeScript              | Yes  | Yes     | OK     |
+| CSS/SCSS                           | No   | Yes     | 部分的 |
+| Java/C/C++/C#/Go/Rust/Swift/Kotlin | Yes  | Yes     | OK     |
 
 以下の言語では動作しない:
 
-| 言語 | コメント構文 | 動作 |
-|------|------------|------|
-| Python | `#` | NG |
-| Ruby | `#` | NG |
-| Shell/Bash | `#` | NG |
-| YAML | `#` | NG |
-| TOML | `#` | NG |
-| Lua | `--` / `--[[ ]]` | NG |
-| SQL | `--` / `/* */` | 部分的 |
-| HTML/XML | `<!-- -->` | NG |
-| Elixir | `#` | NG |
+| 言語       | コメント構文     | 動作   |
+| ---------- | ---------------- | ------ |
+| Python     | `#`              | NG     |
+| Ruby       | `#`              | NG     |
+| Shell/Bash | `#`              | NG     |
+| YAML       | `#`              | NG     |
+| TOML       | `#`              | NG     |
+| Lua        | `--` / `--[[ ]]` | NG     |
+| SQL        | `--` / `/* */`   | 部分的 |
+| HTML/XML   | `<!-- -->`       | NG     |
+| Elixir     | `#`              | NG     |
 
 競合の leasot は49言語をサポートしており、shiori の「言語非依存」を謳いながら実質 C 系言語限定である点は矛盾している。
 
@@ -68,8 +68,9 @@ shiori の主要ユースケースは lint disable comment の追跡であり、
 
 ```typescript
 interface CommentSyntax {
-  line?: string[];     // 行コメントの開始文字列 (例: ["//"], ["#"], ["--"])
-  block?: {            // ブロックコメント
+  line?: string[]; // 行コメントの開始文字列 (例: ["//"], ["#"], ["--"])
+  block?: {
+    // ブロックコメント
     open: string;
     close: string;
   }[];
@@ -94,22 +95,47 @@ const COMMENT_SYNTAXES: Record<string, CommentSyntax> = {
 ```typescript
 const EXTENSION_MAP: Record<string, string> = {
   // C-style
-  '.js': 'c', '.ts': 'c', '.tsx': 'c', '.jsx': 'c',
-  '.css': 'c', '.scss': 'c', '.pcss': 'c', '.less': 'c',
-  '.java': 'c', '.go': 'c', '.rs': 'c', '.swift': 'c',
-  '.kt': 'c', '.c': 'c', '.cpp': 'c', '.h': 'c',
-  '.cs': 'c', '.php': 'c',
+  '.js': 'c',
+  '.ts': 'c',
+  '.tsx': 'c',
+  '.jsx': 'c',
+  '.css': 'c',
+  '.scss': 'c',
+  '.pcss': 'c',
+  '.less': 'c',
+  '.java': 'c',
+  '.go': 'c',
+  '.rs': 'c',
+  '.swift': 'c',
+  '.kt': 'c',
+  '.c': 'c',
+  '.cpp': 'c',
+  '.h': 'c',
+  '.cs': 'c',
+  '.php': 'c',
   // Hash-style
-  '.py': 'hash', '.rb': 'hash', '.sh': 'hash',
-  '.bash': 'hash', '.zsh': 'hash', '.fish': 'hash',
-  '.yaml': 'hash', '.yml': 'hash', '.toml': 'hash',
-  '.r': 'hash', '.pl': 'hash', '.pm': 'hash',
-  '.ex': 'hash', '.exs': 'hash',  // Elixir
+  '.py': 'hash',
+  '.rb': 'hash',
+  '.sh': 'hash',
+  '.bash': 'hash',
+  '.zsh': 'hash',
+  '.fish': 'hash',
+  '.yaml': 'hash',
+  '.yml': 'hash',
+  '.toml': 'hash',
+  '.r': 'hash',
+  '.pl': 'hash',
+  '.pm': 'hash',
+  '.ex': 'hash',
+  '.exs': 'hash', // Elixir
   // SQL/Lua
-  '.sql': 'dashdash', '.lua': 'lua',
+  '.sql': 'dashdash',
+  '.lua': 'lua',
   // HTML/XML
-  '.html': 'html', '.xml': 'html', '.svg': 'html',
-  '.vue': 'c',  // Vue SFC: script/style は C-style
+  '.html': 'html',
+  '.xml': 'html',
+  '.svg': 'html',
+  '.vue': 'c', // Vue SFC: script/style は C-style
 };
 ```
 
@@ -128,13 +154,13 @@ const EXTENSION_MAP: Record<string, string> = {
 commentSyntax:
   # 拡張子 → 構文名のマッピング
   extensions:
-    .tf: hash       # Terraform
-    .hcl: hash      # HCL
-    .nim: hash      # Nim
+    .tf: hash # Terraform
+    .hcl: hash # HCL
+    .nim: hash # Nim
   # カスタム構文の定義
   custom:
     erlang:
-      line: ["%"]
+      line: ['%']
 ```
 
 ### 実装の段階
