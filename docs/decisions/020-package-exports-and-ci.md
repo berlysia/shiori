@@ -1,8 +1,12 @@
+---
+status: Accepted
+deps:
+  - 9
+  - 18
+  - 19
+---
+
 # ADR 020: パッケージ exports 整備と CI パイプライン
-
-## Status
-
-Accepted
 
 ## Context
 

@@ -1,8 +1,12 @@
+---
+status: Proposed
+deps:
+  - 9
+  - 12
+  - 20
+---
+
 # ADR 021: VSCode 拡張機能
-
-## Status
-
-Proposed
 
 ## Context
 

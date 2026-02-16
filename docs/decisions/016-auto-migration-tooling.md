@@ -1,8 +1,12 @@
+---
+status: Proposed
+deps:
+  - 6
+  - 14
+  - 15
+---
+
 # ADR 016: 既存コードベースへの自動マイグレーション
-
-## Status
-
-Proposed
 
 ## Context
 

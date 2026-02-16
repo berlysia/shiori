@@ -1,8 +1,12 @@
+---
+status: Accepted
+deps:
+  - 1
+  - 6
+  - 14
+---
+
 # ADR 015: スキャン偽陽性の防止
-
-## Status
-
-Accepted
 
 ## Context
 

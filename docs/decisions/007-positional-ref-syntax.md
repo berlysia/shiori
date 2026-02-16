@@ -1,8 +1,10 @@
+---
+status: Accepted
+deps:
+  - 3
+---
+
 # ADR 007: Positional Ref Syntax
-
-## Status
-
-Accepted
 
 ## Context
 

@@ -1,8 +1,8 @@
+---
+status: Accepted
+---
+
 # ADR 001: External CLI over Lint Plugin
-
-## Status
-
-Accepted
 
 ## Context
 

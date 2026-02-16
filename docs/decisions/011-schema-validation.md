@@ -1,8 +1,11 @@
+---
+status: Proposed
+deps:
+  - 8
+  - 10
+---
+
 # ADR 011: JSON Schema によるレジストリ・設定ファイルのバリデーション
-
-## Status
-
-Proposed
 
 ## Context
 

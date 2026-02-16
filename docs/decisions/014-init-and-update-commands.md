@@ -1,8 +1,10 @@
+---
+status: Accepted
+deps:
+  - 13
+---
+
 # ADR 014: init and update Commands
-
-## Status
-
-Accepted
 
 ## Context
 

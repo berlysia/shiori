@@ -1,8 +1,11 @@
+---
+status: Proposed
+deps:
+  - 1
+  - 15
+---
+
 # ADR 017: 多言語コメント構文サポート
-
-## Status
-
-Proposed
 
 ## Context
 

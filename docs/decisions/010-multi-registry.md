@@ -1,8 +1,10 @@
+---
+status: Accepted
+deps:
+  - 8
+---
+
 # ADR 010: Multi-Registry Loading
-
-## Status
-
-Accepted
 
 ## Context
 

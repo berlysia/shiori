@@ -1,8 +1,10 @@
+---
+status: Accepted
+deps:
+  - 1
+---
+
 # ADR 002: Annotation Model Generalization
-
-## Status
-
-Accepted
 
 ## Context
 

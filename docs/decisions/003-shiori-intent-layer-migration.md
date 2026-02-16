@@ -1,8 +1,11 @@
+---
+status: Accepted
+deps:
+  - 1
+  - 2
+---
+
 # ADR 003: shiori Intent Layer への移行
-
-## Status
-
-Accepted
 
 ## Context
 

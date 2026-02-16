@@ -1,8 +1,10 @@
+---
+status: Accepted
+deps:
+  - 3
+---
+
 # ADR 008: Namespace Resolution
-
-## Status
-
-Accepted
 
 ## Context
 

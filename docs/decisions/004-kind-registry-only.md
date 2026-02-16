@@ -1,8 +1,10 @@
+---
+status: Accepted
+deps:
+  - 3
+---
+
 # ADR 004: kind フィールドをレジストリ専用に移行
-
-## Status
-
-Accepted
 
 ## Context
 

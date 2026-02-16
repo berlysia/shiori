@@ -1,8 +1,11 @@
+---
+status: Proposed
+deps:
+  - 1
+  - 13
+---
+
 # ADR 018: 外部サービス連携戦略
-
-## Status
-
-Proposed
 
 ## Context
 

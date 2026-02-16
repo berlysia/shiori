@@ -1,8 +1,11 @@
+---
+status: Accepted
+deps:
+  - 8
+  - 10
+---
+
 # ADR 009: `shiori show` Command
-
-## Status
-
-Accepted
 
 ## Context
 

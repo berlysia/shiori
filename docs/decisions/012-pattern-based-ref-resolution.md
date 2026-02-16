@@ -1,8 +1,13 @@
+---
+status: Accepted
+deps:
+  - 8
+  - 9
+  - 10
+  - 11
+---
+
 # ADR 012: Pattern-Based Ref Resolution
-
-## Status
-
-Accepted (Supersedes ADR 008)
 
 ## Context
 

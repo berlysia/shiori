@@ -1,8 +1,11 @@
+---
+status: Accepted
+deps:
+  - 3
+  - 5
+---
+
 # ADR 006: 候補（candidate）自動検出と shiori:ignore
-
-## Status
-
-Accepted
 
 ## Context
 

@@ -1,8 +1,8 @@
+---
+status: Accepted
+---
+
 # ADR 019: Node.js バージョン要件の見直し
-
-## Status
-
-Accepted
 
 ## Context
 

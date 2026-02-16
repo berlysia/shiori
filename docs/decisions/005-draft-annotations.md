@@ -1,8 +1,8 @@
+---
+status: Accepted
+---
+
 # ADR 005: Draft アノテーション
-
-## Status
-
-Accepted
 
 ## Context
 
