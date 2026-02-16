@@ -11,6 +11,8 @@ const PROJECT_ROOT = new URL('..', import.meta.url).pathname;
 
 // Relative patterns for fast-glob (resolved from PROJECT_ROOT as cwd)
 const SCAN_PATTERNS = 'tests/fixtures/e2e/**/*.css,tests/fixtures/e2e/**/*.ts';
+// Override default ignore to allow scanning test fixture files
+const SCAN_IGNORE = '**/node_modules/**,**/dist/**,**/.git/**';
 const REGISTRY_PATH = 'tests/fixtures/e2e/registry.json';
 const REGISTRY_YAML_PATH = 'tests/fixtures/e2e/registry.yaml';
 
@@ -60,7 +62,7 @@ describe('CLI E2E', () => {
     scanResultPath = join(tmpDir, 'scan-result.json');
 
     // Pre-run scan and save result for verify/update/draft tests
-    const { stdout } = await runCli(['scan', '--patterns', SCAN_PATTERNS]);
+    const { stdout } = await runCli(['scan', '--patterns', SCAN_PATTERNS, '--ignore', SCAN_IGNORE]);
 
     const scanResult = JSON.parse(stdout) as {
       annotations: unknown[];
@@ -105,6 +107,8 @@ describe('CLI E2E', () => {
         'scan',
         '--patterns',
         SCAN_PATTERNS,
+        '--ignore',
+        SCAN_IGNORE,
       ]);
       assert.equal(exitCode, 0);
       const scanResult = JSON.parse(stdout) as {
@@ -129,6 +133,8 @@ describe('CLI E2E', () => {
         'scan',
         '--patterns',
         SCAN_PATTERNS,
+        '--ignore',
+        SCAN_IGNORE,
         '--output',
         outputPath,
       ]);
@@ -393,6 +399,8 @@ describe('CLI E2E', () => {
         '--once',
         '--patterns',
         SCAN_PATTERNS,
+        '--ignore',
+        SCAN_IGNORE,
         '--output',
         outputPath,
       ]);
@@ -421,6 +429,8 @@ describe('CLI E2E', () => {
         '--once',
         '--patterns',
         SCAN_PATTERNS,
+        '--ignore',
+        SCAN_IGNORE,
         '--output',
         outputPath,
         '--sync-registry',
