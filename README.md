@@ -341,6 +341,8 @@ pnpm build
 pnpm test          # Requires Node.js >= 22.6.0
 pnpm typecheck
 pnpm lint
+pnpm link:local    # Install `shiori` command globally from local source
+pnpm unlink:local  # Remove the global link
 ```
 
 ## License

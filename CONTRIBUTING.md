@@ -19,6 +19,8 @@ pnpm test          # Requires Node.js >= 22.6.0
 | `pnpm test:coverage` | Run tests with coverage report       |
 | `pnpm typecheck`     | Type check without emitting          |
 | `pnpm lint`          | Lint with oxlint                     |
+| `pnpm link:local`    | Build and globally link local CLI    |
+| `pnpm unlink:local`  | Remove global link for local CLI     |
 | `pnpm format`        | Format with Prettier                 |
 | `pnpm format:check`  | Check formatting                     |
 

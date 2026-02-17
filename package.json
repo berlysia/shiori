@@ -49,6 +49,8 @@
     "test:coverage": "node --experimental-strip-types --experimental-test-coverage --test tests/*.test.ts tests/**/*.test.ts",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint src/ tests/",
+    "link:local": "pnpm build && pnpm link --global",
+    "unlink:local": "pnpm unlink --global",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky"
