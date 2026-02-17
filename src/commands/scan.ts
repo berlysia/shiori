@@ -112,15 +112,24 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
   const allAnnotations: ShioriAnnotation[] = [];
   const allCandidates: ShioriCandidate[] = [];
 
-  for (const filePath of files) {
-    const absolutePath = `${options.cwd}/${filePath}`;
-    const content = await readFile(absolutePath, 'utf-8');
-    const result = options.provider.scan(
-      { path: filePath, content },
-      options.providerOptions,
+  // Read and scan files in parallel batches to reduce I/O wait
+  const BATCH_SIZE = 20;
+  for (let i = 0; i < files.length; i += BATCH_SIZE) {
+    const batch = files.slice(i, i + BATCH_SIZE);
+    const results = await Promise.all(
+      batch.map(async (filePath) => {
+        const absolutePath = `${options.cwd}/${filePath}`;
+        const content = await readFile(absolutePath, 'utf-8');
+        return options.provider.scan(
+          { path: filePath, content },
+          options.providerOptions,
+        );
+      }),
     );
-    allAnnotations.push(...result.annotations);
-    allCandidates.push(...result.candidates);
+    for (const result of results) {
+      allAnnotations.push(...result.annotations);
+      allCandidates.push(...result.candidates);
+    }
   }
 
   return {
