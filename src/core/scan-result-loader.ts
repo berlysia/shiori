@@ -127,7 +127,7 @@ async function readFromStdin(): Promise<ScanResult> {
     return JSON.parse(content) as ScanResult;
   } catch {
     throw new Error(
-      'Failed to parse stdin input as JSON.\nEnsure the piped input is valid JSON from \'shiori scan\'.',
+      "Failed to parse stdin input as JSON.\nEnsure the piped input is valid JSON from 'shiori scan'.",
     );
   }
 }

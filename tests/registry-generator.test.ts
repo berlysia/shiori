@@ -105,7 +105,7 @@ describe('initRegistry', () => {
     ];
     const registry = initRegistry({ records });
 
-    assert.ok(!( '' in registry));
+    assert.ok(!('' in registry));
     assert.ok('VALID-1' in registry);
   });
 
@@ -201,10 +201,11 @@ describe('routeRegistryByPattern', () => {
 
     assert.equal(result.size, 1);
     assert.ok(result.has(null));
-    assert.deepEqual(
-      Object.keys(result.get(null)!).sort(),
-      ['ADR-001', 'DEV-999', 'JIRA-100'],
-    );
+    assert.deepEqual(Object.keys(result.get(null)!).sort(), [
+      'ADR-001',
+      'DEV-999',
+      'JIRA-100',
+    ]);
   });
 
   it('routes all entries to null key when patterns is empty array', () => {
@@ -265,9 +266,7 @@ describe('routeRegistryByPattern', () => {
   });
 
   it('routes to null key when pattern matches but has no registryFile', () => {
-    const patterns: RefPatternConfig[] = [
-      { match: 'JIRA-{id}' },
-    ];
+    const patterns: RefPatternConfig[] = [{ match: 'JIRA-{id}' }];
     const result = routeRegistryByPattern(sampleRegistry, patterns);
 
     assert.ok(result.has(null));
