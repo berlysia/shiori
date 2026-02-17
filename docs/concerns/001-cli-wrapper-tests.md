@@ -1,8 +1,8 @@
-# Concern: CLI wrapper layer test coverage
+---
+status: Open
+---
 
-## Status
-
-Open
+# Concern 001: CLI wrapper layer test coverage
 
 ## Summary
 

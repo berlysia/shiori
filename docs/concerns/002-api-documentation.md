@@ -1,8 +1,8 @@
-# Concern: Programmatic API documentation
+---
+status: Open
+---
 
-## Status
-
-Open
+# Concern 002: Programmatic API documentation
 
 ## Summary
 
