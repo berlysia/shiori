@@ -702,4 +702,37 @@ describe('CLI E2E', () => {
       assert.ok(stderr.includes('Valid values:'));
     });
   });
+
+  describe('error UX', () => {
+    it('shows user-friendly message for missing scan result file', async () => {
+      const { exitCode, stderr } = await runCli([
+        'verify',
+        '--scan',
+        '/nonexistent/scan-result.json',
+        '--registry',
+        join(PROJECT_ROOT, REGISTRY_PATH),
+      ]);
+      assert.equal(exitCode, 1);
+      assert.ok(stderr.includes('Scan result file not found'));
+      assert.ok(stderr.includes('/nonexistent/scan-result.json'));
+      // Should not contain raw stack trace
+      assert.ok(!stderr.includes('    at '));
+    });
+
+    it('shows user-friendly message for invalid JSON in scan result', async () => {
+      const badJsonPath = join(tmpDir, 'bad-scan.json');
+      await writeFile(badJsonPath, '{ broken json', 'utf-8');
+
+      const { exitCode, stderr } = await runCli([
+        'verify',
+        '--scan',
+        badJsonPath,
+        '--registry',
+        join(PROJECT_ROOT, REGISTRY_PATH),
+      ]);
+      assert.equal(exitCode, 1);
+      assert.ok(stderr.includes('Failed to parse scan result as JSON'));
+      assert.ok(!stderr.includes('    at '));
+    });
+  });
 });

@@ -55,21 +55,27 @@ Run "shiori <command> --help" for details on each command.`);
   },
 });
 
-await cli(process.argv.slice(2), main, {
-  name: 'shiori',
-  version: '0.0.1',
-  description: 'Track and govern source code annotations',
-  subCommands: {
-    init: initCommand,
-    scan: scanCommand,
-    verify: verifyCommand,
-    check: checkCommand,
-    update: updateCommand,
-    draft: draftCommand,
-    candidates: candidatesCommand,
-    show: showCommand,
-    jump: jumpCommand,
-    watch: watchCommand,
-    docs: docsCommand,
-  },
-});
+try {
+  await cli(process.argv.slice(2), main, {
+    name: 'shiori',
+    version: '0.0.1',
+    description: 'Track and govern source code annotations',
+    subCommands: {
+      init: initCommand,
+      scan: scanCommand,
+      verify: verifyCommand,
+      check: checkCommand,
+      update: updateCommand,
+      draft: draftCommand,
+      candidates: candidatesCommand,
+      show: showCommand,
+      jump: jumpCommand,
+      watch: watchCommand,
+      docs: docsCommand,
+    },
+  });
+} catch (err) {
+  const message = err instanceof Error ? err.message : String(err);
+  console.error(`Error: ${message}`);
+  process.exitCode = 1;
+}

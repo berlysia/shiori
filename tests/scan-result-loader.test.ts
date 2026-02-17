@@ -136,4 +136,80 @@ describe('loadScanResult', () => {
       });
     }
   });
+
+  it('throws user-friendly message for missing explicit file', async () => {
+    await assert.rejects(
+      () =>
+        loadScanResult({
+          explicitPath: '/nonexistent/path/scan.json',
+          config: resolveConfig({}),
+          cwd: tmpDir,
+        }),
+      (err: Error) => {
+        assert.ok(err.message.includes('Scan result file not found'));
+        assert.ok(err.message.includes('/nonexistent/path/scan.json'));
+        assert.ok(err.message.includes('shiori scan'));
+        return true;
+      },
+    );
+  });
+
+  it('throws user-friendly message for invalid JSON in explicit file', async () => {
+    const badJsonPath = join(tmpDir, 'bad.json');
+    await writeFile(badJsonPath, '{ not valid json', 'utf-8');
+
+    await assert.rejects(
+      () =>
+        loadScanResult({
+          explicitPath: badJsonPath,
+          config: resolveConfig({}),
+          cwd: tmpDir,
+        }),
+      (err: Error) => {
+        assert.ok(err.message.includes('Failed to parse scan result as JSON'));
+        assert.ok(err.message.includes(badJsonPath));
+        return true;
+      },
+    );
+  });
+
+  it('throws user-friendly message for invalid JSON in default path', async () => {
+    const projectDir = join(tmpDir, 'bad-default');
+    const configDir = join(projectDir, '.config', 'shiori');
+    await mkdir(configDir, { recursive: true });
+    await writeFile(
+      join(configDir, 'scan-result.json'),
+      'not json at all',
+      'utf-8',
+    );
+
+    const originalIsTTY = process.stdin.isTTY;
+    Object.defineProperty(process.stdin, 'isTTY', {
+      value: true,
+      writable: true,
+      configurable: true,
+    });
+    try {
+      await assert.rejects(
+        () =>
+          loadScanResult({
+            explicitPath: undefined,
+            config: resolveConfig({}),
+            cwd: projectDir,
+          }),
+        (err: Error) => {
+          assert.ok(
+            err.message.includes('Failed to parse scan result as JSON'),
+          );
+          return true;
+        },
+      );
+    } finally {
+      Object.defineProperty(process.stdin, 'isTTY', {
+        value: originalIsTTY,
+        writable: true,
+        configurable: true,
+      });
+    }
+  });
 });

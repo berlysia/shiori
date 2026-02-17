@@ -29,8 +29,7 @@ export async function loadScanResult(
 
   // 1. Explicit path
   if (explicitPath && explicitPath !== '-') {
-    const content = await readFile(explicitPath, 'utf-8');
-    return JSON.parse(content) as ScanResult;
+    return readScanResultFile(explicitPath);
   }
 
   // 2. Explicit stdin request
@@ -67,10 +66,13 @@ export async function loadScanResult(
   for (const candidate of candidates) {
     try {
       await access(candidate.path);
-      const content = await readFile(candidate.path, 'utf-8');
-      return JSON.parse(content) as ScanResult;
-    } catch {
-      // not found, try next
+      return await readScanResultFile(candidate.path);
+    } catch (err) {
+      if (isNodeError(err) && err.code === 'ENOENT') {
+        // not found, try next
+        continue;
+      }
+      throw err;
     }
   }
 
@@ -81,11 +83,55 @@ export async function loadScanResult(
   throw new Error(`No scan result found. Tried:\n${tried}`);
 }
 
+async function readScanResultFile(filePath: string): Promise<ScanResult> {
+  let content: string;
+  try {
+    content = await readFile(filePath, 'utf-8');
+  } catch (err) {
+    if (isNodeError(err) && err.code === 'ENOENT') {
+      throw new Error(
+        `Scan result file not found: ${filePath}\nRun 'shiori scan' first to generate it.`,
+      );
+    }
+    if (isNodeError(err) && err.code === 'EACCES') {
+      throw new Error(
+        `Permission denied reading scan result file: ${filePath}`,
+      );
+    }
+    throw err;
+  }
+
+  try {
+    return JSON.parse(content) as ScanResult;
+  } catch {
+    throw new Error(
+      `Failed to parse scan result as JSON: ${filePath}\nEnsure the file contains valid JSON from 'shiori scan'.`,
+    );
+  }
+}
+
 async function readFromStdin(): Promise<ScanResult> {
   const chunks: Buffer[] = [];
   for await (const chunk of process.stdin) {
     chunks.push(chunk as Buffer);
   }
   const content = Buffer.concat(chunks).toString('utf-8');
-  return JSON.parse(content) as ScanResult;
+
+  if (content.trim() === '') {
+    throw new Error(
+      "No input received on stdin.\nRun 'shiori scan' first and pipe the output, or use '--scan <path>' to specify a file.",
+    );
+  }
+
+  try {
+    return JSON.parse(content) as ScanResult;
+  } catch {
+    throw new Error(
+      'Failed to parse stdin input as JSON.\nEnsure the piped input is valid JSON from \'shiori scan\'.',
+    );
+  }
+}
+
+function isNodeError(err: unknown): err is NodeJS.ErrnoException {
+  return err instanceof Error && 'code' in err;
 }
