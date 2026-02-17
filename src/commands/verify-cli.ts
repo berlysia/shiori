@@ -1,6 +1,5 @@
 import { define } from 'gunshi';
 import { writeFile } from 'node:fs/promises';
-import type { VerifyIssueType } from '../core/types.ts';
 import { loadRegistry } from '../core/registry.ts';
 import { loadConfig, resolveRegistryPath } from '../core/config.ts';
 import { loadScanResult } from '../core/scan-result-loader.ts';
@@ -9,15 +8,13 @@ import {
   formatVerifyResultAsMarkdown,
   formatActionHints,
 } from './verify.ts';
-import type { OutputFormat } from '../formatters/types.ts';
 import { formatAsJsonl } from '../formatters/jsonl.ts';
 import { formatAsSarif } from '../formatters/sarif.ts';
 import { formatAsSummary } from '../formatters/summary.ts';
-
-function parseIssueTypes(value: string | undefined): VerifyIssueType[] {
-  if (!value) return [];
-  return value.split(',').map((s) => s.trim()) as VerifyIssueType[];
-}
+import {
+  parseAndValidateIssueTypes,
+  validateOutputFormat,
+} from '../core/cli-validation.ts';
 
 export const verifyCommand = define({
   name: 'verify',
@@ -83,6 +80,14 @@ export const verifyCommand = define({
     },
   },
   run: async (ctx) => {
+    // Validate options early
+    const failOn = parseAndValidateIssueTypes(ctx.values.failOn, '--fail-on');
+    if (failOn === null) return;
+    const warnOn = parseAndValidateIssueTypes(ctx.values.warnOn, '--warn-on');
+    if (warnOn === null) return;
+    const format = validateOutputFormat(ctx.values.format);
+    if (format === null) return;
+
     const cwd = ctx.values.cwd ?? process.cwd();
     const config = await loadConfig(cwd, ctx.values.config);
 
@@ -109,11 +114,10 @@ export const verifyCommand = define({
     const result = verify({
       records: scanResult.annotations,
       registry,
-      failOn: parseIssueTypes(ctx.values.failOn),
-      warnOn: parseIssueTypes(ctx.values.warnOn),
+      failOn,
+      warnOn,
     });
 
-    const format = (ctx.values.format ?? 'json') as OutputFormat;
     let output: string;
     switch (format) {
       case 'markdown':

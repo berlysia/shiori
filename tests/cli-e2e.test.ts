@@ -609,4 +609,97 @@ describe('CLI E2E', () => {
       assert.ok(typeof summary.byRule === 'object');
     });
   });
+
+  describe('option validation', () => {
+    it('exits 1 for invalid --fail-on value in verify', async () => {
+      const { exitCode, stderr } = await runCli([
+        'verify',
+        '--scan',
+        scanResultPath,
+        '--registry',
+        join(PROJECT_ROOT, REGISTRY_PATH),
+        '--fail-on',
+        'typo',
+      ]);
+      assert.equal(exitCode, 1);
+      assert.ok(stderr.includes('"typo"'));
+      assert.ok(stderr.includes('Valid values:'));
+    });
+
+    it('exits 1 for invalid --warn-on value in verify', async () => {
+      const { exitCode, stderr } = await runCli([
+        'verify',
+        '--scan',
+        scanResultPath,
+        '--registry',
+        join(PROJECT_ROOT, REGISTRY_PATH),
+        '--warn-on',
+        'not-a-type',
+      ]);
+      assert.equal(exitCode, 1);
+      assert.ok(stderr.includes('"not-a-type"'));
+    });
+
+    it('exits 1 for invalid --format value in verify', async () => {
+      const { exitCode, stderr } = await runCli([
+        'verify',
+        '--scan',
+        scanResultPath,
+        '--registry',
+        join(PROJECT_ROOT, REGISTRY_PATH),
+        '--format',
+        'xml',
+      ]);
+      assert.equal(exitCode, 1);
+      assert.ok(stderr.includes('"xml"'));
+      assert.ok(stderr.includes('Valid values:'));
+    });
+
+    it('exits 1 for invalid --fail-on value in check', async () => {
+      const { exitCode, stderr } = await runCli([
+        'check',
+        '--patterns',
+        SCAN_PATTERNS,
+        '--ignore',
+        SCAN_IGNORE,
+        '--registry',
+        join(PROJECT_ROOT, REGISTRY_PATH),
+        '--fail-on',
+        'bad-value',
+      ]);
+      assert.equal(exitCode, 1);
+      assert.ok(stderr.includes('"bad-value"'));
+    });
+
+    it('exits 1 for invalid --format value in check', async () => {
+      const { exitCode, stderr } = await runCli([
+        'check',
+        '--patterns',
+        SCAN_PATTERNS,
+        '--ignore',
+        SCAN_IGNORE,
+        '--registry',
+        join(PROJECT_ROOT, REGISTRY_PATH),
+        '--format',
+        'html',
+      ]);
+      assert.equal(exitCode, 1);
+      assert.ok(stderr.includes('"html"'));
+    });
+
+    it('exits 1 for unknown --provider in scan', async () => {
+      const { exitCode, stderr } = await runCli([
+        'scan',
+        '--patterns',
+        SCAN_PATTERNS,
+        '--ignore',
+        SCAN_IGNORE,
+        '--provider',
+        'foo',
+      ]);
+      assert.equal(exitCode, 1);
+      assert.ok(stderr.includes('"foo"'));
+      assert.ok(stderr.includes('Valid values:'));
+    });
+  });
 });

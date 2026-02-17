@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 import { scan, formatScanResultForDisplay } from './scan.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
 import { loadConfig } from '../core/config.ts';
+import { validateProvider } from '../core/cli-validation.ts';
 
 const DEFAULT_PATTERNS = ['**/*.{css,scss,pcss,js,ts,tsx,jsx}'];
 const DEFAULT_IGNORE = [
@@ -71,6 +72,9 @@ export const scanCommand = define({
     },
   },
   run: async (ctx) => {
+    // Validate options early
+    if (validateProvider(ctx.values.provider) === null) return;
+
     const cwd = ctx.values.cwd ?? process.cwd();
     const config = await loadConfig(cwd, ctx.values.config);
 

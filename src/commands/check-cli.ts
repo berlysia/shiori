@@ -1,25 +1,22 @@
 import { define } from 'gunshi';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import type { VerifyIssueType } from '../core/types.ts';
 import { loadConfig, resolveRegistryPath } from '../core/config.ts';
 import { loadRegistry } from '../core/registry.ts';
 import { scan } from './scan.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
 import { check } from './check.ts';
 import { formatVerifyResultAsMarkdown, formatActionHints } from './verify.ts';
-import type { OutputFormat } from '../formatters/types.ts';
 import { formatAsJsonl } from '../formatters/jsonl.ts';
 import { formatAsSarif } from '../formatters/sarif.ts';
 import { formatAsSummary } from '../formatters/summary.ts';
+import {
+  parseAndValidateIssueTypes,
+  validateOutputFormat,
+} from '../core/cli-validation.ts';
 
 const DEFAULT_PATTERNS = ['**/*.{css,scss,pcss,js,ts,tsx,jsx}'];
 const DEFAULT_IGNORE = ['**/node_modules/**', '**/dist/**', '**/.git/**'];
-
-function parseIssueTypes(value: string | undefined): VerifyIssueType[] {
-  if (!value) return [];
-  return value.split(',').map((s) => s.trim()) as VerifyIssueType[];
-}
 
 export const checkCommand = define({
   name: 'check',
@@ -97,6 +94,14 @@ export const checkCommand = define({
     },
   },
   run: async (ctx) => {
+    // Validate options early
+    const failOn = parseAndValidateIssueTypes(ctx.values.failOn, '--fail-on');
+    if (failOn === null) return;
+    const warnOn = parseAndValidateIssueTypes(ctx.values.warnOn, '--warn-on');
+    if (warnOn === null) return;
+    const format = validateOutputFormat(ctx.values.format);
+    if (format === null) return;
+
     const cwd = ctx.values.cwd ?? process.cwd();
     const config = await loadConfig(cwd, ctx.values.config);
 
@@ -153,11 +158,10 @@ export const checkCommand = define({
     const { verifyResult } = check({
       scanResult,
       registry,
-      failOn: parseIssueTypes(ctx.values.failOn),
-      warnOn: parseIssueTypes(ctx.values.warnOn),
+      failOn,
+      warnOn,
     });
 
-    const format = (ctx.values.format ?? 'json') as OutputFormat;
     let output: string;
     switch (format) {
       case 'markdown':
