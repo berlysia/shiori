@@ -151,11 +151,16 @@ export async function resolveRegistryPath(
     try {
       await access(candidate.path);
       return candidate.path;
-    } catch {
-      // not found, try next
+    } catch (err) {
+      if (isNodeError(err) && err.code === 'ENOENT') continue;
+      throw err;
     }
   }
 
   const tried = candidates.map((c) => `  ${c.label} (not found)`).join('\n');
   throw new Error(`No registry file found. Tried:\n${tried}`);
+}
+
+function isNodeError(err: unknown): err is NodeJS.ErrnoException {
+  return err instanceof Error && 'code' in err;
 }

@@ -2,7 +2,14 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { openSync, closeSync } from 'node:fs';
-import { readFile, writeFile, unlink, mkdtemp, rm } from 'node:fs/promises';
+import {
+  readFile,
+  writeFile,
+  unlink,
+  mkdtemp,
+  mkdir,
+  rm,
+} from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -733,6 +740,84 @@ describe('CLI E2E', () => {
       assert.equal(exitCode, 1);
       assert.ok(stderr.includes('Failed to parse scan result as JSON'));
       assert.ok(!stderr.includes('    at '));
+    });
+
+    it('shows user-friendly message for missing registry file', async () => {
+      const { exitCode, stderr } = await runCli([
+        'verify',
+        '--scan',
+        scanResultPath,
+        '--registry',
+        '/nonexistent/registry.json',
+      ]);
+      assert.equal(exitCode, 1);
+      assert.ok(!stderr.includes('    at '));
+    });
+  });
+
+  describe('watch command errors', () => {
+    it('exits 1 for non-numeric --debounce-ms', async () => {
+      const { exitCode, stderr } = await runCli([
+        'watch',
+        '--once',
+        '--patterns',
+        SCAN_PATTERNS,
+        '--ignore',
+        SCAN_IGNORE,
+        '--debounce-ms',
+        'abc',
+      ]);
+      assert.equal(exitCode, 1);
+      assert.ok(stderr.includes('Invalid --debounce-ms'));
+    });
+
+  });
+
+  describe('init command', () => {
+    it('initializes in a fresh directory', async () => {
+      const initDir = await mkdtemp(join(tmpDir, 'init-'));
+      // Create a minimal source file so scan finds something
+      await mkdir(join(initDir, 'src'), { recursive: true });
+      await writeFile(
+        join(initDir, 'src', 'sample.ts'),
+        '// shiori: INIT-001\n',
+        'utf-8',
+      );
+
+      const { exitCode, stderr } = await runCli([
+        'init',
+        '--cwd',
+        initDir,
+        '--patterns',
+        'src/**/*.ts',
+      ]);
+      assert.equal(exitCode, 0);
+      assert.ok(stderr.includes('shiori initialized'));
+      assert.ok(stderr.includes('config:'));
+      assert.ok(stderr.includes('registry:'));
+
+      // Verify config was created
+      const configContent = await readFile(
+        join(initDir, '.config', 'shiori', 'config.yaml'),
+        'utf-8',
+      );
+      assert.ok(configContent.includes('shiori configuration'));
+
+      // Verify registry was created
+      const registryContent = await readFile(
+        join(initDir, '.config', 'shiori', 'registry.json'),
+        'utf-8',
+      );
+      const registry = JSON.parse(registryContent) as Record<string, unknown>;
+      assert.ok('INIT-001' in registry);
+    });
+  });
+
+  describe('docs command', () => {
+    it('outputs README content', async () => {
+      const { exitCode, stdout } = await runCli(['docs']);
+      assert.equal(exitCode, 0);
+      assert.ok(stdout.includes('shiori'));
     });
   });
 });

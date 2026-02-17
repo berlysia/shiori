@@ -6,10 +6,8 @@ import { loadRegistry } from '../core/registry.ts';
 import { scan } from './scan.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
 import { check } from './check.ts';
-import { formatVerifyResultAsMarkdown, formatActionHints } from './verify.ts';
-import { formatAsJsonl } from '../formatters/jsonl.ts';
-import { formatAsSarif } from '../formatters/sarif.ts';
-import { formatAsSummary } from '../formatters/summary.ts';
+import { formatActionHints } from './verify.ts';
+import { formatVerifyOutput } from '../formatters/index.ts';
 import {
   parseAndValidateIssueTypes,
   validateOutputFormat,
@@ -162,29 +160,13 @@ export const checkCommand = define({
       warnOn,
     });
 
-    let output: string;
-    switch (format) {
-      case 'markdown':
-        output = formatVerifyResultAsMarkdown(verifyResult);
-        break;
-      case 'sarif':
-        output = formatAsSarif(verifyResult);
-        break;
-      case 'summary':
-        output = formatAsSummary({
-          verifyResult,
-          annotations: scanResult.annotations,
-          candidates: scanResult.candidates,
-          registry,
-        });
-        break;
-      case 'jsonl':
-        output = formatAsJsonl(verifyResult);
-        break;
-      default:
-        output = JSON.stringify(verifyResult, null, 2);
-        break;
-    }
+    const output = formatVerifyOutput({
+      format,
+      verifyResult,
+      annotations: scanResult.annotations,
+      candidates: scanResult.candidates,
+      registry,
+    });
 
     if (ctx.values.output) {
       await writeFile(ctx.values.output, output + '\n', 'utf-8');

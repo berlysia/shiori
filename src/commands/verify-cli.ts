@@ -3,14 +3,8 @@ import { writeFile } from 'node:fs/promises';
 import { loadRegistry } from '../core/registry.ts';
 import { loadConfig, resolveRegistryPath } from '../core/config.ts';
 import { loadScanResult } from '../core/scan-result-loader.ts';
-import {
-  verify,
-  formatVerifyResultAsMarkdown,
-  formatActionHints,
-} from './verify.ts';
-import { formatAsJsonl } from '../formatters/jsonl.ts';
-import { formatAsSarif } from '../formatters/sarif.ts';
-import { formatAsSummary } from '../formatters/summary.ts';
+import { verify, formatActionHints } from './verify.ts';
+import { formatVerifyOutput } from '../formatters/index.ts';
 import {
   parseAndValidateIssueTypes,
   validateOutputFormat,
@@ -118,29 +112,13 @@ export const verifyCommand = define({
       warnOn,
     });
 
-    let output: string;
-    switch (format) {
-      case 'markdown':
-        output = formatVerifyResultAsMarkdown(result);
-        break;
-      case 'sarif':
-        output = formatAsSarif(result);
-        break;
-      case 'summary':
-        output = formatAsSummary({
-          verifyResult: result,
-          annotations: scanResult.annotations,
-          candidates: [],
-          registry,
-        });
-        break;
-      case 'jsonl':
-        output = formatAsJsonl(result);
-        break;
-      default:
-        output = JSON.stringify(result, null, 2);
-        break;
-    }
+    const output = formatVerifyOutput({
+      format,
+      verifyResult: result,
+      annotations: scanResult.annotations,
+      candidates: [],
+      registry,
+    });
 
     if (ctx.values.output) {
       await writeFile(ctx.values.output, output + '\n', 'utf-8');
