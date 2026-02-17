@@ -298,6 +298,10 @@ Options:
 - `--output, -o` — Scan-result output path override
 - `--debounce-ms` — Debounce interval (default: `250`)
 
+## Configuration
+
+See [docs/configuration.md](docs/configuration.md) for the full configuration reference, including scan patterns, candidate detection, and pattern-based ref resolution.
+
 ## CI Integration
 
 ### GitHub Actions

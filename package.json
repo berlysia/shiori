@@ -4,6 +4,20 @@
   "description": "Annotation tracking and governance CLI tool for recovering structured annotations from source code",
   "type": "module",
   "license": "MIT",
+  "keywords": [
+    "lint",
+    "annotations",
+    "governance",
+    "eslint",
+    "stylelint",
+    "disable-comments",
+    "registry",
+    "ci"
+  ],
+  "homepage": "https://github.com/berlysia/shiori#readme",
+  "bugs": {
+    "url": "https://github.com/berlysia/shiori/issues"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/berlysia/shiori.git"
