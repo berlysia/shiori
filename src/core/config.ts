@@ -98,7 +98,15 @@ export async function loadConfig(
   return resolveConfig({});
 }
 
-/** Merge user config with defaults */
+/**
+ * Merge user config with defaults to produce a fully resolved configuration.
+ *
+ * Candidate patterns are merged with built-in defaults (user overrides win).
+ * Other fields fall through as-is, with path defaults applied when absent.
+ *
+ * @param raw - User-provided partial config (from config file or empty object)
+ * @returns Fully resolved config with all defaults applied
+ */
 export function resolveConfig(raw: ShioriConfig): ResolvedConfig {
   return {
     candidatePatterns: resolveCandidatePatterns({

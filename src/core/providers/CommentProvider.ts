@@ -194,10 +194,28 @@ function parseMatcherRest(
   return { rules, shioriFieldsStr, isIgnored: false, capturedText };
 }
 
-/** CommentProvider: extracts shiori annotations and candidates from comments */
+/**
+ * CommentProvider: extracts shiori annotations and candidates from source code comments.
+ *
+ * Classification paths:
+ * - **Path A**: Lint directive + `shiori:` prefix → full annotation with rule
+ * - **Path B**: Standalone `shiori:` comment → annotation without rule
+ * - **Path C**: Lint directive without `shiori:` → candidate for potential tracking
+ * - **Path D**: Regular comment → ignored
+ */
 export class CommentProvider implements AnnotationProvider {
   readonly name = 'CommentProvider';
 
+  /**
+   * Scan a single file for shiori annotations and candidates.
+   *
+   * Extracts comments using language-appropriate syntax (detected from file extension),
+   * then classifies each comment through paths A–D.
+   *
+   * @param file - File path and content to scan
+   * @param options - Optional candidate pattern overrides
+   * @returns Extracted annotations and candidates
+   */
   scan(file: FileInput, options?: ProviderScanOptions): ProviderResult {
     const annotations: ShioriAnnotation[] = [];
     const candidates: ShioriCandidate[] = [];

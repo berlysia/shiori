@@ -94,6 +94,12 @@ export function formatScanResultForDisplay(
 
 /**
  * Scan source files and extract shiori annotations and candidates.
+ *
+ * Resolves glob patterns to files, reads each file, and delegates extraction
+ * to the configured provider. Results are stably sorted for deterministic output.
+ *
+ * @param options - Scan configuration (patterns, ignore, provider, cwd)
+ * @returns Annotations and candidates found, plus the number of files scanned
  */
 export async function scan(options: ScanOptions): Promise<ScanResult> {
   const files = await fg(options.patterns, {
