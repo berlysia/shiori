@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import type { ScanResult } from '../commands/scan.ts';
 import type { ResolvedConfig } from './config.ts';
 import { DEFAULT_SCAN_RESULT_PATH } from './config.ts';
+import { isNodeError } from './errors.ts';
 
 export interface LoadScanResultOptions {
   /** Value of --scan argument (undefined if not provided, "-" for stdin) */
@@ -130,8 +131,4 @@ async function readFromStdin(): Promise<ScanResult> {
       "Failed to parse stdin input as JSON.\nEnsure the piped input is valid JSON from 'shiori scan'.",
     );
   }
-}
-
-function isNodeError(err: unknown): err is NodeJS.ErrnoException {
-  return err instanceof Error && 'code' in err;
 }

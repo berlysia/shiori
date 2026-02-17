@@ -31,7 +31,12 @@ export function formatVerifyOutput(options: FormatVerifyOutputOptions): string {
     case 'sarif':
       return formatAsSarif(verifyResult);
     case 'summary':
-      return formatAsSummary({ verifyResult, annotations, candidates, registry });
+      return formatAsSummary({
+        verifyResult,
+        annotations,
+        candidates,
+        registry,
+      });
     case 'jsonl':
       return formatAsJsonl(verifyResult);
     default:

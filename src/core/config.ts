@@ -1,6 +1,7 @@
 import { access, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
+import { isNodeError } from './errors.ts';
 import type { RefPatternConfig } from './ref-pattern.ts';
 import type {
   CandidatePatternConfig,
@@ -83,8 +84,7 @@ export async function loadConfig(
     try {
       content = await readFile(configPath, 'utf-8');
     } catch (err: unknown) {
-      const e = err as { code?: string };
-      if (e.code === 'ENOENT') continue;
+      if (isNodeError(err) && err.code === 'ENOENT') continue;
       throw err;
     }
 
@@ -167,8 +167,4 @@ export async function resolveRegistryPath(
 
   const tried = candidates.map((c) => `  ${c.label} (not found)`).join('\n');
   throw new Error(`No registry file found. Tried:\n${tried}`);
-}
-
-function isNodeError(err: unknown): err is NodeJS.ErrnoException {
-  return err instanceof Error && 'code' in err;
 }

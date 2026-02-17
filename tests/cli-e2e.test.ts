@@ -770,7 +770,6 @@ describe('CLI E2E', () => {
       assert.equal(exitCode, 1);
       assert.ok(stderr.includes('Invalid --debounce-ms'));
     });
-
   });
 
   describe('init command', () => {

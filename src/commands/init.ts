@@ -1,4 +1,5 @@
 import { access, readFile } from 'node:fs/promises';
+import { isNodeError } from '../core/errors.ts';
 
 /**
  * Check if a line pattern already exists in a file.
@@ -29,8 +30,4 @@ export async function fileExists(filePath: string): Promise<boolean> {
     if (isNodeError(err) && err.code === 'ENOENT') return false;
     throw err;
   }
-}
-
-function isNodeError(err: unknown): err is NodeJS.ErrnoException {
-  return err instanceof Error && 'code' in err;
 }
