@@ -1,5 +1,7 @@
 ---
-status: Open
+status: Closed
+resolved_at: 2026-02-27
+resolved_by: engineer
 ---
 
 # Concern 001: CLI wrapper layer test coverage
@@ -53,7 +55,53 @@ The 9 `*-cli.ts` files lack direct unit tests. They are partially covered by `cl
   - --cwd flag
   - stderr output format (timestamp, counts)
 
-### Remaining
+- **`check-cli.ts`** (7 tests in `tests/check-cli.test.ts`):
+  - --fail-on / --warn-on / --format validation (invalid values → exit 1)
+  - Registry not found error
+  - Successful check with no issues (exit 0, JSON output)
+  - Verify errors cause exit code 1 (missing-in-registry)
+  - --output file writing
 
-- `check-cli.ts`, `verify-cli.ts`, `scan-cli.ts`, `update-cli.ts`
-- `show-cli.ts`, `jump-cli.ts`, `candidates-cli.ts`, `draft-cli.ts`, `docs-cli.ts`
+- **`verify-cli.ts`** (7 tests in `tests/verify-cli.test.ts`):
+  - --fail-on / --warn-on / --format validation (invalid values → exit 1)
+  - Registry not found error
+  - Scan result file not found error
+  - Successful verify with no issues (exit 0, JSON output)
+  - Verify errors cause exit code 1 (missing-in-registry)
+
+- **`scan-cli.ts`** (5 tests in `tests/scan-cli.test.ts`):
+  - --provider validation (invalid value → exit 1)
+  - --output file writing
+  - Pipe mode (non-TTY: stdout JSON, stderr stats)
+  - --patterns flag (custom patterns)
+  - No matching files (empty results)
+
+- **`update-cli.ts`** (4 tests in `tests/update-cli.test.ts`):
+  - Registry not found error
+  - Scan result file not found error
+  - Successful update with new refs (registry modified, stderr count)
+  - --dry-run flag (preview without writing)
+
+- **`show-cli.ts`** (2 tests in `tests/show-cli.test.ts`):
+  - Ref not found (exit 1, JSON with empty sourceLocations)
+  - Successful ref lookup (exit 0, JSON with registryEntry and sourceLocations)
+
+- **`jump-cli.ts`** (3 tests in `tests/jump-cli.test.ts`):
+  - Ref not found (exit 1, stderr error message)
+  - Successful jump (first location as file:line)
+  - --all flag (multiple locations)
+
+- **`candidates-cli.ts`** (2 tests in `tests/candidates-cli.test.ts`):
+  - JSON output with candidates
+  - --format markdown output
+
+- **`draft-cli.ts`** (2 tests in `tests/draft-cli.test.ts`):
+  - JSON output with draft annotations
+  - --output file writing
+
+- **`docs-cli.ts`** (1 test in `tests/docs-cli.test.ts`):
+  - README.md content output to stdout
+
+### Summary
+
+All 11 CLI wrapper files covered with dedicated tests. Total: 57 tests across 11 test files (init:13, watch:16, check:7, verify:7, scan:5, update:4, show:2, jump:3, candidates:2, draft:2, docs:1).
