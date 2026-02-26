@@ -25,6 +25,8 @@ export interface ConfigAndRegistryResult {
   registryPath: string;
   errors: RegistryValidationError[];
   duplicates: RegistryDuplicateWarning[];
+  /** Maps each ref to its origin registryFile (ADR 012 phase 2) */
+  refOrigins: Map<string, string | null>;
 }
 
 /**
@@ -48,12 +50,12 @@ export async function loadConfigAndRegistry(
     options.cwd,
   );
 
-  const { registry, errors, duplicates } = await loadMultiRegistry(
+  const { registry, errors, duplicates, refOrigins } = await loadMultiRegistry(
     registryPath,
     config.refPatterns,
   );
 
-  return { config, registry, registryPath, errors, duplicates };
+  return { config, registry, registryPath, errors, duplicates, refOrigins };
 }
 
 /**

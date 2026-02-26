@@ -815,6 +815,233 @@ describe('verify', () => {
     });
   });
 
+  describe('registry-routing-mismatch', () => {
+    const refPatterns = [
+      { match: 'JIRA-{id}', registryFile: 'jira-registry.json' },
+      { match: 'ADR:{id}', registryFile: 'adr-registry.yaml' },
+    ];
+
+    it('detects ref in wrong registry file', () => {
+      const records = [makeAnnotation({ ref: 'JIRA-123' })];
+      const registry: Registry = { 'JIRA-123': makeRegistryEntry() };
+      // Ref is in default registry (null) but should be in jira-registry.json
+      const refOrigins = new Map<string, string | null>([['JIRA-123', null]]);
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        refPatterns,
+        refOrigins,
+      });
+      const mismatches = result.issues.filter(
+        (i) => i.type === 'registry-routing-mismatch',
+      );
+      assert.equal(mismatches.length, 1);
+      assert.equal(mismatches[0]!.ref, 'JIRA-123');
+      assert.ok(mismatches[0]!.message.includes('default registry'));
+      assert.ok(mismatches[0]!.message.includes('jira-registry.json'));
+    });
+
+    it('does not report when ref is in correct registry file', () => {
+      const records = [makeAnnotation({ ref: 'JIRA-123' })];
+      const registry: Registry = { 'JIRA-123': makeRegistryEntry() };
+      const refOrigins = new Map<string, string | null>([
+        ['JIRA-123', 'jira-registry.json'],
+      ]);
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        refPatterns,
+        refOrigins,
+      });
+      const mismatches = result.issues.filter(
+        (i) => i.type === 'registry-routing-mismatch',
+      );
+      assert.equal(mismatches.length, 0);
+    });
+
+    it('does not report when refPatterns is undefined', () => {
+      const records = [makeAnnotation({ ref: 'JIRA-123' })];
+      const registry: Registry = { 'JIRA-123': makeRegistryEntry() };
+      const refOrigins = new Map<string, string | null>([['JIRA-123', null]]);
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        refOrigins,
+      });
+      const mismatches = result.issues.filter(
+        (i) => i.type === 'registry-routing-mismatch',
+      );
+      assert.equal(mismatches.length, 0);
+    });
+
+    it('does not report when refPatterns is empty', () => {
+      const records = [makeAnnotation({ ref: 'JIRA-123' })];
+      const registry: Registry = { 'JIRA-123': makeRegistryEntry() };
+      const refOrigins = new Map<string, string | null>([['JIRA-123', null]]);
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        refPatterns: [],
+        refOrigins,
+      });
+      const mismatches = result.issues.filter(
+        (i) => i.type === 'registry-routing-mismatch',
+      );
+      assert.equal(mismatches.length, 0);
+    });
+
+    it('does not report when refOrigins is undefined', () => {
+      const records = [makeAnnotation({ ref: 'JIRA-123' })];
+      const registry: Registry = { 'JIRA-123': makeRegistryEntry() };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        refPatterns,
+      });
+      const mismatches = result.issues.filter(
+        (i) => i.type === 'registry-routing-mismatch',
+      );
+      assert.equal(mismatches.length, 0);
+    });
+
+    it('skips refs that do not match any pattern (handled by unrouted-ref)', () => {
+      const records = [makeAnnotation({ ref: 'UNKNOWN-001' })];
+      const registry: Registry = { 'UNKNOWN-001': makeRegistryEntry() };
+      const refOrigins = new Map<string, string | null>([
+        ['UNKNOWN-001', null],
+      ]);
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        refPatterns,
+        refOrigins,
+      });
+      const mismatches = result.issues.filter(
+        (i) => i.type === 'registry-routing-mismatch',
+      );
+      assert.equal(mismatches.length, 0);
+    });
+
+    it('detects pattern routing to default registry (registryFile undefined)', () => {
+      // Pattern has no registryFile, so expected location is default (null)
+      const patternsNoFile = [{ match: 'SUP-{id}' }];
+      const records = [makeAnnotation({ ref: 'SUP-123' })];
+      const registry: Registry = { 'SUP-123': makeRegistryEntry() };
+      // Ref is actually in a pattern file (wrong place)
+      const refOrigins = new Map<string, string | null>([
+        ['SUP-123', 'some-other.json'],
+      ]);
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        refPatterns: patternsNoFile,
+        refOrigins,
+      });
+      const mismatches = result.issues.filter(
+        (i) => i.type === 'registry-routing-mismatch',
+      );
+      assert.equal(mismatches.length, 1);
+      assert.ok(mismatches[0]!.message.includes('default registry'));
+    });
+
+    it('defaults to warning severity', () => {
+      const records = [makeAnnotation({ ref: 'JIRA-123' })];
+      const registry: Registry = { 'JIRA-123': makeRegistryEntry() };
+      const refOrigins = new Map<string, string | null>([['JIRA-123', null]]);
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        refPatterns,
+        refOrigins,
+      });
+      const mismatches = result.issues.filter(
+        (i) => i.type === 'registry-routing-mismatch',
+      );
+      assert.equal(mismatches[0]!.severity, 'warning');
+    });
+
+    it('respects failOn for error severity', () => {
+      const records = [makeAnnotation({ ref: 'JIRA-123' })];
+      const registry: Registry = { 'JIRA-123': makeRegistryEntry() };
+      const refOrigins = new Map<string, string | null>([['JIRA-123', null]]);
+      const result = verify({
+        records,
+        registry,
+        failOn: ['registry-routing-mismatch'],
+        warnOn: [],
+        now: referenceDate,
+        refPatterns,
+        refOrigins,
+      });
+      const mismatches = result.issues.filter(
+        (i) => i.type === 'registry-routing-mismatch',
+      );
+      assert.equal(mismatches[0]!.severity, 'error');
+    });
+
+    it('includes registry-routing-mismatch in summary byType', () => {
+      const records = [makeAnnotation({ ref: 'JIRA-123' })];
+      const registry: Registry = { 'JIRA-123': makeRegistryEntry() };
+      const refOrigins = new Map<string, string | null>([['JIRA-123', null]]);
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        refPatterns,
+        refOrigins,
+      });
+      assert.equal(result.summary.byType['registry-routing-mismatch'], 1);
+    });
+  });
+
+  describe('formatActionHints for registry-routing-mismatch', () => {
+    it('shows hint for registry-routing-mismatch', () => {
+      const records = [makeAnnotation({ ref: 'JIRA-123' })];
+      const registry: Registry = { 'JIRA-123': makeRegistryEntry() };
+      const refOrigins = new Map<string, string | null>([['JIRA-123', null]]);
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        refPatterns: [
+          { match: 'JIRA-{id}', registryFile: 'jira-registry.json' },
+        ],
+        refOrigins,
+      });
+      const hints = formatActionHints(result);
+      assert.ok(hints.some((h) => h.includes('registry-routing-mismatch')));
+      assert.ok(hints.some((h) => h.includes('wrong registry file')));
+    });
+  });
+
   describe('formatVerifyResultAsMarkdown', () => {
     it('generates markdown with errors and warnings sections', () => {
       const records = [makeAnnotation({ ref: 'SUP-MISS' })];

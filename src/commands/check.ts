@@ -17,6 +17,8 @@ export interface CheckOptions {
   duplicates?: RegistryDuplicateWarning[];
   /** Pattern-based ref routing configuration (ADR 012) */
   refPatterns?: RefPatternConfig[];
+  /** Maps each ref to its origin registryFile (ADR 012 phase 2) */
+  refOrigins?: Map<string, string | null>;
 }
 
 export interface CheckResult {
@@ -36,6 +38,7 @@ export function check(options: CheckOptions): CheckResult {
     warnOn: options.warnOn,
     duplicates: options.duplicates,
     refPatterns: options.refPatterns,
+    refOrigins: options.refOrigins,
   });
 
   return {

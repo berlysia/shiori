@@ -137,6 +137,12 @@ export interface MultiRegistryLoadResult {
   registry: Registry;
   errors: RegistryValidationError[];
   duplicates: RegistryDuplicateWarning[];
+  /**
+   * Maps each ref to the registryFile config value it was loaded from.
+   * null = default registry, string = pattern's registryFile value.
+   * Used by verify() to detect registry-routing-mismatch (ADR 012 phase 2).
+   */
+  refOrigins: Map<string, string | null>;
 }
 
 /**
@@ -154,11 +160,17 @@ export async function loadMultiRegistry(
 ): Promise<MultiRegistryLoadResult> {
   const allErrors: RegistryValidationError[] = [];
   const duplicates: RegistryDuplicateWarning[] = [];
+  const refOrigins = new Map<string, string | null>();
 
   // 1. Load default registry
   const defaultResult = await loadRegistry(defaultRegistryPath);
   const merged: Registry = { ...defaultResult.registry };
   allErrors.push(...defaultResult.errors);
+
+  // Track origins for default registry entries (null = default file)
+  for (const ref of Object.keys(defaultResult.registry)) {
+    refOrigins.set(ref, null);
+  }
 
   // 2. Load pattern-specific registries
   if (patterns) {
@@ -175,7 +187,7 @@ export async function loadMultiRegistry(
       const patternResult = await loadRegistry(patternPath);
       allErrors.push(...patternResult.errors);
 
-      // Merge: pattern file wins, track duplicates
+      // Merge: pattern file wins, track duplicates and origins
       for (const [ref, entry] of Object.entries(patternResult.registry)) {
         if (ref in merged) {
           duplicates.push({
@@ -185,11 +197,12 @@ export async function loadMultiRegistry(
           });
         }
         merged[ref] = entry;
+        refOrigins.set(ref, pattern.registryFile);
       }
     }
   }
 
-  return { registry: merged, errors: allErrors, duplicates };
+  return { registry: merged, errors: allErrors, duplicates, refOrigins };
 }
 
 /**

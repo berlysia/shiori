@@ -9,6 +9,7 @@ const VALID_ISSUE_TYPES: readonly string[] = [
   'ref-format',
   'ref-collision',
   'unrouted-ref',
+  'registry-routing-mismatch',
 ];
 
 const VALID_OUTPUT_FORMATS: readonly string[] = [

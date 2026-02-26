@@ -73,7 +73,8 @@ export type VerifyIssueType =
   | 'syntax-error'
   | 'ref-format'
   | 'ref-collision'
-  | 'unrouted-ref';
+  | 'unrouted-ref'
+  | 'registry-routing-mismatch';
 
 /** Issue severity */
 export type IssueSeverity = 'error' | 'warning';

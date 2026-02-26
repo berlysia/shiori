@@ -191,6 +191,70 @@ describe('loadMultiRegistry', () => {
 
     assert.equal(Object.keys(result.registry).length, 2);
   });
+
+  it('populates refOrigins for default and pattern entries', async () => {
+    const defaultPath = join(tmpDir, 'origins-default.json');
+    const jiraPath = join(tmpDir, 'origins-jira.json');
+
+    await writeFile(
+      defaultPath,
+      JSON.stringify({
+        'SUP-1': { reason: 'default entry', target: 'all' },
+      }),
+    );
+    await writeFile(
+      jiraPath,
+      JSON.stringify({
+        'JIRA:PROJ-1': { reason: 'jira entry', target: 'src/' },
+      }),
+    );
+
+    const result = await loadMultiRegistry(defaultPath, [
+      {
+        match: 'JIRA:{id}',
+        registryFile: jiraPath,
+      },
+    ]);
+
+    assert.equal(result.refOrigins.get('SUP-1'), null);
+    assert.equal(result.refOrigins.get('JIRA:PROJ-1'), jiraPath);
+  });
+
+  it('refOrigins reflects last-wins on duplicate keys', async () => {
+    const defaultPath = join(tmpDir, 'origins-dup-default.json');
+    const jiraPath = join(tmpDir, 'origins-dup-jira.json');
+
+    await writeFile(
+      defaultPath,
+      JSON.stringify({
+        'JIRA:PROJ-1': { reason: 'from default', target: 'all' },
+      }),
+    );
+    await writeFile(
+      jiraPath,
+      JSON.stringify({
+        'JIRA:PROJ-1': { reason: 'from jira', target: 'src/' },
+      }),
+    );
+
+    const result = await loadMultiRegistry(defaultPath, [
+      {
+        match: 'JIRA:{id}',
+        registryFile: jiraPath,
+      },
+    ]);
+
+    // Pattern file wins, so origin should be the pattern's registryFile
+    assert.equal(result.refOrigins.get('JIRA:PROJ-1'), jiraPath);
+  });
+
+  it('refOrigins is empty Map when no entries', async () => {
+    const defaultPath = join(tmpDir, 'origins-empty.json');
+    await writeFile(defaultPath, JSON.stringify({}));
+
+    const result = await loadMultiRegistry(defaultPath, undefined);
+    assert.equal(result.refOrigins.size, 0);
+  });
 });
 
 describe('routeRegistryByPattern', () => {

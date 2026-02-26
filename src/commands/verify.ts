@@ -28,6 +28,12 @@ export interface VerifyOptions {
   duplicates?: RegistryDuplicateWarning[];
   /** Pattern-based ref routing configuration (ADR 012) */
   refPatterns?: RefPatternConfig[];
+  /**
+   * Maps each ref to its origin registryFile config value (ADR 012 phase 2).
+   * null = default registry, string = pattern's registryFile.
+   * Used to detect registry-routing-mismatch.
+   */
+  refOrigins?: Map<string, string | null>;
 }
 
 function determineSeverity(
@@ -49,6 +55,7 @@ function buildSummary(issues: VerifyIssue[]): VerifyResult['summary'] {
     'ref-format': 0,
     'ref-collision': 0,
     'unrouted-ref': 0,
+    'registry-routing-mismatch': 0,
   };
   let errors = 0;
   let warnings = 0;
@@ -207,6 +214,36 @@ export function verify(options: VerifyOptions): VerifyResult {
     }
   }
 
+  // Check registry-routing-mismatch (ADR 012 phase 2: ref in wrong registry file)
+  if (
+    options.refOrigins &&
+    options.refPatterns &&
+    options.refPatterns.length > 0
+  ) {
+    for (const ref of Object.keys(registry)) {
+      const match = matchRefPattern(ref, options.refPatterns);
+      if (!match) continue; // unrouted refs handled by unrouted-ref check
+      const expectedFile = match.config.registryFile ?? null;
+      const actualFile = options.refOrigins.get(ref) ?? null;
+      if (expectedFile !== actualFile) {
+        const actualLabel = actualFile ?? 'default registry';
+        const expectedLabel = expectedFile ?? 'default registry';
+        issues.push({
+          type: 'registry-routing-mismatch',
+          severity: determineSeverity(
+            'registry-routing-mismatch',
+            failOn,
+            warnOn,
+          ),
+          ref,
+          message: `Ref "${ref}" is in ${actualLabel} but pattern "${match.config.match}" routes to ${expectedLabel}`,
+          file: undefined,
+          line: undefined,
+        });
+      }
+    }
+  }
+
   return {
     timestamp: now.toISOString(),
     issues,
@@ -268,6 +305,11 @@ export function formatActionHints(result: VerifyResult): string[] {
   if (byType['unrouted-ref'] > 0) {
     hints.push(
       `  unrouted-ref (${byType['unrouted-ref']}): Ref does not match any refPatterns in config. Add a matching pattern or rename the ref.`,
+    );
+  }
+  if (byType['registry-routing-mismatch'] > 0) {
+    hints.push(
+      `  registry-routing-mismatch (${byType['registry-routing-mismatch']}): Ref is in the wrong registry file. Move it to the file specified by its matching refPattern.`,
     );
   }
 
