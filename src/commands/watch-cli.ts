@@ -7,9 +7,10 @@ import { CommentProvider } from '../core/providers/CommentProvider.ts';
 import { loadMultiRegistry, saveRegistry } from '../core/registry.ts';
 import { scan } from './scan.ts';
 import { initRegistry, routeRegistryByPattern } from './registry-generator.ts';
-
-const DEFAULT_PATTERNS = ['**/*.{css,scss,pcss,js,ts,tsx,jsx}'];
-const DEFAULT_IGNORE = ['**/node_modules/**', '**/dist/**', '**/.git/**'];
+import {
+  DEFAULT_SCAN_PATTERNS,
+  DEFAULT_SCAN_IGNORE,
+} from '../core/scan-defaults.ts';
 
 function parseList(value: string | undefined, fallback: string[]): string[] {
   if (!value) return fallback;
@@ -94,11 +95,11 @@ export const watchCommand = define({
 
     const patterns = parseList(
       ctx.values.patterns,
-      config.scanPatterns ?? DEFAULT_PATTERNS,
+      config.scanPatterns ?? DEFAULT_SCAN_PATTERNS,
     );
     const ignore = parseList(
       ctx.values.ignore,
-      config.scanIgnore ?? DEFAULT_IGNORE,
+      config.scanIgnore ?? DEFAULT_SCAN_IGNORE,
     );
 
     const outputPath = resolve(

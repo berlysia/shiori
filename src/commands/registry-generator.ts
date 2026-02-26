@@ -1,19 +1,10 @@
 import type { Registry, ShioriAnnotation } from '../core/types.ts';
 import type { RefPatternConfig } from '../core/ref-pattern.ts';
 import { matchRefPattern } from '../core/ref-pattern.ts';
+import { isValidRef } from '../core/ref-validation.ts';
 
-/**
- * Ref format validation pattern (ADR 015-B).
- * Allows: SUP-1234, ADR:0007, JIRA:PROJ-123, DEV-001, MIG-1
- * Rejects: prefix, marker, ');', backtick, arrow, (no
- */
-export const REF_PATTERN =
-  /^[A-Z][A-Z0-9]*(?:[-:][A-Za-z0-9][-A-Za-z0-9._]*)*$/;
-
-/** Check if a ref matches the expected format */
-export function isValidRef(ref: string): boolean {
-  return REF_PATTERN.test(ref);
-}
+// Re-export for backward compatibility
+export { REF_PATTERN, isValidRef } from '../core/ref-validation.ts';
 
 export interface InitRegistryOptions {
   /** Shiori annotations from scan */

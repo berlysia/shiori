@@ -11,21 +11,10 @@ import {
 import { saveRegistry } from '../core/registry.ts';
 import { initRegistry } from './registry-generator.ts';
 import { fileExists, fileContainsLine } from './init.ts';
-
-const DEFAULT_PATTERNS = ['**/*.{css,scss,pcss,js,ts,tsx,jsx}'];
-const DEFAULT_IGNORE = [
-  '**/node_modules/**',
-  '**/dist/**',
-  '**/.git/**',
-  // Test files (ADR 015-A: prevent false positives from string literals in tests)
-  '**/tests/**',
-  '**/test/**',
-  '**/__tests__/**',
-  '**/*.test.*',
-  '**/*.spec.*',
-  // Config directory (prevent scanning registry/config files)
-  '**/.config/**',
-];
+import {
+  DEFAULT_SCAN_PATTERNS,
+  DEFAULT_SCAN_IGNORE,
+} from '../core/scan-defaults.ts';
 
 const GITIGNORE_ENTRY = '.config/shiori/scan-result.json';
 
@@ -95,11 +84,11 @@ export const initCommand = define({
     // 2. Scan source files
     const patterns = ctx.values.patterns
       ? ctx.values.patterns.split(',').map((s: string) => s.trim())
-      : (config.scanPatterns ?? DEFAULT_PATTERNS);
+      : (config.scanPatterns ?? DEFAULT_SCAN_PATTERNS);
 
     const ignore = ctx.values.ignore
       ? ctx.values.ignore.split(',').map((s: string) => s.trim())
-      : (config.scanIgnore ?? DEFAULT_IGNORE);
+      : (config.scanIgnore ?? DEFAULT_SCAN_IGNORE);
 
     const provider = new CommentProvider();
     const scanResult = await scan({

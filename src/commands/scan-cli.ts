@@ -5,21 +5,10 @@ import { scan, formatScanResultForDisplay } from './scan.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
 import { loadConfig } from '../core/config.ts';
 import { validateProvider } from '../core/cli-validation.ts';
-
-const DEFAULT_PATTERNS = ['**/*.{css,scss,pcss,js,ts,tsx,jsx}'];
-const DEFAULT_IGNORE = [
-  '**/node_modules/**',
-  '**/dist/**',
-  '**/.git/**',
-  // Test files (ADR 015-A: prevent false positives from string literals in tests)
-  '**/tests/**',
-  '**/test/**',
-  '**/__tests__/**',
-  '**/*.test.*',
-  '**/*.spec.*',
-  // Config directory (prevent scanning registry/config files)
-  '**/.config/**',
-];
+import {
+  DEFAULT_SCAN_PATTERNS,
+  DEFAULT_SCAN_IGNORE,
+} from '../core/scan-defaults.ts';
 
 export const scanCommand = define({
   name: 'scan',
@@ -80,11 +69,11 @@ export const scanCommand = define({
 
     const patterns = ctx.values.patterns
       ? ctx.values.patterns.split(',').map((s: string) => s.trim())
-      : (config.scanPatterns ?? DEFAULT_PATTERNS);
+      : (config.scanPatterns ?? DEFAULT_SCAN_PATTERNS);
 
     const ignore = ctx.values.ignore
       ? ctx.values.ignore.split(',').map((s: string) => s.trim())
-      : (config.scanIgnore ?? DEFAULT_IGNORE);
+      : (config.scanIgnore ?? DEFAULT_SCAN_IGNORE);
 
     const provider = new CommentProvider();
 

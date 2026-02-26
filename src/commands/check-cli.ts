@@ -14,9 +14,10 @@ import {
   parseAndValidateIssueTypes,
   validateOutputFormat,
 } from '../core/cli-validation.ts';
-
-const DEFAULT_PATTERNS = ['**/*.{css,scss,pcss,js,ts,tsx,jsx}'];
-const DEFAULT_IGNORE = ['**/node_modules/**', '**/dist/**', '**/.git/**'];
+import {
+  DEFAULT_SCAN_PATTERNS,
+  DEFAULT_SCAN_IGNORE,
+} from '../core/scan-defaults.ts';
 
 export const checkCommand = define({
   name: 'check',
@@ -114,11 +115,11 @@ export const checkCommand = define({
 
     const patterns = ctx.values.patterns
       ? ctx.values.patterns.split(',').map((s: string) => s.trim())
-      : (config.scanPatterns ?? DEFAULT_PATTERNS);
+      : (config.scanPatterns ?? DEFAULT_SCAN_PATTERNS);
 
     const ignore = ctx.values.ignore
       ? ctx.values.ignore.split(',').map((s: string) => s.trim())
-      : (config.scanIgnore ?? DEFAULT_IGNORE);
+      : (config.scanIgnore ?? DEFAULT_SCAN_IGNORE);
 
     // Scan
     const provider = new CommentProvider();

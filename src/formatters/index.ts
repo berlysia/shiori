@@ -4,7 +4,7 @@ import type {
   ShioriCandidate,
   VerifyResult,
 } from '../core/types.ts';
-import { formatVerifyResultAsMarkdown } from '../commands/verify.ts';
+import { formatVerifyResultAsMarkdown } from './markdown.ts';
 import { formatAsJsonl } from './jsonl.ts';
 import { formatAsSarif } from './sarif.ts';
 import { formatAsSummary } from './summary.ts';
