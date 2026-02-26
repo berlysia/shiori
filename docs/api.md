@@ -20,6 +20,7 @@ All shared type definitions used across the codebase.
 import type {
   ShioriAnnotation,
   ShioriCandidate,
+  ScanResult,
   Registry,
   RegistryEntry,
   VerifyResult,
@@ -73,6 +74,21 @@ interface ShioriCandidate {
 }
 ```
 
+#### `ScanResult`
+
+Result of scanning source files. Returned by the `scan` command's JSON output.
+
+```typescript
+interface ScanResult {
+  /** Extracted annotations (stably sorted by ref, location.file, location.line) */
+  annotations: ShioriAnnotation[];
+  /** Detected candidates (sorted by location.file, location.line) */
+  candidates: ShioriCandidate[];
+  /** Number of files scanned */
+  filesScanned: number;
+}
+```
+
 #### `Registry` / `RegistryEntry`
 
 The annotation registry: a JSON/YAML file mapping ref IDs to structured metadata.
@@ -123,7 +139,8 @@ type VerifyIssueType =
   | 'unused-in-source'
   | 'expired'
   | 'syntax-error'
-  | 'ref-format';
+  | 'ref-format'
+  | 'ref-collision';
 
 type IssueSeverity = 'error' | 'warning';
 ```

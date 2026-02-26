@@ -1,5 +1,5 @@
 ---
-status: Open
+status: Done
 ---
 
 # Concern 002: Programmatic API documentation

@@ -345,6 +345,10 @@ Displays the full README documentation in the terminal.
 
 See [docs/configuration.md](docs/configuration.md) for the full configuration reference, including scan patterns, candidate detection, and pattern-based ref resolution.
 
+## Programmatic API
+
+shiori exposes typed exports for editor extensions, CI tooling, and custom integrations. See [docs/api.md](docs/api.md) for the full API reference.
+
 ## CI Integration
 
 ### GitHub Actions
