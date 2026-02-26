@@ -1,8 +1,10 @@
 import { define } from 'gunshi';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { loadConfig, resolveRegistryPath } from '../core/config.ts';
-import { loadMultiRegistry } from '../core/registry.ts';
+import {
+  loadConfigAndRegistry,
+  reportRegistryIssues,
+} from '../core/registry-loader.ts';
 import { scan } from './scan.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
 import { check } from './check.ts';
@@ -101,7 +103,14 @@ export const checkCommand = define({
     if (format === null) return;
 
     const cwd = ctx.values.cwd ?? process.cwd();
-    const config = await loadConfig(cwd, ctx.values.config);
+
+    const configAndRegistry = await loadConfigAndRegistry({
+      cwd,
+      configDir: ctx.values.config,
+      registryPath: ctx.values.registry,
+    });
+    reportRegistryIssues(configAndRegistry);
+    const { config, registry } = configAndRegistry;
 
     const patterns = ctx.values.patterns
       ? ctx.values.patterns.split(',').map((s: string) => s.trim())
@@ -135,32 +144,6 @@ export const checkCommand = define({
         'utf-8',
       );
       console.error(`Scan result saved to ${config.paths.scanResult}`);
-    }
-
-    // Load registry
-    const registryPath = await resolveRegistryPath(
-      ctx.values.registry,
-      config,
-      cwd,
-    );
-    const {
-      registry,
-      errors: registryErrors,
-      duplicates,
-    } = await loadMultiRegistry(registryPath, config.refPatterns);
-    if (registryErrors.length > 0) {
-      console.error('Registry validation errors:');
-      for (const err of registryErrors) {
-        console.error(`  ${err.id}: ${err.message}`);
-      }
-    }
-    if (duplicates.length > 0) {
-      console.error('Registry duplicate warnings:');
-      for (const dup of duplicates) {
-        console.error(
-          `  ${dup.ref}: found in both ${dup.defaultFile} and ${dup.patternFile}`,
-        );
-      }
     }
 
     // Verify

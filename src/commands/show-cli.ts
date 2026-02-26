@@ -1,6 +1,8 @@
 import { define } from 'gunshi';
-import { loadMultiRegistry } from '../core/registry.ts';
-import { loadConfig, resolveRegistryPath } from '../core/config.ts';
+import {
+  loadConfigAndRegistry,
+  reportRegistryIssues,
+} from '../core/registry-loader.ts';
 import { loadScanResult } from '../core/scan-result-loader.ts';
 import { show, isFound } from './show.ts';
 
@@ -44,38 +46,20 @@ export const showCommand = define({
   },
   run: async (ctx) => {
     const cwd = ctx.values.cwd ?? process.cwd();
-    const config = await loadConfig(cwd, ctx.values.config);
+
+    const configAndRegistry = await loadConfigAndRegistry({
+      cwd,
+      configDir: ctx.values.config,
+      registryPath: ctx.values.registry,
+    });
+    reportRegistryIssues(configAndRegistry);
+    const { config, registry } = configAndRegistry;
 
     const scanResult = await loadScanResult({
       explicitPath: ctx.values.scan,
       config,
       cwd,
     });
-
-    const registryPath = await resolveRegistryPath(
-      ctx.values.registry,
-      config,
-      cwd,
-    );
-    const {
-      registry,
-      errors: registryErrors,
-      duplicates,
-    } = await loadMultiRegistry(registryPath, config.refPatterns);
-    if (registryErrors.length > 0) {
-      console.error('Registry validation errors:');
-      for (const err of registryErrors) {
-        console.error(`  ${err.id}: ${err.message}`);
-      }
-    }
-    if (duplicates.length > 0) {
-      console.error('Registry duplicate warnings:');
-      for (const dup of duplicates) {
-        console.error(
-          `  ${dup.ref}: found in both ${dup.defaultFile} and ${dup.patternFile}`,
-        );
-      }
-    }
 
     const result = show({
       ref: ctx.values.ref,

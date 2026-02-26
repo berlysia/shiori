@@ -1,7 +1,7 @@
 import { define } from 'gunshi';
 import { resolve, dirname } from 'node:path';
-import { loadMultiRegistry, saveRegistry } from '../core/registry.ts';
-import { loadConfig, resolveRegistryPath } from '../core/config.ts';
+import { saveRegistry } from '../core/registry.ts';
+import { loadConfigAndRegistry } from '../core/registry-loader.ts';
 import { loadScanResult } from '../core/scan-result-loader.ts';
 import { initRegistry, routeRegistryByPattern } from './registry-generator.ts';
 
@@ -48,23 +48,22 @@ export const updateCommand = define({
   },
   run: async (ctx) => {
     const cwd = ctx.values.cwd ?? process.cwd();
-    const config = await loadConfig(cwd, ctx.values.config);
+
+    const {
+      config,
+      registry: existingRegistry,
+      registryPath,
+    } = await loadConfigAndRegistry({
+      cwd,
+      configDir: ctx.values.config,
+      registryPath: ctx.values.registry,
+    });
 
     const scanResult = await loadScanResult({
       explicitPath: ctx.values.scan,
       config,
       cwd,
     });
-
-    const registryPath = await resolveRegistryPath(
-      ctx.values.registry,
-      config,
-      cwd,
-    );
-    const { registry: existingRegistry } = await loadMultiRegistry(
-      registryPath,
-      config.refPatterns,
-    );
 
     const registry = initRegistry({
       records: scanResult.annotations,

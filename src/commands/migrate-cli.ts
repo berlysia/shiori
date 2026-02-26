@@ -3,8 +3,8 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { dirname, resolve } from 'node:path';
-import { loadConfig, resolveRegistryPath } from '../core/config.ts';
-import { loadMultiRegistry, saveRegistry } from '../core/registry.ts';
+import { saveRegistry } from '../core/registry.ts';
+import { loadConfigAndRegistry } from '../core/registry-loader.ts';
 import { loadScanResult } from '../core/scan-result-loader.ts';
 import { routeRegistryByPattern, isValidRef } from './registry-generator.ts';
 import {
@@ -85,7 +85,6 @@ export const migrateCommand = define({
   },
   run: async (ctx) => {
     const cwd = ctx.values.cwd ?? process.cwd();
-    const config = await loadConfig(cwd, ctx.values.config);
     const write = ctx.values.write ?? false;
     const prefix = ctx.values.prefix ?? 'MIG';
 
@@ -98,6 +97,16 @@ export const migrateCommand = define({
       return;
     }
 
+    const {
+      config,
+      registry: existingRegistry,
+      registryPath,
+    } = await loadConfigAndRegistry({
+      cwd,
+      configDir: ctx.values.config,
+      registryPath: ctx.values.registry,
+    });
+
     // Load scan result
     const scanResult = await loadScanResult({
       explicitPath: ctx.values.scan,
@@ -109,17 +118,6 @@ export const migrateCommand = define({
       console.error('No candidates found. Nothing to migrate.');
       return;
     }
-
-    // Load registry (multi-registry aware: loads default + pattern-specific files)
-    const registryPath = await resolveRegistryPath(
-      ctx.values.registry,
-      config,
-      cwd,
-    );
-    const { registry: existingRegistry } = await loadMultiRegistry(
-      registryPath,
-      config.refPatterns,
-    );
 
     // Plan migration
     const result = planMigration({
