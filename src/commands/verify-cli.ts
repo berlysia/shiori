@@ -92,7 +92,7 @@ export const verifyCommand = define({
       registryPath: ctx.values.registry,
     });
     reportRegistryIssues(configAndRegistry);
-    const { config, registry } = configAndRegistry;
+    const { config, registry, duplicates } = configAndRegistry;
 
     const scanResult = await loadScanResult({
       explicitPath: ctx.values.scan,
@@ -105,6 +105,7 @@ export const verifyCommand = define({
       registry,
       failOn,
       warnOn,
+      duplicates,
     });
 
     const output = formatVerifyOutput({

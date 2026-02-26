@@ -111,7 +111,7 @@ export const checkCommand = define({
       registryPath: ctx.values.registry,
     });
     reportRegistryIssues(configAndRegistry);
-    const { config, registry } = configAndRegistry;
+    const { config, registry, duplicates } = configAndRegistry;
 
     const patterns = ctx.values.patterns
       ? ctx.values.patterns.split(',').map((s: string) => s.trim())
@@ -153,6 +153,7 @@ export const checkCommand = define({
       registry,
       failOn,
       warnOn,
+      duplicates,
     });
 
     const output = formatVerifyOutput({

@@ -71,7 +71,8 @@ export type VerifyIssueType =
   | 'unused-in-source'
   | 'expired'
   | 'syntax-error'
-  | 'ref-format';
+  | 'ref-format'
+  | 'ref-collision';
 
 /** Issue severity */
 export type IssueSeverity = 'error' | 'warning';

@@ -46,6 +46,7 @@ const RULE_DESCRIPTIONS: Record<string, string> = {
   expired: 'Registry entry has passed its expiration date',
   'syntax-error': 'Annotation has syntax errors',
   'ref-format': 'Annotation ref has invalid format',
+  'ref-collision': 'Ref defined in multiple registry files',
 };
 
 /**

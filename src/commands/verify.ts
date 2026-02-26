@@ -6,6 +6,7 @@ import type {
   VerifyIssueType,
   VerifyResult,
 } from '../core/types.ts';
+import type { RegistryDuplicateWarning } from '../core/registry.ts';
 import { isValidRef } from '../core/ref-validation.ts';
 
 export type { OutputFormat } from '../formatters/types.ts';
@@ -21,6 +22,8 @@ export interface VerifyOptions {
   warnOn: VerifyIssueType[];
   /** Reference date for expiry checks (default: now, injectable for tests) */
   now?: Date;
+  /** Registry duplicate warnings from multi-registry loading */
+  duplicates?: RegistryDuplicateWarning[];
 }
 
 function determineSeverity(
@@ -40,6 +43,7 @@ function buildSummary(issues: VerifyIssue[]): VerifyResult['summary'] {
     expired: 0,
     'syntax-error': 0,
     'ref-format': 0,
+    'ref-collision': 0,
   };
   let errors = 0;
   let warnings = 0;
@@ -65,7 +69,7 @@ function normalizeExpires(expires: string): string {
  * Verify scan results against registry, detecting issues.
  */
 export function verify(options: VerifyOptions): VerifyResult {
-  const { records, registry, failOn, warnOn } = options;
+  const { records, registry, failOn, warnOn, duplicates } = options;
   const now = options.now ?? new Date();
   const todayStr = now.toISOString().slice(0, 10);
   const issues: VerifyIssue[] = [];
@@ -164,6 +168,20 @@ export function verify(options: VerifyOptions): VerifyResult {
     }
   }
 
+  // Check ref-collision (multi-registry duplicate keys)
+  if (duplicates && duplicates.length > 0) {
+    for (const dup of duplicates) {
+      issues.push({
+        type: 'ref-collision',
+        severity: determineSeverity('ref-collision', failOn, warnOn),
+        ref: dup.ref,
+        message: `Ref "${dup.ref}" defined in both ${dup.defaultFile} and ${dup.patternFile} (pattern file takes precedence)`,
+        file: undefined,
+        line: undefined,
+      });
+    }
+  }
+
   return {
     timestamp: now.toISOString(),
     issues,
@@ -215,6 +233,11 @@ export function formatActionHints(result: VerifyResult): string[] {
   if (byType['ref-format'] > 0) {
     hints.push(
       `  ref-format (${byType['ref-format']}): Fix ref format. Expected: uppercase prefix with alphanumeric segments (e.g. SUP-1234, ADR:0007)`,
+    );
+  }
+  if (byType['ref-collision'] > 0) {
+    hints.push(
+      `  ref-collision (${byType['ref-collision']}): Duplicate ref across registry files. Move the entry to a single registry, or use distinct refs.`,
     );
   }
 

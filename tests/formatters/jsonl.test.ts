@@ -17,6 +17,7 @@ function makeResult(overrides: Partial<VerifyResult> = {}): VerifyResult {
         expired: 0,
         'syntax-error': 0,
         'ref-format': 0,
+        'ref-collision': 0,
       },
     },
     scannedRecords: 0,

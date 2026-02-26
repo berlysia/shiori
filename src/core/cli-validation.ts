@@ -7,6 +7,7 @@ const VALID_ISSUE_TYPES: readonly string[] = [
   'expired',
   'syntax-error',
   'ref-format',
+  'ref-collision',
 ];
 
 const VALID_OUTPUT_FORMATS: readonly string[] = [

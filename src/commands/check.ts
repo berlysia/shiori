@@ -4,6 +4,7 @@ import type {
   VerifyIssueType,
   Registry,
 } from '../core/types.ts';
+import type { RegistryDuplicateWarning } from '../core/registry.ts';
 import { verify, type OutputFormat } from './verify.ts';
 
 export interface CheckOptions {
@@ -11,6 +12,8 @@ export interface CheckOptions {
   registry: Registry;
   failOn: VerifyIssueType[];
   warnOn: VerifyIssueType[];
+  /** Registry duplicate warnings from multi-registry loading */
+  duplicates?: RegistryDuplicateWarning[];
 }
 
 export interface CheckResult {
@@ -28,6 +31,7 @@ export function check(options: CheckOptions): CheckResult {
     registry: options.registry,
     failOn: options.failOn,
     warnOn: options.warnOn,
+    duplicates: options.duplicates,
   });
 
   return {

@@ -256,6 +256,145 @@ describe('verify', () => {
     });
   });
 
+  describe('ref-collision', () => {
+    it('detects duplicate refs from multi-registry loading', () => {
+      const records = [makeAnnotation({ ref: 'SUP-DUP' })];
+      const registry: Registry = { 'SUP-DUP': makeRegistryEntry() };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: ['ref-collision'],
+        now: referenceDate,
+        duplicates: [
+          {
+            ref: 'SUP-DUP',
+            defaultFile: 'registry.json',
+            patternFile: 'team-a-registry.json',
+          },
+        ],
+      });
+      const collisions = result.issues.filter(
+        (i) => i.type === 'ref-collision',
+      );
+      assert.equal(collisions.length, 1);
+      assert.equal(collisions[0]!.severity, 'warning');
+      assert.equal(collisions[0]!.ref, 'SUP-DUP');
+      assert.ok(collisions[0]!.message.includes('registry.json'));
+      assert.ok(collisions[0]!.message.includes('team-a-registry.json'));
+    });
+
+    it('does not produce ref-collision when no duplicates', () => {
+      const records = [makeAnnotation({ ref: 'SUP-OK' })];
+      const registry: Registry = { 'SUP-OK': makeRegistryEntry() };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        duplicates: [],
+      });
+      const collisions = result.issues.filter(
+        (i) => i.type === 'ref-collision',
+      );
+      assert.equal(collisions.length, 0);
+    });
+
+    it('does not produce ref-collision when duplicates is omitted', () => {
+      const records = [makeAnnotation({ ref: 'SUP-OK' })];
+      const registry: Registry = { 'SUP-OK': makeRegistryEntry() };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+      });
+      const collisions = result.issues.filter(
+        (i) => i.type === 'ref-collision',
+      );
+      assert.equal(collisions.length, 0);
+    });
+
+    it('respects failOn for ref-collision severity', () => {
+      const records = [makeAnnotation({ ref: 'SUP-DUP' })];
+      const registry: Registry = { 'SUP-DUP': makeRegistryEntry() };
+      const result = verify({
+        records,
+        registry,
+        failOn: ['ref-collision'],
+        warnOn: [],
+        now: referenceDate,
+        duplicates: [
+          {
+            ref: 'SUP-DUP',
+            defaultFile: 'registry.json',
+            patternFile: 'team-a-registry.json',
+          },
+        ],
+      });
+      const collisions = result.issues.filter(
+        (i) => i.type === 'ref-collision',
+      );
+      assert.equal(collisions[0]!.severity, 'error');
+    });
+
+    it('includes ref-collision in summary byType', () => {
+      const records = [makeAnnotation({ ref: 'SUP-DUP' })];
+      const registry: Registry = { 'SUP-DUP': makeRegistryEntry() };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        duplicates: [
+          {
+            ref: 'SUP-DUP',
+            defaultFile: 'registry.json',
+            patternFile: 'team-a-registry.json',
+          },
+        ],
+      });
+      assert.equal(result.summary.byType['ref-collision'], 1);
+    });
+
+    it('reports multiple ref-collisions', () => {
+      const records = [
+        makeAnnotation({ ref: 'SUP-A' }),
+        makeAnnotation({ ref: 'SUP-B' }),
+      ];
+      const registry: Registry = {
+        'SUP-A': makeRegistryEntry(),
+        'SUP-B': makeRegistryEntry(),
+      };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        duplicates: [
+          {
+            ref: 'SUP-A',
+            defaultFile: 'registry.json',
+            patternFile: 'team-a.json',
+          },
+          {
+            ref: 'SUP-B',
+            defaultFile: 'registry.json',
+            patternFile: 'team-b.json',
+          },
+        ],
+      });
+      const collisions = result.issues.filter(
+        (i) => i.type === 'ref-collision',
+      );
+      assert.equal(collisions.length, 2);
+    });
+  });
+
   describe('ignored annotations', () => {
     it('skips ignored annotations in verify', () => {
       const records = [
@@ -441,6 +580,28 @@ describe('verify', () => {
       const hints = formatActionHints(result);
       assert.ok(hints.some((h) => h.includes('syntax-error')));
       assert.ok(hints.some((h) => h.includes('Fix annotation syntax')));
+    });
+
+    it('shows hint for ref-collision', () => {
+      const records = [makeAnnotation({ ref: 'SUP-DUP' })];
+      const registry: Registry = { 'SUP-DUP': makeRegistryEntry() };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        duplicates: [
+          {
+            ref: 'SUP-DUP',
+            defaultFile: 'registry.json',
+            patternFile: 'team-a.json',
+          },
+        ],
+      });
+      const hints = formatActionHints(result);
+      assert.ok(hints.some((h) => h.includes('ref-collision')));
+      assert.ok(hints.some((h) => h.includes('Duplicate ref')));
     });
 
     it('shows multiple hints for combined issues', () => {
