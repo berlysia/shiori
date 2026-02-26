@@ -820,3 +820,260 @@ describe('CLI E2E', () => {
     });
   });
 });
+
+describe('CLI E2E: multi-registry', () => {
+  let multiDir: string;
+
+  before(async () => {
+    multiDir = await mkdtemp(join(tmpdir(), 'shiori-multi-e2e-'));
+
+    // Create source file with annotations from different namespaces
+    await mkdir(join(multiDir, 'src'), { recursive: true });
+    await writeFile(
+      join(multiDir, 'src', 'app.ts'),
+      [
+        '// eslint-disable-next-line no-console -- shiori: SUP-100',
+        'console.log("default namespace ref");',
+        '',
+        '// eslint-disable-next-line @typescript-eslint/no-explicit-any -- shiori: JIRA:PROJ-200',
+        'const x: any = {};',
+      ].join('\n') + '\n',
+      'utf-8',
+    );
+
+    // Create config with refPatterns pointing to pattern-specific registry
+    await mkdir(join(multiDir, '.config', 'shiori'), { recursive: true });
+    await writeFile(
+      join(multiDir, '.config', 'shiori', 'config.yaml'),
+      [
+        '# shiori configuration',
+        'refPatterns:',
+        '  - match: "JIRA:{id}"',
+        '    urlTemplate: "https://jira.example.com/browse/{id}"',
+        '    registryFile: "jira-registry.json"',
+      ].join('\n') + '\n',
+      'utf-8',
+    );
+
+    // Default registry: only SUP-100
+    await writeFile(
+      join(multiDir, '.config', 'shiori', 'registry.json'),
+      JSON.stringify(
+        {
+          'SUP-100': {
+            reason: 'default namespace entry',
+            target: 'all',
+          },
+        },
+        null,
+        2,
+      ) + '\n',
+      'utf-8',
+    );
+
+    // Pattern-specific registry: only JIRA:PROJ-200
+    await writeFile(
+      join(multiDir, '.config', 'shiori', 'jira-registry.json'),
+      JSON.stringify(
+        {
+          'JIRA:PROJ-200': {
+            reason: 'jira namespace entry',
+            target: 'src/app.ts',
+          },
+        },
+        null,
+        2,
+      ) + '\n',
+      'utf-8',
+    );
+  });
+
+  after(async () => {
+    await rm(multiDir, { recursive: true, force: true });
+  });
+
+  it('verify reads pattern-specific registry (no false positive missing-in-registry)', async () => {
+    // First scan
+    const scanResult = await runCli([
+      'scan',
+      '--patterns',
+      'src/**/*.ts',
+      '--cwd',
+      multiDir,
+    ]);
+    assert.equal(scanResult.exitCode, 0);
+
+    const scanPath = join(multiDir, 'scan-result.json');
+    await writeFile(scanPath, scanResult.stdout, 'utf-8');
+
+    // Verify: both refs exist in their respective registries → no missing-in-registry
+    const { exitCode, stdout } = await runCli([
+      'verify',
+      '--scan',
+      scanPath,
+      '--fail-on',
+      'missing-in-registry',
+      '--warn-on',
+      'unused-in-source,expired,syntax-error',
+      '--cwd',
+      multiDir,
+    ]);
+
+    const result = JSON.parse(stdout) as {
+      issues: Array<{ type: string; ref: string }>;
+      summary: { errors: number };
+    };
+    const missingIssues = result.issues.filter(
+      (i) => i.type === 'missing-in-registry',
+    );
+    assert.deepEqual(
+      missingIssues,
+      [],
+      'Pattern-specific registry ref should not trigger missing-in-registry',
+    );
+    assert.equal(exitCode, 0);
+  });
+
+  it('check reads pattern-specific registry (no false positive missing-in-registry)', async () => {
+    const { exitCode, stdout } = await runCli([
+      'check',
+      '--patterns',
+      'src/**/*.ts',
+      '--fail-on',
+      'missing-in-registry',
+      '--warn-on',
+      'unused-in-source,expired,syntax-error',
+      '--cwd',
+      multiDir,
+    ]);
+
+    const result = JSON.parse(stdout) as {
+      issues: Array<{ type: string; ref: string }>;
+      summary: { errors: number };
+    };
+    const missingIssues = result.issues.filter(
+      (i) => i.type === 'missing-in-registry',
+    );
+    assert.deepEqual(
+      missingIssues,
+      [],
+      'Pattern-specific registry ref should not trigger missing-in-registry in check',
+    );
+    assert.equal(exitCode, 0);
+  });
+
+  it('show finds ref from pattern-specific registry', async () => {
+    const scanPath = join(multiDir, 'scan-result.json');
+    // Ensure scan result exists
+    const scanResult = await runCli([
+      'scan',
+      '--patterns',
+      'src/**/*.ts',
+      '--cwd',
+      multiDir,
+    ]);
+    await writeFile(scanPath, scanResult.stdout, 'utf-8');
+
+    const { exitCode, stdout } = await runCli([
+      'show',
+      '--ref',
+      'JIRA:PROJ-200',
+      '--scan',
+      scanPath,
+      '--cwd',
+      multiDir,
+    ]);
+    assert.equal(exitCode, 0);
+    const result = JSON.parse(stdout) as {
+      registryEntry: { reason: string } | undefined;
+    };
+    assert.equal(
+      result.registryEntry?.reason,
+      'jira namespace entry',
+      'show should find ref from pattern-specific registry',
+    );
+  });
+
+  it('update reads merged multi-registry before writing', async () => {
+    // Create a fresh copy for update test
+    const updateDir = await mkdtemp(join(tmpdir(), 'shiori-update-multi-'));
+    await mkdir(join(updateDir, 'src'), { recursive: true });
+    await writeFile(
+      join(updateDir, 'src', 'app.ts'),
+      [
+        '// eslint-disable-next-line no-console -- shiori: SUP-100',
+        'console.log("a");',
+        '',
+        '// eslint-disable-next-line @typescript-eslint/no-explicit-any -- shiori: JIRA:PROJ-200',
+        'const x: any = {};',
+        '',
+        '// shiori: NEW-001',
+        'const y = 1;',
+      ].join('\n') + '\n',
+      'utf-8',
+    );
+
+    await mkdir(join(updateDir, '.config', 'shiori'), { recursive: true });
+    await writeFile(
+      join(updateDir, '.config', 'shiori', 'config.yaml'),
+      [
+        '# shiori configuration',
+        'refPatterns:',
+        '  - match: "JIRA:{id}"',
+        '    urlTemplate: "https://jira.example.com/browse/{id}"',
+        '    registryFile: "jira-registry.json"',
+      ].join('\n') + '\n',
+      'utf-8',
+    );
+    await writeFile(
+      join(updateDir, '.config', 'shiori', 'registry.json'),
+      JSON.stringify(
+        { 'SUP-100': { reason: 'default', target: 'all' } },
+        null,
+        2,
+      ) + '\n',
+      'utf-8',
+    );
+    await writeFile(
+      join(updateDir, '.config', 'shiori', 'jira-registry.json'),
+      JSON.stringify(
+        { 'JIRA:PROJ-200': { reason: 'jira entry', target: 'src/app.ts' } },
+        null,
+        2,
+      ) + '\n',
+      'utf-8',
+    );
+
+    // Scan
+    const scanResult = await runCli([
+      'scan',
+      '--patterns',
+      'src/**/*.ts',
+      '--cwd',
+      updateDir,
+    ]);
+    const scanPath = join(updateDir, 'scan-result.json');
+    await writeFile(scanPath, scanResult.stdout, 'utf-8');
+
+    // Update: should only add NEW-001, not re-add JIRA:PROJ-200
+    const { exitCode, stderr } = await runCli([
+      'update',
+      '--scan',
+      scanPath,
+      '--cwd',
+      updateDir,
+    ]);
+    assert.equal(exitCode, 0);
+    assert.ok(
+      stderr.includes('NEW-001'),
+      'update should add NEW-001 as new ref',
+    );
+    // JIRA:PROJ-200 should NOT be added as new (it's already in pattern registry)
+    assert.ok(
+      !stderr.includes('JIRA:PROJ-200'),
+      'update should not re-add JIRA:PROJ-200 from pattern registry',
+    );
+
+    await rm(updateDir, { recursive: true, force: true });
+  });
+});

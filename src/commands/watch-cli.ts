@@ -4,7 +4,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, relative, resolve, sep } from 'node:path';
 import { loadConfig, resolveRegistryPath } from '../core/config.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
-import { loadRegistry, saveRegistry } from '../core/registry.ts';
+import { loadMultiRegistry, saveRegistry } from '../core/registry.ts';
 import { scan } from './scan.ts';
 import { initRegistry, routeRegistryByPattern } from './registry-generator.ts';
 
@@ -140,7 +140,10 @@ export const watchCommand = define({
       );
 
       if (syncRegistry && registryPath) {
-        const { registry: existingRegistry } = await loadRegistry(registryPath);
+        const { registry: existingRegistry } = await loadMultiRegistry(
+          registryPath,
+          config.refPatterns,
+        );
         const merged = initRegistry({
           records: result.annotations,
           existingRegistry,

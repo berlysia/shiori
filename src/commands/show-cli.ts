@@ -1,5 +1,5 @@
 import { define } from 'gunshi';
-import { loadRegistry } from '../core/registry.ts';
+import { loadMultiRegistry } from '../core/registry.ts';
 import { loadConfig, resolveRegistryPath } from '../core/config.ts';
 import { loadScanResult } from '../core/scan-result-loader.ts';
 import { show, isFound } from './show.ts';
@@ -57,12 +57,23 @@ export const showCommand = define({
       config,
       cwd,
     );
-    const { registry, errors: registryErrors } =
-      await loadRegistry(registryPath);
+    const {
+      registry,
+      errors: registryErrors,
+      duplicates,
+    } = await loadMultiRegistry(registryPath, config.refPatterns);
     if (registryErrors.length > 0) {
       console.error('Registry validation errors:');
       for (const err of registryErrors) {
         console.error(`  ${err.id}: ${err.message}`);
+      }
+    }
+    if (duplicates.length > 0) {
+      console.error('Registry duplicate warnings:');
+      for (const dup of duplicates) {
+        console.error(
+          `  ${dup.ref}: found in both ${dup.defaultFile} and ${dup.patternFile}`,
+        );
       }
     }
 

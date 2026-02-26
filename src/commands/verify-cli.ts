@@ -1,6 +1,6 @@
 import { define } from 'gunshi';
 import { writeFile } from 'node:fs/promises';
-import { loadRegistry } from '../core/registry.ts';
+import { loadMultiRegistry } from '../core/registry.ts';
 import { loadConfig, resolveRegistryPath } from '../core/config.ts';
 import { loadScanResult } from '../core/scan-result-loader.ts';
 import { verify, formatActionHints } from './verify.ts';
@@ -96,12 +96,23 @@ export const verifyCommand = define({
       config,
       cwd,
     );
-    const { registry, errors: registryErrors } =
-      await loadRegistry(registryPath);
+    const {
+      registry,
+      errors: registryErrors,
+      duplicates,
+    } = await loadMultiRegistry(registryPath, config.refPatterns);
     if (registryErrors.length > 0) {
       console.error('Registry validation errors:');
       for (const err of registryErrors) {
         console.error(`  ${err.id}: ${err.message}`);
+      }
+    }
+    if (duplicates.length > 0) {
+      console.error('Registry duplicate warnings:');
+      for (const dup of duplicates) {
+        console.error(
+          `  ${dup.ref}: found in both ${dup.defaultFile} and ${dup.patternFile}`,
+        );
       }
     }
 
