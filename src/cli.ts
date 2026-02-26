@@ -11,6 +11,7 @@ import { showCommand } from './commands/show-cli.ts';
 import { docsCommand } from './commands/docs-cli.ts';
 import { jumpCommand } from './commands/jump-cli.ts';
 import { watchCommand } from './commands/watch-cli.ts';
+import { migrateCommand } from './commands/migrate-cli.ts';
 
 const main = define({
   name: 'shiori',
@@ -39,6 +40,7 @@ Workflow:
   shiori init                    Set up shiori in your project
   shiori check                   Scan and verify against registry
   shiori update                  Add new refs to the registry
+  shiori migrate                 Auto-migrate lint disable comments
   shiori watch                   Refresh scan result on each save
   shiori check --fail-on ...     Enforce governance in CI
 
@@ -66,6 +68,7 @@ try {
       verify: verifyCommand,
       check: checkCommand,
       update: updateCommand,
+      migrate: migrateCommand,
       draft: draftCommand,
       candidates: candidatesCommand,
       show: showCommand,
