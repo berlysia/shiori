@@ -1,6 +1,9 @@
-import type { ScanResult } from './scan.ts';
-import type { VerifyResult, VerifyIssueType } from '../core/types.ts';
-import type { Registry } from '../core/types.ts';
+import type {
+  ScanResult,
+  VerifyResult,
+  VerifyIssueType,
+  Registry,
+} from '../core/types.ts';
 import { verify, type OutputFormat } from './verify.ts';
 
 export interface CheckOptions {

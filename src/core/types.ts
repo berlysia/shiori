@@ -41,6 +41,16 @@ export interface ShioriCandidate {
   };
 }
 
+/** Result of scanning source files for annotations and candidates */
+export interface ScanResult {
+  /** Extracted annotations (stably sorted by ref, location.file, location.line) */
+  annotations: ShioriAnnotation[];
+  /** Detected candidates (sorted by location.file, location.line) */
+  candidates: ShioriCandidate[];
+  /** Number of files scanned */
+  filesScanned: number;
+}
+
 /** A single registry entry */
 export interface RegistryEntry {
   reason: string;

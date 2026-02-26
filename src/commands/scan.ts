@@ -1,10 +1,16 @@
 import { readFile } from 'node:fs/promises';
 import fg from 'fast-glob';
-import type { ShioriAnnotation, ShioriCandidate } from '../core/types.ts';
+import type {
+  ShioriAnnotation,
+  ShioriCandidate,
+  ScanResult,
+} from '../core/types.ts';
 import type {
   AnnotationProvider,
   ProviderScanOptions,
 } from '../core/providers/AnnotationProvider.ts';
+
+export type { ScanResult } from '../core/types.ts';
 
 export interface ScanOptions {
   /** Glob patterns to scan */
@@ -17,15 +23,6 @@ export interface ScanOptions {
   cwd: string;
   /** Provider scan options (candidate patterns etc.) */
   providerOptions?: ProviderScanOptions;
-}
-
-export interface ScanResult {
-  /** Extracted annotations (stably sorted by ref, location.file, location.line) */
-  annotations: ShioriAnnotation[];
-  /** Detected candidates (sorted by location.file, location.line) */
-  candidates: ShioriCandidate[];
-  /** Number of files scanned */
-  filesScanned: number;
 }
 
 function sortAnnotations(records: ShioriAnnotation[]): ShioriAnnotation[] {

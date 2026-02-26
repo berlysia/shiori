@@ -1,7 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { ScanResult } from '../src/commands/scan.ts';
-import type { Registry } from '../src/core/types.ts';
+import type { ScanResult, Registry } from '../src/core/types.ts';
 import { check } from '../src/commands/check.ts';
 
 const makeScanResult = (

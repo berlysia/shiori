@@ -1,6 +1,6 @@
 import { access, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { ScanResult } from '../commands/scan.ts';
+import type { ScanResult } from './types.ts';
 import type { ResolvedConfig } from './config.ts';
 import { DEFAULT_SCAN_RESULT_PATH } from './config.ts';
 import { isNodeError } from './errors.ts';
