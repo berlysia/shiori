@@ -11,8 +11,8 @@ When developers use `stylelint-disable-next-line` or `eslint-disable-next-line`,
 - Scanning source code for `shiori:` annotations (in lint disable comments and standalone)
 - Requiring each annotation to carry a tracking reference (e.g. `shiori: SUP-1234`)
 - Supporting annotation classification via `kind` field in the registry: `waive`, `design`, `compat`, `risk`, `migrate` (and custom kinds)
-- Verifying references against a JSON registry with reason, ownership, and expiration
-- Generating human-readable (Markdown) and machine-readable (JSON) reports
+- Verifying references against a JSON or YAML registry with reason, ownership, and expiration
+- Generating human-readable (Markdown) and machine-readable (JSON, SARIF, JSONL) reports
 
 ## Annotation Syntax
 
@@ -127,7 +127,7 @@ var legacy = true;
 
 ### Registry Format
 
-A JSON file keyed by annotation ref:
+A JSON or YAML file keyed by annotation ref (format auto-detected by file extension):
 
 ```json
 {
@@ -159,19 +159,42 @@ Scans source files, creates a config directory, generates a registry template, a
 ```bash
 shiori check
 shiori check --fail-on missing-in-registry,expired
+shiori check --save-scan
 shiori check -f markdown -o report.md
 ```
 
 One-shot command that scans source and verifies against the registry. Recommended for both development and CI.
+
+Options:
+
+- `--patterns, -p` — Glob patterns (comma-separated)
+- `--ignore, -i` — Exclude patterns (comma-separated)
+- `--registry, -r` — Path to registry file (auto-detected from config)
+- `--fail-on` — Issue types that cause exit code 1 (comma-separated)
+- `--warn-on` — Issue types reported as warnings (comma-separated)
+- `--format, -f` — Output format: `json` (default), `markdown`, `sarif`, `summary`, `jsonl`
+- `--output, -o` — Output file (default: stdout)
+- `--save-scan` — Also save scan result to `.config/shiori/scan-result.json`
+- `--cwd` — Working directory (default: `process.cwd()`)
+- `--config, -c` — Path to config directory
 
 #### `update` — Add new refs to the registry
 
 ```bash
 shiori update
 shiori update --registry custom-registry.yaml
+shiori update --dry-run
 ```
 
 Scans source and adds any new refs to the registry as stub entries. Fill in reason, owner, and expires after running.
+
+Options:
+
+- `--scan, -s` — Path to scan result JSON (default: auto-detect or stdin)
+- `--registry, -r` — Path to registry file (auto-detected from config)
+- `--dry-run, -n` — Preview changes without writing to registry
+- `--cwd` — Working directory (default: `process.cwd()`)
+- `--config, -c` — Path to config directory
 
 #### `scan` — Extract annotations from source
 
@@ -184,9 +207,10 @@ shiori scan \
 Options:
 
 - `--patterns, -p` — Glob patterns (comma-separated). Default: `**/*.{css,scss,pcss,js,ts,tsx,jsx}`
-- `--ignore, -i` — Exclude patterns. Default: `**/node_modules/**,**/dist/**,**/.git/**`
-- `--output, -o` — Output file (default: stdout)
+- `--ignore, -i` — Exclude patterns. Default: `**/node_modules/**,**/dist/**,**/.git/**,**/tests/**,**/test/**,**/__tests__/**,**/*.test.*,**/*.spec.*,**/.config/**` (see [ADR 015](docs/decisions/015-scan-false-positive-prevention.md))
+- `--output, -o` — Output file (default: auto-save to `.config/shiori/scan-result.json` when TTY, stdout when piped)
 - `--cwd` — Working directory (default: `process.cwd()`)
+- `--config, -c` — Path to config directory (YAML/JSON auto-detected). Default: `<cwd>/.config/shiori`
 - `--provider` — Annotation provider. Default: `comment`
 
 #### `verify` — Reconcile scan results with registry
@@ -208,12 +232,14 @@ Detects:
 
 Options:
 
-- `--scan, -s` — Path to scan result JSON (required)
-- `--registry, -r` — Path to registry JSON (required)
+- `--scan, -s` — Path to scan result JSON (default: `.config/shiori/scan-result.json` or stdin)
+- `--registry, -r` — Path to registry file (auto-detected from config)
 - `--fail-on` — Issue types that cause exit code 1 (comma-separated)
 - `--warn-on` — Issue types reported as warnings (comma-separated)
-- `--format, -f` — Output format: `json` (default) or `markdown`
+- `--format, -f` — Output format: `json` (default), `markdown`, `sarif`, `summary`, `jsonl`
 - `--output, -o` — Output file (default: stdout)
+- `--cwd` — Working directory (default: `process.cwd()`)
+- `--config, -c` — Path to config directory
 
 #### `draft` — List draft annotations
 
@@ -227,8 +253,10 @@ Lists annotations that have a `shiori:` marker but no ref (intentional drafts aw
 
 Options:
 
-- `--scan, -s` — Path to scan result JSON (required)
+- `--scan, -s` — Path to scan result JSON (default: auto-detect or stdin)
 - `--output, -o` — Output file (default: stdout)
+- `--cwd` — Working directory (default: `process.cwd()`)
+- `--config, -c` — Path to config directory
 
 #### `candidates` — List candidate annotations
 
@@ -243,17 +271,17 @@ Lists lint disable comments and other patterns detected as potential shiori mana
 
 Options:
 
-- `--scan, -s` — Path to scan result JSON (required)
+- `--scan, -s` — Path to scan result JSON (default: auto-detect or stdin)
 - `--format, -f` — Output format: `json` (default) or `markdown`
 - `--output, -o` — Output file (default: stdout)
+- `--cwd` — Working directory (default: `process.cwd()`)
+- `--config, -c` — Path to config directory
 
 #### `show` — Show information about a specific ref
 
 ```bash
-shiori show \
-  --ref JIRA:PROJ-123 \
-  --scan scan-result.json \
-  --registry registry.json
+shiori show --ref JIRA-123
+shiori show --ref SUP-1234 -s scan-result.json -r registry.json
 ```
 
 Looks up a ref and displays its registry entry, source locations, and resolved URL (if namespace is configured). Exit code `0` if found, `1` if not found.
@@ -261,9 +289,10 @@ Looks up a ref and displays its registry entry, source locations, and resolved U
 Options:
 
 - `--ref` — The ref to look up (required)
-- `--scan, -s` — Path to scan result JSON (required)
-- `--registry, -r` — Path to registry file (required)
-- `--config, -c` — Path to directory containing `.shiorirc.json` (default: cwd)
+- `--scan, -s` — Path to scan result JSON (default: auto-detect or stdin)
+- `--registry, -r` — Path to registry file (auto-detected from config)
+- `--cwd` — Working directory (default: `process.cwd()`)
+- `--config, -c` — Path to config directory
 
 #### `jump` — Resolve ref to source location
 
@@ -278,7 +307,9 @@ Options:
 
 - `--ref` — The ref to resolve (required)
 - `--all` — Print all matching locations (default: first only)
-- `--scan, -s` — Path to scan result JSON (default: auto-detect / stdin)
+- `--scan, -s` — Path to scan result JSON (default: auto-detect or stdin)
+- `--cwd` — Working directory (default: `process.cwd()`)
+- `--config, -c` — Path to config directory
 
 #### `watch` — Refresh scan result on save
 
@@ -292,11 +323,23 @@ Watches files and refreshes `.config/shiori/scan-result.json` whenever files are
 
 Options:
 
+- `--patterns, -p` — Glob patterns (comma-separated)
+- `--ignore, -i` — Exclude patterns (comma-separated)
 - `--once` — Run one refresh and exit (for scripts/CI)
 - `--sync-registry` — Also merge refs into registry on each refresh
 - `--registry, -r` — Registry path override (used with `--sync-registry`)
 - `--output, -o` — Scan-result output path override
 - `--debounce-ms` — Debounce interval (default: `250`)
+- `--cwd` — Working directory (default: `process.cwd()`)
+- `--config, -c` — Path to config directory
+
+#### `docs` — Show documentation
+
+```bash
+shiori docs
+```
+
+Displays the full README documentation in the terminal.
 
 ## Configuration
 
