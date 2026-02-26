@@ -1,5 +1,7 @@
 ---
-status: Open
+status: Done
+resolved_at: 2025-02-26
+resolved_by: architect (verification), engineer (status update)
 ---
 
 # Concern 003: update/watch commands use loadRegistry instead of loadMultiRegistry
