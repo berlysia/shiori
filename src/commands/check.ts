@@ -5,6 +5,7 @@ import type {
   Registry,
 } from '../core/types.ts';
 import type { RegistryDuplicateWarning } from '../core/registry.ts';
+import type { RefPatternConfig } from '../core/ref-pattern.ts';
 import { verify, type OutputFormat } from './verify.ts';
 
 export interface CheckOptions {
@@ -14,6 +15,8 @@ export interface CheckOptions {
   warnOn: VerifyIssueType[];
   /** Registry duplicate warnings from multi-registry loading */
   duplicates?: RegistryDuplicateWarning[];
+  /** Pattern-based ref routing configuration (ADR 012) */
+  refPatterns?: RefPatternConfig[];
 }
 
 export interface CheckResult {
@@ -32,6 +35,7 @@ export function check(options: CheckOptions): CheckResult {
     failOn: options.failOn,
     warnOn: options.warnOn,
     duplicates: options.duplicates,
+    refPatterns: options.refPatterns,
   });
 
   return {

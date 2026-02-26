@@ -154,6 +154,7 @@ export const checkCommand = define({
       failOn,
       warnOn,
       duplicates,
+      refPatterns: config.refPatterns,
     });
 
     const output = formatVerifyOutput({

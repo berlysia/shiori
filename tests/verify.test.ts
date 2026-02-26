@@ -604,6 +604,22 @@ describe('verify', () => {
       assert.ok(hints.some((h) => h.includes('Duplicate ref')));
     });
 
+    it('shows hint for unrouted-ref', () => {
+      const records = [makeAnnotation({ ref: 'JIRA-999' })];
+      const registry: Registry = { 'JIRA-999': makeRegistryEntry() };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        refPatterns: [{ match: 'SUP-{id}' }],
+      });
+      const hints = formatActionHints(result);
+      assert.ok(hints.some((h) => h.includes('unrouted-ref')));
+      assert.ok(hints.some((h) => h.includes('refPatterns')));
+    });
+
     it('shows multiple hints for combined issues', () => {
       const records = [
         makeAnnotation({ ref: 'SUP-MISS' }),
@@ -629,6 +645,173 @@ describe('verify', () => {
       assert.ok(hints.some((h) => h.includes('unused-in-source')));
       assert.ok(hints.some((h) => h.includes('expired')));
       assert.ok(hints.some((h) => h.includes('syntax-error')));
+    });
+  });
+
+  describe('unrouted-ref', () => {
+    const refPatterns = [{ match: 'SUP-{id}' }, { match: 'ADR:{id}' }];
+
+    it('does not detect unrouted-ref when refPatterns is undefined', () => {
+      const records = [makeAnnotation({ ref: 'UNKNOWN-001' })];
+      const registry: Registry = { 'UNKNOWN-001': makeRegistryEntry() };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+      });
+      const unrouted = result.issues.filter((i) => i.type === 'unrouted-ref');
+      assert.equal(unrouted.length, 0);
+    });
+
+    it('does not detect unrouted-ref when refPatterns is empty', () => {
+      const records = [makeAnnotation({ ref: 'UNKNOWN-001' })];
+      const registry: Registry = { 'UNKNOWN-001': makeRegistryEntry() };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        refPatterns: [],
+      });
+      const unrouted = result.issues.filter((i) => i.type === 'unrouted-ref');
+      assert.equal(unrouted.length, 0);
+    });
+
+    it('does not detect unrouted-ref for matching refs', () => {
+      const records = [
+        makeAnnotation({ ref: 'SUP-1234' }),
+        makeAnnotation({ ref: 'ADR:0007' }),
+      ];
+      const registry: Registry = {
+        'SUP-1234': makeRegistryEntry(),
+        'ADR:0007': makeRegistryEntry(),
+      };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        refPatterns,
+      });
+      const unrouted = result.issues.filter((i) => i.type === 'unrouted-ref');
+      assert.equal(unrouted.length, 0);
+    });
+
+    it('detects unrouted-ref for non-matching refs', () => {
+      const records = [makeAnnotation({ ref: 'JIRA-999' })];
+      const registry: Registry = { 'JIRA-999': makeRegistryEntry() };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        refPatterns,
+      });
+      const unrouted = result.issues.filter((i) => i.type === 'unrouted-ref');
+      assert.equal(unrouted.length, 1);
+      assert.equal(unrouted[0]!.ref, 'JIRA-999');
+      assert.ok(unrouted[0]!.message.includes('does not match'));
+    });
+
+    it('skips empty refs', () => {
+      const records = [makeAnnotation({ ref: '' })];
+      const result = verify({
+        records,
+        registry: {},
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        refPatterns,
+      });
+      const unrouted = result.issues.filter((i) => i.type === 'unrouted-ref');
+      assert.equal(unrouted.length, 0);
+    });
+
+    it('skips ignored annotations', () => {
+      const records = [makeAnnotation({ ref: 'JIRA-999', ignored: true })];
+      const result = verify({
+        records,
+        registry: {},
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        refPatterns,
+      });
+      const unrouted = result.issues.filter((i) => i.type === 'unrouted-ref');
+      assert.equal(unrouted.length, 0);
+    });
+
+    it('deduplicates unrouted-ref issues by ref', () => {
+      const records = [
+        makeAnnotation({
+          ref: 'JIRA-999',
+          location: { file: 'a.ts', line: 1 },
+        }),
+        makeAnnotation({
+          ref: 'JIRA-999',
+          location: { file: 'b.ts', line: 2 },
+        }),
+      ];
+      const registry: Registry = { 'JIRA-999': makeRegistryEntry() };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        refPatterns,
+      });
+      const unrouted = result.issues.filter((i) => i.type === 'unrouted-ref');
+      assert.equal(unrouted.length, 1);
+    });
+
+    it('defaults to warning severity', () => {
+      const records = [makeAnnotation({ ref: 'JIRA-999' })];
+      const registry: Registry = { 'JIRA-999': makeRegistryEntry() };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        refPatterns,
+      });
+      const unrouted = result.issues.filter((i) => i.type === 'unrouted-ref');
+      assert.equal(unrouted[0]!.severity, 'warning');
+    });
+
+    it('respects failOn for error severity', () => {
+      const records = [makeAnnotation({ ref: 'JIRA-999' })];
+      const registry: Registry = { 'JIRA-999': makeRegistryEntry() };
+      const result = verify({
+        records,
+        registry,
+        failOn: ['unrouted-ref'],
+        warnOn: [],
+        now: referenceDate,
+        refPatterns,
+      });
+      const unrouted = result.issues.filter((i) => i.type === 'unrouted-ref');
+      assert.equal(unrouted[0]!.severity, 'error');
+    });
+
+    it('includes unrouted-ref in summary byType', () => {
+      const records = [makeAnnotation({ ref: 'JIRA-999' })];
+      const registry: Registry = { 'JIRA-999': makeRegistryEntry() };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        refPatterns,
+      });
+      assert.equal(result.summary.byType['unrouted-ref'], 1);
     });
   });
 

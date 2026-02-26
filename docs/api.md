@@ -140,7 +140,8 @@ type VerifyIssueType =
   | 'expired'
   | 'syntax-error'
   | 'ref-format'
-  | 'ref-collision';
+  | 'ref-collision'
+  | 'unrouted-ref';
 
 type IssueSeverity = 'error' | 'warning';
 ```

@@ -106,6 +106,7 @@ export const verifyCommand = define({
       failOn,
       warnOn,
       duplicates,
+      refPatterns: config.refPatterns,
     });
 
     const output = formatVerifyOutput({

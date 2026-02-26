@@ -72,7 +72,8 @@ export type VerifyIssueType =
   | 'expired'
   | 'syntax-error'
   | 'ref-format'
-  | 'ref-collision';
+  | 'ref-collision'
+  | 'unrouted-ref';
 
 /** Issue severity */
 export type IssueSeverity = 'error' | 'warning';

@@ -7,7 +7,9 @@ import type {
   VerifyResult,
 } from '../core/types.ts';
 import type { RegistryDuplicateWarning } from '../core/registry.ts';
+import type { RefPatternConfig } from '../core/ref-pattern.ts';
 import { isValidRef } from '../core/ref-validation.ts';
+import { matchRefPattern } from '../core/ref-pattern.ts';
 
 export type { OutputFormat } from '../formatters/types.ts';
 
@@ -24,6 +26,8 @@ export interface VerifyOptions {
   now?: Date;
   /** Registry duplicate warnings from multi-registry loading */
   duplicates?: RegistryDuplicateWarning[];
+  /** Pattern-based ref routing configuration (ADR 012) */
+  refPatterns?: RefPatternConfig[];
 }
 
 function determineSeverity(
@@ -44,6 +48,7 @@ function buildSummary(issues: VerifyIssue[]): VerifyResult['summary'] {
     'syntax-error': 0,
     'ref-format': 0,
     'ref-collision': 0,
+    'unrouted-ref': 0,
   };
   let errors = 0;
   let warnings = 0;
@@ -116,6 +121,26 @@ export function verify(options: VerifyOptions): VerifyResult {
         file: record.location.file,
         line: record.location.line,
       });
+    }
+  }
+
+  // Check unrouted-ref (ADR 012: refs that don't match any configured pattern, deduplicate by ref)
+  if (options.refPatterns && options.refPatterns.length > 0) {
+    const reportedUnrouted = new Set<string>();
+    for (const record of records) {
+      if (record.ref === '' || record.ignored) continue;
+      if (reportedUnrouted.has(record.ref)) continue;
+      if (!matchRefPattern(record.ref, options.refPatterns)) {
+        reportedUnrouted.add(record.ref);
+        issues.push({
+          type: 'unrouted-ref',
+          severity: determineSeverity('unrouted-ref', failOn, warnOn),
+          ref: record.ref,
+          message: `Ref "${record.ref}" does not match any configured refPatterns`,
+          file: record.location.file,
+          line: record.location.line,
+        });
+      }
     }
   }
 
@@ -238,6 +263,11 @@ export function formatActionHints(result: VerifyResult): string[] {
   if (byType['ref-collision'] > 0) {
     hints.push(
       `  ref-collision (${byType['ref-collision']}): Duplicate ref across registry files. Move the entry to a single registry, or use distinct refs.`,
+    );
+  }
+  if (byType['unrouted-ref'] > 0) {
+    hints.push(
+      `  unrouted-ref (${byType['unrouted-ref']}): Ref does not match any refPatterns in config. Add a matching pattern or rename the ref.`,
     );
   }
 

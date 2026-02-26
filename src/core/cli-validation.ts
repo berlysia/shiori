@@ -8,6 +8,7 @@ const VALID_ISSUE_TYPES: readonly string[] = [
   'syntax-error',
   'ref-format',
   'ref-collision',
+  'unrouted-ref',
 ];
 
 const VALID_OUTPUT_FORMATS: readonly string[] = [
