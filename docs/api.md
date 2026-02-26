@@ -141,7 +141,8 @@ type VerifyIssueType =
   | 'syntax-error'
   | 'ref-format'
   | 'ref-collision'
-  | 'unrouted-ref';
+  | 'unrouted-ref'
+  | 'registry-routing-mismatch';
 
 type IssueSeverity = 'error' | 'warning';
 ```

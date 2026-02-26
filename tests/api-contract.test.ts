@@ -1,5 +1,96 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+
+const ROOT = resolve(import.meta.dirname, '..');
+
+/**
+ * Read package.json exports and return normalized export specifiers.
+ * Returns an array of export paths like [".", "./core/ref-pattern", "./commands/show"].
+ */
+async function getPackageExports(): Promise<string[]> {
+  const raw = await readFile(resolve(ROOT, 'package.json'), 'utf-8');
+  const pkg = JSON.parse(raw);
+  return Object.keys(pkg.exports ?? {});
+}
+
+/**
+ * Read docs/api.md content.
+ */
+async function getApiDoc(): Promise<string> {
+  return readFile(resolve(ROOT, 'docs/api.md'), 'utf-8');
+}
+
+/**
+ * Convert a package.json export specifier to the expected import path
+ * as it would appear in docs/api.md.
+ *
+ * "." → "@berlysia/shiori"
+ * "./core/ref-pattern" → "@berlysia/shiori/core/ref-pattern"
+ */
+function exportToImportPath(exportPath: string, packageName: string): string {
+  if (exportPath === '.') return packageName;
+  return `${packageName}/${exportPath.replace(/^\.\//, '')}`;
+}
+
+describe('API contract: package.json exports ↔ docs/api.md', () => {
+  it('every package.json export specifier is documented in docs/api.md', async () => {
+    const exports = await getPackageExports();
+    const doc = await getApiDoc();
+    const raw = await readFile(resolve(ROOT, 'package.json'), 'utf-8');
+    const pkg = JSON.parse(raw);
+    const packageName: string = pkg.name;
+
+    const undocumented: string[] = [];
+    for (const exportPath of exports) {
+      const importPath = exportToImportPath(exportPath, packageName);
+      if (!doc.includes(importPath)) {
+        undocumented.push(
+          `Export "${exportPath}" (import as "${importPath}") is not documented in docs/api.md`,
+        );
+      }
+    }
+
+    assert.equal(
+      undocumented.length,
+      0,
+      `Undocumented exports found:\n${undocumented.join('\n')}`,
+    );
+  });
+
+  it('every export entry points to an existing source file', async () => {
+    const raw = await readFile(resolve(ROOT, 'package.json'), 'utf-8');
+    const pkg = JSON.parse(raw);
+    const exports: Record<string, Record<string, string>> = pkg.exports ?? {};
+
+    const missing: string[] = [];
+    for (const [specifier, conditions] of Object.entries(exports)) {
+      // Check 'import' condition (the actual JS entry point)
+      const importPath = conditions.import;
+      if (importPath) {
+        // Derive the source file from the dist path
+        // dist/src/core/types.js → src/core/types.ts
+        const sourcePath = importPath
+          .replace(/^\.\/dist\//, './')
+          .replace(/\.js$/, '.ts');
+        try {
+          await readFile(resolve(ROOT, sourcePath), 'utf-8');
+        } catch {
+          missing.push(
+            `Export "${specifier}" → source "${sourcePath}" does not exist`,
+          );
+        }
+      }
+    }
+
+    assert.equal(
+      missing.length,
+      0,
+      `Missing source files for exports:\n${missing.join('\n')}`,
+    );
+  });
+});
 
 describe('API contract: @berlysia/shiori (core types)', () => {
   it('exports all public types and interfaces', async () => {
