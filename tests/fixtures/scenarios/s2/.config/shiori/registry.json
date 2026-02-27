@@ -1,0 +1,6 @@
+{
+  "SUP-100": {
+    "reason": "debug logging",
+    "target": "all"
+  }
+}

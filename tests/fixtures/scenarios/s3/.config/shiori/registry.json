@@ -1,0 +1,10 @@
+{
+  "SUP-200": {
+    "reason": "active annotation",
+    "target": "all"
+  },
+  "SUP-STALE": {
+    "reason": "removed from source but not registry",
+    "target": "all"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "ADR:0007": {
+    "reason": "architectural decision",
+    "target": "all"
+  },
+  "UNKNOWN-999": {
+    "reason": "unrouted namespace",
+    "target": "all"
+  },
+  "SUP-500": {
+    "reason": "standard suppression",
+    "target": "all"
+  }
+}

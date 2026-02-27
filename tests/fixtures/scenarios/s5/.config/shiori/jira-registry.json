@@ -1,0 +1,10 @@
+{
+  "JIRA-100": {
+    "reason": "jira ticket tracking",
+    "target": "all"
+  },
+  "JIRA-DUP": {
+    "reason": "duplicated in jira registry",
+    "target": "all"
+  }
+}
