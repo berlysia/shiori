@@ -355,7 +355,7 @@ shiori exposes typed exports for editor extensions, CI tooling, and custom integ
 
 ## CI Integration
 
-### GitHub Actions
+### GitHub Actions — Basic
 
 ```yaml
 name: Annotation Registry Check
@@ -378,6 +378,79 @@ jobs:
         if: always()
         run: npx shiori check -f markdown -o report.md
 ```
+
+### GitHub Code Scanning (SARIF)
+
+Upload shiori results to [GitHub Code Scanning](https://docs.github.com/en/code-security/code-scanning) so that annotation issues appear as inline PR annotations alongside other static analysis results.
+
+```yaml
+name: shiori Code Scanning
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  shiori:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write # Required for upload-sarif
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+
+      - name: Run shiori check (SARIF)
+        run: npx shiori check --format sarif --fail-on missing-in-registry,expired > shiori.sarif
+
+      - name: Upload SARIF to GitHub Code Scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: shiori.sarif
+          category: shiori
+```
+
+> **Note:** The `security-events: write` permission is required for SARIF upload. The `category: shiori` field prevents shiori results from overwriting results from other tools (e.g. CodeQL).
+
+### Severity Mapping
+
+All issue types default to `warning`. Use `--fail-on` and `--warn-on` to control severity levels and CI exit codes:
+
+```bash
+# Fail CI on missing refs and expired entries; warn on everything else
+shiori check --fail-on missing-in-registry,expired
+
+# Treat unused-in-source as warnings explicitly (this is the default)
+shiori check --fail-on expired --warn-on unused-in-source
+```
+
+In SARIF output, `error` severity maps to ❌ error annotations and `warning` maps to ⚠️ warning annotations in the GitHub Code Scanning UI.
+
+| Issue type                  | Default severity | Description                                   |
+| --------------------------- | ---------------- | --------------------------------------------- |
+| `missing-in-registry`       | warning          | Ref in source but not in registry             |
+| `unused-in-source`          | warning          | Ref in registry but not in source             |
+| `expired`                   | warning          | Registry entry past its `expires` date        |
+| `syntax-error`              | warning          | Annotation with `shiori:` but invalid syntax  |
+| `ref-format`                | warning          | Annotation ref has invalid format             |
+| `ref-collision`             | warning          | Ref defined in multiple registry files        |
+| `unrouted-ref`              | warning          | Ref doesn't match any routing pattern         |
+| `registry-routing-mismatch` | warning          | Registry entry in wrong file per routing rule |
+
+### Output Formats
+
+shiori supports multiple output formats for different integration targets:
+
+| Format     | Flag                | Use case                                      |
+| ---------- | ------------------- | --------------------------------------------- |
+| `json`     | `-f json` (default) | Programmatic consumption, custom scripts      |
+| `markdown` | `-f markdown`       | Human-readable reports, PR comments           |
+| `sarif`    | `-f sarif`          | GitHub Code Scanning, VS Code SARIF Viewer    |
+| `summary`  | `-f summary`        | Dashboard metrics, monitoring (Datadog, etc.) |
+| `jsonl`    | `-f jsonl`          | Log aggregation, streaming pipelines          |
 
 ## Requirements
 
