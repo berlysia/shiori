@@ -16,6 +16,13 @@ import {
   DEFAULT_SCAN_IGNORE,
 } from '../core/scan-defaults.ts';
 import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
+import {
+  CI_TEMPLATE_KINDS,
+  CI_TEMPLATE_LABELS,
+  CI_TEMPLATE_PATHS,
+  generateCiWorkflow,
+  type CiTemplateKind,
+} from './init-ci-templates.ts';
 
 const GITIGNORE_ENTRY = '.config/shiori/scan-result.json';
 
@@ -29,7 +36,16 @@ export const initCommand = define({
   shiori init --registry custom-registry.yaml
 
   # Initialize with custom scan patterns
-  shiori init -p "src/**/*.ts"`,
+  shiori init -p "src/**/*.ts"
+
+  # Generate GitHub Actions workflow (basic check)
+  shiori init --ci basic
+
+  # Generate delta PR comment workflow
+  shiori init --ci delta-pr-comment
+
+  # CI-only mode (skip project init, just generate workflow)
+  shiori init --ci sarif --ci-only`,
   rendering: { header: null },
   args: {
     patterns: {
@@ -59,126 +75,202 @@ export const initCommand = define({
       description:
         'Path to config directory (YAML/JSON auto-detected). Default: <cwd>/.config/shiori',
     },
+    ci: {
+      type: 'string',
+      description: `Generate a GitHub Actions workflow. Template: ${CI_TEMPLATE_KINDS.join(', ')}`,
+    },
+    ciOnly: {
+      type: 'boolean',
+      toKebab: true,
+      description:
+        'Skip project initialization, only generate CI workflow file. Requires --ci.',
+    },
   },
   run: async (ctx) => {
     const cwd = ctx.values.cwd ?? process.cwd();
-    const config = await loadConfig(cwd, ctx.values.config);
     const steps: string[] = [];
 
-    // Validate all write targets are within cwd before any I/O
-    const configDir = join(cwd, '.config', 'shiori');
-    const scanResultPath = resolve(cwd, config.paths.scanResult);
-    const registryPath = ctx.values.registry
-      ? resolve(cwd, ctx.values.registry)
-      : join(cwd, DEFAULT_REGISTRY_PATH);
-    const gitignorePath = join(cwd, '.gitignore');
-
-    // Validate all write targets are within cwd before any I/O
-    try {
-      await assertWithinCwd(configDir, cwd);
-      await assertWithinCwd(scanResultPath, cwd);
-      await assertWithinCwd(registryPath, cwd);
-      await assertWithinCwd(gitignorePath, cwd);
-    } catch (err) {
-      if (err instanceof PathBoundaryError) {
-        console.error(`Error: ${err.message}`);
-        process.exitCode = 1;
-        return;
+    // Validate --ci value early
+    const ciKind = ctx.values.ci as CiTemplateKind | undefined;
+    if (ciKind !== undefined && !CI_TEMPLATE_KINDS.includes(ciKind)) {
+      console.error(
+        `Error: Invalid --ci value "${ciKind}". Valid values: ${CI_TEMPLATE_KINDS.join(', ')}`,
+      );
+      for (const [kind, label] of Object.entries(CI_TEMPLATE_LABELS)) {
+        console.error(`  ${kind}: ${label}`);
       }
-      throw err;
+      process.exitCode = 1;
+      return;
     }
 
-    // 1. Create config directory and config.yaml
-    const existingConfig = await findExistingConfig(configDir);
-    if (existingConfig) {
+    // --ci-only requires --ci
+    if (ctx.values.ciOnly && !ciKind) {
+      console.error('Error: --ci-only requires --ci <template>');
+      process.exitCode = 1;
+      return;
+    }
+
+    // Skip project init if --ci-only
+    if (!ctx.values.ciOnly) {
+      const config = await loadConfig(cwd, ctx.values.config);
+
+      // Validate all write targets are within cwd before any I/O
+      const configDir = join(cwd, '.config', 'shiori');
+      const scanResultPath = resolve(cwd, config.paths.scanResult);
+      const registryPath = ctx.values.registry
+        ? resolve(cwd, ctx.values.registry)
+        : join(cwd, DEFAULT_REGISTRY_PATH);
+      const gitignorePath = join(cwd, '.gitignore');
+
+      // Validate all write targets are within cwd before any I/O
+      try {
+        await assertWithinCwd(configDir, cwd);
+        await assertWithinCwd(scanResultPath, cwd);
+        await assertWithinCwd(registryPath, cwd);
+        await assertWithinCwd(gitignorePath, cwd);
+      } catch (err) {
+        if (err instanceof PathBoundaryError) {
+          console.error(`Error: ${err.message}`);
+          process.exitCode = 1;
+          return;
+        }
+        throw err;
+      }
+
+      // 1. Create config directory and config.yaml
+      const existingConfig = await findExistingConfig(configDir);
+      if (existingConfig) {
+        steps.push(
+          `config: .config/shiori/${existingConfig} already exists, skipped`,
+        );
+      } else {
+        await mkdir(configDir, { recursive: true });
+        await writeFile(
+          join(configDir, 'config.yaml'),
+          CONFIG_YAML_TEMPLATE,
+          'utf-8',
+        );
+        steps.push('config: created .config/shiori/config.yaml');
+      }
+
+      // 2. Scan source files
+      const patterns = ctx.values.patterns
+        ? ctx.values.patterns.split(',').map((s: string) => s.trim())
+        : (config.scanPatterns ?? DEFAULT_SCAN_PATTERNS);
+
+      const ignore = ctx.values.ignore
+        ? ctx.values.ignore.split(',').map((s: string) => s.trim())
+        : (config.scanIgnore ?? DEFAULT_SCAN_IGNORE);
+
+      const provider = new CommentProvider();
+      const scanResult = await scan({
+        patterns,
+        ignore,
+        provider,
+        cwd,
+        providerOptions: { candidatePatterns: config.candidatePatterns },
+      });
       steps.push(
-        `config: .config/shiori/${existingConfig} already exists, skipped`,
+        `scan: ${scanResult.filesScanned} files, ${scanResult.annotations.length} annotation(s), ${scanResult.candidates.length} candidate(s)`,
       );
-    } else {
-      await mkdir(configDir, { recursive: true });
+
+      // Save scan result
+      await mkdir(dirname(scanResultPath), { recursive: true });
       await writeFile(
-        join(configDir, 'config.yaml'),
-        CONFIG_YAML_TEMPLATE,
+        scanResultPath,
+        JSON.stringify(scanResult, null, 2) + '\n',
         'utf-8',
       );
-      steps.push('config: created .config/shiori/config.yaml');
+
+      // 3. Generate registry
+      if (await fileExists(registryPath)) {
+        steps.push(
+          `registry: ${ctx.values.registry ?? DEFAULT_REGISTRY_PATH} already exists, skipped`,
+        );
+      } else {
+        const registry = initRegistry({ records: scanResult.annotations });
+        await mkdir(dirname(registryPath), { recursive: true });
+        await saveRegistry(registryPath, registry);
+        const entryCount = Object.keys(registry).length;
+        steps.push(
+          `registry: created ${ctx.values.registry ?? DEFAULT_REGISTRY_PATH} with ${entryCount} entries`,
+        );
+      }
+
+      // 4. Update .gitignore
+      if (await fileContainsLine(gitignorePath, GITIGNORE_ENTRY)) {
+        steps.push('gitignore: already contains scan-result entry, skipped');
+      } else {
+        const prefix = (await fileExists(gitignorePath)) ? '\n' : '';
+        await appendFile(
+          gitignorePath,
+          `${prefix}${GITIGNORE_ENTRY}\n`,
+          'utf-8',
+        );
+        steps.push('gitignore: added .config/shiori/scan-result.json');
+      }
     }
 
-    // 2. Scan source files
-    const patterns = ctx.values.patterns
-      ? ctx.values.patterns.split(',').map((s: string) => s.trim())
-      : (config.scanPatterns ?? DEFAULT_SCAN_PATTERNS);
+    // 5. Generate CI workflow (if --ci is specified)
+    if (ciKind) {
+      const workflowPath = resolve(cwd, CI_TEMPLATE_PATHS[ciKind]);
+      try {
+        await assertWithinCwd(workflowPath, cwd);
+      } catch (err) {
+        if (err instanceof PathBoundaryError) {
+          console.error(`Error: ${err.message}`);
+          process.exitCode = 1;
+          return;
+        }
+        throw err;
+      }
 
-    const ignore = ctx.values.ignore
-      ? ctx.values.ignore.split(',').map((s: string) => s.trim())
-      : (config.scanIgnore ?? DEFAULT_SCAN_IGNORE);
-
-    const provider = new CommentProvider();
-    const scanResult = await scan({
-      patterns,
-      ignore,
-      provider,
-      cwd,
-      providerOptions: { candidatePatterns: config.candidatePatterns },
-    });
-    steps.push(
-      `scan: ${scanResult.filesScanned} files, ${scanResult.annotations.length} annotation(s), ${scanResult.candidates.length} candidate(s)`,
-    );
-
-    // Save scan result
-    await mkdir(dirname(scanResultPath), { recursive: true });
-    await writeFile(
-      scanResultPath,
-      JSON.stringify(scanResult, null, 2) + '\n',
-      'utf-8',
-    );
-
-    // 3. Generate registry
-    if (await fileExists(registryPath)) {
-      steps.push(
-        `registry: ${ctx.values.registry ?? DEFAULT_REGISTRY_PATH} already exists, skipped`,
-      );
-    } else {
-      const registry = initRegistry({ records: scanResult.annotations });
-      await mkdir(dirname(registryPath), { recursive: true });
-      await saveRegistry(registryPath, registry);
-      const entryCount = Object.keys(registry).length;
-      steps.push(
-        `registry: created ${ctx.values.registry ?? DEFAULT_REGISTRY_PATH} with ${entryCount} entries`,
-      );
+      if (await fileExists(workflowPath)) {
+        steps.push(`ci: ${CI_TEMPLATE_PATHS[ciKind]} already exists, skipped`);
+      } else {
+        const content = generateCiWorkflow(ciKind);
+        await mkdir(dirname(workflowPath), { recursive: true });
+        await writeFile(workflowPath, content, 'utf-8');
+        steps.push(
+          `ci: created ${CI_TEMPLATE_PATHS[ciKind]} (${CI_TEMPLATE_LABELS[ciKind]})`,
+        );
+      }
     }
 
-    // 4. Update .gitignore
-    if (await fileContainsLine(gitignorePath, GITIGNORE_ENTRY)) {
-      steps.push('gitignore: already contains scan-result entry, skipped');
-    } else {
-      const prefix = (await fileExists(gitignorePath)) ? '\n' : '';
-      await appendFile(gitignorePath, `${prefix}${GITIGNORE_ENTRY}\n`, 'utf-8');
-      steps.push('gitignore: added .config/shiori/scan-result.json');
-    }
-
-    // 5. Summary
+    // 6. Summary
     console.error('shiori initialized:');
     for (const step of steps) {
       console.error(`  ${step}`);
     }
     console.error('');
     console.error('Next steps:');
-    console.error(
-      '  1. Review and fill in registry entries (reason, owner, expires):',
-    );
-    console.error('     .config/shiori/registry.json');
-    console.error(
-      '  2. Run "shiori check" to verify annotations match the registry',
-    );
-    console.error(
-      '  3. Fix issues: "shiori update" adds missing refs to the registry',
-    );
-    console.error(
-      '  4. Add "shiori check --fail-on missing-in-registry,expired" to CI',
-    );
-    console.error('');
-    console.error('Workflow: init → check → update → check → CI');
+    if (!ctx.values.ciOnly) {
+      console.error(
+        '  1. Review and fill in registry entries (reason, owner, expires):',
+      );
+      console.error('     .config/shiori/registry.json');
+      console.error(
+        '  2. Run "shiori check" to verify annotations match the registry',
+      );
+      console.error(
+        '  3. Fix issues: "shiori update" adds missing refs to the registry',
+      );
+    }
+    if (ciKind) {
+      console.error(
+        `  ${ctx.values.ciOnly ? '1' : '4'}. Review the generated workflow: ${CI_TEMPLATE_PATHS[ciKind]}`,
+      );
+      console.error(
+        `  ${ctx.values.ciOnly ? '2' : '5'}. Commit and push to enable CI`,
+      );
+    } else {
+      console.error(
+        '  4. Add "shiori check --fail-on missing-in-registry,expired" to CI',
+      );
+      console.error(
+        '     Or run "shiori init --ci basic" to generate a workflow',
+      );
+    }
     console.error('');
     console.error('Run "shiori docs" for full documentation.');
   },

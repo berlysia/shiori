@@ -5,6 +5,7 @@ import type {
   ShioriCandidate,
   VerifyResult,
   VerifyIssueType,
+  HealthLevel,
 } from '../core/types.ts';
 import { verify } from './verify.ts';
 import type { RegistryDuplicateWarning } from '../core/registry.ts';
@@ -26,8 +27,8 @@ export interface ReportOptions {
   refOrigins?: Map<string, string | null>;
 }
 
-/** Health assessment level */
-export type HealthLevel = 'healthy' | 'warning' | 'critical';
+// Re-export HealthLevel for backward compatibility
+export type { HealthLevel };
 
 /** A single governance insight */
 export interface ReportInsight {

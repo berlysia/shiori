@@ -148,3 +148,57 @@ export interface ComputeDeltaOptions {
   base: ScanResult;
   head: ScanResult;
 }
+
+// ── Trend types ──────────────────────────────────────────────
+
+/** A single data point in the governance score trend */
+export interface TrendPoint {
+  /** ISO timestamp from the ReportResult */
+  timestamp: string;
+  /** Health score (0-100) */
+  score: number;
+  /** Health level */
+  level: HealthLevel;
+  /** Total number of issues */
+  issues: number;
+  /** Total tracked annotations */
+  annotations: number;
+  /** Total untracked candidates */
+  candidates: number;
+  /** Total registry entries */
+  registryEntries: number;
+}
+
+/** Score change direction */
+export type TrendDirection = 'improving' | 'declining' | 'stable';
+
+/** Result of computing a governance score trend */
+export interface TrendResult {
+  /** Ordered data points (oldest first) */
+  points: TrendPoint[];
+  /** Summary of the trend */
+  summary: {
+    /** Number of data points */
+    count: number;
+    /** Oldest timestamp */
+    oldest: string;
+    /** Newest timestamp */
+    newest: string;
+    /** Latest score */
+    latestScore: number;
+    /** Score change from first to last point */
+    scoreChange: number;
+    /** Overall direction */
+    direction: TrendDirection;
+    /** Minimum score in the range */
+    minScore: number;
+    /** Maximum score in the range */
+    maxScore: number;
+  };
+}
+
+/** Health level for report */
+export type HealthLevel = 'healthy' | 'warning' | 'critical';
+
+/** Output format for trend command */
+export type TrendFormat = 'json' | 'markdown' | 'csv';
