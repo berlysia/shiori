@@ -23,6 +23,8 @@ jobs:
         if: matrix.node-version == 22
       - run: pnpm lint
         if: matrix.node-version == 22
+      - run: pnpm lint:boundaries
+        if: matrix.node-version == 22
       - run: pnpm format:check
         if: matrix.node-version == 22
       - run: pnpm test
