@@ -6,6 +6,11 @@ import { dirname, resolve } from 'node:path';
 import { saveRegistry } from '../core/registry.ts';
 import { loadConfigAndRegistry } from '../core/registry-loader.ts';
 import { loadScanResult } from '../core/scan-result-loader.ts';
+import {
+  assertAllWithinCwd,
+  assertWithinCwd,
+  PathBoundaryError,
+} from '../core/path-boundary.ts';
 import { routeRegistryByPattern, isValidRef } from './registry-generator.ts';
 import {
   planMigration,
@@ -155,8 +160,40 @@ export const migrateCommand = define({
       );
     }
 
-    // Apply file modifications
+    // Validate all write targets are within cwd (fail-fast before any I/O)
     const byFile = groupActionsByFile(result.actions);
+    const sourceFiles = [...byFile.keys()].map((file) => resolve(cwd, file));
+
+    const registryTargets: string[] = [registryPath];
+    if (config.refPatterns) {
+      const mergedForValidation = {
+        ...existingRegistry,
+        ...result.registry,
+      };
+      const routedForValidation = routeRegistryByPattern(
+        mergedForValidation,
+        config.refPatterns,
+      );
+      const basePath = dirname(resolve(registryPath));
+      for (const [target] of routedForValidation) {
+        if (target !== null) {
+          registryTargets.push(resolve(basePath, target));
+        }
+      }
+    }
+
+    try {
+      await assertAllWithinCwd([...sourceFiles, ...registryTargets], cwd);
+    } catch (err) {
+      if (err instanceof PathBoundaryError) {
+        console.error(`Error: ${err.message}`);
+        process.exitCode = 1;
+        return;
+      }
+      throw err;
+    }
+
+    // Apply file modifications (all paths validated above)
     let totalModified = 0;
     const allWarnings: string[] = [];
 
@@ -169,7 +206,7 @@ export const migrateCommand = define({
       allWarnings.push(...editResult.warnings);
     }
 
-    // Update registry
+    // Update registry (all paths validated above)
     const mergedRegistry = { ...existingRegistry, ...result.registry };
 
     if (config.refPatterns) {

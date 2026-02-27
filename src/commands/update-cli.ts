@@ -4,6 +4,7 @@ import { saveRegistry } from '../core/registry.ts';
 import { loadConfigAndRegistry } from '../core/registry-loader.ts';
 import { loadScanResult } from '../core/scan-result-loader.ts';
 import { initRegistry, routeRegistryByPattern } from './registry-generator.ts';
+import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
 
 export const updateCommand = define({
   name: 'update',
@@ -88,7 +89,27 @@ export const updateCommand = define({
       return;
     }
 
-    // Route entries by pattern if refPatterns are configured
+    // Validate all registry write targets are within cwd before any I/O
+    try {
+      await assertWithinCwd(registryPath, cwd);
+      if (config.refPatterns) {
+        const basePath = dirname(resolve(registryPath));
+        for (const pattern of config.refPatterns) {
+          if (pattern.registryFile) {
+            await assertWithinCwd(resolve(basePath, pattern.registryFile), cwd);
+          }
+        }
+      }
+    } catch (err) {
+      if (err instanceof PathBoundaryError) {
+        console.error(`Error: ${err.message}`);
+        process.exitCode = 1;
+        return;
+      }
+      throw err;
+    }
+
+    // Route entries by pattern if refPatterns are configured (all paths validated above)
     if (config.refPatterns) {
       const routed = routeRegistryByPattern(registry, config.refPatterns);
       const basePath = dirname(resolve(registryPath));
