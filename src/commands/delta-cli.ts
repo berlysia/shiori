@@ -1,9 +1,15 @@
 import { define } from 'gunshi';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
-import { computeDelta, formatDeltaAsJson } from './delta.ts';
+import { computeDelta } from './delta.ts';
 import type { ScanResult } from '../core/types.ts';
 import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
+import {
+  formatDeltaOutput,
+  type DeltaOutputFormat,
+} from '../formatters/index.ts';
+
+const DELTA_FORMATS: readonly DeltaOutputFormat[] = ['json', 'markdown'];
 
 export const deltaCommand = define({
   name: 'delta',
@@ -14,6 +20,9 @@ export const deltaCommand = define({
 
   # CI gate: fail if net annotations increased by more than 2
   shiori delta --base base-scan.json --head head-scan.json --max-increase 2
+
+  # Output as Markdown (for GitHub PR comments)
+  shiori delta --base base-scan.json --head head-scan.json --format markdown
 
   # Save delta report to file
   shiori delta --base base-scan.json --head head-scan.json -o delta-report.json`,
@@ -30,6 +39,11 @@ export const deltaCommand = define({
       short: 'h',
       description: 'Path to the head (after) scan result JSON file',
       required: true,
+    },
+    format: {
+      type: 'string',
+      short: 'f',
+      description: `Output format: ${DELTA_FORMATS.join(', ')} (default: json)`,
     },
     maxIncrease: {
       type: 'string',
@@ -61,6 +75,29 @@ export const deltaCommand = define({
       return;
     }
 
+    // Validate format
+    const format = (ctx.values.format ?? 'json') as DeltaOutputFormat;
+    if (!DELTA_FORMATS.includes(format)) {
+      console.error(
+        `Error: unsupported format "${ctx.values.format}". Supported: ${DELTA_FORMATS.join(', ')}`,
+      );
+      process.exitCode = 1;
+      return;
+    }
+
+    // Parse maxIncrease early so we can pass it to the formatter
+    let maxIncrease: number | undefined;
+    if (ctx.values.maxIncrease !== undefined) {
+      maxIncrease = Number(ctx.values.maxIncrease);
+      if (Number.isNaN(maxIncrease) || maxIncrease < 0) {
+        console.error(
+          `Error: --max-increase must be a non-negative integer, got "${ctx.values.maxIncrease}"`,
+        );
+        process.exitCode = 1;
+        return;
+      }
+    }
+
     // Load base and head scan results
     const basePath = resolve(cwd, ctx.values.base);
     const headPath = resolve(cwd, ctx.values.head);
@@ -90,7 +127,11 @@ export const deltaCommand = define({
     // Compute delta
     const deltaResult = computeDelta({ base: baseScan, head: headScan });
 
-    const output = formatDeltaAsJson(deltaResult);
+    const output = formatDeltaOutput({
+      format,
+      deltaResult,
+      maxIncrease,
+    });
 
     // Write output
     if (ctx.values.output) {
@@ -118,15 +159,7 @@ export const deltaCommand = define({
     );
 
     // CI gate: --max-increase
-    if (ctx.values.maxIncrease !== undefined) {
-      const maxIncrease = Number(ctx.values.maxIncrease);
-      if (Number.isNaN(maxIncrease) || maxIncrease < 0) {
-        console.error(
-          `Error: --max-increase must be a non-negative integer, got "${ctx.values.maxIncrease}"`,
-        );
-        process.exitCode = 1;
-        return;
-      }
+    if (maxIncrease !== undefined) {
       if (deltaResult.summary.net > maxIncrease) {
         console.error(
           `Error: Net annotation increase (${deltaResult.summary.net}) exceeds maximum allowed (${maxIncrease})`,
