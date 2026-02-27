@@ -15,7 +15,7 @@ import {
 } from '../core/scan-defaults.ts';
 import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
 
-const VALID_REPORT_FORMATS: readonly string[] = ['json', 'markdown'];
+const VALID_REPORT_FORMATS: readonly string[] = ['json', 'markdown', 'badge'];
 
 export const reportCommand = define({
   name: 'report',
@@ -25,6 +25,9 @@ export const reportCommand = define({
 
   # Generate Markdown report to file
   shiori report -f markdown -o report.md
+
+  # Generate shields.io badge JSON
+  shiori report -f badge -o badge.json
 
   # Include issue types in fail-on for exit code
   shiori report --fail-on expired,missing-in-registry`,
@@ -63,7 +66,8 @@ export const reportCommand = define({
     format: {
       type: 'string',
       short: 'f',
-      description: 'Output format: "json", "markdown". Default: "json"',
+      description:
+        'Output format: "json", "markdown", "badge" (shields.io endpoint). Default: "json"',
       default: 'json',
     },
     output: {

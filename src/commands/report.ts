@@ -81,7 +81,7 @@ export interface ReportResult {
 }
 
 /** Report output format */
-export type ReportFormat = 'json' | 'markdown';
+export type ReportFormat = 'json' | 'markdown' | 'badge';
 
 /**
  * Generate a governance report from scan result and registry.
@@ -434,6 +434,49 @@ export function formatReportAsMarkdown(result: ReportResult): string {
 }
 
 /**
+ * Shields.io endpoint badge JSON structure.
+ * @see https://shields.io/endpoint
+ */
+export interface ShieldsBadge {
+  /** Must be 1 */
+  schemaVersion: 1;
+  /** Left side text */
+  label: string;
+  /** Right side text (score display) */
+  message: string;
+  /** Badge color based on health level */
+  color: 'brightgreen' | 'yellow' | 'red';
+}
+
+/**
+ * Map health level to shields.io color.
+ */
+function healthColor(level: HealthLevel): ShieldsBadge['color'] {
+  switch (level) {
+    case 'healthy':
+      return 'brightgreen';
+    case 'warning':
+      return 'yellow';
+    case 'critical':
+      return 'red';
+  }
+}
+
+/**
+ * Format a ReportResult as shields.io endpoint badge JSON.
+ * Pure function — no I/O.
+ */
+export function formatReportAsBadge(result: ReportResult): string {
+  const badge: ShieldsBadge = {
+    schemaVersion: 1,
+    label: 'governance',
+    message: `${result.health.score}/100`,
+    color: healthColor(result.health.level),
+  };
+  return JSON.stringify(badge, null, 2);
+}
+
+/**
  * Format report result for output.
  */
 export function formatReport(
@@ -443,6 +486,8 @@ export function formatReport(
   switch (format) {
     case 'markdown':
       return formatReportAsMarkdown(result);
+    case 'badge':
+      return formatReportAsBadge(result);
     default:
       return JSON.stringify(result, null, 2);
   }

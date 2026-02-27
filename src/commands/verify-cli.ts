@@ -116,7 +116,7 @@ export const verifyCommand = define({
       format,
       verifyResult: result,
       annotations: scanResult.annotations,
-      candidates: scanResult.candidates,
+      candidates: [],
       registry,
     });
 

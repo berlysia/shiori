@@ -12,6 +12,7 @@ import {
   formatReport,
   formatReportAsMarkdown,
   type ReportResult,
+  type ShieldsBadge,
 } from '../src/commands/report.ts';
 
 function makeAnnotation(
@@ -451,6 +452,16 @@ describe('formatReport', () => {
     assert.ok(output.includes('Health:'));
     assert.ok(output.includes('Overview'));
     assert.ok(output.includes('Insights'));
+  });
+
+  it('formats as badge (shields.io endpoint JSON)', () => {
+    const result = makeReportResult();
+    const output = formatReport(result, 'badge');
+    const badge = JSON.parse(output) as ShieldsBadge;
+    assert.equal(badge.schemaVersion, 1);
+    assert.equal(badge.label, 'governance');
+    assert.match(badge.message, /^\d+\/100$/);
+    assert.ok(['brightgreen', 'yellow', 'red'].includes(badge.color));
   });
 });
 
