@@ -415,6 +415,12 @@ jobs:
 
 > **Note:** The `security-events: write` permission is required for SARIF upload. The `category: shiori` field prevents shiori results from overwriting results from other tools (e.g. CodeQL).
 
+### Delta PR Comment
+
+Post annotation diffs as PR comments using `shiori delta`. Compares the main branch baseline against the PR head to surface added/removed annotations directly in the pull request.
+
+See [Delta PR Comment recipe](docs/recipes/github-actions-delta-pr-comment.md) for the full workflow with artifact caching, `--base-fallback-empty` for initial PRs, and optional `--max-increase` CI gate.
+
 ### Severity Mapping
 
 All issue types default to `warning`. Use `--fail-on` and `--warn-on` to control severity levels and CI exit codes:
