@@ -1,0 +1,40 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "shiori: Jump to ref from alert",
+      "type": "shell",
+      "command": "docs/recipes/alert-to-ref.sh",
+      "args": ["${input:repo}", "${input:alertNumber}"],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "new"
+      }
+    },
+    {
+      "label": "shiori: Verify (SARIF)",
+      "type": "shell",
+      "command": "shiori",
+      "args": ["verify", "--format", "sarif"],
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always"
+      }
+    }
+  ],
+  "inputs": [
+    {
+      "id": "repo",
+      "type": "promptString",
+      "description": "Repository (owner/repo)",
+      "default": ""
+    },
+    {
+      "id": "alertNumber",
+      "type": "promptString",
+      "description": "Code Scanning alert number",
+      "default": ""
+    }
+  ]
+}
