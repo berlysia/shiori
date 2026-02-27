@@ -12,6 +12,7 @@ import { docsCommand } from './commands/docs-cli.ts';
 import { jumpCommand } from './commands/jump-cli.ts';
 import { watchCommand } from './commands/watch-cli.ts';
 import { migrateCommand } from './commands/migrate-cli.ts';
+import { reportCommand } from './commands/report-cli.ts';
 
 const main = define({
   name: 'shiori',
@@ -39,6 +40,7 @@ const main = define({
 Workflow:
   shiori init                    Set up shiori in your project
   shiori check                   Scan and verify against registry
+  shiori report                  Generate governance health report
   shiori update                  Add new refs to the registry
   shiori migrate                 Auto-migrate lint disable comments
   shiori watch                   Refresh scan result on each save
@@ -74,6 +76,7 @@ try {
       show: showCommand,
       jump: jumpCommand,
       watch: watchCommand,
+      report: reportCommand,
       docs: docsCommand,
     },
   });
