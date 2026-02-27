@@ -1,4 +1,8 @@
-import type { IssueSeverity, VerifyResult } from '../core/types.ts';
+import type {
+  IssueSeverity,
+  VerifyIssueType,
+  VerifyResult,
+} from '../core/types.ts';
 
 interface SarifLocation {
   physicalLocation: {
@@ -40,13 +44,17 @@ function mapSeverity(severity: IssueSeverity): string {
   return severity === 'error' ? 'error' : 'warning';
 }
 
-const RULE_DESCRIPTIONS: Record<string, string> = {
+const RULE_DESCRIPTIONS: Record<VerifyIssueType, string> = {
   'missing-in-registry': 'Annotation ref found in source but not in registry',
   'unused-in-source': 'Registry entry not found in source annotations',
   expired: 'Registry entry has passed its expiration date',
   'syntax-error': 'Annotation has syntax errors',
   'ref-format': 'Annotation ref has invalid format',
   'ref-collision': 'Ref defined in multiple registry files',
+  'unrouted-ref':
+    'Annotation ref does not match any configured routing pattern',
+  'registry-routing-mismatch':
+    'Registry entry exists in a file that does not match its routing pattern',
 };
 
 /**
@@ -58,6 +66,8 @@ export function formatAsSarif(result: VerifyResult): string {
   const rules: SarifRule[] = ruleIds.map((id) => ({
     id,
     shortDescription: {
+      // Fallback to raw id for runtime safety if VerifyIssueType is extended
+      // before RULE_DESCRIPTIONS is updated (should not happen with Record<VerifyIssueType, string>)
       text: RULE_DESCRIPTIONS[id] ?? id,
     },
   }));

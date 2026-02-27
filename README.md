@@ -229,6 +229,10 @@ Detects:
 - **unused-in-source** — ref in registry but not in source
 - **expired** — Registry entry past its `expires` date
 - **syntax-error** — Annotation with `shiori:` marker but invalid syntax
+- **ref-format** — Annotation ref has invalid format
+- **ref-collision** — Ref defined in multiple registry files
+- **unrouted-ref** — Annotation ref does not match any configured routing pattern
+- **registry-routing-mismatch** — Registry entry in a file that does not match its routing pattern
 
 Options:
 

@@ -177,6 +177,94 @@ describe('formatAsSarif', () => {
     ]);
   });
 
+  it('includes shortDescription for registry-routing-mismatch', () => {
+    const result = makeResult({
+      issues: [
+        {
+          type: 'registry-routing-mismatch',
+          severity: 'warning',
+          ref: 'JIRA-123',
+          message:
+            'Ref "JIRA-123" is in default but pattern "JIRA-*" routes to jira-registry.json',
+          file: undefined,
+          line: undefined,
+        },
+      ],
+    });
+    const sarif = JSON.parse(formatAsSarif(result)) as {
+      runs: Array<{
+        tool: {
+          driver: {
+            rules: Array<{ id: string; shortDescription: { text: string } }>;
+          };
+        };
+      }>;
+    };
+    const rule = sarif.runs[0]!.tool.driver.rules.find(
+      (r) => r.id === 'registry-routing-mismatch',
+    );
+    assert.ok(rule, 'rule should exist');
+    assert.equal(
+      rule.shortDescription.text,
+      'Registry entry exists in a file that does not match its routing pattern',
+    );
+  });
+
+  it('includes shortDescription for unrouted-ref', () => {
+    const result = makeResult({
+      issues: [
+        {
+          type: 'unrouted-ref',
+          severity: 'warning',
+          ref: 'UNKNOWN-001',
+          message:
+            'Ref "UNKNOWN-001" does not match any configured routing pattern',
+          file: 'src/foo.ts',
+          line: 10,
+        },
+      ],
+    });
+    const sarif = JSON.parse(formatAsSarif(result)) as {
+      runs: Array<{
+        tool: {
+          driver: {
+            rules: Array<{ id: string; shortDescription: { text: string } }>;
+          };
+        };
+      }>;
+    };
+    const rule = sarif.runs[0]!.tool.driver.rules.find(
+      (r) => r.id === 'unrouted-ref',
+    );
+    assert.ok(rule, 'rule should exist');
+    assert.equal(
+      rule.shortDescription.text,
+      'Annotation ref does not match any configured routing pattern',
+    );
+  });
+
+  it('omits locations for registry-routing-mismatch (file=undefined)', () => {
+    const result = makeResult({
+      issues: [
+        {
+          type: 'registry-routing-mismatch',
+          severity: 'warning',
+          ref: 'JIRA-456',
+          message:
+            'Ref "JIRA-456" is in default but pattern "JIRA-*" routes to jira-registry.json',
+          file: undefined,
+          line: undefined,
+        },
+      ],
+    });
+    const sarif = JSON.parse(formatAsSarif(result)) as {
+      runs: Array<{
+        results: Array<{ locations?: unknown[] }>;
+      }>;
+    };
+    assert.equal(sarif.runs[0]!.results[0]!.locations, undefined);
+  });
+
   it('uses issue type as ruleId', () => {
     const result = makeResult({
       issues: [
