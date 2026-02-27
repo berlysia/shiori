@@ -1,6 +1,6 @@
 import { define } from 'gunshi';
 import { mkdir, writeFile, appendFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { scan } from './scan.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
 import {
@@ -15,6 +15,7 @@ import {
   DEFAULT_SCAN_PATTERNS,
   DEFAULT_SCAN_IGNORE,
 } from '../core/scan-defaults.ts';
+import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
 
 const GITIGNORE_ENTRY = '.config/shiori/scan-result.json';
 
@@ -64,8 +65,30 @@ export const initCommand = define({
     const config = await loadConfig(cwd, ctx.values.config);
     const steps: string[] = [];
 
-    // 1. Create config directory and config.yaml
+    // Validate all write targets are within cwd before any I/O
     const configDir = join(cwd, '.config', 'shiori');
+    const scanResultPath = join(cwd, config.paths.scanResult);
+    const registryPath = ctx.values.registry
+      ? resolve(cwd, ctx.values.registry)
+      : join(cwd, DEFAULT_REGISTRY_PATH);
+    const gitignorePath = join(cwd, '.gitignore');
+
+    // Validate all write targets are within cwd before any I/O
+    try {
+      await assertWithinCwd(configDir, cwd);
+      await assertWithinCwd(scanResultPath, cwd);
+      await assertWithinCwd(registryPath, cwd);
+      await assertWithinCwd(gitignorePath, cwd);
+    } catch (err) {
+      if (err instanceof PathBoundaryError) {
+        console.error(`Error: ${err.message}`);
+        process.exitCode = 1;
+        return;
+      }
+      throw err;
+    }
+
+    // 1. Create config directory and config.yaml
     const existingConfig = await findExistingConfig(configDir);
     if (existingConfig) {
       steps.push(
@@ -103,7 +126,6 @@ export const initCommand = define({
     );
 
     // Save scan result
-    const scanResultPath = join(cwd, config.paths.scanResult);
     await mkdir(dirname(scanResultPath), { recursive: true });
     await writeFile(
       scanResultPath,
@@ -112,14 +134,13 @@ export const initCommand = define({
     );
 
     // 3. Generate registry
-    const registryPath =
-      ctx.values.registry ?? join(cwd, DEFAULT_REGISTRY_PATH);
     if (await fileExists(registryPath)) {
       steps.push(
         `registry: ${ctx.values.registry ?? DEFAULT_REGISTRY_PATH} already exists, skipped`,
       );
     } else {
       const registry = initRegistry({ records: scanResult.annotations });
+      await mkdir(dirname(registryPath), { recursive: true });
       await saveRegistry(registryPath, registry);
       const entryCount = Object.keys(registry).length;
       steps.push(
@@ -128,7 +149,6 @@ export const initCommand = define({
     }
 
     // 4. Update .gitignore
-    const gitignorePath = join(cwd, '.gitignore');
     if (await fileContainsLine(gitignorePath, GITIGNORE_ENTRY)) {
       steps.push('gitignore: already contains scan-result entry, skipped');
     } else {

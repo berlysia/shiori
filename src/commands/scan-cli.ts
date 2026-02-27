@@ -1,10 +1,11 @@
 import { define } from 'gunshi';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { scan, formatScanResultForDisplay } from './scan.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
 import { loadConfig } from '../core/config.ts';
 import { validateProvider } from '../core/cli-validation.ts';
+import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
 import {
   DEFAULT_SCAN_PATTERNS,
   DEFAULT_SCAN_IGNORE,
@@ -77,6 +78,26 @@ export const scanCommand = define({
 
     const provider = new CommentProvider();
 
+    // Validate write targets before scanning (fail-fast)
+    const writeTarget = ctx.values.output
+      ? resolve(cwd, ctx.values.output)
+      : process.stdout.isTTY
+        ? join(cwd, config.paths.scanResult)
+        : undefined;
+
+    if (writeTarget) {
+      try {
+        await assertWithinCwd(writeTarget, cwd);
+      } catch (err) {
+        if (err instanceof PathBoundaryError) {
+          console.error(`Error: ${err.message}`);
+          process.exitCode = 1;
+          return;
+        }
+        throw err;
+      }
+    }
+
     const result = await scan({
       patterns,
       ignore,
@@ -87,10 +108,12 @@ export const scanCommand = define({
     const json = JSON.stringify(result, null, 2);
 
     if (ctx.values.output) {
-      // Explicit --output: write to specified path
-      await writeFile(ctx.values.output, json + '\n', 'utf-8');
+      // Explicit --output: write to specified path (resolved against cwd)
+      const outputPath = resolve(cwd, ctx.values.output);
+      await mkdir(dirname(outputPath), { recursive: true });
+      await writeFile(outputPath, json + '\n', 'utf-8');
       console.error(
-        `Wrote ${result.annotations.length} annotation(s) and ${result.candidates.length} candidate(s) to ${ctx.values.output}`,
+        `Wrote ${result.annotations.length} annotation(s) and ${result.candidates.length} candidate(s) to ${outputPath}`,
       );
       console.error(
         `Scanned ${result.filesScanned} files, found ${result.annotations.length} annotation(s), ${result.candidates.length} candidate(s)`,

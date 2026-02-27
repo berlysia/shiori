@@ -1,5 +1,5 @@
 import { access, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import { isNodeError } from './errors.ts';
 import type { RefPatternConfig } from './ref-pattern.ts';
@@ -140,7 +140,7 @@ export async function resolveRegistryPath(
   const candidates: { label: string; path: string }[] = [];
 
   if (explicitPath) {
-    return explicitPath;
+    return resolve(cwd, explicitPath);
   }
 
   if (config.paths.registry) {

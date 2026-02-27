@@ -1,6 +1,6 @@
 import { define } from 'gunshi';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import {
   loadConfigAndRegistry,
   reportRegistryIssues,
@@ -18,6 +18,7 @@ import {
   DEFAULT_SCAN_PATTERNS,
   DEFAULT_SCAN_IGNORE,
 } from '../core/scan-defaults.ts';
+import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
 
 export const checkCommand = define({
   name: 'check',
@@ -137,7 +138,17 @@ export const checkCommand = define({
 
     // Optionally save scan result
     if (ctx.values.saveScan) {
-      const scanOutputPath = join(cwd, config.paths.scanResult);
+      const scanOutputPath = resolve(cwd, config.paths.scanResult);
+      try {
+        await assertWithinCwd(scanOutputPath, cwd);
+      } catch (err) {
+        if (err instanceof PathBoundaryError) {
+          console.error(`Error: ${err.message}`);
+          process.exitCode = 1;
+          return;
+        }
+        throw err;
+      }
       await mkdir(dirname(scanOutputPath), { recursive: true });
       await writeFile(
         scanOutputPath,
@@ -167,8 +178,20 @@ export const checkCommand = define({
     });
 
     if (ctx.values.output) {
-      await writeFile(ctx.values.output, output + '\n', 'utf-8');
-      console.error(`Report written to ${ctx.values.output}`);
+      const outputPath = resolve(cwd, ctx.values.output);
+      try {
+        await assertWithinCwd(outputPath, cwd);
+      } catch (err) {
+        if (err instanceof PathBoundaryError) {
+          console.error(`Error: ${err.message}`);
+          process.exitCode = 1;
+          return;
+        }
+        throw err;
+      }
+      await mkdir(dirname(outputPath), { recursive: true });
+      await writeFile(outputPath, output + '\n', 'utf-8');
+      console.error(`Report written to ${outputPath}`);
     } else {
       console.log(output);
     }

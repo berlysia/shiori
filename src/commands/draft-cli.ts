@@ -1,8 +1,10 @@
 import { define } from 'gunshi';
-import { writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
 import { loadConfig } from '../core/config.ts';
 import { loadScanResult } from '../core/scan-result-loader.ts';
 import { listDrafts } from './draft.ts';
+import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
 
 export const draftCommand = define({
   name: 'draft',
@@ -53,8 +55,20 @@ export const draftCommand = define({
     const json = JSON.stringify(result, null, 2);
 
     if (ctx.values.output) {
-      await writeFile(ctx.values.output, json + '\n', 'utf-8');
-      console.error(`Wrote ${result.count} draft(s) to ${ctx.values.output}`);
+      const outputPath = resolve(cwd, ctx.values.output);
+      try {
+        await assertWithinCwd(outputPath, cwd);
+      } catch (err) {
+        if (err instanceof PathBoundaryError) {
+          console.error(`Error: ${err.message}`);
+          process.exitCode = 1;
+          return;
+        }
+        throw err;
+      }
+      await mkdir(dirname(outputPath), { recursive: true });
+      await writeFile(outputPath, json + '\n', 'utf-8');
+      console.error(`Wrote ${result.count} draft(s) to ${outputPath}`);
     } else {
       console.log(json);
     }

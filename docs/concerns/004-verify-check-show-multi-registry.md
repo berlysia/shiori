@@ -1,6 +1,6 @@
 ---
 status: Done
-resolved_at: 2025-02-26
+resolved_at: 2026-02-26
 resolved_by: architect (verification), engineer (status update)
 ---
 

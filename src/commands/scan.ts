@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import fg from 'fast-glob';
 import type {
   ShioriAnnotation,
@@ -115,7 +116,7 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
     const batch = files.slice(i, i + BATCH_SIZE);
     const results = await Promise.all(
       batch.map(async (filePath) => {
-        const absolutePath = `${options.cwd}/${filePath}`;
+        const absolutePath = join(options.cwd, filePath);
         const content = await readFile(absolutePath, 'utf-8');
         return options.provider.scan(
           { path: filePath, content },

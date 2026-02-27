@@ -1,5 +1,5 @@
 import { access, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import type { ScanResult } from './types.ts';
 import type { ResolvedConfig } from './config.ts';
 import { DEFAULT_SCAN_RESULT_PATH } from './config.ts';
@@ -28,9 +28,9 @@ export async function loadScanResult(
 ): Promise<ScanResult> {
   const { explicitPath, config, cwd } = options;
 
-  // 1. Explicit path
+  // 1. Explicit path (resolve relative paths against cwd)
   if (explicitPath && explicitPath !== '-') {
-    return readScanResultFile(explicitPath);
+    return readScanResultFile(resolve(cwd, explicitPath));
   }
 
   // 2. Explicit stdin request

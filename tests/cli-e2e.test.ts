@@ -11,8 +11,6 @@ import {
   rm,
 } from 'node:fs/promises';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
-
 const CLI_PATH = new URL('../dist/src/cli.js', import.meta.url).pathname;
 const PROJECT_ROOT = new URL('..', import.meta.url).pathname;
 
@@ -30,7 +28,11 @@ interface CliResult {
 }
 
 async function runCli(args: string[]): Promise<CliResult> {
-  const runDir = await mkdtemp(join(tmpdir(), 'shiori-cli-run-'));
+  // Use PROJECT_ROOT/.tmp/ for temporary stdout/stderr capture files
+  // so they stay within the project boundary
+  const tmpBase = join(PROJECT_ROOT, '.tmp', 'cli-run');
+  await mkdir(tmpBase, { recursive: true });
+  const runDir = await mkdtemp(join(tmpBase, 'run-'));
   const stdoutPath = join(runDir, 'stdout.log');
   const stderrPath = join(runDir, 'stderr.log');
   const stdoutFd = openSync(stdoutPath, 'w');
@@ -65,7 +67,10 @@ describe('CLI E2E', () => {
   let scanResultPath: string;
 
   before(async () => {
-    tmpDir = await mkdtemp(join(tmpdir(), 'shiori-e2e-'));
+    // Use PROJECT_ROOT/.tmp/ so output paths stay within cwd boundary
+    const tmpBase = join(PROJECT_ROOT, '.tmp', 'test-e2e');
+    await mkdir(tmpBase, { recursive: true });
+    tmpDir = await mkdtemp(join(tmpBase, 'run-'));
     scanResultPath = join(tmpDir, 'scan-result.json');
 
     // Pre-run scan and save result for verify/update/draft tests
@@ -825,7 +830,9 @@ describe('CLI E2E: multi-registry', () => {
   let multiDir: string;
 
   before(async () => {
-    multiDir = await mkdtemp(join(tmpdir(), 'shiori-multi-e2e-'));
+    const multiBase = join(PROJECT_ROOT, '.tmp', 'test-multi-e2e');
+    await mkdir(multiBase, { recursive: true });
+    multiDir = await mkdtemp(join(multiBase, 'run-'));
 
     // Create source file with annotations from different namespaces
     await mkdir(join(multiDir, 'src'), { recursive: true });
@@ -996,7 +1003,9 @@ describe('CLI E2E: multi-registry', () => {
 
   it('update reads merged multi-registry before writing', async () => {
     // Create a fresh copy for update test
-    const updateDir = await mkdtemp(join(tmpdir(), 'shiori-update-multi-'));
+    const updateMultiBase = join(PROJECT_ROOT, '.tmp', 'test-update-multi');
+    await mkdir(updateMultiBase, { recursive: true });
+    const updateDir = await mkdtemp(join(updateMultiBase, 'run-'));
     await mkdir(join(updateDir, 'src'), { recursive: true });
     await writeFile(
       join(updateDir, 'src', 'app.ts'),

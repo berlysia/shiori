@@ -11,6 +11,7 @@ import {
   DEFAULT_SCAN_PATTERNS,
   DEFAULT_SCAN_IGNORE,
 } from '../core/scan-defaults.ts';
+import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
 
 function parseList(value: string | undefined, fallback: string[]): string[] {
   if (!value) return fallback;
@@ -121,6 +122,32 @@ export const watchCommand = define({
     const registryRel = registryPath
       ? asRelativeNormalized(cwd, registryPath)
       : undefined;
+
+    // Validate all write targets are within cwd before any I/O
+    try {
+      await assertWithinCwd(outputPath, cwd);
+      if (registryPath) {
+        await assertWithinCwd(registryPath, cwd);
+        if (config.refPatterns) {
+          const basePath = dirname(resolve(registryPath));
+          for (const pattern of config.refPatterns) {
+            if (pattern.registryFile) {
+              await assertWithinCwd(
+                resolve(basePath, pattern.registryFile),
+                cwd,
+              );
+            }
+          }
+        }
+      }
+    } catch (err) {
+      if (err instanceof PathBoundaryError) {
+        console.error(`Error: ${err.message}`);
+        process.exitCode = 1;
+        return;
+      }
+      throw err;
+    }
 
     let ignoreEventsUntil = 0;
 

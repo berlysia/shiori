@@ -1,4 +1,4 @@
-import { resolve, dirname, basename } from 'node:path';
+import { resolve, dirname, basename, sep } from 'node:path';
 import { realpath } from 'node:fs/promises';
 
 /** Error thrown when a path escapes the allowed boundary */
@@ -34,25 +34,36 @@ export async function assertWithinCwd(
   // Resolve symlinks for the boundary (cwd must exist)
   const realCwd = await realpath(cwd);
 
-  // Resolve symlinks for target; if target doesn't exist yet, resolve its parent
+  // Resolve symlinks for target; if target doesn't exist yet,
+  // walk up to the nearest existing ancestor and resolve from there
   let realTarget: string;
   try {
     realTarget = await realpath(absoluteTarget);
   } catch {
-    // Target file doesn't exist yet — resolve parent directory + basename
-    const parentDir = dirname(absoluteTarget);
-    const fileName = basename(absoluteTarget);
-    try {
-      const realParent = await realpath(parentDir);
-      realTarget = resolve(realParent, fileName);
-    } catch {
-      // Parent doesn't exist either — use the absolute path as-is
-      realTarget = absoluteTarget;
+    // Target doesn't exist — find nearest existing ancestor
+    let current = absoluteTarget;
+    const pendingSegments: string[] = [];
+    // eslint-disable-next-line no-constant-condition -- walk up until realpath succeeds
+    while (true) {
+      const parent = dirname(current);
+      pendingSegments.unshift(basename(current));
+      try {
+        const realAncestor = await realpath(parent);
+        realTarget = resolve(realAncestor, ...pendingSegments);
+        break;
+      } catch {
+        if (parent === current) {
+          // Reached filesystem root without success — use absolute path as-is
+          realTarget = absoluteTarget;
+          break;
+        }
+        current = parent;
+      }
     }
   }
 
   // Normalize: ensure cwd boundary ends with separator for prefix check
-  const boundaryPrefix = realCwd.endsWith('/') ? realCwd : realCwd + '/';
+  const boundaryPrefix = realCwd.endsWith(sep) ? realCwd : realCwd + sep;
 
   if (realTarget !== realCwd && !realTarget.startsWith(boundaryPrefix)) {
     throw new PathBoundaryError(targetPath, realCwd);

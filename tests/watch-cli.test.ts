@@ -4,7 +4,6 @@ import { spawn } from 'node:child_process';
 import { openSync, closeSync } from 'node:fs';
 import { readFile, writeFile, mkdtemp, mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { tmpdir } from 'node:os';
 
 const CLI_PATH = new URL('../dist/src/cli.js', import.meta.url).pathname;
 const PROJECT_ROOT = new URL('..', import.meta.url).pathname;
@@ -23,7 +22,11 @@ async function runCli(
   args: string[],
   options?: { cwd?: string; timeout?: number },
 ): Promise<CliResult> {
-  const runDir = await mkdtemp(join(tmpdir(), 'shiori-watch-run-'));
+  // Use PROJECT_ROOT/.tmp/ for temporary stdout/stderr capture files
+  // so they stay within the project boundary
+  const tmpBase = join(PROJECT_ROOT, '.tmp', 'watch-run');
+  await mkdir(tmpBase, { recursive: true });
+  const runDir = await mkdtemp(join(tmpBase, 'run-'));
   const stdoutPath = join(runDir, 'stdout.log');
   const stderrPath = join(runDir, 'stderr.log');
   const stdoutFd = openSync(stdoutPath, 'w');
@@ -66,7 +69,10 @@ describe('watch-cli: argument validation and error paths', () => {
   let tmpDir: string;
 
   before(async () => {
-    tmpDir = await mkdtemp(join(tmpdir(), 'shiori-watch-test-'));
+    // Use PROJECT_ROOT/.tmp/ so output paths stay within cwd boundary
+    const tmpBase = join(PROJECT_ROOT, '.tmp', 'test-watch');
+    await mkdir(tmpBase, { recursive: true });
+    tmpDir = await mkdtemp(join(tmpBase, 'run-'));
   });
 
   after(async () => {
@@ -386,7 +392,8 @@ describe('watch-cli: argument validation and error paths', () => {
         '// shiori: CWD-001\n',
         'utf-8',
       );
-      const outputPath = join(tmpDir, 'watch-cwd-output.json');
+      // Output must be within cwdDir (boundary guard validates against --cwd)
+      const outputPath = join(cwdDir, 'watch-cwd-output.json');
 
       const { exitCode } = await runCli([
         'watch',
