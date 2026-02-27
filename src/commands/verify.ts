@@ -1,10 +1,11 @@
-import type {
-  IssueSeverity,
-  Registry,
-  ShioriAnnotation,
-  VerifyIssue,
-  VerifyIssueType,
-  VerifyResult,
+import {
+  VERIFY_ISSUE_TYPES,
+  type IssueSeverity,
+  type Registry,
+  type ShioriAnnotation,
+  type VerifyIssue,
+  type VerifyIssueType,
+  type VerifyResult,
 } from '../core/types.ts';
 import type { RegistryDuplicateWarning } from '../core/registry.ts';
 import type { RefPatternConfig } from '../core/ref-pattern.ts';
@@ -47,16 +48,9 @@ function determineSeverity(
 }
 
 function buildSummary(issues: VerifyIssue[]): VerifyResult['summary'] {
-  const byType: Record<VerifyIssueType, number> = {
-    'missing-in-registry': 0,
-    'unused-in-source': 0,
-    expired: 0,
-    'syntax-error': 0,
-    'ref-format': 0,
-    'ref-collision': 0,
-    'unrouted-ref': 0,
-    'registry-routing-mismatch': 0,
-  };
+  const byType = Object.fromEntries(
+    VERIFY_ISSUE_TYPES.map((t) => [t, 0]),
+  ) as Record<VerifyIssueType, number>;
   let errors = 0;
   let warnings = 0;
 

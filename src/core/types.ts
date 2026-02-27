@@ -65,16 +65,23 @@ export interface RegistryEntry {
 /** Full registry keyed by annotation ref */
 export type Registry = Record<string, RegistryEntry>;
 
-/** Verify issue type */
-export type VerifyIssueType =
-  | 'missing-in-registry'
-  | 'unused-in-source'
-  | 'expired'
-  | 'syntax-error'
-  | 'ref-format'
-  | 'ref-collision'
-  | 'unrouted-ref'
-  | 'registry-routing-mismatch';
+/**
+ * Canonical list of all verify issue types.
+ * Single source of truth — VerifyIssueType is derived from this array.
+ */
+export const VERIFY_ISSUE_TYPES = [
+  'missing-in-registry',
+  'unused-in-source',
+  'expired',
+  'syntax-error',
+  'ref-format',
+  'ref-collision',
+  'unrouted-ref',
+  'registry-routing-mismatch',
+] as const;
+
+/** Verify issue type (derived from VERIFY_ISSUE_TYPES) */
+export type VerifyIssueType = (typeof VERIFY_ISSUE_TYPES)[number];
 
 /** Issue severity */
 export type IssueSeverity = 'error' | 'warning';

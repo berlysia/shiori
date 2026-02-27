@@ -1,16 +1,6 @@
+import { VERIFY_ISSUE_TYPES } from './types.ts';
 import type { VerifyIssueType } from './types.ts';
 import type { OutputFormat } from '../formatters/types.ts';
-
-const VALID_ISSUE_TYPES: readonly string[] = [
-  'missing-in-registry',
-  'unused-in-source',
-  'expired',
-  'syntax-error',
-  'ref-format',
-  'ref-collision',
-  'unrouted-ref',
-  'registry-routing-mismatch',
-];
 
 const VALID_OUTPUT_FORMATS: readonly string[] = [
   'json',
@@ -36,10 +26,11 @@ export function parseAndValidateIssueTypes(
 ): VerifyIssueType[] | null {
   if (!value) return [];
   const types = value.split(',').map((s) => s.trim());
-  const invalid = types.filter((t) => !VALID_ISSUE_TYPES.includes(t));
+  const issueTypes: readonly string[] = VERIFY_ISSUE_TYPES;
+  const invalid = types.filter((t) => !issueTypes.includes(t));
   if (invalid.length > 0) {
     console.error(
-      `Error: Invalid ${flag} value: ${invalid.map((v) => `"${v}"`).join(', ')}. Valid values: ${VALID_ISSUE_TYPES.join(', ')}`,
+      `Error: Invalid ${flag} value: ${invalid.map((v) => `"${v}"`).join(', ')}. Valid values: ${VERIFY_ISSUE_TYPES.join(', ')}`,
     );
     process.exitCode = 1;
     return null;

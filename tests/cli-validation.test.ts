@@ -5,6 +5,7 @@ import {
   validateOutputFormat,
   validateProvider,
 } from '../src/core/cli-validation.ts';
+import { VERIFY_ISSUE_TYPES } from '../src/core/types.ts';
 
 describe('parseAndValidateIssueTypes', () => {
   let originalExitCode: typeof process.exitCode;
@@ -81,16 +82,9 @@ describe('parseAndValidateIssueTypes', () => {
   });
 
   it('accepts all valid issue types', () => {
-    const all =
-      'missing-in-registry,unused-in-source,expired,syntax-error,ref-format';
+    const all = VERIFY_ISSUE_TYPES.join(',');
     const result = parseAndValidateIssueTypes(all, '--fail-on');
-    assert.deepEqual(result, [
-      'missing-in-registry',
-      'unused-in-source',
-      'expired',
-      'syntax-error',
-      'ref-format',
-    ]);
+    assert.deepEqual(result, [...VERIFY_ISSUE_TYPES]);
     assert.equal(process.exitCode, undefined);
   });
 });
