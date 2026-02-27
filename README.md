@@ -421,6 +421,33 @@ Post annotation diffs as PR comments using `shiori delta`. Compares the main bra
 
 See [Delta PR Comment recipe](docs/recipes/github-actions-delta-pr-comment.md) for the full workflow with artifact caching, `--base-fallback-empty` for initial PRs, and optional `--max-increase` CI gate.
 
+### Governance Score Badge
+
+Display a live governance score badge in your README using `shiori report --format badge`:
+
+```yaml
+- name: Generate badge JSON
+  run: npx shiori report --format badge --output badge.json
+
+- name: Upload to Gist
+  uses: exuanbo/actions-deploy-gist@v1
+  with:
+    token: ${{ secrets.GIST_TOKEN }}
+    gist_id: YOUR_GIST_ID
+    file_path: badge.json
+    file_type: text
+```
+
+Then embed in your README:
+
+```markdown
+![Governance Score](https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2FUSER%2FGIST_ID%2Fraw%2Fbadge.json)
+```
+
+Score-based colors: 🟢 ≥80 (healthy), 🟡 50–79 (warning), 🔴 <50 (critical).
+
+See [Governance Badge recipe](docs/recipes/governance-badge.md) for full setup with Gist token, scheduling, and troubleshooting.
+
 ### Severity Mapping
 
 All issue types default to `warning`. Use `--fail-on` and `--warn-on` to control severity levels and CI exit codes:
@@ -450,13 +477,14 @@ In SARIF output, `error` severity maps to ❌ error annotations and `warning` ma
 
 shiori supports multiple output formats for different integration targets:
 
-| Format     | Flag                | Use case                                      |
-| ---------- | ------------------- | --------------------------------------------- |
-| `json`     | `-f json` (default) | Programmatic consumption, custom scripts      |
-| `markdown` | `-f markdown`       | Human-readable reports, PR comments           |
-| `sarif`    | `-f sarif`          | GitHub Code Scanning, VS Code SARIF Viewer    |
-| `summary`  | `-f summary`        | Dashboard metrics, monitoring (Datadog, etc.) |
-| `jsonl`    | `-f jsonl`          | Log aggregation, streaming pipelines          |
+| Format     | Flag                | Use case                                        |
+| ---------- | ------------------- | ----------------------------------------------- |
+| `json`     | `-f json` (default) | Programmatic consumption, custom scripts        |
+| `markdown` | `-f markdown`       | Human-readable reports, PR comments             |
+| `sarif`    | `-f sarif`          | GitHub Code Scanning, VS Code SARIF Viewer      |
+| `summary`  | `-f summary`        | Dashboard metrics, monitoring (Datadog, etc.)   |
+| `jsonl`    | `-f jsonl`          | Log aggregation, streaming pipelines            |
+| `badge`    | `-f badge`          | shields.io endpoint JSON (`shiori report` only) |
 
 ## Requirements
 

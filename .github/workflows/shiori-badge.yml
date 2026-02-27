@@ -1,0 +1,51 @@
+name: shiori badge
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Daily at 00:00 UTC
+    - cron: '0 0 * * *'
+
+jobs:
+  badge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build
+
+      # Generate shields.io endpoint JSON from governance score
+      - name: Generate badge JSON
+        run: node dist/src/cli.js report --format badge --output .tmp/shiori-badge.json
+
+      # Upload badge as artifact for score tracking over time
+      - name: Upload badge artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shiori-badge
+          path: .tmp/shiori-badge.json
+          retention-days: 90
+          overwrite: true
+
+      # Upload to Gist for live README badge (requires GIST_TOKEN secret)
+      # secrets context is not available in step-level if; use env variable instead
+      - name: Upload to Gist
+        if: env.GIST_TOKEN != ''
+        env:
+          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
+        uses: exuanbo/actions-deploy-gist@v1
+        with:
+          token: ${{ secrets.GIST_TOKEN }}
+          gist_id: ${{ vars.SHIORI_BADGE_GIST_ID }}
+          file_path: .tmp/shiori-badge.json
+          file_type: text
