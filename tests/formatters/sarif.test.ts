@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { VerifyResult } from '../../src/core/types.ts';
+import { VERIFY_ISSUE_TYPES } from '../../src/core/types.ts';
+import type { VerifyResult, VerifyIssueType } from '../../src/core/types.ts';
 import { formatAsSarif } from '../../src/formatters/sarif.ts';
 
 function makeResult(overrides: Partial<VerifyResult> = {}): VerifyResult {
@@ -263,6 +264,63 @@ describe('formatAsSarif', () => {
       }>;
     };
     assert.equal(sarif.runs[0]!.results[0]!.locations, undefined);
+  });
+
+  it('includes shortDescription for every VerifyIssueType', () => {
+    // Build a result containing one issue per type to force all rules into SARIF output
+    const issues = VERIFY_ISSUE_TYPES.map((type) => ({
+      type,
+      severity: 'warning' as const,
+      ref: `TEST-${type}`,
+      message: `test issue for ${type}`,
+      file:
+        type.startsWith('registry') ||
+        type === 'unused-in-source' ||
+        type === 'expired' ||
+        type === 'ref-collision'
+          ? undefined
+          : 'src/test.ts',
+      line:
+        type.startsWith('registry') ||
+        type === 'unused-in-source' ||
+        type === 'expired' ||
+        type === 'ref-collision'
+          ? undefined
+          : 1,
+    }));
+    const result = makeResult({ issues });
+    const sarif = JSON.parse(formatAsSarif(result)) as {
+      runs: Array<{
+        tool: {
+          driver: {
+            rules: Array<{ id: string; shortDescription: { text: string } }>;
+          };
+        };
+      }>;
+    };
+    const rules = sarif.runs[0]!.tool.driver.rules;
+
+    // Every VerifyIssueType must appear as a rule
+    const ruleIds = new Set(rules.map((r) => r.id));
+    for (const type of VERIFY_ISSUE_TYPES) {
+      assert.ok(
+        ruleIds.has(type),
+        `SARIF rules missing VerifyIssueType: ${type}`,
+      );
+    }
+
+    // Every rule must have a non-empty shortDescription that is not just the raw id
+    for (const rule of rules) {
+      assert.ok(
+        rule.shortDescription?.text,
+        `Rule ${rule.id} has empty shortDescription`,
+      );
+      assert.notEqual(
+        rule.shortDescription.text,
+        rule.id,
+        `Rule ${rule.id} shortDescription should not be the raw id (missing RULE_DESCRIPTIONS entry)`,
+      );
+    }
   });
 
   it('uses issue type as ruleId', () => {

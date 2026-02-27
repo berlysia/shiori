@@ -230,6 +230,54 @@ describe('check-cli: argument validation and error paths', () => {
     });
   });
 
+  describe('--fail-on with --output', () => {
+    it('writes report file AND exits 1 when --fail-on triggers errors', async () => {
+      // Source references CHK-MISSING which is not in registry → missing-in-registry
+      const dir = await createFixtureDir(baseDir, 'failon-output', {
+        sourceFiles: {
+          'src/sample.ts':
+            '// eslint-disable-next-line no-console -- shiori: CHK-MISSING\nconsole.log("test");\n',
+        },
+        registryEntries: {
+          'CHK-OTHER': { reason: 'unrelated', target: 'all' },
+        },
+      });
+      const outputPath = join(dir, 'report.json');
+      const { exitCode, stdout, stderr } = await runCli([
+        'check',
+        '--cwd',
+        dir,
+        '--patterns',
+        'src/**/*.ts',
+        '--fail-on',
+        'missing-in-registry',
+        '--output',
+        outputPath,
+      ]);
+
+      // Must exit 1 (fail-on triggered)
+      assert.equal(exitCode, 1, 'should exit 1 when --fail-on triggers errors');
+      // stdout must be empty (output goes to file)
+      assert.equal(stdout, '', 'stdout should be empty when --output is used');
+      // stderr mentions file was written
+      assert.ok(
+        stderr.includes('Report written to'),
+        'stderr should confirm report file was written',
+      );
+      // File must exist and contain valid JSON with errors
+      const content = await readFile(outputPath, 'utf-8');
+      const result = JSON.parse(content) as {
+        summary: { errors: number };
+        issues: Array<{ type: string }>;
+      };
+      assert.ok(result.summary.errors > 0, 'report should contain errors');
+      assert.ok(
+        result.issues.some((i) => i.type === 'missing-in-registry'),
+        'report should contain missing-in-registry issue',
+      );
+    });
+  });
+
   describe('--output file writing', () => {
     it('writes report to specified file instead of stdout', async () => {
       const dir = await createFixtureDir(baseDir, 'output');

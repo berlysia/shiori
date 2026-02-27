@@ -28,6 +28,29 @@ async function getReadmeIssueTypes(): Promise<string[]> {
 }
 
 /**
+ * Extract issue type names from the Severity Mapping table in README.md.
+ * Matches rows like: | `missing-in-registry`       | warning          | ...
+ */
+async function getReadmeSeverityMappingTypes(): Promise<string[]> {
+  const raw = await readFile(join(ROOT, 'README.md'), 'utf-8');
+  const headerIdx = raw.indexOf('### Severity Mapping');
+  if (headerIdx === -1) return [];
+
+  // Scope to the section between "### Severity Mapping" and the next "###" heading
+  const rest = raw.slice(headerIdx);
+  const nextHeading = rest.indexOf('\n### ', 1);
+  const section = nextHeading !== -1 ? rest.slice(0, nextHeading) : rest;
+
+  const pattern = /^\|\s*`([a-z-]+)`/gm;
+  const types: string[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = pattern.exec(section)) !== null) {
+    if (m[1] !== undefined) types.push(m[1]);
+  }
+  return types;
+}
+
+/**
  * Extract issue type literals from docs/api.md VerifyIssueType definition.
  * Matches lines like:   | 'missing-in-registry'
  */
@@ -90,6 +113,29 @@ describe('VerifyIssueType synchronization', () => {
       extra,
       [],
       `Issue types in docs/api.md but not in VERIFY_ISSUE_TYPES: ${extra.join(', ')}`,
+    );
+  });
+
+  it('VERIFY_ISSUE_TYPES matches README.md Severity Mapping table', async () => {
+    const severityTypes = await getReadmeSeverityMappingTypes();
+
+    const missing = VERIFY_ISSUE_TYPES.filter(
+      (t) => !severityTypes.includes(t),
+    );
+    assert.deepEqual(
+      missing,
+      [],
+      `Issue types in VERIFY_ISSUE_TYPES but not in README.md Severity Mapping table: ${missing.join(', ')}`,
+    );
+
+    const extra = severityTypes.filter(
+      (t) =>
+        !VERIFY_ISSUE_TYPES.includes(t as (typeof VERIFY_ISSUE_TYPES)[number]),
+    );
+    assert.deepEqual(
+      extra,
+      [],
+      `Issue types in README.md Severity Mapping table but not in VERIFY_ISSUE_TYPES: ${extra.join(', ')}`,
     );
   });
 
