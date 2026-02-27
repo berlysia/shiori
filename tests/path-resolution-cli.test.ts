@@ -616,6 +616,232 @@ describe('CLI path resolution: relative paths resolved against --cwd', () => {
     });
   });
 
+  /**
+   * Concern 006 regression tests: verify that absolute paths in config.paths.scanResult
+   * are correctly resolved with path.resolve (not path.join) across all affected code paths.
+   *
+   * Modified code paths covered:
+   * - scan-cli.ts L83,L112: resolve(cwd, output/config.paths.scanResult)
+   * - init-cli.ts L70: resolve(cwd, config.paths.scanResult)
+   * - scan-result-loader.ts L50: resolve(cwd, configPath) for custom config path
+   * - scan-result-loader.ts L57: resolve(cwd, DEFAULT_SCAN_RESULT_PATH) fallback
+   */
+  describe('Concern 006 absolute path regression: scan --output with absolute path', () => {
+    it('scan --output with absolute path writes to absolute location (scan-cli.ts L83,L112)', async () => {
+      // Create absolute target under workDir (boundary guard allows it)
+      const absDir = await mkdtemp(join(workDir, 'abs-scan-out-'));
+      const absOutput = join(absDir, 'scan-result.json');
+
+      const { exitCode, stderr } = await runCli([
+        'scan',
+        '--cwd',
+        workDir,
+        '--patterns',
+        'src/**/*.ts',
+        '--output',
+        absOutput, // absolute path
+      ]);
+
+      assert.equal(exitCode, 0, `scan failed: ${stderr}`);
+
+      // Verify file written to absolute path (not joined with cwd)
+      const content = await readFile(absOutput, 'utf-8');
+      const result = JSON.parse(content) as {
+        annotations: Array<{ ref: string }>;
+      };
+      assert.ok(result.annotations.some((a) => a.ref === 'PATH-001'));
+    });
+  });
+
+  describe('Concern 006 absolute path regression: init with absolute config.paths.scanResult', () => {
+    it('init resolves absolute config.paths.scanResult for boundary check (init-cli.ts L70)', async () => {
+      const initDir = await mkdtemp(join(workDir, 'abs-init-'));
+      await mkdir(join(initDir, 'src'), { recursive: true });
+      await writeFile(
+        join(initDir, 'src', 'sample.ts'),
+        '// shiori: ABS-INIT-001\n',
+        'utf-8',
+      );
+
+      // Create config with absolute path for scanResult (pointing inside initDir)
+      const absResultDir = await mkdtemp(join(initDir, 'abs-result-'));
+      const absScanPath = join(absResultDir, 'scan-result.json');
+
+      const configDir = join(initDir, '.config', 'shiori');
+      await mkdir(configDir, { recursive: true });
+      await writeFile(
+        join(configDir, 'config.yaml'),
+        [
+          '# shiori configuration',
+          'paths:',
+          `  scanResult: "${absScanPath}"`,
+        ].join('\n') + '\n',
+        'utf-8',
+      );
+
+      const { exitCode, stderr } = await runCli([
+        'init',
+        '--cwd',
+        initDir,
+        '--patterns',
+        'src/**/*.ts',
+      ]);
+
+      assert.equal(exitCode, 0, `init failed: ${stderr}`);
+
+      // Verify scan result written to absolute path
+      const content = await readFile(absScanPath, 'utf-8');
+      const result = JSON.parse(content) as {
+        annotations: Array<{ ref: string }>;
+      };
+      assert.ok(result.annotations.some((a) => a.ref === 'ABS-INIT-001'));
+    });
+  });
+
+  describe('Concern 006 absolute path regression: verify --scan with absolute path', () => {
+    it('verify resolves absolute --scan path via scan-result-loader (L33)', async () => {
+      // Create scan result at an absolute path
+      const absDir = await mkdtemp(join(workDir, 'abs-loader-'));
+      const absScanPath = join(absDir, 'scan-result.json');
+
+      // First scan to generate result
+      const scanResult = await runCli([
+        'scan',
+        '--cwd',
+        workDir,
+        '--patterns',
+        'src/**/*.ts',
+      ]);
+      assert.equal(scanResult.exitCode, 0);
+      await writeFile(absScanPath, scanResult.stdout, 'utf-8');
+
+      // Create minimal registry
+      const configDir = join(workDir, '.config', 'shiori');
+      await mkdir(configDir, { recursive: true });
+      await writeFile(
+        join(configDir, 'registry.json'),
+        JSON.stringify(
+          {
+            'PATH-001': { reason: 'test', target: 'all' },
+            'PATH-002': { reason: 'test', target: 'all' },
+          },
+          null,
+          2,
+        ),
+        'utf-8',
+      );
+
+      // verify with absolute --scan path (tests scan-result-loader.ts L33 resolve)
+      const { exitCode, stdout, stderr } = await runCli([
+        'verify',
+        '--cwd',
+        workDir,
+        '--scan',
+        absScanPath, // absolute path
+        '--warn-on',
+        'missing-in-registry,unused-in-source,expired,syntax-error',
+      ]);
+
+      assert.equal(exitCode, 0, `verify failed: ${stderr}`);
+      const result = JSON.parse(stdout) as {
+        summary: { errors: number };
+      };
+      assert.equal(result.summary.errors, 0);
+    });
+  });
+
+  describe('Concern 006 absolute path regression: update --scan with absolute path', () => {
+    it('update resolves absolute --scan path via scan-result-loader (L33)', async () => {
+      // Create scan result at an absolute path
+      const absDir = await mkdtemp(join(workDir, 'abs-update-'));
+      const absScanPath = join(absDir, 'scan-result.json');
+
+      // First scan to generate result
+      const scanResult = await runCli([
+        'scan',
+        '--cwd',
+        workDir,
+        '--patterns',
+        'src/**/*.ts',
+      ]);
+      assert.equal(scanResult.exitCode, 0);
+      await writeFile(absScanPath, scanResult.stdout, 'utf-8');
+
+      // Create empty registry at absolute path
+      const absRegistryPath = join(absDir, 'registry.json');
+      await writeFile(absRegistryPath, '{}', 'utf-8');
+
+      // update with absolute --scan and --registry paths
+      const { exitCode, stderr } = await runCli([
+        'update',
+        '--cwd',
+        workDir,
+        '--scan',
+        absScanPath, // absolute path
+        '--registry',
+        absRegistryPath, // absolute path
+      ]);
+
+      assert.equal(exitCode, 0, `update failed: ${stderr}`);
+      assert.ok(stderr.includes('PATH-001'));
+
+      // Verify registry was updated at absolute path
+      const registryContent = await readFile(absRegistryPath, 'utf-8');
+      const registry = JSON.parse(registryContent) as Record<string, unknown>;
+      assert.ok('PATH-001' in registry);
+    });
+  });
+
+  describe('Concern 006 absolute path regression: check --save-scan with absolute cwd', () => {
+    it('check with absolute --cwd and --save-scan resolves config.paths.scanResult correctly', async () => {
+      const checkDir = await mkdtemp(join(workDir, 'abs-check-'));
+      await mkdir(join(checkDir, 'src'), { recursive: true });
+      await writeFile(
+        join(checkDir, 'src', 'app.ts'),
+        '// shiori: ABS-CHECK-001\n',
+        'utf-8',
+      );
+
+      // Config with absolute path for scanResult
+      const absResultDir = await mkdtemp(join(checkDir, 'abs-result-'));
+      const absScanPath = join(absResultDir, 'scan-result.json');
+
+      const configDir = join(checkDir, '.config', 'shiori');
+      await mkdir(configDir, { recursive: true });
+      await writeFile(
+        join(configDir, 'config.yaml'),
+        [
+          '# shiori configuration',
+          'paths:',
+          `  scanResult: "${absScanPath}"`,
+        ].join('\n') + '\n',
+        'utf-8',
+      );
+      await writeFile(join(configDir, 'registry.json'), '{}', 'utf-8');
+
+      const { exitCode, stderr } = await runCli([
+        'check',
+        '--cwd',
+        checkDir,
+        '--patterns',
+        'src/**/*.ts',
+        '--save-scan',
+        '--warn-on',
+        'missing-in-registry,unused-in-source,expired,syntax-error',
+      ]);
+
+      assert.equal(exitCode, 0, `check failed: ${stderr}`);
+      assert.ok(stderr.includes('Scan result saved to'));
+
+      // Verify scan result was written to absolute path
+      const content = await readFile(absScanPath, 'utf-8');
+      const result = JSON.parse(content) as {
+        annotations: Array<{ ref: string }>;
+      };
+      assert.ok(result.annotations.some((a) => a.ref === 'ABS-CHECK-001'));
+    });
+  });
+
   describe('boundary guard rejects --output outside --cwd', () => {
     it('scan --output outside --cwd is rejected', async () => {
       const { exitCode, stderr } = await runCli([

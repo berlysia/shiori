@@ -108,6 +108,91 @@ describe('loadScanResult', () => {
     }
   });
 
+  /**
+   * Concern 006 regression: verify that absolute paths in config.paths.scanResult
+   * are correctly resolved via path.resolve (not path.join).
+   * Directly covers scan-result-loader.ts L50: resolve(cwd, configPath)
+   */
+  it('resolves absolute config.paths.scanResult correctly (Concern 006, L50)', async () => {
+    // Place scan result at an absolute path unrelated to projectDir structure
+    const absResultDir = join(tmpDir, 'abs-result-dir');
+    await mkdir(absResultDir, { recursive: true });
+    const absScanPath = join(absResultDir, 'scan-result.json');
+    await writeFile(absScanPath, JSON.stringify(SAMPLE_SCAN_RESULT), 'utf-8');
+
+    // projectDir is a different directory from where the scan result lives
+    const projectDir = join(tmpDir, 'abs-project');
+    await mkdir(projectDir, { recursive: true });
+
+    const originalIsTTY = process.stdin.isTTY;
+    Object.defineProperty(process.stdin, 'isTTY', {
+      value: true,
+      writable: true,
+      configurable: true,
+    });
+    try {
+      const result = await loadScanResult({
+        explicitPath: undefined,
+        config: resolveConfig({ paths: { scanResult: absScanPath } }),
+        cwd: projectDir,
+      });
+      // If path.join were used: join(projectDir, absScanPath) would produce a wrong path
+      // With path.resolve: resolve(projectDir, absScanPath) → absScanPath (absolute stays absolute)
+      assert.equal(result.annotations.length, 1);
+      assert.equal(result.annotations[0]!.ref, 'TEST-001');
+    } finally {
+      Object.defineProperty(process.stdin, 'isTTY', {
+        value: originalIsTTY,
+        writable: true,
+        configurable: true,
+      });
+    }
+  });
+
+  /**
+   * Concern 006 regression: when config.paths.scanResult is an absolute path that does NOT exist,
+   * the loader should fall back to the default path (.config/shiori/scan-result.json).
+   * Directly covers scan-result-loader.ts L57: resolve(cwd, DEFAULT_SCAN_RESULT_PATH)
+   */
+  it('falls back to default path when absolute config.paths.scanResult does not exist (Concern 006, L57)', async () => {
+    const projectDir = join(tmpDir, 'fallback-project');
+    const configDir = join(projectDir, '.config', 'shiori');
+    await mkdir(configDir, { recursive: true });
+
+    // Write scan result at the default location
+    await writeFile(
+      join(configDir, 'scan-result.json'),
+      JSON.stringify(SAMPLE_SCAN_RESULT),
+      'utf-8',
+    );
+
+    // Config references a non-existent absolute path
+    const nonExistentAbsPath = join(tmpDir, 'nonexistent-abs', 'scan.json');
+
+    const originalIsTTY = process.stdin.isTTY;
+    Object.defineProperty(process.stdin, 'isTTY', {
+      value: true,
+      writable: true,
+      configurable: true,
+    });
+    try {
+      const result = await loadScanResult({
+        explicitPath: undefined,
+        config: resolveConfig({ paths: { scanResult: nonExistentAbsPath } }),
+        cwd: projectDir,
+      });
+      // Should fall back to .config/shiori/scan-result.json
+      assert.equal(result.annotations.length, 1);
+      assert.equal(result.annotations[0]!.ref, 'TEST-001');
+    } finally {
+      Object.defineProperty(process.stdin, 'isTTY', {
+        value: originalIsTTY,
+        writable: true,
+        configurable: true,
+      });
+    }
+  });
+
   it('throws with helpful message when no source found', async () => {
     const emptyDir = join(tmpDir, 'empty');
     await mkdir(emptyDir, { recursive: true });
