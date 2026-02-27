@@ -1,11 +1,11 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { ScanResult, ShioriAnnotation } from '../src/core/types.ts';
-import {
-  computeDelta,
-  formatDeltaAsJson,
-  type DeltaResult,
-} from '../src/commands/delta.ts';
+import type {
+  ScanResult,
+  ShioriAnnotation,
+  DeltaResult,
+} from '../src/core/types.ts';
+import { computeDelta, formatDeltaAsJson } from '../src/commands/delta.ts';
 
 function makeAnnotation(
   ref: string,

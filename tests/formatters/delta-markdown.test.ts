@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import type { ShioriAnnotation } from '../../src/core/types.ts';
-import type { DeltaResult, AnnotationDelta } from '../../src/commands/delta.ts';
+import type { DeltaResult, AnnotationDelta } from '../../src/core/types.ts';
 import { formatDeltaAsMarkdown } from '../../src/formatters/delta-markdown.ts';
 
 function makeAnnotation(

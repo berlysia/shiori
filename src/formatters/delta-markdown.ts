@@ -2,7 +2,7 @@ import type {
   DeltaResult,
   AnnotationDelta,
   DeltaSummary,
-} from '../commands/delta.ts';
+} from '../core/types.ts';
 
 /**
  * Format DeltaResult as Markdown suitable for GitHub PR comments.

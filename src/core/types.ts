@@ -112,3 +112,39 @@ export interface VerifyResult {
   scannedRecords: number;
   registryEntries: number;
 }
+
+// ── Delta types ──────────────────────────────────────────────
+
+/** How an annotation changed between base and head */
+export type DeltaKind = 'added' | 'removed' | 'unchanged';
+
+/** A single annotation's delta record */
+export interface AnnotationDelta {
+  kind: DeltaKind;
+  ref: string;
+  /** Annotation from the head scan (present for 'added' and 'unchanged') */
+  head?: ShioriAnnotation;
+  /** Annotation from the base scan (present for 'removed' and 'unchanged') */
+  base?: ShioriAnnotation;
+}
+
+/** Summary counts for a delta computation */
+export interface DeltaSummary {
+  added: number;
+  removed: number;
+  unchanged: number;
+  /** Net change: added - removed */
+  net: number;
+}
+
+/** Result of computing a delta between two scan results */
+export interface DeltaResult {
+  deltas: AnnotationDelta[];
+  summary: DeltaSummary;
+}
+
+/** Options for computing a delta between two scan results */
+export interface ComputeDeltaOptions {
+  base: ScanResult;
+  head: ScanResult;
+}

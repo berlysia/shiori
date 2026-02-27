@@ -25,7 +25,10 @@ export const deltaCommand = define({
   shiori delta --base base-scan.json --head head-scan.json --format markdown
 
   # Save delta report to file
-  shiori delta --base base-scan.json --head head-scan.json -o delta-report.json`,
+  shiori delta --base base-scan.json --head head-scan.json -o delta-report.json
+
+  # Initial PR with no prior baseline (base file may not exist)
+  shiori delta --base base-scan.json --head head-scan.json --base-fallback-empty`,
   rendering: { header: null },
   args: {
     base: {
@@ -55,6 +58,12 @@ export const deltaCommand = define({
       type: 'string',
       short: 'o',
       description: 'Output file path. If omitted, writes to stdout',
+    },
+    baseFallbackEmpty: {
+      type: 'boolean',
+      toKebab: true,
+      description:
+        'If the base file does not exist, treat it as an empty scan result instead of failing. Useful for initial PRs with no prior baseline.',
     },
     cwd: {
       type: 'string',
@@ -102,16 +111,34 @@ export const deltaCommand = define({
     const basePath = resolve(cwd, ctx.values.base);
     const headPath = resolve(cwd, ctx.values.head);
 
+    const emptyScanResult: ScanResult = {
+      annotations: [],
+      candidates: [],
+      filesScanned: 0,
+    };
+
     let baseScan: ScanResult;
     let headScan: ScanResult;
     try {
       baseScan = await readScanResultFile(basePath);
     } catch (err) {
-      console.error(
-        `Error loading base scan result: ${err instanceof Error ? err.message : String(err)}`,
-      );
-      process.exitCode = 1;
-      return;
+      if (
+        ctx.values.baseFallbackEmpty &&
+        err instanceof Error &&
+        'code' in err &&
+        (err as NodeJS.ErrnoException).code === 'ENOENT'
+      ) {
+        baseScan = emptyScanResult;
+        console.error(
+          `Base file not found: ${basePath} — using empty scan result as fallback`,
+        );
+      } else {
+        console.error(
+          `Error loading base scan result: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        process.exitCode = 1;
+        return;
+      }
     }
 
     try {

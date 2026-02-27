@@ -1,10 +1,10 @@
 import type {
+  DeltaResult,
   Registry,
   ShioriAnnotation,
   ShioriCandidate,
   VerifyResult,
 } from '../core/types.ts';
-import type { DeltaResult } from '../commands/delta.ts';
 import { formatVerifyResultAsMarkdown } from './markdown.ts';
 import { formatDeltaAsMarkdown } from './delta-markdown.ts';
 import { formatAsJsonl } from './jsonl.ts';
