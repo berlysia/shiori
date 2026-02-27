@@ -1,75 +1,33 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
-import { openSync, closeSync } from 'node:fs';
 import { readFile, writeFile, mkdtemp, mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-
-const CLI_PATH = new URL('../dist/src/cli.js', import.meta.url).pathname;
-const PROJECT_ROOT = new URL('..', import.meta.url).pathname;
+import {
+  runCli as _runCli,
+  PROJECT_ROOT,
+  type CliResult,
+} from './helpers/cli-test-utils.ts';
 
 const SCAN_PATTERNS = 'tests/fixtures/e2e/**/*.css,tests/fixtures/e2e/**/*.ts';
 const SCAN_IGNORE = '**/node_modules/**,**/dist/**,**/.git/**';
 const REGISTRY_PATH = 'tests/fixtures/e2e/registry.json';
 
-interface CliResult {
-  stdout: string;
-  stderr: string;
-  exitCode: number;
-}
-
+/** Wrapper that defaults to baseDir within project and timeout for watch tests */
 async function runCli(
   args: string[],
   options?: { cwd?: string; timeout?: number },
 ): Promise<CliResult> {
-  // Use PROJECT_ROOT/.tmp/ for temporary stdout/stderr capture files
-  // so they stay within the project boundary
-  const tmpBase = join(PROJECT_ROOT, '.tmp', 'watch-run');
-  await mkdir(tmpBase, { recursive: true });
-  const runDir = await mkdtemp(join(tmpBase, 'run-'));
-  const stdoutPath = join(runDir, 'stdout.log');
-  const stderrPath = join(runDir, 'stderr.log');
-  const stdoutFd = openSync(stdoutPath, 'w');
-  const stderrFd = openSync(stderrPath, 'w');
-
-  let exitCode = 1;
-  try {
-    exitCode = await new Promise<number>((resolve, reject) => {
-      const child = spawn('node', [CLI_PATH, ...args], {
-        cwd: options?.cwd ?? PROJECT_ROOT,
-        stdio: ['ignore', stdoutFd, stderrFd],
-      });
-      child.once('error', reject);
-
-      const timeout = options?.timeout ?? 30000;
-      const timer = setTimeout(() => {
-        child.kill('SIGTERM');
-      }, timeout);
-
-      child.once('close', (code) => {
-        clearTimeout(timer);
-        resolve(code ?? 1);
-      });
-    });
-  } finally {
-    closeSync(stdoutFd);
-    closeSync(stderrFd);
-  }
-
-  const [stdout, stderr] = await Promise.all([
-    readFile(stdoutPath, 'utf-8').catch(() => ''),
-    readFile(stderrPath, 'utf-8').catch(() => ''),
-  ]);
-  await rm(runDir, { recursive: true, force: true });
-
-  return { stdout, stderr, exitCode };
+  return _runCli(args, {
+    cwd: options?.cwd,
+    timeout: options?.timeout ?? 30000,
+    baseDir: join(PROJECT_ROOT, '.tmp', 'watch-run'),
+  });
 }
 
 describe('watch-cli: argument validation and error paths', () => {
   let tmpDir: string;
 
   before(async () => {
-    // Use PROJECT_ROOT/.tmp/ so output paths stay within cwd boundary
     const tmpBase = join(PROJECT_ROOT, '.tmp', 'test-watch');
     await mkdir(tmpBase, { recursive: true });
     tmpDir = await mkdtemp(join(tmpBase, 'run-'));

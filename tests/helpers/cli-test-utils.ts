@@ -22,15 +22,35 @@ export interface CliResult {
   exitCode: number;
 }
 
+export interface RunCliOptions {
+  /** Working directory for the CLI process */
+  cwd?: string;
+  /** Timeout in ms — when set, the child process is killed after this duration */
+  timeout?: number;
+  /**
+   * Base directory for temporary stdout/stderr capture files.
+   * When set, temp files are created under this directory instead of os.tmpdir().
+   * Useful for tests that need output files within the project boundary.
+   */
+  baseDir?: string;
+}
+
 /**
  * Run the shiori CLI in a subprocess (non-TTY mode).
  * Captures stdout/stderr to temp files for reliable collection.
  */
 export async function runCli(
   args: string[],
-  options?: { cwd?: string },
+  options?: RunCliOptions,
 ): Promise<CliResult> {
-  const runDir = await mkdtemp(join(tmpdir(), 'shiori-test-run-'));
+  let runDirBase: string;
+  if (options?.baseDir) {
+    await mkdir(options.baseDir, { recursive: true });
+    runDirBase = options.baseDir;
+  } else {
+    runDirBase = tmpdir();
+  }
+  const runDir = await mkdtemp(join(runDirBase, 'shiori-test-run-'));
   const stdoutPath = join(runDir, 'stdout.log');
   const stderrPath = join(runDir, 'stderr.log');
   const stdoutFd = openSync(stdoutPath, 'w');
@@ -44,7 +64,18 @@ export async function runCli(
         stdio: ['ignore', stdoutFd, stderrFd],
       });
       child.once('error', reject);
-      child.once('close', (code) => resolve(code ?? 1));
+
+      if (options?.timeout != null) {
+        const timer = setTimeout(() => {
+          child.kill('SIGTERM');
+        }, options.timeout);
+        child.once('close', (code) => {
+          clearTimeout(timer);
+          resolve(code ?? 1);
+        });
+      } else {
+        child.once('close', (code) => resolve(code ?? 1));
+      }
     });
   } finally {
     closeSync(stdoutFd);

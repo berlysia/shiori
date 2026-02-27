@@ -7,55 +7,26 @@
  */
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
-import { openSync, closeSync } from 'node:fs';
 import { readFile, writeFile, mkdtemp, mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
+import {
+  runCli as _runCli,
+  PROJECT_ROOT,
+  type CliResult,
+} from './helpers/cli-test-utils.ts';
 
-const CLI_PATH = new URL('../dist/src/cli.js', import.meta.url).pathname;
-const PROJECT_ROOT = new URL('..', import.meta.url).pathname;
-
-interface CliResult {
-  stdout: string;
-  stderr: string;
-  exitCode: number;
-}
-
+/**
+ * Wrapper that keeps capture files within PROJECT_ROOT/.tmp/path-res-run
+ * for path boundary safety.
+ */
 async function runCli(
   args: string[],
   options?: { cwd?: string },
 ): Promise<CliResult> {
-  const tmpBase = join(PROJECT_ROOT, '.tmp', 'path-res-run');
-  await mkdir(tmpBase, { recursive: true });
-  const runDir = await mkdtemp(join(tmpBase, 'run-'));
-  const stdoutPath = join(runDir, 'stdout.log');
-  const stderrPath = join(runDir, 'stderr.log');
-  const stdoutFd = openSync(stdoutPath, 'w');
-  const stderrFd = openSync(stderrPath, 'w');
-
-  let exitCode = 1;
-  try {
-    exitCode = await new Promise<number>((resolve, reject) => {
-      const child = spawn('node', [CLI_PATH, ...args], {
-        // spawn cwd is always PROJECT_ROOT (simulates process.cwd() != --cwd)
-        cwd: options?.cwd ?? PROJECT_ROOT,
-        stdio: ['ignore', stdoutFd, stderrFd],
-      });
-      child.once('error', reject);
-      child.once('close', (code) => resolve(code ?? 1));
-    });
-  } finally {
-    closeSync(stdoutFd);
-    closeSync(stderrFd);
-  }
-
-  const [stdout, stderr] = await Promise.all([
-    readFile(stdoutPath, 'utf-8').catch(() => ''),
-    readFile(stderrPath, 'utf-8').catch(() => ''),
-  ]);
-  await rm(runDir, { recursive: true, force: true });
-
-  return { stdout, stderr, exitCode };
+  return _runCli(args, {
+    cwd: options?.cwd,
+    baseDir: join(PROJECT_ROOT, '.tmp', 'path-res-run'),
+  });
 }
 
 describe('CLI path resolution: relative paths resolved against --cwd', () => {
