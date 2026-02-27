@@ -1,6 +1,5 @@
 import { VERIFY_ISSUE_TYPES } from './types.ts';
-import type { VerifyIssueType } from './types.ts';
-import type { OutputFormat } from '../formatters/types.ts';
+import type { OutputFormat, VerifyIssueType } from './types.ts';
 
 const VALID_OUTPUT_FORMATS: readonly string[] = [
   'json',

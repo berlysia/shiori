@@ -1,1 +1,1 @@
-export type OutputFormat = 'json' | 'markdown' | 'sarif' | 'summary' | 'jsonl';
+export type { OutputFormat } from '../core/types.ts';

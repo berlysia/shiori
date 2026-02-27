@@ -96,6 +96,9 @@ export interface VerifyIssue {
   line: number | undefined;
 }
 
+/** Output format for verify/scan commands */
+export type OutputFormat = 'json' | 'markdown' | 'sarif' | 'summary' | 'jsonl';
+
 /** Verify command output */
 export interface VerifyResult {
   timestamp: string;

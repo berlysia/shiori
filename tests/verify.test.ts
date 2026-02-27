@@ -5,11 +5,8 @@ import type {
   RegistryEntry,
   ShioriAnnotation,
 } from '../src/core/types.ts';
-import {
-  verify,
-  formatVerifyResultAsMarkdown,
-  formatActionHints,
-} from '../src/commands/verify.ts';
+import { verify, formatActionHints } from '../src/commands/verify.ts';
+import { formatVerifyResultAsMarkdown } from '../src/formatters/markdown.ts';
 
 function makeAnnotation(
   overrides: Partial<ShioriAnnotation> = {},

@@ -12,7 +12,7 @@ import type { RefPatternConfig } from '../core/ref-pattern.ts';
 import { isValidRef } from '../core/ref-validation.ts';
 import { matchRefPattern } from '../core/ref-pattern.ts';
 
-export type { OutputFormat } from '../formatters/types.ts';
+export type { OutputFormat } from '../core/types.ts';
 
 export interface VerifyOptions {
   /** Shiori annotations from scan */
@@ -246,9 +246,6 @@ export function verify(options: VerifyOptions): VerifyResult {
     registryEntries: Object.keys(registry).length,
   };
 }
-
-// Re-export for backward compatibility (canonical location: formatters/markdown.ts)
-export { formatVerifyResultAsMarkdown } from '../formatters/markdown.ts';
 
 /**
  * Generate action hints based on verify result issue types.
