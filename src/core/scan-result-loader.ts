@@ -1,5 +1,5 @@
 import { access, readFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import type { ScanResult } from './types.ts';
 import type { ResolvedConfig } from './config.ts';
 import { DEFAULT_SCAN_RESULT_PATH } from './config.ts';
@@ -47,14 +47,14 @@ export async function loadScanResult(
   const candidates: { label: string; path: string }[] = [];
 
   const configPath = config.paths.scanResult;
-  const configFullPath = join(cwd, configPath);
+  const configFullPath = resolve(cwd, configPath);
 
   if (configPath !== DEFAULT_SCAN_RESULT_PATH) {
     // Config specifies a custom path — try it first, then the default
     candidates.push({ label: `config: ${configPath}`, path: configFullPath });
     candidates.push({
       label: DEFAULT_SCAN_RESULT_PATH,
-      path: join(cwd, DEFAULT_SCAN_RESULT_PATH),
+      path: resolve(cwd, DEFAULT_SCAN_RESULT_PATH),
     });
   } else {
     // Default path only

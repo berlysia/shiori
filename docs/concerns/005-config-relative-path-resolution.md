@@ -1,5 +1,5 @@
 ---
-status: Proposed
+status: Done
 discovered_at: 2026-02-27
 discovered_by: reviewer
 ---

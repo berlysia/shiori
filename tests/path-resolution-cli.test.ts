@@ -520,6 +520,102 @@ describe('CLI path resolution: relative paths resolved against --cwd', () => {
     });
   });
 
+  describe('--config with relative path resolved against --cwd (Concern 005)', () => {
+    it('resolves relative --config against --cwd, not process.cwd()', async () => {
+      // Create a custom config directory under workDir
+      const customConfigDir = join(workDir, 'custom-config');
+      await mkdir(customConfigDir, { recursive: true });
+      await writeFile(
+        join(customConfigDir, 'config.yaml'),
+        [
+          '# custom shiori config',
+          'scan:',
+          '  patterns:',
+          '    - "src/**/*.ts"',
+        ].join('\n') + '\n',
+        'utf-8',
+      );
+
+      // --cwd = workDir, --config = custom-config (relative)
+      // Expected: config loaded from workDir/custom-config/
+      const { exitCode } = await runCli([
+        'scan',
+        '--cwd',
+        workDir,
+        '--config',
+        'custom-config',
+        '--output',
+        'out/config-rel.json',
+      ]);
+
+      assert.equal(exitCode, 0);
+
+      const content = await readFile(
+        join(workDir, 'out', 'config-rel.json'),
+        'utf-8',
+      );
+      const result = JSON.parse(content) as {
+        annotations: Array<{ ref: string }>;
+      };
+      assert.ok(result.annotations.some((a) => a.ref === 'PATH-001'));
+    });
+  });
+
+  describe('absolute scanResult path in config (Concern 006)', () => {
+    it('check --save-scan with absolute config.paths.scanResult writes correctly', async () => {
+      // Create a temp dir for absolute path target (under workDir so boundary guard allows it)
+      const absDir = await mkdtemp(join(workDir, 'abs-scan-'));
+      const absScanPath = join(absDir, 'scan-result.json');
+
+      // Create config with absolute path for scanResult
+      const configDir = join(workDir, '.config', 'shiori');
+      await mkdir(configDir, { recursive: true });
+      await writeFile(
+        join(configDir, 'config.yaml'),
+        [
+          '# shiori configuration',
+          'paths:',
+          `  scanResult: "${absScanPath}"`,
+        ].join('\n') + '\n',
+        'utf-8',
+      );
+
+      // Create registry (required by check command)
+      await writeFile(
+        join(configDir, 'registry.json'),
+        JSON.stringify(
+          {
+            'PATH-001': { reason: 'test', target: 'all' },
+            'PATH-002': { reason: 'test', target: 'all' },
+          },
+          null,
+          2,
+        ),
+        'utf-8',
+      );
+
+      const { exitCode, stderr } = await runCli([
+        'check',
+        '--cwd',
+        workDir,
+        '--patterns',
+        'src/**/*.ts',
+        '--save-scan',
+        '--warn-on',
+        'missing-in-registry,unused-in-source,expired,syntax-error',
+      ]);
+
+      assert.equal(exitCode, 0, `check failed with stderr: ${stderr}`);
+
+      // Verify scan result was written to the absolute path (not joined with cwd)
+      const content = await readFile(absScanPath, 'utf-8');
+      const result = JSON.parse(content) as {
+        annotations: Array<{ ref: string }>;
+      };
+      assert.ok(result.annotations.some((a) => a.ref === 'PATH-001'));
+    });
+  });
+
   describe('boundary guard rejects --output outside --cwd', () => {
     it('scan --output outside --cwd is rejected', async () => {
       const { exitCode, stderr } = await runCli([

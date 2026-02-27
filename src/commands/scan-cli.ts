@@ -1,6 +1,6 @@
 import { define } from 'gunshi';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { scan, formatScanResultForDisplay } from './scan.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
 import { loadConfig } from '../core/config.ts';
@@ -82,7 +82,7 @@ export const scanCommand = define({
     const writeTarget = ctx.values.output
       ? resolve(cwd, ctx.values.output)
       : process.stdout.isTTY
-        ? join(cwd, config.paths.scanResult)
+        ? resolve(cwd, config.paths.scanResult)
         : undefined;
 
     if (writeTarget) {
@@ -120,7 +120,7 @@ export const scanCommand = define({
       );
     } else if (process.stdout.isTTY) {
       // TTY: auto-save + human-readable output to stdout
-      const outputPath = join(cwd, config.paths.scanResult);
+      const outputPath = resolve(cwd, config.paths.scanResult);
       await mkdir(dirname(outputPath), { recursive: true });
       await writeFile(outputPath, json + '\n', 'utf-8');
       console.log(formatScanResultForDisplay(result, config.paths.scanResult));

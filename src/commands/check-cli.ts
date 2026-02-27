@@ -1,6 +1,6 @@
 import { define } from 'gunshi';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import {
   loadConfigAndRegistry,
   reportRegistryIssues,

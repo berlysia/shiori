@@ -67,7 +67,7 @@ export const initCommand = define({
 
     // Validate all write targets are within cwd before any I/O
     const configDir = join(cwd, '.config', 'shiori');
-    const scanResultPath = join(cwd, config.paths.scanResult);
+    const scanResultPath = resolve(cwd, config.paths.scanResult);
     const registryPath = ctx.values.registry
       ? resolve(cwd, ctx.values.registry)
       : join(cwd, DEFAULT_REGISTRY_PATH);

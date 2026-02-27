@@ -76,7 +76,7 @@ export async function loadConfig(
   cwd: string,
   configDir?: string,
 ): Promise<ResolvedConfig> {
-  const dir = configDir ?? join(cwd, CONFIG_DIR);
+  const dir = configDir ? resolve(cwd, configDir) : join(cwd, CONFIG_DIR);
 
   for (const filename of CONFIG_FILENAMES) {
     const configPath = join(dir, filename);
@@ -146,13 +146,13 @@ export async function resolveRegistryPath(
   if (config.paths.registry) {
     candidates.push({
       label: `config: ${config.paths.registry}`,
-      path: join(cwd, config.paths.registry),
+      path: resolve(cwd, config.paths.registry),
     });
   }
 
   candidates.push({
     label: DEFAULT_REGISTRY_PATH,
-    path: join(cwd, DEFAULT_REGISTRY_PATH),
+    path: resolve(cwd, DEFAULT_REGISTRY_PATH),
   });
 
   for (const candidate of candidates) {
