@@ -13,6 +13,7 @@ import { jumpCommand } from './commands/jump-cli.ts';
 import { watchCommand } from './commands/watch-cli.ts';
 import { migrateCommand } from './commands/migrate-cli.ts';
 import { reportCommand } from './commands/report-cli.ts';
+import { deltaCommand } from './commands/delta-cli.ts';
 
 const main = define({
   name: 'shiori',
@@ -44,6 +45,7 @@ Workflow:
   shiori update                  Add new refs to the registry
   shiori migrate                 Auto-migrate lint disable comments
   shiori watch                   Refresh scan result on each save
+  shiori delta                   Compare scan results for PR review
   shiori check --fail-on ...     Enforce governance in CI
 
 Other commands:
@@ -77,6 +79,7 @@ try {
       jump: jumpCommand,
       watch: watchCommand,
       report: reportCommand,
+      delta: deltaCommand,
       docs: docsCommand,
     },
   });
