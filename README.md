@@ -437,6 +437,12 @@ Post annotation diffs as PR comments using `shiori delta`. Compares the main bra
 
 See [Delta PR Comment recipe](docs/recipes/github-actions-delta-pr-comment.md) for the full workflow with artifact caching, `--base-fallback-empty` for initial PRs, and optional `--max-increase` CI gate.
 
+### Delta PR Description
+
+Embed annotation diffs directly into the PR description using `shiori delta`. The governance summary is automatically inserted into a marker section in the PR body, so reviewers see annotation changes the moment they open the PR.
+
+See [Delta PR Description recipe](docs/recipes/github-actions-delta-pr-description.md) for the full workflow with PR template setup, marker-based body replacement, and optional `--max-increase` CI gate.
+
 ### Governance Score Badge
 
 Display a live governance score badge in your README using `shiori report --format badge`:

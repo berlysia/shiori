@@ -10,9 +10,7 @@ import type {
   BreakdownEntry,
   ReportFormat,
 } from '../core/types.ts';
-import { verify } from './verify.ts';
-import type { RegistryDuplicateWarning } from '../core/registry.ts';
-import type { RefPatternConfig } from '../core/ref-pattern.ts';
+import { verify, type VerifyOptions } from './verify.ts';
 
 // Re-export report types from core for backward compatibility
 export type {
@@ -23,20 +21,13 @@ export type {
   HealthLevel,
 };
 
-/** Input options for generating a report */
-export interface ReportOptions {
+/**
+ * Input options for generating a report.
+ * Derived from VerifyOptions — replaces `records` with `scanResult`
+ * so that field additions to VerifyOptions automatically propagate.
+ */
+export interface ReportOptions extends Omit<VerifyOptions, 'records'> {
   scanResult: ScanResult;
-  registry: Registry;
-  failOn: VerifyIssueType[];
-  warnOn: VerifyIssueType[];
-  /** Reference date for expiry checks (injectable for tests) */
-  now?: Date;
-  /** Registry duplicate warnings from multi-registry loading */
-  duplicates?: RegistryDuplicateWarning[];
-  /** Pattern-based ref routing configuration (ADR 012) */
-  refPatterns?: RefPatternConfig[];
-  /** Maps each ref to its origin registryFile (ADR 012 phase 2) */
-  refOrigins?: Map<string, string | null>;
 }
 
 /**
@@ -44,26 +35,12 @@ export interface ReportOptions {
  * Pure function — no I/O. Runs verify() internally.
  */
 export function report(options: ReportOptions): ReportResult {
-  const {
-    scanResult,
-    registry,
-    failOn,
-    warnOn,
-    now,
-    duplicates,
-    refPatterns,
-    refOrigins,
-  } = options;
+  const { scanResult, ...verifyOpts } = options;
+  const { registry } = verifyOpts;
 
   const verifyResult = verify({
+    ...verifyOpts,
     records: scanResult.annotations,
-    registry,
-    failOn,
-    warnOn,
-    now,
-    duplicates,
-    refPatterns,
-    refOrigins,
   });
 
   const { annotations, candidates } = scanResult;

@@ -1,24 +1,13 @@
-import type {
-  ScanResult,
-  VerifyResult,
-  VerifyIssueType,
-  Registry,
-} from '../core/types.ts';
-import type { RegistryDuplicateWarning } from '../core/registry.ts';
-import type { RefPatternConfig } from '../core/ref-pattern.ts';
-import { verify, type OutputFormat } from './verify.ts';
+import type { ScanResult, VerifyResult } from '../core/types.ts';
+import { verify, type VerifyOptions, type OutputFormat } from './verify.ts';
 
-export interface CheckOptions {
+/**
+ * Input options for one-shot check.
+ * Derived from VerifyOptions — replaces `records` with `scanResult`
+ * so that field additions to VerifyOptions automatically propagate.
+ */
+export interface CheckOptions extends Omit<VerifyOptions, 'records'> {
   scanResult: ScanResult;
-  registry: Registry;
-  failOn: VerifyIssueType[];
-  warnOn: VerifyIssueType[];
-  /** Registry duplicate warnings from multi-registry loading */
-  duplicates?: RegistryDuplicateWarning[];
-  /** Pattern-based ref routing configuration (ADR 012) */
-  refPatterns?: RefPatternConfig[];
-  /** Maps each ref to its origin registryFile (ADR 012 phase 2) */
-  refOrigins?: Map<string, string | null>;
 }
 
 export interface CheckResult {
@@ -31,18 +20,15 @@ export interface CheckResult {
  * Pure function — all I/O is handled by the CLI wrapper.
  */
 export function check(options: CheckOptions): CheckResult {
+  const { scanResult, ...verifyOpts } = options;
+
   const verifyResult = verify({
-    records: options.scanResult.annotations,
-    registry: options.registry,
-    failOn: options.failOn,
-    warnOn: options.warnOn,
-    duplicates: options.duplicates,
-    refPatterns: options.refPatterns,
-    refOrigins: options.refOrigins,
+    ...verifyOpts,
+    records: scanResult.annotations,
   });
 
   return {
-    scanResult: options.scanResult,
+    scanResult,
     verifyResult,
   };
 }
