@@ -1,6 +1,4 @@
 import { define } from 'gunshi';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { resolve, join } from 'node:path';
 import {
   loadConfigAndRegistry,
   reportRegistryIssues,
@@ -23,8 +21,7 @@ import {
   DEFAULT_SCAN_PATTERNS,
   DEFAULT_SCAN_IGNORE,
 } from '../core/scan-defaults.ts';
-import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
-import { loadReportFiles } from '../core/report-files.ts';
+import { saveSnapshot, loadSnapshots } from '../core/snapshot.ts';
 import { writeOutput } from '../core/cli-output.ts';
 import type { HealthLevel } from '../core/types.ts';
 
@@ -211,35 +208,19 @@ export const healthCommand = define({
 
     // Save snapshot if requested
     if (ctx.values.snapshot) {
-      const snapshotDir = resolve(cwd, ctx.values.snapshot);
-      const snapshotFile = join(
-        snapshotDir,
-        `${reportResult.timestamp.replace(/[:.]/g, '-')}.json`,
-      );
-      try {
-        await assertWithinCwd(snapshotFile, cwd);
-      } catch (err) {
-        if (err instanceof PathBoundaryError) {
-          console.error(`Error: ${err.message}`);
-          process.exitCode = 1;
-          return;
-        }
-        throw err;
+      const result = await saveSnapshot(reportResult, ctx.values.snapshot, cwd);
+      if (!result.ok) {
+        console.error(`Error: ${result.error}`);
+        process.exitCode = 1;
+        return;
       }
-      await mkdir(snapshotDir, { recursive: true });
-      await writeFile(
-        snapshotFile,
-        JSON.stringify(reportResult, null, 2) + '\n',
-        'utf-8',
-      );
-      console.error(`Snapshot saved to ${snapshotFile}`);
+      console.error(`Snapshot saved to ${result.path}`);
     }
 
     // Load trend data if --history is provided
     let trendResult = undefined;
     if (ctx.values.history) {
-      const historyDir = resolve(cwd, ctx.values.history);
-      const reports = await loadReportFiles(historyDir, {
+      const reports = await loadSnapshots(ctx.values.history, cwd, {
         onDirectoryError: (msg) => console.error(`Warning: ${msg}`),
         onNoFiles: (dir) =>
           console.error(`Warning: No JSON files found in ${dir}`),
