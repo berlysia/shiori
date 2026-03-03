@@ -125,6 +125,7 @@ export const trendCommand = define({
           parsed.health &&
           typeof (parsed.health as Record<string, unknown>).score === 'number'
         ) {
+          // shiori: DEV-002 reason="runtime JSON shape validated above but static type requires assertion"
           reports.push(parsed as unknown as ReportResult);
         } else {
           skipped.push(file);

@@ -54,6 +54,7 @@ export function initRegistry(options: InitRegistryOptions): Registry {
       registry[ref] = existingRegistry[ref]!;
     } else {
       const refRecords = byRef.get(ref)!;
+      // shiori: DEV-003 reason="placeholder values are intentional design for scaffold generation"
       registry[ref] = {
         reason: 'TODO: fill in reason',
         target: 'TODO: fill in target',

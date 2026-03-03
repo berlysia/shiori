@@ -43,7 +43,7 @@ export async function assertWithinCwd(
     // Target doesn't exist — find nearest existing ancestor
     let current = absoluteTarget;
     const pendingSegments: string[] = [];
-    // eslint-disable-next-line no-constant-condition -- walk up until realpath succeeds
+    // eslint-disable-next-line no-constant-condition -- shiori: DEV-001 reason="infinite loop pattern requires eslint suppress"
     while (true) {
       const parent = dirname(current);
       pendingSegments.unshift(basename(current));
