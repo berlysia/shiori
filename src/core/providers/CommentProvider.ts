@@ -14,6 +14,7 @@ import {
 import { parseShioriFields } from '../parser.ts';
 import type { CommentSyntax } from '../comment-syntax.ts';
 import { getCommentSyntax } from '../comment-syntax.ts';
+import { escapeRegex } from '../regex-utils.ts';
 
 /** Annotation prefix detection (matches "shiori" followed by colon) */
 const SHIORI_PREFIX_RE = /\bshiori:\s*/;
@@ -28,10 +29,6 @@ const DEFAULT_RESOLVED_PATTERNS: ResolvedCandidatePatterns =
 interface ExtractedComment {
   text: string;
   line: number;
-}
-
-function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function extractComments(

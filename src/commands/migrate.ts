@@ -3,6 +3,7 @@ import type {
   Registry,
   RegistryEntry,
 } from '../core/types.ts';
+import { escapeRegex } from '../core/regex-utils.ts';
 
 /** Options for migrate planning */
 export interface MigrateOptions {
@@ -61,10 +62,6 @@ function findNextNumber(prefix: string, existingRegistry: Registry): number {
     }
   }
   return max + 1;
-}
-
-function escapeRegex(str: string): string {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 /**
