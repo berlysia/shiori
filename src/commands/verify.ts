@@ -35,6 +35,8 @@ export interface VerifyOptions {
    * Used to detect registry-routing-mismatch.
    */
   refOrigins?: Map<string, string | null>;
+  /** Threshold in days for expiring-soon detection (default: 14) */
+  expiringThresholdDays?: number;
 }
 
 function determineSeverity(
@@ -178,11 +180,13 @@ export function verify(options: VerifyOptions): VerifyResult {
     }
   }
 
-  // Check expired (registry entries)
+  // Check expired (registry entries) — track reported refs to avoid double-reporting with expiring-soon
+  const reportedExpired = new Set<string>();
   for (const [ref, entry] of Object.entries(registry)) {
     if (entry.expires) {
       const norm = normalizeExpires(entry.expires);
       if (norm < todayStr) {
+        reportedExpired.add(ref);
         issues.push({
           type: 'expired',
           severity: determineSeverity('expired', failOn, warnOn),
@@ -192,6 +196,27 @@ export function verify(options: VerifyOptions): VerifyResult {
           line: undefined,
         });
       }
+    }
+  }
+
+  // Check expiring-soon (registry entries approaching expiration)
+  const expiringThresholdDays = options.expiringThresholdDays ?? 14;
+  const thresholdDate = new Date(now);
+  thresholdDate.setDate(thresholdDate.getDate() + expiringThresholdDays);
+  const thresholdDateStr = thresholdDate.toISOString().slice(0, 10);
+  for (const [ref, entry] of Object.entries(registry)) {
+    if (!entry.expires) continue;
+    if (reportedExpired.has(ref)) continue;
+    const norm = normalizeExpires(entry.expires);
+    if (norm <= thresholdDateStr) {
+      issues.push({
+        type: 'expiring-soon',
+        severity: determineSeverity('expiring-soon', failOn, warnOn),
+        ref,
+        message: `ID "${ref}" expires on ${entry.expires} (within ${expiringThresholdDays} days)`,
+        file: undefined,
+        line: undefined,
+      });
     }
   }
 
@@ -302,6 +327,11 @@ export function formatActionHints(result: VerifyResult): string[] {
   if (byType['registry-routing-mismatch'] > 0) {
     hints.push(
       `  registry-routing-mismatch (${byType['registry-routing-mismatch']}): Ref is in the wrong registry file. Move it to the file specified by its matching refPattern.`,
+    );
+  }
+  if (byType['expiring-soon'] > 0) {
+    hints.push(
+      `  expiring-soon (${byType['expiring-soon']}): Entries approaching expiration. Extend expires or resolve the underlying issue.`,
     );
   }
 

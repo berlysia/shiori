@@ -20,6 +20,7 @@ function makeResult(overrides: Partial<VerifyResult> = {}): VerifyResult {
         'ref-collision': 0,
         'unrouted-ref': 0,
         'registry-routing-mismatch': 0,
+        'expiring-soon': 0,
       },
     },
     scannedRecords: 0,

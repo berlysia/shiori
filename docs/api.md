@@ -142,7 +142,8 @@ type VerifyIssueType =
   | 'ref-format'
   | 'ref-collision'
   | 'unrouted-ref'
-  | 'registry-routing-mismatch';
+  | 'registry-routing-mismatch'
+  | 'expiring-soon';
 
 type IssueSeverity = 'error' | 'warning';
 ```

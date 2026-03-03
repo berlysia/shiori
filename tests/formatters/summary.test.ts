@@ -57,6 +57,7 @@ function makeResult(overrides: Partial<VerifyResult> = {}): VerifyResult {
         'ref-collision': 0,
         'unrouted-ref': 0,
         'registry-routing-mismatch': 0,
+        'expiring-soon': 0,
       },
     },
     scannedRecords: 0,
@@ -114,6 +115,7 @@ describe('formatAsSummary', () => {
             'ref-collision': 0,
             'unrouted-ref': 0,
             'registry-routing-mismatch': 0,
+            'expiring-soon': 0,
           },
         },
       }),
@@ -218,5 +220,38 @@ describe('formatAsSummary', () => {
       byOwner: Record<string, number>;
     };
     assert.equal(Object.keys(summary.byOwner).length, 1);
+  });
+
+  it('includes expiringSoon count in totals', () => {
+    const input = makeInput({
+      verifyResult: makeResult({
+        summary: {
+          total: 1,
+          errors: 0,
+          warnings: 1,
+          byType: {
+            'missing-in-registry': 0,
+            'unused-in-source': 0,
+            expired: 0,
+            'syntax-error': 0,
+            'ref-format': 0,
+            'ref-collision': 0,
+            'unrouted-ref': 0,
+            'registry-routing-mismatch': 0,
+            'expiring-soon': 2,
+          },
+        },
+      }),
+    });
+    const summary = JSON.parse(formatAsSummary(input)) as {
+      totals: {
+        annotations: number;
+        candidates: number;
+        expired: number;
+        missing: number;
+        expiringSoon: number;
+      };
+    };
+    assert.equal(summary.totals.expiringSoon, 2);
   });
 });

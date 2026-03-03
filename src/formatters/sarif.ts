@@ -55,6 +55,7 @@ const RULE_DESCRIPTIONS: Record<VerifyIssueType, string> = {
     'Annotation ref does not match any configured routing pattern',
   'registry-routing-mismatch':
     'Registry entry exists in a file that does not match its routing pattern',
+  'expiring-soon': 'Registry entry is approaching its expiration date',
 };
 
 /**

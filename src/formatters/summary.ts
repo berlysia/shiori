@@ -17,6 +17,7 @@ interface SummaryTotals {
   candidates: number;
   expired: number;
   missing: number;
+  expiringSoon: number;
 }
 
 interface SummaryOutput {
@@ -38,6 +39,7 @@ export function formatAsSummary(input: SummaryInput): string {
     candidates: candidates.length,
     expired: verifyResult.summary.byType['expired'],
     missing: verifyResult.summary.byType['missing-in-registry'],
+    expiringSoon: verifyResult.summary.byType['expiring-soon'],
   };
 
   // Aggregate annotations by rule

@@ -76,6 +76,12 @@ export const verifyCommand = define({
       description:
         'Path to config directory (YAML/JSON auto-detected). Default: <cwd>/.config/shiori',
     },
+    expiringThreshold: {
+      type: 'string',
+      toKebab: true,
+      description:
+        'Days before expiration to trigger expiring-soon warning. Overrides config. Default: 14',
+    },
   },
   run: async (ctx) => {
     // Validate options early
@@ -102,6 +108,10 @@ export const verifyCommand = define({
       cwd,
     });
 
+    const expiringThresholdDays = ctx.values.expiringThreshold
+      ? Number(ctx.values.expiringThreshold)
+      : config.verify.expiringThresholdDays;
+
     const result = verify({
       records: scanResult.annotations,
       registry,
@@ -110,6 +120,7 @@ export const verifyCommand = define({
       duplicates,
       refPatterns: config.refPatterns,
       refOrigins,
+      expiringThresholdDays,
     });
 
     const output = formatVerifyOutput({

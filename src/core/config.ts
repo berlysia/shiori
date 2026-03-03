@@ -38,6 +38,11 @@ export interface ShioriConfig {
     /** Path to registry file (relative to cwd) */
     registry?: string;
   };
+  /** Verify command options */
+  verify?: {
+    /** Days before expiration to trigger expiring-soon warning (default: 14) */
+    expiringThresholdDays?: number;
+  };
 }
 
 /** Resolved configuration with all defaults applied */
@@ -53,6 +58,11 @@ export interface ResolvedConfig {
   paths: {
     scanResult: string;
     registry: string | undefined;
+  };
+  /** Resolved verify options */
+  verify: {
+    /** Days before expiration to trigger expiring-soon warning */
+    expiringThresholdDays: number;
   };
 }
 
@@ -120,6 +130,9 @@ export function resolveConfig(raw: ShioriConfig): ResolvedConfig {
     paths: {
       scanResult: raw.paths?.scanResult ?? DEFAULT_SCAN_RESULT_PATH,
       registry: raw.paths?.registry,
+    },
+    verify: {
+      expiringThresholdDays: raw.verify?.expiringThresholdDays ?? 14,
     },
   };
 }

@@ -63,6 +63,12 @@ const MESSAGE_TEMPLATES: Record<
     template: (_ref) => `Syntax error: ref= is not a valid key`,
     hasRef: false,
   },
+
+  // expiring-soon: ID "<ref>" pattern
+  'expiring-soon': {
+    template: (ref) => `ID "${ref}" expires on 2026-03-01 (within 14 days)`,
+    hasRef: true,
+  },
 };
 
 describe('alert-to-ref ref extraction', () => {

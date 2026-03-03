@@ -89,6 +89,43 @@ describe('check', () => {
     assert.equal(result.verifyResult.summary.byType['ref-collision'], 1);
   });
 
+  it('passes expiringThresholdDays through to verify', () => {
+    const scanResult = makeScanResult([
+      {
+        ref: 'SOON-001',
+        tagged: true,
+        ignored: false,
+        location: { file: 'test.ts', line: 1 },
+      },
+    ]);
+    const registry: Registry = {
+      'SOON-001': {
+        reason: 'test',
+        target: 'test.ts',
+        expires: '2026-02-14',
+        ticket: undefined,
+        owner: undefined,
+        notes: undefined,
+        kind: undefined,
+      },
+    };
+
+    const result = check({
+      scanResult,
+      registry,
+      failOn: [],
+      warnOn: [],
+      now: new Date('2026-02-11T00:00:00Z'),
+      expiringThresholdDays: 7,
+    });
+
+    const expiringSoon = result.verifyResult.issues.filter(
+      (i) => i.type === 'expiring-soon',
+    );
+    assert.equal(expiringSoon.length, 1);
+    assert.equal(expiringSoon[0]!.ref, 'SOON-001');
+  });
+
   it('detects missing-in-registry as error when failOn is set', () => {
     const scanResult = makeScanResult([
       {

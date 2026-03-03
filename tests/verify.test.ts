@@ -1039,6 +1039,201 @@ describe('verify', () => {
     });
   });
 
+  describe('expiring-soon', () => {
+    it('detects entry expiring within default 14-day threshold', () => {
+      // referenceDate = 2026-02-11, entry expires 2026-02-20 (9 days away, < 14)
+      const records = [makeAnnotation({ ref: 'SUP-SOON' })];
+      const registry: Registry = {
+        'SUP-SOON': makeRegistryEntry({ expires: '2026-02-20' }),
+      };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+      });
+      const expiringSoon = result.issues.filter(
+        (i) => i.type === 'expiring-soon',
+      );
+      assert.equal(expiringSoon.length, 1);
+      assert.equal(expiringSoon[0]!.ref, 'SUP-SOON');
+      assert.equal(expiringSoon[0]!.severity, 'warning');
+    });
+
+    it('detects entry expiring within custom threshold', () => {
+      // referenceDate = 2026-02-11, entry expires 2026-02-14 (3 days away)
+      // With threshold=7, should be detected
+      const records = [makeAnnotation({ ref: 'SUP-SOON2' })];
+      const registry: Registry = {
+        'SUP-SOON2': makeRegistryEntry({ expires: '2026-02-14' }),
+      };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        expiringThresholdDays: 7,
+      });
+      const expiringSoon = result.issues.filter(
+        (i) => i.type === 'expiring-soon',
+      );
+      assert.equal(expiringSoon.length, 1);
+    });
+
+    it('does not double-report expired entries as expiring-soon', () => {
+      // referenceDate = 2026-02-11, entry expired 2025-01-01 (already expired)
+      const records = [makeAnnotation({ ref: 'SUP-EXP' })];
+      const registry: Registry = {
+        'SUP-EXP': makeRegistryEntry({ expires: '2025-01-01' }),
+      };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+      });
+      const expired = result.issues.filter((i) => i.type === 'expired');
+      const expiringSoon = result.issues.filter(
+        (i) => i.type === 'expiring-soon',
+      );
+      assert.equal(expired.length, 1);
+      assert.equal(expiringSoon.length, 0);
+    });
+
+    it('boundary: threshold=0 with today expiry → expiring-soon (not expired)', () => {
+      // referenceDate = 2026-02-11, entry expires 2026-02-11 (today)
+      // expired: norm < todayStr → false. expiring-soon: norm <= thresholdDateStr → true
+      const records = [makeAnnotation({ ref: 'SUP-TODAY' })];
+      const registry: Registry = {
+        'SUP-TODAY': makeRegistryEntry({ expires: '2026-02-11' }),
+      };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        expiringThresholdDays: 0,
+      });
+      const expired = result.issues.filter((i) => i.type === 'expired');
+      const expiringSoon = result.issues.filter(
+        (i) => i.type === 'expiring-soon',
+      );
+      assert.equal(expired.length, 0);
+      assert.equal(expiringSoon.length, 1);
+    });
+
+    it('handles YYYY-MM format for expiring-soon', () => {
+      // referenceDate = 2026-02-11, entry expires 2026-02 (normalized to 2026-02-99)
+      // With threshold=90 days → threshold date = 2026-05-12
+      // norm = 2026-02-99 < 2026-05-12 → expiring-soon
+      const records = [makeAnnotation({ ref: 'SUP-MON' })];
+      const registry: Registry = {
+        'SUP-MON': makeRegistryEntry({ expires: '2026-02' }),
+      };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        expiringThresholdDays: 90,
+      });
+      const expiringSoon = result.issues.filter(
+        (i) => i.type === 'expiring-soon',
+      );
+      assert.equal(expiringSoon.length, 1);
+    });
+
+    it('skips entries without expires', () => {
+      const records = [makeAnnotation({ ref: 'SUP-NOEXP' })];
+      const registry: Registry = {
+        'SUP-NOEXP': makeRegistryEntry({ expires: undefined }),
+      };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+      });
+      const expiringSoon = result.issues.filter(
+        (i) => i.type === 'expiring-soon',
+      );
+      assert.equal(expiringSoon.length, 0);
+    });
+
+    it('does not detect entry far from threshold', () => {
+      // referenceDate = 2026-02-11, entry expires 2027-12-31
+      const records = [makeAnnotation({ ref: 'SUP-FAR' })];
+      const registry: Registry = {
+        'SUP-FAR': makeRegistryEntry({ expires: '2027-12-31' }),
+      };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+      });
+      const expiringSoon = result.issues.filter(
+        (i) => i.type === 'expiring-soon',
+      );
+      assert.equal(expiringSoon.length, 0);
+    });
+
+    it('includes expiring-soon in summary byType', () => {
+      const records = [makeAnnotation({ ref: 'SUP-SOON' })];
+      const registry: Registry = {
+        'SUP-SOON': makeRegistryEntry({ expires: '2026-02-20' }),
+      };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+      });
+      assert.equal(result.summary.byType['expiring-soon'], 1);
+    });
+  });
+
+  describe('formatActionHints for expiring-soon', () => {
+    it('shows hint for expiring-soon', () => {
+      const records = [makeAnnotation({ ref: 'SUP-SOON' })];
+      const registry: Registry = {
+        'SUP-SOON': makeRegistryEntry({ expires: '2026-02-20' }),
+      };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+      });
+      const hints = formatActionHints(result);
+      assert.ok(hints.some((h) => h.includes('expiring-soon')));
+      assert.ok(
+        hints.some(
+          (h) => h.includes('Extend expires') || h.includes('resolve'),
+        ),
+      );
+    });
+  });
+
+  describe('VERIFY_ISSUE_TYPES sync', () => {
+    it('VERIFY_ISSUE_TYPES includes expiring-soon', async () => {
+      const { VERIFY_ISSUE_TYPES } = await import('../src/core/types.ts');
+      assert.ok(
+        VERIFY_ISSUE_TYPES.includes('expiring-soon'),
+        'expiring-soon must be in VERIFY_ISSUE_TYPES',
+      );
+    });
+  });
+
   describe('formatVerifyResultAsMarkdown', () => {
     it('generates markdown with errors and warnings sections', () => {
       const records = [makeAnnotation({ ref: 'SUP-MISS' })];

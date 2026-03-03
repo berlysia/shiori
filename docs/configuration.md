@@ -38,6 +38,9 @@ candidates:
   typescript: false
   keywords: false
 
+verify:
+  expiringThresholdDays: 14
+
 refPatterns:
   - match: 'JIRA-{id}'
     urlTemplate: 'https://jira.example.com/browse/{id}'
@@ -118,6 +121,21 @@ Matcher config fields:
 | `rules`     | `"csv"` \| `"single"` | Rule extraction mode (optional)                     |
 | `separator` | `string`              | Separator between rules and meta parts (optional)   |
 | `text`      | `boolean`             | Store captured text in candidate output (optional)  |
+
+### `verify`
+
+Options for the `verify` and `check` commands.
+
+| Key                     | Type     | Default | Description                                               |
+| ----------------------- | -------- | ------- | --------------------------------------------------------- |
+| `expiringThresholdDays` | `number` | `14`    | Days before expiration to trigger `expiring-soon` warning |
+
+This setting can be overridden per-invocation with the `--expiring-threshold` CLI flag.
+
+```yaml
+verify:
+  expiringThresholdDays: 30 # Alert 30 days before expiration
+```
 
 ### `refPatterns`
 

@@ -143,6 +143,15 @@ function buildInsights(
     });
   }
 
+  // Expiring soon
+  if (byType['expiring-soon'] > 0) {
+    insights.push({
+      level: 'warning',
+      label: 'expiring',
+      message: `${byType['expiring-soon']} annotation(s) are approaching expiration. Extend expires or resolve the underlying issues.`,
+    });
+  }
+
   // All clear
   if (insights.length === 0) {
     insights.push({
@@ -187,7 +196,8 @@ function calculateScore(
   const minorIssues =
     byType['ref-format'] +
     byType['unrouted-ref'] +
-    byType['registry-routing-mismatch'];
+    byType['registry-routing-mismatch'] +
+    byType['expiring-soon'];
   score -= Math.min(minorIssues * 2, 10);
 
   // Candidate ratio penalty (max 20)

@@ -78,6 +78,7 @@ export const VERIFY_ISSUE_TYPES = [
   'ref-collision',
   'unrouted-ref',
   'registry-routing-mismatch',
+  'expiring-soon',
 ] as const;
 
 /** Verify issue type (derived from VERIFY_ISSUE_TYPES) */

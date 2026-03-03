@@ -243,6 +243,7 @@ Detects:
 - **ref-collision** — Ref defined in multiple registry files
 - **unrouted-ref** — Annotation ref does not match any configured routing pattern
 - **registry-routing-mismatch** — Registry entry in a file that does not match its routing pattern
+- **expiring-soon** — Registry entry approaching its `expires` date (default: within 14 days)
 
 Options:
 
@@ -494,6 +495,7 @@ In SARIF output, `error` severity maps to ❌ error annotations and `warning` ma
 | `ref-collision`             | warning          | Ref defined in multiple registry files        |
 | `unrouted-ref`              | warning          | Ref doesn't match any routing pattern         |
 | `registry-routing-mismatch` | warning          | Registry entry in wrong file per routing rule |
+| `expiring-soon`             | warning          | Registry entry approaching expiration         |
 
 ### Output Formats
 
