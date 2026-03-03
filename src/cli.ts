@@ -15,6 +15,7 @@ import { migrateCommand } from './commands/migrate-cli.ts';
 import { reportCommand } from './commands/report-cli.ts';
 import { deltaCommand } from './commands/delta-cli.ts';
 import { trendCommand } from './commands/trend-cli.ts';
+import { healthCommand } from './commands/health-cli.ts';
 
 const main = define({
   name: 'shiori',
@@ -42,6 +43,7 @@ const main = define({
 Workflow:
   shiori init                    Set up shiori in your project
   shiori check                   Scan and verify against registry
+  shiori health                  Quick governance health summary
   shiori report                  Generate governance health report
   shiori trend                   Compare governance scores over time
   shiori update                  Add new refs to the registry
@@ -80,6 +82,7 @@ try {
       show: showCommand,
       jump: jumpCommand,
       watch: watchCommand,
+      health: healthCommand,
       report: reportCommand,
       trend: trendCommand,
       delta: deltaCommand,

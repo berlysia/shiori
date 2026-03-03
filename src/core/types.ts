@@ -259,3 +259,35 @@ export type ReportFormat = 'json' | 'markdown' | 'badge';
 
 /** Output format for trend command */
 export type TrendFormat = 'json' | 'markdown' | 'csv';
+
+// ── Health types (EP-0024) ───────────────────────────────────
+
+/** Health output format */
+export type HealthFormat = 'json' | 'summary';
+
+/** Health command result — synthesises report + optional trend */
+export interface HealthResult {
+  /** ISO timestamp when health was computed */
+  timestamp: string;
+  /** Overall governance health (from report) */
+  health: {
+    level: HealthLevel;
+    score: number;
+    summary: string;
+  };
+  /** Issue counts */
+  issues: {
+    total: number;
+    errors: number;
+    warnings: number;
+  };
+  /** Expiration counts from verify byType */
+  expiring: {
+    expired: number;
+    expiringSoon: number;
+  };
+  /** Key governance insights (from report) */
+  insights: ReportInsight[];
+  /** Trend summary (present when --history is supplied) */
+  trend?: TrendResult['summary'];
+}
