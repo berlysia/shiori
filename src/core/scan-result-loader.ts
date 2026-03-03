@@ -103,6 +103,7 @@ async function readScanResultFile(filePath: string): Promise<ScanResult> {
   }
 
   try {
+    // shiori: DEV-008 reason="JSON.parse result cast without shape validation; structural check would improve safety"
     return JSON.parse(content) as ScanResult;
   } catch {
     throw new Error(

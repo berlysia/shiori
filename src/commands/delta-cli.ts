@@ -85,6 +85,7 @@ export const deltaCommand = define({
     }
 
     // Validate format
+    // shiori: DEV-004 reason="validated by DELTA_FORMATS.includes() but type not narrowed by control flow"
     const format = (ctx.values.format ?? 'json') as DeltaOutputFormat;
     if (!DELTA_FORMATS.includes(format)) {
       console.error(

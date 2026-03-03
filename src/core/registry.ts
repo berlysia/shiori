@@ -48,6 +48,7 @@ function validateEntry(
     };
   }
 
+  // shiori: DEV-009 reason="type guard above checks typeof=object but TS does not narrow to Record; assertion bridges the gap"
   const raw = value as Record<string, unknown>;
 
   if (typeof raw['reason'] !== 'string') {

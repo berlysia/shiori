@@ -21,5 +21,58 @@
     "owner": "berlysia",
     "notes": "initRegistry generates placeholder entries for new refs; users fill in real values",
     "kind": "design-decision"
+  },
+  "DEV-004": {
+    "reason": "CLI --format validated by array includes() but TypeScript cannot narrow string to union type",
+    "target": "src/commands/delta-cli.ts",
+    "owner": "berlysia",
+    "notes": "Common pattern across CLI commands; type-safe parseFormat() helper would eliminate all format assertions",
+    "kind": "type-assertion"
+  },
+  "DEV-005": {
+    "reason": "CLI --format validated by array includes() but TypeScript cannot narrow string to union type",
+    "target": "src/commands/trend-cli.ts",
+    "owner": "berlysia",
+    "notes": "Same pattern as DEV-004; shared parseFormat<T>() generic helper would fix all at once",
+    "kind": "type-assertion"
+  },
+  "DEV-006": {
+    "reason": "CLI --format validated by array includes() but TypeScript cannot narrow string to union type",
+    "target": "src/commands/report-cli.ts",
+    "owner": "berlysia",
+    "notes": "Same pattern as DEV-004; shared parseFormat<T>() generic helper would fix all at once",
+    "kind": "type-assertion"
+  },
+  "DEV-007": {
+    "reason": "Config file parsed from JSON/YAML cast to ShioriConfig without schema validation",
+    "target": "src/core/config.ts",
+    "expires": "2026-06",
+    "ticket": "EP-0011",
+    "owner": "berlysia",
+    "notes": "JSON Schema validation (EP-0011) would provide structural guarantee before cast",
+    "kind": "type-assertion"
+  },
+  "DEV-008": {
+    "reason": "Scan result JSON.parse output cast to ScanResult without structural validation",
+    "target": "src/core/scan-result-loader.ts",
+    "expires": "2026-06",
+    "ticket": "EP-0011",
+    "owner": "berlysia",
+    "notes": "Shape validation would catch corrupted or incompatible scan result files",
+    "kind": "type-assertion"
+  },
+  "DEV-009": {
+    "reason": "Registry entry type guard checks typeof=object but TS does not narrow to Record<string, unknown>",
+    "target": "src/core/registry.ts",
+    "owner": "berlysia",
+    "notes": "Structural limitation of TypeScript narrowing; assertion is safe after null/typeof check",
+    "kind": "type-assertion"
+  },
+  "DEV-010": {
+    "reason": "CLI --format has no explicit validation; input is cast directly to CandidatesOutputFormat union",
+    "target": "src/commands/candidates-cli.ts",
+    "owner": "berlysia",
+    "notes": "Unlike DEV-004/005/006 which validate before cast, this command lacks .includes() guard; add validation or shared parseFormat<T>() helper",
+    "kind": "type-assertion"
   }
 }

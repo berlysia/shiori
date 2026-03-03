@@ -75,6 +75,7 @@ export const trendCommand = define({
       process.exitCode = 1;
       return;
     }
+    // shiori: DEV-005 reason="validated by VALID_TREND_FORMATS.includes() but type not narrowed by control flow"
     const format = formatValue as TrendFormat;
 
     // Parse --last

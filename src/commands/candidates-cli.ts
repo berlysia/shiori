@@ -63,6 +63,7 @@ export const candidatesCommand = define({
 
     const result = listCandidates(scanResult.candidates);
 
+    // shiori: DEV-010 reason="no explicit format validation; only json|markdown used downstream but unvalidated input is cast"
     const format = (ctx.values.format ?? 'json') as CandidatesOutputFormat;
     const output =
       format === 'markdown'

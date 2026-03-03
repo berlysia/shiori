@@ -101,6 +101,7 @@ export const reportCommand = define({
       process.exitCode = 1;
       return;
     }
+    // shiori: DEV-006 reason="validated by VALID_REPORT_FORMATS.includes() but type not narrowed by control flow"
     const format = formatValue as ReportFormat;
 
     const cwd = ctx.values.cwd ?? process.cwd();

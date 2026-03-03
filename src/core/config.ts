@@ -88,6 +88,7 @@ export async function loadConfig(
       throw err;
     }
 
+    // shiori: DEV-007 reason="parsed config cast without schema validation; EP-0011 would add JSON Schema checks"
     const raw: ShioriConfig = filename.endsWith('.json')
       ? (JSON.parse(content) as ShioriConfig)
       : ((parseYaml(content) as ShioriConfig) ?? {});
