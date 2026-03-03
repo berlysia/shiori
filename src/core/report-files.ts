@@ -76,7 +76,7 @@ export async function loadReportFiles(
       const parsed = JSON.parse(content) as Record<string, unknown>;
 
       if (isReportShape(parsed)) {
-        // shiori: DEV-014 reason="runtime JSON shape validated by isReportShape but static type requires assertion"
+        // shiori: DEV-018 reason="runtime JSON shape validated by isReportShape but static type requires assertion"
         reports.push(parsed as unknown as ReportResult);
       }
     } catch {

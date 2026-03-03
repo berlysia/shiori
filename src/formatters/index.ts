@@ -17,6 +17,12 @@ export { formatAsJsonl } from './jsonl.ts';
 export { formatAsSarif } from './sarif.ts';
 export { formatAsSummary, type SummaryInput } from './summary.ts';
 export { formatDeltaAsMarkdown } from './delta-markdown.ts';
+export {
+  formatReportAsMarkdown,
+  formatReportAsBadge,
+  formatReportOutput,
+  type ShieldsBadge,
+} from './report-formatter.ts';
 
 export interface FormatVerifyOutputOptions {
   format: OutputFormat;

@@ -8,7 +8,6 @@ import { loadConfigAndRegistry } from '../core/registry-loader.ts';
 import { loadScanResult } from '../core/scan-result-loader.ts';
 import {
   assertAllWithinCwd,
-  assertWithinCwd,
   PathBoundaryError,
 } from '../core/path-boundary.ts';
 import { routeRegistryByPattern, isValidRef } from './registry-generator.ts';

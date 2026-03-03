@@ -4,6 +4,7 @@ import {
   parseAndValidateIssueTypes,
   validateOutputFormat,
   validateProvider,
+  createFormatValidator,
 } from '../src/core/cli-validation.ts';
 import { VERIFY_ISSUE_TYPES } from '../src/core/types.ts';
 
@@ -173,5 +174,78 @@ describe('validateProvider', () => {
     assert.equal(process.exitCode, 1);
     assert.ok(stderrOutput.some((s) => s.includes('"foo"')));
     assert.ok(stderrOutput.some((s) => s.includes('Valid values:')));
+  });
+});
+
+describe('createFormatValidator', () => {
+  let originalExitCode: typeof process.exitCode;
+  let stderrOutput: string[];
+  let originalStderrWrite: typeof process.stderr.write;
+
+  beforeEach(() => {
+    originalExitCode = process.exitCode;
+    process.exitCode = undefined;
+    stderrOutput = [];
+    originalStderrWrite = process.stderr.write;
+    process.stderr.write = ((chunk: string) => {
+      stderrOutput.push(String(chunk));
+      return true;
+    }) as typeof process.stderr.write;
+  });
+
+  afterEach(() => {
+    process.exitCode = originalExitCode;
+    process.stderr.write = originalStderrWrite;
+  });
+
+  it('uses first format as default when value is undefined', () => {
+    const validate = createFormatValidator(['json', 'markdown'] as const);
+    const result = validate(undefined);
+    assert.equal(result, 'json');
+    assert.equal(process.exitCode, undefined);
+  });
+
+  it('uses custom default when specified', () => {
+    const validate = createFormatValidator(
+      ['json', 'summary'] as const,
+      'summary',
+    );
+    const result = validate(undefined);
+    assert.equal(result, 'summary');
+    assert.equal(process.exitCode, undefined);
+  });
+
+  it('accepts valid format values', () => {
+    const validate = createFormatValidator([
+      'json',
+      'markdown',
+      'badge',
+    ] as const);
+    for (const fmt of ['json', 'markdown', 'badge']) {
+      process.exitCode = undefined;
+      const result = validate(fmt);
+      assert.equal(result, fmt);
+      assert.equal(process.exitCode, undefined);
+    }
+  });
+
+  it('returns null and sets exitCode for invalid format', () => {
+    const validate = createFormatValidator(['json', 'markdown'] as const);
+    const result = validate('xml');
+    assert.equal(result, null);
+    assert.equal(process.exitCode, 1);
+    assert.ok(stderrOutput.some((s) => s.includes('"xml"')));
+    assert.ok(stderrOutput.some((s) => s.includes('Valid values:')));
+    assert.ok(stderrOutput.some((s) => s.includes('json, markdown')));
+  });
+
+  it('includes all valid formats in error message', () => {
+    const validate = createFormatValidator([
+      'json',
+      'markdown',
+      'csv',
+    ] as const);
+    validate('bad');
+    assert.ok(stderrOutput.some((s) => s.includes('json, markdown, csv')));
   });
 });

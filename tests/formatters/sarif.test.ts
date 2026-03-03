@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { VERIFY_ISSUE_TYPES } from '../../src/core/types.ts';
-import type { VerifyResult, VerifyIssueType } from '../../src/core/types.ts';
+import type { VerifyResult } from '../../src/core/types.ts';
 import { formatAsSarif } from '../../src/formatters/sarif.ts';
 
 function makeResult(overrides: Partial<VerifyResult> = {}): VerifyResult {

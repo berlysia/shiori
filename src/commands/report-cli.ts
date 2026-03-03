@@ -1,21 +1,28 @@
 import { define } from 'gunshi';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
 import {
   loadConfigAndRegistry,
   reportRegistryIssues,
 } from '../core/registry-loader.ts';
 import { scan } from './scan.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
-import { report, formatReport, type ReportFormat } from './report.ts';
-import { parseAndValidateIssueTypes } from '../core/cli-validation.ts';
+import { report } from './report.ts';
+import type { ReportFormat } from './report.ts';
+import { formatReportOutput } from '../formatters/report-formatter.ts';
+import {
+  parseAndValidateIssueTypes,
+  createFormatValidator,
+} from '../core/cli-validation.ts';
 import {
   DEFAULT_SCAN_PATTERNS,
   DEFAULT_SCAN_IGNORE,
 } from '../core/scan-defaults.ts';
-import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
+import { writeOutput } from '../core/cli-output.ts';
 
-const VALID_REPORT_FORMATS: readonly string[] = ['json', 'markdown', 'badge'];
+const validateReportFormat = createFormatValidator<ReportFormat>([
+  'json',
+  'markdown',
+  'badge',
+] as const);
 
 export const reportCommand = define({
   name: 'report',
@@ -99,16 +106,8 @@ export const reportCommand = define({
     const warnOn = parseAndValidateIssueTypes(ctx.values.warnOn, '--warn-on');
     if (warnOn === null) return;
 
-    const formatValue = ctx.values.format ?? 'json';
-    if (!VALID_REPORT_FORMATS.includes(formatValue)) {
-      console.error(
-        `Error: Invalid --format value "${formatValue}". Valid values: ${VALID_REPORT_FORMATS.join(', ')}`,
-      );
-      process.exitCode = 1;
-      return;
-    }
-    // shiori: DEV-006 reason="validated by VALID_REPORT_FORMATS.includes() but type not narrowed by control flow"
-    const format = formatValue as ReportFormat;
+    const format = validateReportFormat(ctx.values.format);
+    if (format === null) return;
 
     const cwd = ctx.values.cwd ?? process.cwd();
 
@@ -158,26 +157,14 @@ export const reportCommand = define({
       expiringThresholdDays,
     });
 
-    const output = formatReport(result, format);
+    const output = formatReportOutput(result, format);
 
-    if (ctx.values.output) {
-      const outputPath = resolve(cwd, ctx.values.output);
-      try {
-        await assertWithinCwd(outputPath, cwd);
-      } catch (err) {
-        if (err instanceof PathBoundaryError) {
-          console.error(`Error: ${err.message}`);
-          process.exitCode = 1;
-          return;
-        }
-        throw err;
-      }
-      await mkdir(dirname(outputPath), { recursive: true });
-      await writeFile(outputPath, output + '\n', 'utf-8');
-      console.error(`Report written to ${outputPath}`);
-    } else {
-      console.log(output);
-    }
+    const written = await writeOutput(output, {
+      outputPath: ctx.values.output,
+      cwd,
+      label: 'Report',
+    });
+    if (!written) return;
 
     // Report health to stderr for CI visibility
     console.error(

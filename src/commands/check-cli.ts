@@ -19,6 +19,7 @@ import {
   DEFAULT_SCAN_IGNORE,
 } from '../core/scan-defaults.ts';
 import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
+import { writeOutput } from '../core/cli-output.ts';
 
 export const checkCommand = define({
   name: 'check',
@@ -188,24 +189,12 @@ export const checkCommand = define({
       registry,
     });
 
-    if (ctx.values.output) {
-      const outputPath = resolve(cwd, ctx.values.output);
-      try {
-        await assertWithinCwd(outputPath, cwd);
-      } catch (err) {
-        if (err instanceof PathBoundaryError) {
-          console.error(`Error: ${err.message}`);
-          process.exitCode = 1;
-          return;
-        }
-        throw err;
-      }
-      await mkdir(dirname(outputPath), { recursive: true });
-      await writeFile(outputPath, output + '\n', 'utf-8');
-      console.error(`Report written to ${outputPath}`);
-    } else {
-      console.log(output);
-    }
+    const written = await writeOutput(output, {
+      outputPath: ctx.values.output,
+      cwd,
+      label: 'Report',
+    });
+    if (!written) return;
 
     for (const hint of formatActionHints(verifyResult)) {
       console.error(hint);

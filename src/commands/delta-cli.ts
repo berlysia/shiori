@@ -1,15 +1,19 @@
 import { define } from 'gunshi';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { computeDelta } from './delta.ts';
 import type { ScanResult } from '../core/types.ts';
-import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
 import {
   formatDeltaOutput,
   type DeltaOutputFormat,
 } from '../formatters/index.ts';
+import { createFormatValidator } from '../core/cli-validation.ts';
+import { writeOutput } from '../core/cli-output.ts';
 
-const DELTA_FORMATS: readonly DeltaOutputFormat[] = ['json', 'markdown'];
+const validateDeltaFormat = createFormatValidator<DeltaOutputFormat>([
+  'json',
+  'markdown',
+] as const);
 
 export const deltaCommand = define({
   name: 'delta',
@@ -46,7 +50,7 @@ export const deltaCommand = define({
     format: {
       type: 'string',
       short: 'f',
-      description: `Output format: ${DELTA_FORMATS.join(', ')} (default: json)`,
+      description: 'Output format: json, markdown (default: json)',
     },
     maxIncrease: {
       type: 'string',
@@ -85,15 +89,8 @@ export const deltaCommand = define({
     }
 
     // Validate format
-    // shiori: DEV-004 reason="validated by DELTA_FORMATS.includes() but type not narrowed by control flow"
-    const format = (ctx.values.format ?? 'json') as DeltaOutputFormat;
-    if (!DELTA_FORMATS.includes(format)) {
-      console.error(
-        `Error: unsupported format "${ctx.values.format}". Supported: ${DELTA_FORMATS.join(', ')}`,
-      );
-      process.exitCode = 1;
-      return;
-    }
+    const format = validateDeltaFormat(ctx.values.format);
+    if (format === null) return;
 
     // Parse maxIncrease early so we can pass it to the formatter
     let maxIncrease: number | undefined;
@@ -163,24 +160,12 @@ export const deltaCommand = define({
     });
 
     // Write output
-    if (ctx.values.output) {
-      const outputPath = resolve(cwd, ctx.values.output);
-      try {
-        await assertWithinCwd(outputPath, cwd);
-      } catch (err) {
-        if (err instanceof PathBoundaryError) {
-          console.error(`Error: ${err.message}`);
-          process.exitCode = 1;
-          return;
-        }
-        throw err;
-      }
-      await mkdir(dirname(outputPath), { recursive: true });
-      await writeFile(outputPath, output + '\n', 'utf-8');
-      console.error(`Delta report written to ${outputPath}`);
-    } else {
-      console.log(output);
-    }
+    const written = await writeOutput(output, {
+      outputPath: ctx.values.output,
+      cwd,
+      label: 'Delta report',
+    });
+    if (!written) return;
 
     // Log summary to stderr
     console.error(

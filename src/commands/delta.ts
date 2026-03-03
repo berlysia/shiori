@@ -1,5 +1,4 @@
 import type {
-  ScanResult,
   ShioriAnnotation,
   DeltaKind,
   AnnotationDelta,

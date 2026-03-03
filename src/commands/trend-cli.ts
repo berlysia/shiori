@@ -1,11 +1,16 @@
 import { define } from 'gunshi';
-import { readdir, readFile, mkdir, writeFile } from 'node:fs/promises';
-import { resolve, dirname, join } from 'node:path';
+import { readdir, readFile } from 'node:fs/promises';
+import { resolve, join } from 'node:path';
 import { computeTrend, formatTrend } from './trend.ts';
 import type { ReportResult, TrendFormat } from '../core/types.ts';
-import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
+import { createFormatValidator } from '../core/cli-validation.ts';
+import { writeOutput } from '../core/cli-output.ts';
 
-const VALID_TREND_FORMATS: readonly string[] = ['json', 'markdown', 'csv'];
+const validateTrendFormat = createFormatValidator<TrendFormat>([
+  'json',
+  'markdown',
+  'csv',
+] as const);
 
 export const trendCommand = define({
   name: 'trend',
@@ -44,7 +49,7 @@ export const trendCommand = define({
     format: {
       type: 'string',
       short: 'f',
-      description: `Output format: ${VALID_TREND_FORMATS.join(', ')} (default: json)`,
+      description: 'Output format: json, markdown, csv (default: json)',
       default: 'json',
     },
     output: {
@@ -67,16 +72,8 @@ export const trendCommand = define({
     }
 
     // Validate format
-    const formatValue = ctx.values.format ?? 'json';
-    if (!VALID_TREND_FORMATS.includes(formatValue)) {
-      console.error(
-        `Error: Invalid --format value "${formatValue}". Valid values: ${VALID_TREND_FORMATS.join(', ')}`,
-      );
-      process.exitCode = 1;
-      return;
-    }
-    // shiori: DEV-005 reason="validated by VALID_TREND_FORMATS.includes() but type not narrowed by control flow"
-    const format = formatValue as TrendFormat;
+    const format = validateTrendFormat(ctx.values.format);
+    if (format === null) return;
 
     // Parse --last
     let last: number | undefined;
@@ -155,24 +152,12 @@ export const trendCommand = define({
     const output = formatTrend(result, format);
 
     // Write output
-    if (ctx.values.output) {
-      const outputPath = resolve(cwd, ctx.values.output);
-      try {
-        await assertWithinCwd(outputPath, cwd);
-      } catch (err) {
-        if (err instanceof PathBoundaryError) {
-          console.error(`Error: ${err.message}`);
-          process.exitCode = 1;
-          return;
-        }
-        throw err;
-      }
-      await mkdir(dirname(outputPath), { recursive: true });
-      await writeFile(outputPath, output + '\n', 'utf-8');
-      console.error(`Trend report written to ${outputPath}`);
-    } else {
-      console.log(output);
-    }
+    const written = await writeOutput(output, {
+      outputPath: ctx.values.output,
+      cwd,
+      label: 'Trend report',
+    });
+    if (!written) return;
 
     // Log summary to stderr
     const { summary } = result;

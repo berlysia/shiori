@@ -23,13 +23,10 @@ const DOGFOODING_ANNOTATIONS: {
   },
   { ref: 'DEV-002', file: 'src/commands/trend-cli.ts' },
   { ref: 'DEV-003', file: 'src/commands/registry-generator.ts' },
-  { ref: 'DEV-004', file: 'src/commands/delta-cli.ts' },
-  { ref: 'DEV-005', file: 'src/commands/trend-cli.ts' },
-  { ref: 'DEV-006', file: 'src/commands/report-cli.ts' },
+  // DEV-004, DEV-005, DEV-006, DEV-010: resolved by createFormatValidator() — inline format assertions eliminated
   { ref: 'DEV-007', file: 'src/core/config.ts' },
   { ref: 'DEV-008', file: 'src/core/scan-result-loader.ts' },
   { ref: 'DEV-009', file: 'src/core/registry.ts' },
-  { ref: 'DEV-010', file: 'src/commands/candidates-cli.ts' },
   { ref: 'DEV-011', file: 'src/commands/verify.ts' },
   { ref: 'DEV-012', file: 'src/core/registry.ts' },
   { ref: 'DEV-013', file: 'src/core/cli-validation.ts' },
@@ -37,6 +34,7 @@ const DOGFOODING_ANNOTATIONS: {
   { ref: 'DEV-015', file: 'src/core/scan-result-loader.ts' },
   { ref: 'DEV-016', file: 'src/core/scan-result-loader.ts' },
   { ref: 'DEV-017', file: 'src/commands/delta-cli.ts' },
+  { ref: 'DEV-018', file: 'src/core/report-files.ts' },
 ];
 
 const ALL_DEV_REFS = DOGFOODING_ANNOTATIONS.map((a) => a.ref).sort();

@@ -1,6 +1,6 @@
 import { define } from 'gunshi';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname, resolve, join } from 'node:path';
+import { resolve, join } from 'node:path';
 import {
   loadConfigAndRegistry,
   reportRegistryIssues,
@@ -15,16 +15,23 @@ import {
   formatHealthSummary,
   type HealthFormat,
 } from './health.ts';
-import { parseAndValidateIssueTypes } from '../core/cli-validation.ts';
+import {
+  parseAndValidateIssueTypes,
+  createFormatValidator,
+} from '../core/cli-validation.ts';
 import {
   DEFAULT_SCAN_PATTERNS,
   DEFAULT_SCAN_IGNORE,
 } from '../core/scan-defaults.ts';
 import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
 import { loadReportFiles } from '../core/report-files.ts';
+import { writeOutput } from '../core/cli-output.ts';
 import type { HealthLevel } from '../core/types.ts';
 
-const VALID_HEALTH_FORMATS: readonly string[] = ['json', 'summary'];
+const validateHealthFormat = createFormatValidator<HealthFormat>(
+  ['json', 'summary'] as const,
+  'summary',
+);
 
 const VALID_FAIL_ON_LEVELS: readonly string[] = [
   'critical',
@@ -138,16 +145,8 @@ export const healthCommand = define({
     const warnOn = parseAndValidateIssueTypes(ctx.values.warnOn, '--warn-on');
     if (warnOn === null) return;
 
-    const formatValue = ctx.values.format ?? 'summary';
-    if (!VALID_HEALTH_FORMATS.includes(formatValue)) {
-      console.error(
-        `Error: Invalid --format value "${formatValue}". Valid values: ${VALID_HEALTH_FORMATS.join(', ')}`,
-      );
-      process.exitCode = 1;
-      return;
-    }
-    // shiori: DEV-013 reason="validated by VALID_HEALTH_FORMATS.includes() but type not narrowed by control flow"
-    const format = formatValue as HealthFormat;
+    const format = validateHealthFormat(ctx.values.format);
+    if (format === null) return;
 
     // Validate --fail-on-level
     const failOnLevelValue = ctx.values.failOnLevel;
@@ -258,24 +257,12 @@ export const healthCommand = define({
     // Output
     const output = formatHealth(result, format);
 
-    if (ctx.values.output) {
-      const outputPath = resolve(cwd, ctx.values.output);
-      try {
-        await assertWithinCwd(outputPath, cwd);
-      } catch (err) {
-        if (err instanceof PathBoundaryError) {
-          console.error(`Error: ${err.message}`);
-          process.exitCode = 1;
-          return;
-        }
-        throw err;
-      }
-      await mkdir(dirname(outputPath), { recursive: true });
-      await writeFile(outputPath, output + '\n', 'utf-8');
-      console.error(`Health report written to ${outputPath}`);
-    } else {
-      console.log(output);
-    }
+    const written = await writeOutput(output, {
+      outputPath: ctx.values.output,
+      cwd,
+      label: 'Health report',
+    });
+    if (!written) return;
 
     // Always show summary box on stderr (for CI visibility)
     if (format !== 'summary') {

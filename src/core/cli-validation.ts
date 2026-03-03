@@ -78,3 +78,31 @@ export function validateProvider(value: string | undefined): string | null {
   }
   return provider;
 }
+
+/**
+ * Create a format validator for a specific set of valid formats.
+ * Returns a function that validates the --format flag value and returns
+ * the validated format or null on failure.
+ *
+ * Eliminates repeated inline validation + `as` casts across CLI commands.
+ *
+ * @param validFormats - List of valid format strings
+ * @param defaultFormat - Default format when value is undefined (default: 'json')
+ * @returns Validator function: (value: string | undefined) => T | null
+ */
+export function createFormatValidator<T extends string>(
+  validFormats: readonly T[],
+  defaultFormat: T = validFormats[0]!,
+): (value: string | undefined) => T | null {
+  return (value: string | undefined): T | null => {
+    const format = (value ?? defaultFormat) as string;
+    if (!validFormats.includes(format as T)) {
+      console.error(
+        `Error: Invalid --format value "${format}". Valid values: ${validFormats.join(', ')}`,
+      );
+      process.exitCode = 1;
+      return null;
+    }
+    return format as T;
+  };
+}

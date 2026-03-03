@@ -1,6 +1,4 @@
 import { define } from 'gunshi';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
 import {
   loadConfigAndRegistry,
   reportRegistryIssues,
@@ -12,7 +10,7 @@ import {
   parseAndValidateIssueTypes,
   validateOutputFormat,
 } from '../core/cli-validation.ts';
-import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
+import { writeOutput } from '../core/cli-output.ts';
 
 export const verifyCommand = define({
   name: 'verify',
@@ -131,24 +129,12 @@ export const verifyCommand = define({
       registry,
     });
 
-    if (ctx.values.output) {
-      const outputPath = resolve(cwd, ctx.values.output);
-      try {
-        await assertWithinCwd(outputPath, cwd);
-      } catch (err) {
-        if (err instanceof PathBoundaryError) {
-          console.error(`Error: ${err.message}`);
-          process.exitCode = 1;
-          return;
-        }
-        throw err;
-      }
-      await mkdir(dirname(outputPath), { recursive: true });
-      await writeFile(outputPath, output + '\n', 'utf-8');
-      console.error(`Report written to ${outputPath}`);
-    } else {
-      console.log(output);
-    }
+    const written = await writeOutput(output, {
+      outputPath: ctx.values.output,
+      cwd,
+      label: 'Report',
+    });
+    if (!written) return;
 
     for (const hint of formatActionHints(result)) {
       console.error(hint);

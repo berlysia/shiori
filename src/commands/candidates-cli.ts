@@ -1,6 +1,4 @@
 import { define } from 'gunshi';
-import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
 import { loadConfig } from '../core/config.ts';
 import { loadScanResult } from '../core/scan-result-loader.ts';
 import {
@@ -8,7 +6,13 @@ import {
   formatCandidatesAsMarkdown,
   type CandidatesOutputFormat,
 } from './candidates.ts';
-import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
+import { createFormatValidator } from '../core/cli-validation.ts';
+import { writeOutput } from '../core/cli-output.ts';
+
+const validateCandidatesFormat = createFormatValidator<CandidatesOutputFormat>([
+  'json',
+  'markdown',
+] as const);
 
 export const candidatesCommand = define({
   name: 'candidates',
@@ -63,31 +67,20 @@ export const candidatesCommand = define({
 
     const result = listCandidates(scanResult.candidates);
 
-    // shiori: DEV-010 reason="no explicit format validation; only json|markdown used downstream but unvalidated input is cast"
-    const format = (ctx.values.format ?? 'json') as CandidatesOutputFormat;
+    const format = validateCandidatesFormat(ctx.values.format);
+    if (format === null) return;
+
     const output =
       format === 'markdown'
         ? formatCandidatesAsMarkdown(result)
         : JSON.stringify(result, null, 2);
 
-    if (ctx.values.output) {
-      const outputPath = resolve(cwd, ctx.values.output);
-      try {
-        await assertWithinCwd(outputPath, cwd);
-      } catch (err) {
-        if (err instanceof PathBoundaryError) {
-          console.error(`Error: ${err.message}`);
-          process.exitCode = 1;
-          return;
-        }
-        throw err;
-      }
-      await mkdir(dirname(outputPath), { recursive: true });
-      await writeFile(outputPath, output + '\n', 'utf-8');
-      console.error(`Wrote ${result.count} candidate(s) to ${outputPath}`);
-    } else {
-      console.log(output);
-    }
+    const written = await writeOutput(output, {
+      outputPath: ctx.values.output,
+      cwd,
+      label: `Candidates (${result.count})`,
+    });
+    if (!written) return;
 
     console.error(`Found ${result.count} candidate(s)`);
   },
