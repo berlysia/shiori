@@ -510,18 +510,82 @@ shiori supports multiple output formats for different integration targets:
 
 ## Dogfooding
 
-shiori tracks its own development with shiori. The project's CI runs `shiori check` on every push and generates governance reports.
+shiori tracks its own development with shiori. The project maintains **10 tracked annotations** across 8 source files — from eslint suppress directives to type assertions and design decisions.
 
 **CI workflows in use:**
 
-- [`shiori-badge.yml`](.github/workflows/shiori-badge.yml) — Generates governance score badge on push to main
+- [`shiori-base.yml`](.github/workflows/shiori-base.yml) — Baseline scan on push to master (artifact for delta comparison)
+- [`shiori-pr-description.yml`](.github/workflows/shiori-pr-description.yml) — Embeds governance summary in PR description
+- [`shiori-badge.yml`](.github/workflows/shiori-badge.yml) — Generates governance score badge on push to master
 - `shiori check` — Verifies annotation registry integrity in CI
 
 **What shiori tracks in its own codebase:**
 
-- Lint disable comments with `shiori:` annotations and tracking references
-- Registry entries in `.config/shiori/registry.json` with reason, owner, and expiration
-- Governance health score via `shiori report`
+| Ref     | Kind            | Target                  | Description                                                  |
+| ------- | --------------- | ----------------------- | ------------------------------------------------------------ |
+| DEV-001 | lint-suppress   | `path-boundary.ts`      | `no-constant-condition` for idiomatic `while(true)` loop     |
+| DEV-002 | type-assertion  | `trend-cli.ts`          | JSON → `ReportResult` cast (expires 2026-06)                 |
+| DEV-003 | design-decision | `registry-generator.ts` | Intentional TODO placeholders in scaffold                    |
+| DEV-004 | type-assertion  | `delta-cli.ts`          | CLI `--format` narrowing gap                                 |
+| DEV-005 | type-assertion  | `trend-cli.ts`          | CLI `--format` narrowing gap                                 |
+| DEV-006 | type-assertion  | `report-cli.ts`         | CLI `--format` narrowing gap                                 |
+| DEV-007 | type-assertion  | `config.ts`             | Config parse without schema validation (expires 2026-06)     |
+| DEV-008 | type-assertion  | `scan-result-loader.ts` | Scan result parse without shape validation (expires 2026-06) |
+| DEV-009 | type-assertion  | `registry.ts`           | TypeScript narrowing limitation after typeof check           |
+| DEV-010 | type-assertion  | `candidates-cli.ts`     | CLI `--format` narrowing gap                                 |
+
+### Before / After: What shiori Makes Visible
+
+**Without shiori** — these type assertions and lint suppresses are invisible noise in the codebase:
+
+```typescript
+// eslint-disable-next-line no-constant-condition
+while (true) {
+  /* ... */
+}
+
+const format = (ctx.values.format ?? 'json') as DeltaOutputFormat;
+
+const raw: ShioriConfig = JSON.parse(content) as ShioriConfig;
+```
+
+Reviewers see the cast, but don't know _why_ it exists, _who_ owns it, or _when_ it should be revisited.
+
+**With shiori** — each exception is tracked, reasoned, and auditable:
+
+```typescript
+// eslint-disable-next-line no-constant-condition -- shiori: DEV-001 reason="infinite loop pattern requires eslint suppress"
+while (true) {
+  /* ... */
+}
+
+// shiori: DEV-004 reason="validated by DELTA_FORMATS.includes() but type not narrowed by control flow"
+const format = (ctx.values.format ?? 'json') as DeltaOutputFormat;
+
+// shiori: DEV-007 reason="parsed config cast without schema validation; EP-0011 would add JSON Schema checks"
+const raw: ShioriConfig = JSON.parse(content) as ShioriConfig;
+```
+
+The registry provides structured metadata:
+
+```json
+{
+  "DEV-007": {
+    "reason": "Config file parsed from JSON/YAML cast to ShioriConfig without schema validation",
+    "target": "src/core/config.ts",
+    "expires": "2026-06",
+    "ticket": "EP-0011",
+    "owner": "berlysia",
+    "kind": "type-assertion"
+  }
+}
+```
+
+And `shiori check -f summary` gives you a governance score at a glance.
+
+### PR Description Governance Summary
+
+Every PR to `master` automatically receives a governance summary in its description, showing which annotations were added, removed, or remain unchanged. This is powered by `shiori delta` and the [`shiori-pr-description.yml`](.github/workflows/shiori-pr-description.yml) workflow.
 
 To see shiori's current governance state locally:
 
