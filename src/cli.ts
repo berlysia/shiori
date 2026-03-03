@@ -17,6 +17,7 @@ import { deltaCommand } from './commands/delta-cli.ts';
 import { trendCommand } from './commands/trend-cli.ts';
 import { healthCommand } from './commands/health-cli.ts';
 import { adoptCommand } from './commands/adopt-cli.ts';
+import { doctorCommand } from './commands/doctor-cli.ts';
 
 const main = define({
   name: 'shiori',
@@ -54,6 +55,9 @@ Workflow:
   shiori delta                   Compare scan results for PR review
   shiori check --fail-on ...     Enforce governance in CI
 
+Diagnostics:
+  shiori doctor                  Diagnose shiori setup
+
 Other commands:
   shiori scan                    Extract annotations from source
   shiori verify                  Verify scan results against registry
@@ -90,6 +94,7 @@ try {
       trend: trendCommand,
       delta: deltaCommand,
       docs: docsCommand,
+      doctor: doctorCommand,
     },
   });
 } catch (err) {

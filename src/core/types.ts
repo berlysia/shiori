@@ -260,6 +260,40 @@ export type ReportFormat = 'json' | 'markdown' | 'badge';
 /** Output format for trend command */
 export type TrendFormat = 'json' | 'markdown' | 'csv';
 
+// ── Doctor types (EP-0026) ───────────────────────────────────
+
+/** Status of a single doctor diagnostic check */
+export type DoctorCheckStatus = 'pass' | 'warn' | 'fail';
+
+/** A single diagnostic check result */
+export interface DoctorCheck {
+  /** Short identifier for the check (e.g. "config", "registry", "node-version") */
+  name: string;
+  /** Human-readable label */
+  label: string;
+  /** Check result */
+  status: DoctorCheckStatus;
+  /** Descriptive message explaining the result */
+  message: string;
+  /** Suggested fix (shown when --fix is used or status is not pass) */
+  fix?: string;
+}
+
+/** Result of running all doctor diagnostic checks */
+export interface DoctorResult {
+  /** Individual check results */
+  checks: DoctorCheck[];
+  /** Summary counts */
+  summary: {
+    pass: number;
+    warn: number;
+    fail: number;
+  };
+}
+
+/** Output format for doctor command */
+export type DoctorFormat = 'text' | 'json';
+
 // ── Health types (EP-0024) ───────────────────────────────────
 
 /** Health output format */

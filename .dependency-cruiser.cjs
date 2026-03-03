@@ -72,7 +72,12 @@ module.exports = {
       },
       to: {
         path: '^src/commands/',
-        pathNot: ['verify\\.ts$', 'report\\.ts$', 'migrate\\.ts$', '-cli\\.ts$'],
+        pathNot: [
+          'verify\\.ts$',
+          'report\\.ts$',
+          'migrate\\.ts$',
+          '-cli\\.ts$',
+        ],
       },
     },
 
