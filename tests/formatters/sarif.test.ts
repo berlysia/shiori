@@ -45,7 +45,7 @@ describe('formatAsSarif', () => {
     assert.ok(sarif.$schema.includes('sarif-schema-2.1.0'));
     assert.equal(sarif.runs.length, 1);
     assert.equal(sarif.runs[0]!.tool.driver.name, 'shiori');
-    assert.equal(sarif.runs[0]!.tool.driver.version, '0.0.1');
+    assert.equal(sarif.runs[0]!.tool.driver.version, '0.1.0');
   });
 
   it('returns empty results for empty issues', () => {

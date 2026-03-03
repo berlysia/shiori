@@ -70,7 +70,7 @@ Run "shiori <command> --help" for details on each command.`);
 try {
   await cli(process.argv.slice(2), main, {
     name: 'shiori',
-    version: '0.0.1',
+    version: '0.1.0',
     description: 'Track and govern source code annotations',
     subCommands: {
       init: initCommand,

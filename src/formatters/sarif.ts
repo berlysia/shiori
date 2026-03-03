@@ -103,7 +103,7 @@ export function formatAsSarif(result: VerifyResult): string {
         tool: {
           driver: {
             name: 'shiori',
-            version: '0.0.1',
+            version: '0.1.0',
             rules,
           },
         },
