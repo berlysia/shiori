@@ -57,7 +57,25 @@ module.exports = {
       to: { path: '^src/cli\\.ts$' },
     },
 
-    // Rule 6: No circular dependencies
+    // Rule 6: No horizontal dependencies between command pure logic modules
+    // CLI wrappers (-cli.ts) may import any command module.
+    // verify.ts is allowed as a composition target (check/report compose it).
+    {
+      name: 'commands-no-horizontal-deps',
+      comment:
+        'Command pure logic modules must not import other commands (except verify.ts for composition). Use core/types.ts for shared types.',
+      severity: 'error',
+      from: {
+        path: '^src/commands/',
+        pathNot: '-cli\\.ts$',
+      },
+      to: {
+        path: '^src/commands/',
+        pathNot: ['verify\\.ts$', '-cli\\.ts$'],
+      },
+    },
+
+    // Rule 7: No circular dependencies
     {
       name: 'no-circular',
       comment: 'No circular dependencies allowed',
