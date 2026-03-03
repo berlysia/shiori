@@ -1,3 +1,5 @@
+import { escapeRegex } from './regex-utils.ts';
+
 /** Configuration for a single ref pattern */
 export interface RefPatternConfig {
   /** Pattern to match, e.g. "JIRA-{id}", "ADR-{id}", "LEGACY-WORKAROUND" */
@@ -16,11 +18,6 @@ export interface RefPatternMatch {
   captures: { id: string };
 }
 
-/** Escape special regex characters in a string */
-function escapeRegExp(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
 /** Convert a match pattern to a RegExp. {id} becomes (.+) */
 function patternToRegExp(pattern: string): RegExp {
   const idPlaceholder = '{id}';
@@ -28,12 +25,12 @@ function patternToRegExp(pattern: string): RegExp {
 
   if (idx === -1) {
     // Literal pattern — exact match
-    return new RegExp(`^${escapeRegExp(pattern)}$`);
+    return new RegExp(`^${escapeRegex(pattern)}$`);
   }
 
   const before = pattern.slice(0, idx);
   const after = pattern.slice(idx + idPlaceholder.length);
-  return new RegExp(`^${escapeRegExp(before)}(.+)${escapeRegExp(after)}$`);
+  return new RegExp(`^${escapeRegex(before)}(.+)${escapeRegex(after)}$`);
 }
 
 /**
