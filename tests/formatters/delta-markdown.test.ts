@@ -41,6 +41,8 @@ describe('formatDeltaAsMarkdown', () => {
     const result = makeDeltaResult([]);
     const md = formatDeltaAsMarkdown(result);
 
+    // PR comment deduplication marker must be at the start
+    assert.ok(md.startsWith('<!-- shiori-delta -->'));
     assert.ok(md.includes('# Annotation Delta Report'));
     assert.ok(md.includes('## Summary'));
     assert.ok(md.includes('| Metric | Count |'));

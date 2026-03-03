@@ -196,7 +196,6 @@ jobs:
             --base-fallback-empty \\
             --max-increase 0 \\
             --output .tmp/shiori-delta.md
-          echo "exit_code=\$?" >> "\$GITHUB_OUTPUT"
         continue-on-error: true
 
       - name: Post delta as PR comment
@@ -208,6 +207,6 @@ jobs:
           body-includes: '<!-- shiori-delta -->'
 
       - name: Fail if annotation count increased
-        if: steps.delta.outputs.exit_code != '0'
+        if: steps.delta.outcome == 'failure'
         run: exit 1
 `;

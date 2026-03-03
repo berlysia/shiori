@@ -1,5 +1,7 @@
 # shiori
 
+[![CI](https://github.com/berlysia/shiori/actions/workflows/ci.yml/badge.svg)](https://github.com/berlysia/shiori/actions/workflows/ci.yml)
+
 Annotation tracking and governance tool.
 
 ## Purpose
@@ -41,30 +43,38 @@ See [ADR 007](docs/decisions/007-positional-ref-syntax.md) for the positional re
 - Plugins can enforce comment formatting (e.g., requiring an ID), but **registry reconciliation, expiry detection, and inventory audits** are organizational concerns that bloat a plugin.
 - This tool operates as an external CLI that handles extraction, reconciliation, and reporting — complementary to (not replacing) lint rules.
 
-## Quick Start
+## Quick Start — 5 Minutes to CI Governance
 
 ```bash
 # 1. Install
 pnpm add -D @berlysia/shiori
 
-# 2. Initialize (scans source, creates registry)
-shiori init
+# 2. Initialize project + generate CI workflow
+shiori init --ci basic
 
-# 3. Review and fill in registry entries
-#    Edit .config/shiori/registry.json — add reason, owner, expires
-
-# 4. Check annotations against registry
+# 3. Check annotations against registry
 shiori check
 
-# 5. Fix issues
-shiori update          # adds missing refs to registry
+# 4. Fix issues — add missing refs to registry
+shiori update
 shiori check           # re-verify
 
-# 6. Add to CI
-shiori check --fail-on missing-in-registry,expired
+# 5. Commit and push — CI now enforces governance
+git add .github/workflows/shiori.yml .config/shiori/
+git push
 ```
 
-Workflow: `init` → `check` → `update` → `check` → CI
+That's it. `shiori init --ci` generates a ready-to-use GitHub Actions workflow. Choose your CI template:
+
+| Template           | Command                             | What it does                            |
+| ------------------ | ----------------------------------- | --------------------------------------- |
+| `basic`            | `shiori init --ci basic`            | Scan + verify on push/PR                |
+| `sarif`            | `shiori init --ci sarif`            | Verify + upload to GitHub Code Scanning |
+| `delta-pr-comment` | `shiori init --ci delta-pr-comment` | Post annotation diff as PR comment      |
+
+Use `--ci-only` to generate just the CI workflow without project initialization.
+
+See [CI Integration](#ci-integration) for full workflow examples and customization.
 
 ## Architecture: Provider Design
 
@@ -355,6 +365,8 @@ shiori exposes typed exports for editor extensions, CI tooling, and custom integ
 
 ## CI Integration
 
+> **Quick setup:** `shiori init --ci basic` generates a ready-to-use workflow file. See [Quick Start](#quick-start--5-minutes-to-ci-governance) for the fastest path.
+
 ### GitHub Actions — Basic
 
 ```yaml
@@ -366,17 +378,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm ci
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
 
       - name: Check annotations
-        run: npx shiori check --fail-on missing-in-registry,expired
+        run: pnpm shiori check --fail-on missing-in-registry,expired
 
       - name: Generate report
         if: always()
-        run: npx shiori check -f markdown -o report.md
+        run: pnpm shiori check -f markdown -o report.md
 ```
 
 ### GitHub Code Scanning (SARIF)
@@ -397,13 +411,15 @@ jobs:
       security-events: write # Required for upload-sarif
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm ci
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
 
       - name: Run shiori check (SARIF)
-        run: npx shiori check --format sarif --fail-on missing-in-registry,expired > shiori.sarif
+        run: pnpm shiori check --format sarif --fail-on missing-in-registry,expired > shiori.sarif
 
       - name: Upload SARIF to GitHub Code Scanning
         if: always()
@@ -485,6 +501,30 @@ shiori supports multiple output formats for different integration targets:
 | `summary`  | `-f summary`        | Dashboard metrics, monitoring (Datadog, etc.)   |
 | `jsonl`    | `-f jsonl`          | Log aggregation, streaming pipelines            |
 | `badge`    | `-f badge`          | shields.io endpoint JSON (`shiori report` only) |
+
+## Dogfooding
+
+shiori tracks its own development with shiori. The project's CI runs `shiori check` on every push and generates governance reports.
+
+**CI workflows in use:**
+
+- [`shiori-badge.yml`](.github/workflows/shiori-badge.yml) — Generates governance score badge on push to main
+- `shiori check` — Verifies annotation registry integrity in CI
+
+**What shiori tracks in its own codebase:**
+
+- Lint disable comments with `shiori:` annotations and tracking references
+- Registry entries in `.config/shiori/registry.json` with reason, owner, and expiration
+- Governance health score via `shiori report`
+
+To see shiori's current governance state locally:
+
+```bash
+shiori check -f summary     # Quick summary with score
+shiori report -f markdown   # Detailed health report
+shiori delta --base <old-scan> --head <new-scan>   # Compare across commits
+shiori trend --history <reports-dir>               # Score over time
+```
 
 ## Requirements
 

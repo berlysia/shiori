@@ -20,6 +20,9 @@ export function formatDeltaAsMarkdown(
 ): string {
   const lines: string[] = [];
 
+  // HTML comment marker for PR comment deduplication (create-or-update-comment body-includes)
+  lines.push('<!-- shiori-delta -->');
+  lines.push('');
   lines.push('# Annotation Delta Report');
   lines.push('');
 
