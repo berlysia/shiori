@@ -31,3 +31,13 @@ jobs:
         if: matrix.node-version == 22
       - run: pnpm build
       - run: node dist/src/cli.js --help
+
+      # Dogfooding: verify shiori's own annotations against registry
+      - name: shiori verify (dogfooding)
+        if: matrix.node-version == 22
+        run: node dist/src/cli.js verify
+
+      # Dogfooding: health check for governance score visibility
+      - name: shiori health (dogfooding)
+        if: matrix.node-version == 22
+        run: node dist/src/cli.js health

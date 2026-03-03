@@ -1,0 +1,59 @@
+name: shiori expires alert
+
+on:
+  schedule:
+    # Every Monday at 9:00 UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch: # Manual trigger
+
+jobs:
+  check-expires:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build
+
+      - name: Check for expiring annotations
+        id: shiori
+        run: |
+          # Run check with expiring-soon and expired as errors
+          node dist/src/cli.js check \
+            --fail-on expiring-soon,expired \
+            --expiring-threshold 30 \
+            -f json \
+            -o .tmp/shiori-expires.json 2>/dev/null || true
+
+          # Extract counts for downstream steps
+          EXPIRING=$(jq '.summary.byType["expiring-soon"] // 0' .tmp/shiori-expires.json)
+          EXPIRED=$(jq '.summary.byType["expired"] // 0' .tmp/shiori-expires.json)
+          echo "expiring=$EXPIRING" >> "$GITHUB_OUTPUT"
+          echo "expired=$EXPIRED" >> "$GITHUB_OUTPUT"
+
+      - name: Create issue if expiring annotations found
+        if: steps.shiori.outputs.expiring != '0' || steps.shiori.outputs.expired != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TITLE="shiori: $(date +%Y-%m-%d) — ${{ steps.shiori.outputs.expired }} expired, ${{ steps.shiori.outputs.expiring }} expiring soon"
+
+          # Generate markdown report for issue body
+          BODY=$(node dist/src/cli.js check \
+            --fail-on expiring-soon,expired \
+            --expiring-threshold 30 \
+            -f markdown 2>/dev/null || true)
+
+          gh issue create --title "$TITLE" --body "$BODY" --label "governance"

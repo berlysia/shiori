@@ -31,3 +31,15 @@ jobs:
           path: .tmp/shiori-base-scan.json
           retention-days: 90
           overwrite: true
+
+      # Save health snapshot for trend analysis over time
+      - name: Save health snapshot
+        run: node dist/src/cli.js health --snapshot .tmp/snapshots/ -f json
+
+      - name: Upload health snapshot artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shiori-health-snapshot
+          path: .tmp/snapshots/
+          retention-days: 90
+          overwrite: true
