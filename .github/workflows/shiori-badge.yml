@@ -2,7 +2,7 @@ name: shiori badge
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   schedule:
     # Daily at 00:00 UTC
     - cron: '0 0 * * *'

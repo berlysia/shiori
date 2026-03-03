@@ -2,7 +2,7 @@ name: shiori PR description
 
 on:
   pull_request:
-    branches: [main]
+    branches: [master]
 
 jobs:
   delta-description:
@@ -53,7 +53,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               workflow_id: baselineWorkflow.id,
-              branch: 'main',
+              branch: 'master',
               status: 'success',
               per_page: 1,
             });
