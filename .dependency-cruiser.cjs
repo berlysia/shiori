@@ -59,12 +59,12 @@ module.exports = {
 
     // Rule 6: No horizontal dependencies between command pure logic modules
     // CLI wrappers (-cli.ts) may import any command module.
-    // verify.ts and report.ts are allowed as composition targets
-    // (check/report compose verify; health composes report).
+    // Composition targets: higher-level commands that compose lower-level ones.
+    //   check → verify, report → verify, health → report, adopt → migrate
     {
       name: 'commands-no-horizontal-deps',
       comment:
-        'Command pure logic modules must not import other commands (except verify.ts/report.ts for composition). Use core/types.ts for shared types.',
+        'Command pure logic modules must not import other commands (except composition targets). Use core/types.ts for shared types.',
       severity: 'error',
       from: {
         path: '^src/commands/',
@@ -72,7 +72,7 @@ module.exports = {
       },
       to: {
         path: '^src/commands/',
-        pathNot: ['verify\\.ts$', 'report\\.ts$', '-cli\\.ts$'],
+        pathNot: ['verify\\.ts$', 'report\\.ts$', 'migrate\\.ts$', '-cli\\.ts$'],
       },
     },
 

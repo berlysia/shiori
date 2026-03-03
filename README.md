@@ -64,6 +64,16 @@ git add .github/workflows/shiori.yml .config/shiori/
 git push
 ```
 
+### Adding shiori to an existing project
+
+Already have lint disable comments scattered across your codebase? `shiori adopt` converts them into tracked annotations in one step:
+
+```bash
+shiori scan && shiori adopt          # Preview what would be adopted
+shiori scan && shiori adopt --apply  # Write annotations + registry entries
+shiori check                         # Verify everything is tracked
+```
+
 That's it. `shiori init --ci` generates a ready-to-use GitHub Actions workflow. Choose your CI template:
 
 | Template           | Command                             | What it does                            |
@@ -203,6 +213,29 @@ Options:
 - `--scan, -s` — Path to scan result JSON (default: auto-detect or stdin)
 - `--registry, -r` — Path to registry file (auto-detected from config)
 - `--dry-run, -n` — Preview changes without writing to registry
+- `--cwd` — Working directory (default: `process.cwd()`)
+- `--config, -c` — Path to config directory
+
+#### `adopt` — Onboard existing lint disables
+
+```bash
+shiori scan && shiori adopt              # Preview adoption plan (dry-run)
+shiori scan && shiori adopt --apply      # Apply: write to source + registry
+shiori scan && shiori adopt --apply --prefix DEBT --reason "legacy code"
+```
+
+Converts untracked lint disable comments (candidates) into shiori-managed annotations. Generates sequential refs (e.g. `ADOPT-001`, `ADOPT-002`), injects `shiori:` markers into source files, and adds corresponding registry entries.
+
+Default mode is dry-run (preview only). Use `--apply` to write changes.
+
+Options:
+
+- `--scan, -s` — Path to scan result JSON (default: auto-detect or stdin)
+- `--registry, -r` — Path to registry file (auto-detected from config)
+- `--prefix` — Ref prefix for generated refs (default: `ADOPT`)
+- `--reason` — Default reason for registry entries (default: `"adopted by shiori adopt"`)
+- `--kind` — Default kind for registry entries (default: `"adoption"`)
+- `--apply, -a` — Write changes to source files and registry (default: dry-run preview)
 - `--cwd` — Working directory (default: `process.cwd()`)
 - `--config, -c` — Path to config directory
 
