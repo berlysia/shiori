@@ -1,10 +1,10 @@
 import type {
   HealthResult,
   HealthFormat,
-  HealthLevel,
   ReportResult,
   TrendResult,
 } from '../core/types.ts';
+import { healthEmoji, trendArrow } from '../core/emoji.ts';
 import { report, type ReportOptions } from './report.ts';
 
 export type { HealthResult, HealthFormat };
@@ -122,27 +122,5 @@ export function formatHealth(
       return formatHealthSummary(result);
     default:
       return JSON.stringify(result, null, 2);
-  }
-}
-
-function healthEmoji(level: HealthLevel): string {
-  switch (level) {
-    case 'healthy':
-      return '🟢';
-    case 'warning':
-      return '🟡';
-    case 'critical':
-      return '🔴';
-  }
-}
-
-function trendArrow(direction: string): string {
-  switch (direction) {
-    case 'improving':
-      return '↑';
-    case 'declining':
-      return '↓';
-    default:
-      return '→';
   }
 }

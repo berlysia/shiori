@@ -1,8 +1,5 @@
-import type {
-  DeltaResult,
-  AnnotationDelta,
-  DeltaSummary,
-} from '../core/types.ts';
+import type { DeltaResult, AnnotationDelta } from '../core/types.ts';
+import { gateIcon } from '../core/emoji.ts';
 
 /**
  * Format DeltaResult as Markdown suitable for GitHub PR comments.
@@ -73,15 +70,14 @@ export function formatDeltaAsMarkdown(
     lines.push('---');
     lines.push('');
     const passed = result.summary.net <= options.maxIncrease;
-    if (passed) {
-      lines.push(
-        `✅ **Gate passed**: net change (${formatNet(result.summary.net)}) is within allowed threshold (${options.maxIncrease})`,
-      );
-    } else {
-      lines.push(
-        `❌ **Gate failed**: net change (${formatNet(result.summary.net)}) exceeds maximum allowed increase (${options.maxIncrease})`,
-      );
-    }
+    const icon = gateIcon(passed);
+    const verdict = passed ? 'passed' : 'failed';
+    const constraint = passed
+      ? 'is within allowed threshold'
+      : 'exceeds maximum allowed increase';
+    lines.push(
+      `${icon} **Gate ${verdict}**: net change (${formatNet(result.summary.net)}) ${constraint} (${options.maxIncrease})`,
+    );
   }
 
   lines.push('');

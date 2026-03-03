@@ -10,6 +10,7 @@ import type {
   BreakdownEntry,
   ReportFormat,
 } from '../core/types.ts';
+import { healthEmoji, insightIcon } from '../core/emoji.ts';
 import { verify, type VerifyOptions } from './verify.ts';
 
 // Re-export report types from core for backward compatibility
@@ -285,13 +286,8 @@ export function formatReportAsMarkdown(result: ReportResult): string {
   lines.push('');
 
   // Health
-  const healthEmoji =
-    result.health.level === 'healthy'
-      ? '🟢'
-      : result.health.level === 'warning'
-        ? '🟡'
-        : '🔴';
-  lines.push(`## Health: ${healthEmoji} ${result.health.score}/100`);
+  const emoji = healthEmoji(result.health.level);
+  lines.push(`## Health: ${emoji} ${result.health.score}/100`);
   lines.push('');
   lines.push(result.health.summary);
   lines.push('');
@@ -313,12 +309,7 @@ export function formatReportAsMarkdown(result: ReportResult): string {
     lines.push('## Insights');
     lines.push('');
     for (const insight of result.insights) {
-      const icon =
-        insight.level === 'error'
-          ? '❌'
-          : insight.level === 'warning'
-            ? '⚠️'
-            : 'ℹ️';
+      const icon = insightIcon(insight.level);
       lines.push(`- ${icon} **${insight.label}**: ${insight.message}`);
     }
     lines.push('');

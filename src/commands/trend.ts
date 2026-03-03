@@ -1,11 +1,11 @@
 import type {
-  HealthLevel,
   TrendPoint,
   TrendDirection,
   TrendResult,
   TrendFormat,
   ReportResult,
 } from '../core/types.ts';
+import { healthEmoji, trendEmoji } from '../core/emoji.ts';
 
 /**
  * Extract a TrendPoint from a ReportResult.
@@ -109,12 +109,7 @@ export function formatTrendAsMarkdown(result: TrendResult): string {
   }
 
   // Direction emoji
-  const dirEmoji =
-    result.summary.direction === 'improving'
-      ? '📈'
-      : result.summary.direction === 'declining'
-        ? '📉'
-        : '➡️';
+  const dirEmoji = trendEmoji(result.summary.direction);
 
   lines.push(`## Summary: ${dirEmoji} ${result.summary.direction}`);
   lines.push('');
@@ -142,7 +137,7 @@ export function formatTrendAsMarkdown(result: TrendResult): string {
     '|-----------|-------|-------|--------|-------------|------------|',
   );
   for (const p of result.points) {
-    const levelEmoji = healthLevelEmoji(p.level);
+    const levelEmoji = healthEmoji(p.level);
     lines.push(
       `| ${p.timestamp} | ${p.score}/100 | ${levelEmoji} ${p.level} | ${p.issues} | ${p.annotations} | ${p.candidates} |`,
     );
@@ -179,16 +174,5 @@ export function formatTrend(result: TrendResult, format: TrendFormat): string {
       return formatTrendAsCsv(result);
     default:
       return JSON.stringify(result, null, 2);
-  }
-}
-
-function healthLevelEmoji(level: HealthLevel): string {
-  switch (level) {
-    case 'healthy':
-      return '🟢';
-    case 'warning':
-      return '🟡';
-    case 'critical':
-      return '🔴';
   }
 }

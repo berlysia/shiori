@@ -14,6 +14,7 @@ import {
   formatHealth,
   formatHealthSummary,
 } from '../src/commands/health.ts';
+import { isAtOrBelowLevel } from '../src/commands/health-cli.ts';
 import { report } from '../src/commands/report.ts';
 
 function makeAnnotation(
@@ -363,5 +364,43 @@ describe('formatHealthSummary', () => {
     const output = formatHealthSummary(result);
     // Should show warning or critical emoji
     assert.ok(output.includes('🟡') || output.includes('🔴'));
+  });
+});
+
+describe('isAtOrBelowLevel', () => {
+  it('critical is at or below critical', () => {
+    assert.equal(isAtOrBelowLevel('critical', 'critical'), true);
+  });
+
+  it('critical is at or below warning', () => {
+    assert.equal(isAtOrBelowLevel('critical', 'warning'), true);
+  });
+
+  it('critical is at or below healthy', () => {
+    assert.equal(isAtOrBelowLevel('critical', 'healthy'), true);
+  });
+
+  it('warning is not at or below critical', () => {
+    assert.equal(isAtOrBelowLevel('warning', 'critical'), false);
+  });
+
+  it('warning is at or below warning', () => {
+    assert.equal(isAtOrBelowLevel('warning', 'warning'), true);
+  });
+
+  it('warning is at or below healthy', () => {
+    assert.equal(isAtOrBelowLevel('warning', 'healthy'), true);
+  });
+
+  it('healthy is not at or below critical', () => {
+    assert.equal(isAtOrBelowLevel('healthy', 'critical'), false);
+  });
+
+  it('healthy is not at or below warning', () => {
+    assert.equal(isAtOrBelowLevel('healthy', 'warning'), false);
+  });
+
+  it('healthy is at or below healthy', () => {
+    assert.equal(isAtOrBelowLevel('healthy', 'healthy'), true);
   });
 });

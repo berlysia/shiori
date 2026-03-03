@@ -1,5 +1,5 @@
 import { define } from 'gunshi';
-import { readdir, readFile, mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve, join } from 'node:path';
 import {
   loadConfigAndRegistry,
@@ -10,7 +10,6 @@ import { CommentProvider } from '../core/providers/CommentProvider.ts';
 import { report } from './report.ts';
 import { computeTrend } from './trend.ts';
 import {
-  health,
   buildHealthResult,
   formatHealth,
   formatHealthSummary,
@@ -22,7 +21,8 @@ import {
   DEFAULT_SCAN_IGNORE,
 } from '../core/scan-defaults.ts';
 import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
-import type { HealthLevel, ReportResult } from '../core/types.ts';
+import { loadReportFiles } from '../core/report-files.ts';
+import type { HealthLevel } from '../core/types.ts';
 
 const VALID_HEALTH_FORMATS: readonly string[] = ['json', 'summary'];
 
@@ -240,7 +240,13 @@ export const healthCommand = define({
     let trendResult = undefined;
     if (ctx.values.history) {
       const historyDir = resolve(cwd, ctx.values.history);
-      const reports = await loadReportFiles(historyDir);
+      const reports = await loadReportFiles(historyDir, {
+        onDirectoryError: (msg) => console.error(`Warning: ${msg}`),
+        onNoFiles: (dir) =>
+          console.error(`Warning: No JSON files found in ${dir}`),
+        onLoaded: (count, dir) =>
+          console.error(`Loaded ${count} report(s) from ${dir}`),
+      });
       if (reports !== null) {
         trendResult = computeTrend(reports);
       }
@@ -292,7 +298,7 @@ export const healthCommand = define({
  * Check if actual level is at or below the threshold level.
  * Level ordering: critical < warning < healthy
  */
-function isAtOrBelowLevel(
+export function isAtOrBelowLevel(
   actual: HealthLevel,
   threshold: HealthLevel,
 ): boolean {
@@ -302,53 +308,4 @@ function isAtOrBelowLevel(
     healthy: 2,
   };
   return levelOrder[actual] <= levelOrder[threshold];
-}
-
-/**
- * Load ReportResult JSON files from a directory.
- * Returns null if directory cannot be read or no valid files found.
- */
-async function loadReportFiles(dir: string): Promise<ReportResult[] | null> {
-  let files: string[];
-  try {
-    const entries = await readdir(dir);
-    files = entries.filter((f) => f.endsWith('.json'));
-  } catch (err) {
-    console.error(
-      `Warning: Cannot read history directory: ${err instanceof Error ? err.message : String(err)}`,
-    );
-    return null;
-  }
-
-  if (files.length === 0) {
-    console.error(`Warning: No JSON files found in ${dir}`);
-    return null;
-  }
-
-  const reports: ReportResult[] = [];
-  for (const file of files) {
-    const filePath = join(dir, file);
-    try {
-      const content = await readFile(filePath, 'utf-8');
-      const parsed = JSON.parse(content) as Record<string, unknown>;
-
-      if (
-        typeof parsed.timestamp === 'string' &&
-        parsed.health &&
-        typeof (parsed.health as Record<string, unknown>).score === 'number'
-      ) {
-        // shiori: DEV-014 reason="runtime JSON shape validated above but static type requires assertion"
-        reports.push(parsed as unknown as ReportResult);
-      }
-    } catch {
-      // Skip invalid files silently
-    }
-  }
-
-  if (reports.length === 0) {
-    return null;
-  }
-
-  console.error(`Loaded ${reports.length} report(s) from ${dir}`);
-  return reports;
 }
