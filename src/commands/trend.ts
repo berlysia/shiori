@@ -4,8 +4,8 @@ import type {
   TrendDirection,
   TrendResult,
   TrendFormat,
+  ReportResult,
 } from '../core/types.ts';
-import type { ReportResult } from './report.ts';
 
 /**
  * Extract a TrendPoint from a ReportResult.

@@ -200,5 +200,61 @@ export interface TrendResult {
 /** Health level for report */
 export type HealthLevel = 'healthy' | 'warning' | 'critical';
 
+// ── Report types (EP-0020: promoted from commands/report.ts) ─────
+
+/** A single governance insight */
+export interface ReportInsight {
+  /** Severity of the insight */
+  level: 'info' | 'warning' | 'error';
+  /** Short label for the insight */
+  label: string;
+  /** Descriptive message */
+  message: string;
+}
+
+/** Aggregated breakdown entry */
+export interface BreakdownEntry {
+  key: string;
+  count: number;
+}
+
+/** Report output */
+export interface ReportResult {
+  /** ISO timestamp when report was generated */
+  timestamp: string;
+  /** Overall governance health assessment */
+  health: {
+    level: HealthLevel;
+    /** Health score 0-100 (100 = fully healthy) */
+    score: number;
+    /** Short summary of governance state */
+    summary: string;
+  };
+  /** Numeric totals */
+  totals: {
+    annotations: number;
+    candidates: number;
+    registryEntries: number;
+    issues: number;
+    errors: number;
+    warnings: number;
+  };
+  /** Key governance insights (actionable items) */
+  insights: ReportInsight[];
+  /** Issue breakdown by type */
+  byType: Record<VerifyIssueType, number>;
+  /** Annotation breakdown by rule */
+  byRule: BreakdownEntry[];
+  /** Registry breakdown by kind */
+  byKind: BreakdownEntry[];
+  /** Registry breakdown by owner */
+  byOwner: BreakdownEntry[];
+  /** Underlying verify result (for downstream consumers) */
+  verifyResult: VerifyResult;
+}
+
+/** Report output format */
+export type ReportFormat = 'json' | 'markdown' | 'badge';
+
 /** Output format for trend command */
 export type TrendFormat = 'json' | 'markdown' | 'csv';

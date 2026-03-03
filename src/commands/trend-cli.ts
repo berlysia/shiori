@@ -2,8 +2,7 @@ import { define } from 'gunshi';
 import { readdir, readFile, mkdir, writeFile } from 'node:fs/promises';
 import { resolve, dirname, join } from 'node:path';
 import { computeTrend, formatTrend } from './trend.ts';
-import type { ReportResult } from './report.ts';
-import type { TrendFormat } from '../core/types.ts';
+import type { ReportResult, TrendFormat } from '../core/types.ts';
 import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
 
 const VALID_TREND_FORMATS: readonly string[] = ['json', 'markdown', 'csv'];

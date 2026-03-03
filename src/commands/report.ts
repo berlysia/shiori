@@ -3,13 +3,25 @@ import type {
   ScanResult,
   ShioriAnnotation,
   ShioriCandidate,
-  VerifyResult,
   VerifyIssueType,
   HealthLevel,
+  ReportResult,
+  ReportInsight,
+  BreakdownEntry,
+  ReportFormat,
 } from '../core/types.ts';
 import { verify } from './verify.ts';
 import type { RegistryDuplicateWarning } from '../core/registry.ts';
 import type { RefPatternConfig } from '../core/ref-pattern.ts';
+
+// Re-export report types from core for backward compatibility
+export type {
+  ReportResult,
+  ReportInsight,
+  BreakdownEntry,
+  ReportFormat,
+  HealthLevel,
+};
 
 /** Input options for generating a report */
 export interface ReportOptions {
@@ -26,63 +38,6 @@ export interface ReportOptions {
   /** Maps each ref to its origin registryFile (ADR 012 phase 2) */
   refOrigins?: Map<string, string | null>;
 }
-
-// Re-export HealthLevel for backward compatibility
-export type { HealthLevel };
-
-/** A single governance insight */
-export interface ReportInsight {
-  /** Severity of the insight */
-  level: 'info' | 'warning' | 'error';
-  /** Short label for the insight */
-  label: string;
-  /** Descriptive message */
-  message: string;
-}
-
-/** Aggregated breakdown entry */
-export interface BreakdownEntry {
-  key: string;
-  count: number;
-}
-
-/** Report output */
-export interface ReportResult {
-  /** ISO timestamp when report was generated */
-  timestamp: string;
-  /** Overall governance health assessment */
-  health: {
-    level: HealthLevel;
-    /** Health score 0-100 (100 = fully healthy) */
-    score: number;
-    /** Short summary of governance state */
-    summary: string;
-  };
-  /** Numeric totals */
-  totals: {
-    annotations: number;
-    candidates: number;
-    registryEntries: number;
-    issues: number;
-    errors: number;
-    warnings: number;
-  };
-  /** Key governance insights (actionable items) */
-  insights: ReportInsight[];
-  /** Issue breakdown by type */
-  byType: Record<VerifyIssueType, number>;
-  /** Annotation breakdown by rule */
-  byRule: BreakdownEntry[];
-  /** Registry breakdown by kind */
-  byKind: BreakdownEntry[];
-  /** Registry breakdown by owner */
-  byOwner: BreakdownEntry[];
-  /** Underlying verify result (for downstream consumers) */
-  verifyResult: VerifyResult;
-}
-
-/** Report output format */
-export type ReportFormat = 'json' | 'markdown' | 'badge';
 
 /**
  * Generate a governance report from scan result and registry.
