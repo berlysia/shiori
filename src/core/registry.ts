@@ -115,6 +115,7 @@ export async function loadRegistry(
   const registry: Registry = {};
   const errors: RegistryValidationError[] = [];
 
+  // shiori: DEV-012 reason="parsed narrowed to non-null object above but Object.entries needs Record cast"
   for (const [id, value] of Object.entries(parsed as Record<string, unknown>)) {
     const result = validateEntry(id, value);
     if (result.entry) {

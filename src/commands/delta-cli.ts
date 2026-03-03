@@ -127,6 +127,7 @@ export const deltaCommand = define({
         ctx.values.baseFallbackEmpty &&
         err instanceof Error &&
         'code' in err &&
+        // shiori: DEV-017 reason="Error narrowed by instanceof but 'code' property access requires NodeJS.ErrnoException cast; isNodeError() helper exists but not used here"
         (err as NodeJS.ErrnoException).code === 'ENOENT'
       ) {
         baseScan = emptyScanResult;

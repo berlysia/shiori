@@ -30,6 +30,13 @@ const DOGFOODING_ANNOTATIONS: {
   { ref: 'DEV-008', file: 'src/core/scan-result-loader.ts' },
   { ref: 'DEV-009', file: 'src/core/registry.ts' },
   { ref: 'DEV-010', file: 'src/commands/candidates-cli.ts' },
+  { ref: 'DEV-011', file: 'src/commands/verify.ts' },
+  { ref: 'DEV-012', file: 'src/core/registry.ts' },
+  { ref: 'DEV-013', file: 'src/core/cli-validation.ts' },
+  { ref: 'DEV-014', file: 'src/core/cli-validation.ts' },
+  { ref: 'DEV-015', file: 'src/core/scan-result-loader.ts' },
+  { ref: 'DEV-016', file: 'src/core/scan-result-loader.ts' },
+  { ref: 'DEV-017', file: 'src/commands/delta-cli.ts' },
 ];
 
 const ALL_DEV_REFS = DOGFOODING_ANNOTATIONS.map((a) => a.ref).sort();

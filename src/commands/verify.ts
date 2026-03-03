@@ -48,6 +48,7 @@ function determineSeverity(
 }
 
 function buildSummary(issues: VerifyIssue[]): VerifyResult['summary'] {
+  // shiori: DEV-011 reason="Object.fromEntries returns Record<string, number> but we need Record<VerifyIssueType, number>; TS cannot narrow string keys from mapped const array"
   const byType = Object.fromEntries(
     VERIFY_ISSUE_TYPES.map((t) => [t, 0]),
   ) as Record<VerifyIssueType, number>;

@@ -34,6 +34,7 @@ export function parseAndValidateIssueTypes(
     process.exitCode = 1;
     return null;
   }
+  // shiori: DEV-013 reason="string[] narrowed to VerifyIssueType[] after filtering against VERIFY_ISSUE_TYPES; TS cannot infer this from .includes() guard"
   return types as VerifyIssueType[];
 }
 
@@ -55,6 +56,7 @@ export function validateOutputFormat(
     process.exitCode = 1;
     return null;
   }
+  // shiori: DEV-014 reason="string narrowed to OutputFormat after VALID_OUTPUT_FORMATS.includes() check; TS cannot infer this from .includes() guard"
   return format as OutputFormat;
 }
 

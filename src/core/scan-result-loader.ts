@@ -115,6 +115,7 @@ async function readScanResultFile(filePath: string): Promise<ScanResult> {
 async function readFromStdin(): Promise<ScanResult> {
   const chunks: Buffer[] = [];
   for await (const chunk of process.stdin) {
+    // shiori: DEV-015 reason="process.stdin async iterator yields Buffer|string depending on encoding; default binary mode yields Buffer but type is not narrowed"
     chunks.push(chunk as Buffer);
   }
   const content = Buffer.concat(chunks).toString('utf-8');
@@ -126,6 +127,7 @@ async function readFromStdin(): Promise<ScanResult> {
   }
 
   try {
+    // shiori: DEV-016 reason="JSON.parse returns unknown; stdin-sourced scan result cast without shape validation, same pattern as DEV-008"
     return JSON.parse(content) as ScanResult;
   } catch {
     throw new Error(

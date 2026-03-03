@@ -74,5 +74,56 @@
     "owner": "berlysia",
     "notes": "Unlike DEV-004/005/006 which validate before cast, this command lacks .includes() guard; add validation or shared parseFormat<T>() helper",
     "kind": "type-assertion"
+  },
+  "DEV-011": {
+    "reason": "Object.fromEntries() returns Record<string, number> but VerifyIssueType keys needed for type-safe access",
+    "target": "src/commands/verify.ts",
+    "owner": "berlysia",
+    "notes": "TypeScript cannot infer key types from const array .map() in Object.fromEntries; assertion is safe because keys come from VERIFY_ISSUE_TYPES",
+    "kind": "type-assertion"
+  },
+  "DEV-012": {
+    "reason": "Object.entries() requires Record cast after typeof/null/Array guard narrows parsed to non-null object",
+    "target": "src/core/registry.ts",
+    "owner": "berlysia",
+    "notes": "TypeScript typeof narrowing does not produce Record<string, unknown> from unknown; assertion bridges the gap after runtime guards",
+    "kind": "type-assertion"
+  },
+  "DEV-013": {
+    "reason": "Array.includes() guard filters invalid types but TS cannot narrow string[] to VerifyIssueType[]",
+    "target": "src/core/cli-validation.ts",
+    "owner": "berlysia",
+    "notes": "Validated by filtering against VERIFY_ISSUE_TYPES; shared pattern with DEV-014",
+    "kind": "type-assertion"
+  },
+  "DEV-014": {
+    "reason": "VALID_OUTPUT_FORMATS.includes() guard validates format but TS cannot narrow string to OutputFormat",
+    "target": "src/core/cli-validation.ts",
+    "owner": "berlysia",
+    "notes": "Validated by includes() check above; shared pattern with DEV-013",
+    "kind": "type-assertion"
+  },
+  "DEV-015": {
+    "reason": "process.stdin async iterator yields Buffer|string but type is not narrowed; default binary mode yields Buffer",
+    "target": "src/core/scan-result-loader.ts",
+    "owner": "berlysia",
+    "notes": "Node.js stdin without setEncoding() yields Buffer; type system does not reflect encoding state",
+    "kind": "type-assertion"
+  },
+  "DEV-016": {
+    "reason": "JSON.parse returns unknown; stdin-sourced scan result cast without shape validation",
+    "target": "src/core/scan-result-loader.ts",
+    "expires": "2026-06",
+    "ticket": "EP-0011",
+    "owner": "berlysia",
+    "notes": "Same pattern as DEV-008 but in readFromStdin(); JSON Schema validation (EP-0011) would fix both",
+    "kind": "type-assertion"
+  },
+  "DEV-017": {
+    "reason": "Error object cast to NodeJS.ErrnoException for .code property access; isNodeError() helper exists but not used here",
+    "target": "src/commands/delta-cli.ts",
+    "owner": "berlysia",
+    "notes": "Could be refactored to use isNodeError() from src/core/errors.ts for consistency with scan-result-loader.ts",
+    "kind": "type-assertion"
   }
 }

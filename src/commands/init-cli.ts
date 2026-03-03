@@ -90,7 +90,6 @@ export const initCommand = define({
     const cwd = ctx.values.cwd ?? process.cwd();
     const steps: string[] = [];
 
-    // Validate --ci value early
     const ciKind = ctx.values.ci as CiTemplateKind | undefined;
     if (ciKind !== undefined && !CI_TEMPLATE_KINDS.includes(ciKind)) {
       console.error(
