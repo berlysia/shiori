@@ -1,12 +1,15 @@
-import { access, readFile } from 'node:fs/promises';
+import { access, readFile, stat } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { isNodeError } from '../core/errors.ts';
 import {
   loadConfig,
   CONFIG_FILENAMES,
   DEFAULT_REGISTRY_PATH,
+  DEFAULT_SCAN_RESULT_PATH,
 } from '../core/config.ts';
+import type { ResolvedConfig } from '../core/config.ts';
 import { loadMultiRegistry } from '../core/registry.ts';
+import { matchRefPattern } from '../core/ref-pattern.ts';
 import type {
   DoctorCheck,
   DoctorCheckStatus,
@@ -31,25 +34,45 @@ export interface DoctorOptions {
 /**
  * Run all diagnostic checks and return the result.
  * Pure async function — no console output.
+ *
+ * Config is loaded once and shared across checks that need it,
+ * avoiding redundant filesystem reads.
  */
 export async function doctor(options: DoctorOptions): Promise<DoctorResult> {
   const checks: DoctorCheck[] = [];
 
-  // Run checks concurrently where possible
-  const [nodeCheck, configCheck] = await Promise.all([
-    checkNodeVersion(),
-    checkConfig(options.cwd, options.configDir),
-  ]);
+  // Load config once — shared by registry, ref-patterns, and scan-result checks
+  const configLoadResult = await loadConfigOnce(options.cwd, options.configDir);
+
+  // Run independent checks concurrently
+  const [nodeCheck, configCheck, gitignoreCheck, scanResultCheck] =
+    await Promise.all([
+      checkNodeVersion(),
+      checkConfig(options.cwd, options.configDir),
+      checkGitignore(options.cwd),
+      checkScanResultFreshness(options.cwd, configLoadResult.config),
+    ]);
   checks.push(nodeCheck);
   checks.push(configCheck);
 
-  // Registry check depends on config check to know the registry path
-  const registryCheck = await checkRegistry(options.cwd, options.configDir);
-  checks.push(registryCheck);
+  // Registry check uses pre-loaded config
+  const registryCheck = await checkRegistryWithConfig(
+    options.cwd,
+    configLoadResult,
+  );
+  checks.push(registryCheck.check);
 
-  // gitignore check
-  const gitignoreCheck = await checkGitignore(options.cwd);
+  // ref-patterns check uses registry result (depends on registry check)
+  if (registryCheck.registryRefs) {
+    const refPatternsCheck = checkRefPatternsConsistency(
+      configLoadResult.config,
+      registryCheck.registryRefs,
+    );
+    checks.push(refPatternsCheck);
+  }
+
   checks.push(gitignoreCheck);
+  checks.push(scanResultCheck);
 
   const summary = {
     pass: checks.filter((c) => c.status === 'pass').length,
@@ -58,6 +81,31 @@ export async function doctor(options: DoctorOptions): Promise<DoctorResult> {
   };
 
   return { checks, summary };
+}
+
+/** Result of the one-time config load */
+interface ConfigLoadResult {
+  config: ResolvedConfig | undefined;
+  error?: Error;
+}
+
+/**
+ * Load config once — returns the resolved config or undefined if loading failed.
+ * Failure is not fatal since checkConfig will report it independently.
+ */
+async function loadConfigOnce(
+  cwd: string,
+  configDir?: string,
+): Promise<ConfigLoadResult> {
+  try {
+    const config = await loadConfig(cwd, configDir);
+    return { config };
+  } catch (err) {
+    return {
+      config: undefined,
+      error: err instanceof Error ? err : new Error(String(err)),
+    };
+  }
 }
 
 /**
@@ -157,23 +205,30 @@ export async function checkConfig(
   }
 }
 
+/** Internal result from registry check, carrying refs for downstream checks */
+interface RegistryCheckResult {
+  check: DoctorCheck;
+  /** Registry ref keys, available only when loading succeeded */
+  registryRefs?: string[];
+}
+
 /**
  * Check that the registry file exists and is loadable.
+ * Uses pre-loaded config to avoid redundant filesystem reads.
  */
-export async function checkRegistry(
+async function checkRegistryWithConfig(
   cwd: string,
-  configDir?: string,
-): Promise<DoctorCheck> {
-  // Load config to resolve registry path
-  let config;
-  try {
-    config = await loadConfig(cwd, configDir);
-  } catch {
+  configResult: ConfigLoadResult,
+): Promise<RegistryCheckResult> {
+  const config = configResult.config;
+  if (!config) {
     return {
-      name: 'registry',
-      label: 'Registry',
-      status: 'fail',
-      message: 'Cannot check registry: config loading failed',
+      check: {
+        name: 'registry',
+        label: 'Registry',
+        status: 'fail',
+        message: 'Cannot check registry: config loading failed',
+      },
     };
   }
 
@@ -186,18 +241,22 @@ export async function checkRegistry(
   } catch (err) {
     if (isNodeError(err) && err.code === 'ENOENT') {
       return {
-        name: 'registry',
-        label: 'Registry',
-        status: 'fail',
-        message: `Registry file not found: ${registryPath}`,
-        fix: 'Run "shiori init" to create the registry',
+        check: {
+          name: 'registry',
+          label: 'Registry',
+          status: 'fail',
+          message: `Registry file not found: ${registryPath}`,
+          fix: 'Run "shiori init" to create the registry',
+        },
       };
     }
     return {
-      name: 'registry',
-      label: 'Registry',
-      status: 'fail',
-      message: `Error accessing registry: ${err instanceof Error ? err.message : String(err)}`,
+      check: {
+        name: 'registry',
+        label: 'Registry',
+        status: 'fail',
+        message: `Error accessing registry: ${err instanceof Error ? err.message : String(err)}`,
+      },
     };
   }
 
@@ -205,42 +264,188 @@ export async function checkRegistry(
   try {
     const result = await loadMultiRegistry(registryPath, config.refPatterns);
     const entryCount = Object.keys(result.registry).length;
+    const registryRefs = Object.keys(result.registry);
 
     if (result.errors.length > 0) {
       return {
-        name: 'registry',
-        label: 'Registry',
-        status: 'warn',
-        message: `Registry loaded with ${result.errors.length} validation error(s) (${entryCount} entries)`,
-        fix: 'Run "shiori verify" to see detailed validation errors',
+        check: {
+          name: 'registry',
+          label: 'Registry',
+          status: 'warn',
+          message: `Registry loaded with ${result.errors.length} validation error(s) (${entryCount} entries)`,
+          fix: 'Run "shiori verify" to see detailed validation errors',
+        },
+        registryRefs,
       };
     }
 
     if (result.duplicates.length > 0) {
       return {
-        name: 'registry',
-        label: 'Registry',
-        status: 'warn',
-        message: `Registry loaded with ${result.duplicates.length} duplicate warning(s) (${entryCount} entries)`,
-        fix: 'Check for duplicate refs across registry files',
+        check: {
+          name: 'registry',
+          label: 'Registry',
+          status: 'warn',
+          message: `Registry loaded with ${result.duplicates.length} duplicate warning(s) (${entryCount} entries)`,
+          fix: 'Check for duplicate refs across registry files',
+        },
+        registryRefs,
       };
     }
 
     return {
-      name: 'registry',
-      label: 'Registry',
-      status: 'pass',
-      message: `Registry loaded (${entryCount} entries)`,
+      check: {
+        name: 'registry',
+        label: 'Registry',
+        status: 'pass',
+        message: `Registry loaded (${entryCount} entries)`,
+      },
+      registryRefs,
     };
   } catch (err) {
     return {
-      name: 'registry',
-      label: 'Registry',
-      status: 'fail',
-      message: `Failed to load registry: ${err instanceof Error ? err.message : String(err)}`,
-      fix: 'Check registry file syntax (JSON/YAML)',
+      check: {
+        name: 'registry',
+        label: 'Registry',
+        status: 'fail',
+        message: `Failed to load registry: ${err instanceof Error ? err.message : String(err)}`,
+        fix: 'Check registry file syntax (JSON/YAML)',
+      },
     };
   }
+}
+
+/**
+ * Keep the existing public API for backward compatibility with tests.
+ * Delegates to checkRegistryWithConfig internally.
+ */
+export async function checkRegistry(
+  cwd: string,
+  configDir?: string,
+): Promise<DoctorCheck> {
+  const configResult = await loadConfigOnce(cwd, configDir);
+  const result = await checkRegistryWithConfig(cwd, configResult);
+  return result.check;
+}
+
+/**
+ * Check that registry refs are consistent with configured refPatterns.
+ *
+ * When refPatterns are defined, every registry ref should match at least one pattern.
+ * Unmatched refs indicate config drift (pattern was removed or ref was added without a pattern).
+ *
+ * Skipped when refPatterns is not configured (returns pass — no patterns to enforce).
+ */
+export function checkRefPatternsConsistency(
+  config: ResolvedConfig | undefined,
+  registryRefs: string[],
+): DoctorCheck {
+  if (!config?.refPatterns || config.refPatterns.length === 0) {
+    return {
+      name: 'ref-patterns',
+      label: 'Ref patterns',
+      status: 'pass',
+      message: 'No refPatterns configured (skipped)',
+    };
+  }
+
+  if (registryRefs.length === 0) {
+    return {
+      name: 'ref-patterns',
+      label: 'Ref patterns',
+      status: 'pass',
+      message: `${config.refPatterns.length} pattern(s) configured, registry is empty`,
+    };
+  }
+
+  const unmatchedRefs = registryRefs.filter(
+    (ref) => !matchRefPattern(ref, config.refPatterns),
+  );
+
+  if (unmatchedRefs.length === 0) {
+    return {
+      name: 'ref-patterns',
+      label: 'Ref patterns',
+      status: 'pass',
+      message: `All ${registryRefs.length} ref(s) match configured patterns`,
+    };
+  }
+
+  const examples = unmatchedRefs.slice(0, 3).join(', ');
+  const suffix =
+    unmatchedRefs.length > 3 ? `, … (${unmatchedRefs.length} total)` : '';
+
+  return {
+    name: 'ref-patterns',
+    label: 'Ref patterns',
+    status: 'warn',
+    message: `${unmatchedRefs.length} ref(s) do not match any configured pattern: ${examples}${suffix}`,
+    fix: 'Add matching patterns to refPatterns in config, or update refs to follow existing patterns',
+  };
+}
+
+/** Default staleness threshold in hours (24h) */
+const SCAN_RESULT_STALE_HOURS = 24;
+
+/**
+ * Check that scan-result.json exists and is reasonably fresh.
+ *
+ * - Missing: warn (scan has never been run)
+ * - Stale (> threshold): warn (results may not reflect current source)
+ * - Fresh: pass
+ */
+export async function checkScanResultFreshness(
+  cwd: string,
+  config: ResolvedConfig | undefined,
+): Promise<DoctorCheck> {
+  const scanResultPath = resolve(
+    cwd,
+    config?.paths.scanResult ?? DEFAULT_SCAN_RESULT_PATH,
+  );
+
+  let fileStat;
+  try {
+    fileStat = await stat(scanResultPath);
+  } catch (err) {
+    if (isNodeError(err) && err.code === 'ENOENT') {
+      return {
+        name: 'scan-result',
+        label: 'Scan result',
+        status: 'warn',
+        message: 'scan-result.json not found (has "shiori scan" been run?)',
+        fix: 'Run "shiori scan" to generate scan results',
+      };
+    }
+    return {
+      name: 'scan-result',
+      label: 'Scan result',
+      status: 'fail',
+      message: `Error accessing scan-result.json: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+
+  const ageMs = Date.now() - fileStat.mtimeMs;
+  const ageHours = ageMs / (1000 * 60 * 60);
+
+  if (ageHours > SCAN_RESULT_STALE_HOURS) {
+    const ageDisplay =
+      ageHours >= 48
+        ? `${Math.round(ageHours / 24)}d ago`
+        : `${Math.round(ageHours)}h ago`;
+    return {
+      name: 'scan-result',
+      label: 'Scan result',
+      status: 'warn',
+      message: `scan-result.json is stale (last updated ${ageDisplay})`,
+      fix: 'Run "shiori scan" to refresh scan results',
+    };
+  }
+
+  return {
+    name: 'scan-result',
+    label: 'Scan result',
+    status: 'pass',
+    message: 'scan-result.json is up to date',
+  };
 }
 
 /**

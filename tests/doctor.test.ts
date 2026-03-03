@@ -9,10 +9,18 @@ import {
   checkConfig,
   checkRegistry,
   checkGitignore,
+  checkRefPatternsConsistency,
+  checkScanResultFreshness,
   formatDoctor,
   formatDoctorText,
 } from '../src/commands/doctor.ts';
+import type { ResolvedConfig } from '../src/core/config.ts';
 import type { DoctorResult } from '../src/core/types.ts';
+
+/** Create a partial ResolvedConfig for testing (only the fields under test) */
+function partialConfig(partial: Partial<ResolvedConfig>): ResolvedConfig {
+  return partial as unknown as ResolvedConfig;
+}
 
 async function createTempDir(prefix: string): Promise<{
   dir: string;
@@ -213,9 +221,13 @@ describe('doctor', () => {
     const { dir, cleanup } = await createTempDir('doctor-full-');
     try {
       await setupShioriProject(dir);
+      // Create scan-result.json for freshness check
+      const scanResultPath = join(dir, '.config', 'shiori', 'scan-result.json');
+      await writeFile(scanResultPath, '[]', 'utf-8');
       const result = await doctor({ cwd: dir });
-      assert.equal(result.checks.length, 4);
-      assert.ok(result.summary.pass >= 3); // node-version, config, registry, gitignore
+      // node-version, config, registry, ref-patterns, gitignore, scan-result
+      assert.equal(result.checks.length, 6);
+      assert.ok(result.summary.pass >= 4); // node-version, config, registry, ref-patterns at minimum
       assert.equal(result.summary.fail, 0);
     } finally {
       await cleanup();
@@ -226,8 +238,9 @@ describe('doctor', () => {
     const { dir, cleanup } = await createTempDir('doctor-empty-');
     try {
       const result = await doctor({ cwd: dir });
-      assert.equal(result.checks.length, 4);
-      // Config should be warn (no config file), registry fail, gitignore warn
+      // node-version, config, registry (no ref-patterns when registry fails), gitignore, scan-result
+      assert.ok(result.checks.length >= 4);
+      // Config should be warn (no config file), registry fail, gitignore warn, scan-result warn
       assert.ok(result.summary.fail >= 1);
     } finally {
       await cleanup();
@@ -331,5 +344,124 @@ describe('formatDoctor', () => {
     const output = formatDoctor(result, 'text', false);
     assert.ok(output.includes('shiori doctor:'));
     assert.ok(output.includes('✓'));
+  });
+});
+
+describe('checkRefPatternsConsistency', () => {
+  it('returns pass when no refPatterns configured', () => {
+    const config = partialConfig({ refPatterns: undefined });
+    const result = checkRefPatternsConsistency(config, ['DEV-001']);
+    assert.equal(result.name, 'ref-patterns');
+    assert.equal(result.status, 'pass');
+    assert.ok(result.message.includes('skipped'));
+  });
+
+  it('returns pass when refPatterns is empty array', () => {
+    const config = partialConfig({ refPatterns: [] });
+    const result = checkRefPatternsConsistency(config, ['DEV-001']);
+    assert.equal(result.status, 'pass');
+  });
+
+  it('returns pass when all refs match patterns', () => {
+    const config = partialConfig({
+      refPatterns: [{ match: 'DEV-{id}' }, { match: 'ADR-{id}' }],
+    });
+    const result = checkRefPatternsConsistency(config, [
+      'DEV-001',
+      'DEV-002',
+      'ADR-003',
+    ]);
+    assert.equal(result.status, 'pass');
+    assert.ok(result.message.includes('3 ref(s) match'));
+  });
+
+  it('returns warn when some refs do not match patterns', () => {
+    const config = partialConfig({
+      refPatterns: [{ match: 'DEV-{id}' }],
+    });
+    const result = checkRefPatternsConsistency(config, [
+      'DEV-001',
+      'UNKNOWN-X',
+      'RANDOM',
+    ]);
+    assert.equal(result.status, 'warn');
+    assert.ok(result.message.includes('2 ref(s) do not match'));
+    assert.ok(result.message.includes('UNKNOWN-X'));
+    assert.ok(result.fix);
+  });
+
+  it('returns pass when registry is empty with patterns configured', () => {
+    const config = partialConfig({
+      refPatterns: [{ match: 'DEV-{id}' }],
+    });
+    const result = checkRefPatternsConsistency(config, []);
+    assert.equal(result.status, 'pass');
+    assert.ok(result.message.includes('registry is empty'));
+  });
+
+  it('truncates examples when many unmatched refs', () => {
+    const config = partialConfig({
+      refPatterns: [{ match: 'DEV-{id}' }],
+    });
+    const refs = ['A-1', 'B-2', 'C-3', 'D-4', 'E-5'];
+    const result = checkRefPatternsConsistency(config, refs);
+    assert.equal(result.status, 'warn');
+    assert.ok(result.message.includes('5 total'));
+    // Only first 3 shown
+    assert.ok(result.message.includes('A-1'));
+    assert.ok(result.message.includes('C-3'));
+    assert.ok(!result.message.includes('D-4'));
+  });
+
+  it('returns pass with undefined config', () => {
+    const result = checkRefPatternsConsistency(undefined, ['DEV-001']);
+    assert.equal(result.status, 'pass');
+    assert.ok(result.message.includes('skipped'));
+  });
+});
+
+describe('checkScanResultFreshness', () => {
+  it('returns pass when scan-result.json is fresh', async () => {
+    const { dir, cleanup } = await createTempDir('doctor-scan-fresh-');
+    try {
+      await setupShioriProject(dir);
+      const scanResultPath = join(dir, '.config', 'shiori', 'scan-result.json');
+      await writeFile(scanResultPath, '[]', 'utf-8');
+      const result = await checkScanResultFreshness(dir, undefined);
+      assert.equal(result.name, 'scan-result');
+      assert.equal(result.status, 'pass');
+      assert.ok(result.message.includes('up to date'));
+    } finally {
+      await cleanup();
+    }
+  });
+
+  it('returns warn when scan-result.json is missing', async () => {
+    const { dir, cleanup } = await createTempDir('doctor-scan-missing-');
+    try {
+      const result = await checkScanResultFreshness(dir, undefined);
+      assert.equal(result.status, 'warn');
+      assert.ok(result.message.includes('not found'));
+      assert.ok(result.fix?.includes('shiori scan'));
+    } finally {
+      await cleanup();
+    }
+  });
+
+  it('uses config scanResult path when provided', async () => {
+    const { dir, cleanup } = await createTempDir('doctor-scan-custom-');
+    try {
+      const customPath = 'custom/scan.json';
+      const fullPath = join(dir, customPath);
+      await mkdir(join(fullPath, '..'), { recursive: true });
+      await writeFile(fullPath, '[]', 'utf-8');
+      const config = partialConfig({
+        paths: { scanResult: customPath, registry: undefined },
+      });
+      const result = await checkScanResultFreshness(dir, config);
+      assert.equal(result.status, 'pass');
+    } finally {
+      await cleanup();
+    }
   });
 });
