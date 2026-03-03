@@ -7,48 +7,50 @@ import { verify } from '../src/commands/verify.ts';
 
 const provider = new CommentProvider();
 
+/**
+ * All dogfooding annotations tracked by shiori in its own codebase.
+ * Each entry maps a DEV ref to its source file and expected properties.
+ */
+const DOGFOODING_ANNOTATIONS: {
+  ref: string;
+  file: string;
+  rule?: string;
+}[] = [
+  {
+    ref: 'DEV-001',
+    file: 'src/core/path-boundary.ts',
+    rule: 'no-constant-condition',
+  },
+  { ref: 'DEV-002', file: 'src/commands/trend-cli.ts' },
+  { ref: 'DEV-003', file: 'src/commands/registry-generator.ts' },
+  { ref: 'DEV-004', file: 'src/commands/delta-cli.ts' },
+  { ref: 'DEV-005', file: 'src/commands/trend-cli.ts' },
+  { ref: 'DEV-006', file: 'src/commands/report-cli.ts' },
+  { ref: 'DEV-007', file: 'src/core/config.ts' },
+  { ref: 'DEV-008', file: 'src/core/scan-result-loader.ts' },
+  { ref: 'DEV-009', file: 'src/core/registry.ts' },
+  { ref: 'DEV-010', file: 'src/commands/candidates-cli.ts' },
+];
+
+const ALL_DEV_REFS = DOGFOODING_ANNOTATIONS.map((a) => a.ref).sort();
+
 describe('dogfooding: shiori tracks its own annotations', () => {
-  it('detects DEV-001 in path-boundary.ts (eslint suppress)', () => {
-    const content = readFileSync('src/core/path-boundary.ts', 'utf-8');
-    const result = provider.scan({
-      path: 'src/core/path-boundary.ts',
-      content,
+  for (const { ref, file, rule } of DOGFOODING_ANNOTATIONS) {
+    it(`detects ${ref} in ${file.replace('src/', '')}`, () => {
+      const content = readFileSync(file, 'utf-8');
+      const result = provider.scan({ path: file, content });
+      const matches = result.annotations.filter((a) => a.ref === ref);
+      assert.equal(
+        matches.length,
+        1,
+        `expected exactly 1 annotation for ${ref}`,
+      );
+      assert.equal(matches[0]!.tagged, true);
+      if (rule !== undefined) {
+        assert.equal(matches[0]!.rule, rule);
+      }
     });
-    const devAnnotations = result.annotations.filter(
-      (a) => a.ref === 'DEV-001',
-    );
-    assert.equal(devAnnotations.length, 1);
-    assert.equal(devAnnotations[0]!.rule, 'no-constant-condition');
-    assert.equal(devAnnotations[0]!.tagged, true);
-  });
-
-  it('detects DEV-002 in trend-cli.ts (type assertion)', () => {
-    const content = readFileSync('src/commands/trend-cli.ts', 'utf-8');
-    const result = provider.scan({
-      path: 'src/commands/trend-cli.ts',
-      content,
-    });
-    const devAnnotations = result.annotations.filter(
-      (a) => a.ref === 'DEV-002',
-    );
-    assert.equal(devAnnotations.length, 1);
-    assert.equal(devAnnotations[0]!.rule, undefined);
-    assert.equal(devAnnotations[0]!.tagged, true);
-  });
-
-  it('detects DEV-003 in registry-generator.ts (design decision)', () => {
-    const content = readFileSync('src/commands/registry-generator.ts', 'utf-8');
-    const result = provider.scan({
-      path: 'src/commands/registry-generator.ts',
-      content,
-    });
-    const devAnnotations = result.annotations.filter(
-      (a) => a.ref === 'DEV-003',
-    );
-    assert.equal(devAnnotations.length, 1);
-    assert.equal(devAnnotations[0]!.rule, undefined);
-    assert.equal(devAnnotations[0]!.tagged, true);
-  });
+  }
 
   it('registry contains entries for all DEV- annotations', async () => {
     const { registry, errors } = await loadRegistry(
@@ -60,16 +62,12 @@ describe('dogfooding: shiori tracks its own annotations', () => {
     const devRefs = Object.keys(registry)
       .filter((r) => r.startsWith('DEV-'))
       .sort();
-    assert.deepEqual(devRefs, ['DEV-001', 'DEV-002', 'DEV-003']);
+    assert.deepEqual(devRefs, ALL_DEV_REFS);
   });
 
   it('verify reports no issues for dogfooding annotations', async () => {
-    // Scan all 3 files with annotations
-    const files = [
-      'src/core/path-boundary.ts',
-      'src/commands/trend-cli.ts',
-      'src/commands/registry-generator.ts',
-    ];
+    // Scan all source files that contain annotations
+    const files = [...new Set(DOGFOODING_ANNOTATIONS.map((a) => a.file))];
     const allAnnotations = files.flatMap((f) => {
       const content = readFileSync(f, 'utf-8');
       return provider.scan({ path: f, content }).annotations;
