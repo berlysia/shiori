@@ -1,0 +1,33 @@
+name: shiori baseline
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  scan-base:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build
+
+      - name: Scan annotations (baseline)
+        run: node dist/src/cli.js scan --output .tmp/shiori-base-scan.json
+
+      - name: Upload baseline scan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shiori-base-scan
+          path: .tmp/shiori-base-scan.json
+          retention-days: 90
+          overwrite: true

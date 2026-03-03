@@ -1,0 +1,109 @@
+name: shiori PR description
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  delta-description:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build
+
+      # Download baseline artifact (may not exist for initial PRs)
+      - name: Download baseline scan artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: shiori-base-scan
+          path: .tmp/
+        continue-on-error: true
+
+      # Scan PR head annotations
+      - name: Scan annotations (PR head)
+        run: node dist/src/cli.js scan --output .tmp/shiori-head-scan.json
+
+      # Compute delta and generate Markdown report
+      - name: Compute delta
+        id: delta
+        run: |
+          node dist/src/cli.js delta \
+            --base .tmp/shiori-base-scan.json \
+            --head .tmp/shiori-head-scan.json \
+            --format markdown \
+            --base-fallback-empty \
+            --max-increase 0 \
+            --output .tmp/shiori-delta.md
+        continue-on-error: true
+
+      # Replace marker section in PR Description with delta report
+      - name: Update PR description
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            // Read delta report
+            let deltaContent;
+            try {
+              deltaContent = fs.readFileSync('.tmp/shiori-delta.md', 'utf-8').trim();
+            } catch {
+              deltaContent = '_No delta report generated._';
+            }
+
+            // Get current PR description
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+            let body = pr.body || '';
+
+            const startMarker = '<!-- shiori-delta-start -->';
+            const endMarker = '<!-- shiori-delta-end -->';
+
+            const startIdx = body.indexOf(startMarker);
+            const endIdx = body.indexOf(endMarker);
+
+            if (startIdx !== -1 && endIdx !== -1) {
+              // Replace content between markers
+              body =
+                body.substring(0, startIdx + startMarker.length) +
+                '\n' + deltaContent + '\n' +
+                body.substring(endIdx);
+            } else {
+              // Append section at the end
+              body +=
+                '\n\n## Governance Summary\n\n' +
+                startMarker + '\n' +
+                deltaContent + '\n' +
+                endMarker;
+            }
+
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+              body: body,
+            });
+
+      # Fail CI if annotation count exceeded threshold
+      - name: Fail if annotation count increased
+        if: steps.delta.outcome == 'failure'
+        run: |
+          echo "::error::shiori delta: annotation count exceeded --max-increase threshold"
+          exit 1
