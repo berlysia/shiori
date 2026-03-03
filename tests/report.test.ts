@@ -6,14 +6,14 @@ import type {
   RegistryEntry,
   ShioriAnnotation,
   ShioriCandidate,
+  ReportResult,
 } from '../src/core/types.ts';
+import { report } from '../src/commands/report.ts';
 import {
-  report,
-  formatReport,
+  formatReportOutput as formatReport,
   formatReportAsMarkdown,
-  type ReportResult,
   type ShieldsBadge,
-} from '../src/commands/report.ts';
+} from '../src/formatters/report-formatter.ts';
 
 function makeAnnotation(
   overrides: Partial<ShioriAnnotation> = {},

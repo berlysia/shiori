@@ -1,17 +1,17 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { report } from '../src/commands/report.ts';
 import {
   formatReportAsBadge,
-  report,
-  type ReportResult,
   type ShieldsBadge,
-} from '../src/commands/report.ts';
+} from '../src/formatters/report-formatter.ts';
 import type {
   ScanResult,
   Registry,
   RegistryEntry,
   ShioriAnnotation,
   ShioriCandidate,
+  ReportResult,
 } from '../src/core/types.ts';
 
 function makeAnnotation(

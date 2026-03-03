@@ -6,7 +6,7 @@ import {
 import { scan } from './scan.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
 import { report } from './report.ts';
-import type { ReportFormat } from './report.ts';
+import type { ReportFormat } from '../core/types.ts';
 import { formatReportOutput } from '../formatters/report-formatter.ts';
 import {
   parseAndValidateIssueTypes,

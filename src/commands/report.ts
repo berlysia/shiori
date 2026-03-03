@@ -8,26 +8,8 @@ import type {
   ReportResult,
   ReportInsight,
   BreakdownEntry,
-  ReportFormat,
 } from '../core/types.ts';
 import { verify, type VerifyOptions } from './verify.ts';
-
-// Re-export report types from core for backward compatibility
-export type {
-  ReportResult,
-  ReportInsight,
-  BreakdownEntry,
-  ReportFormat,
-  HealthLevel,
-};
-
-// Re-export formatters from their new home for backward compatibility
-export {
-  formatReportAsMarkdown,
-  formatReportAsBadge,
-  formatReportOutput as formatReport,
-  type ShieldsBadge,
-} from '../formatters/report-formatter.ts';
 
 /**
  * Input options for generating a report.
