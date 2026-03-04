@@ -1,17 +1,18 @@
 # GitHub Actions: Delta PR Description
 
-PRのアノテーション増減を **PR Description（本文）** に自動埋め込みするレシピ。
+PRのアノテーション増減と **triage（優先度付き技術負債レポート）** を **PR Description（本文）** に自動埋め込みするレシピ。
 
 ## 概要
 
-PR コメントではなく PR Description 自体にガバナンスサマリーを埋め込むことで、レビューア が PR を開いた瞬間にアノテーション変更を把握できます。
+PR コメントではなく PR Description 自体にガバナンスサマリーを埋め込むことで、レビューア が PR を開いた瞬間にアノテーション変更と技術負債の状況を把握できます。
 
 このレシピは以下を実現します：
 
 1. **ベーススキャン**（`main` ブランチのアノテーション一覧）を artifact として保存
 2. **PRブランチでスキャン**し、ベースとの差分を `shiori delta --format markdown` で計算
-3. PR Description 内の `<!-- shiori-delta-start -->` ～ `<!-- shiori-delta-end -->` セクションを差分レポートで自動更新
-4. アノテーション純増数が閾値を超えた場合はCIを失敗させる（`--max-increase`）
+3. **triage レポート**を `shiori triage --format markdown` で生成し、優先度付きアクションリストを提供
+4. PR Description 内の `<!-- shiori-delta-start/end -->` および `<!-- shiori-triage-start/end -->` セクションを自動更新
+5. アノテーション純増数が閾値を超えた場合はCIを失敗させる（`--max-increase`）
 
 > **PR Comment との使い分け**: PR Description への埋め込みは「常にPR本文で確認したい」チーム向け。コメント通知を活用したい場合は [Delta PR Comment レシピ](./github-actions-delta-pr-comment.md) を使ってください。
 
@@ -24,7 +25,7 @@ PR コメントではなく PR Description 自体にガバナンスサマリー�
 ## PR テンプレートの準備
 
 PR Description にマーカーコメントを含むテンプレートを用意します。
-shiori が差分レポートを埋め込む区間を `<!-- shiori-delta-start -->` と `<!-- shiori-delta-end -->` で囲みます。
+shiori が差分レポートを埋め込む区間を `<!-- shiori-delta-start -->` と `<!-- shiori-delta-end -->` で、triage レポートを `<!-- shiori-triage-start -->` と `<!-- shiori-triage-end -->` で囲みます。
 
 ```markdown
 <!-- .github/pull_request_template.md -->
@@ -44,6 +45,14 @@ shiori が差分レポートを埋め込む区間を `<!-- shiori-delta-start --
 _Waiting for CI..._
 
 <!-- shiori-delta-end -->
+
+## Triage Report
+
+<!-- shiori-triage-start -->
+
+_Waiting for CI..._
+
+<!-- shiori-triage-end -->
 ```
 
 > **Note:** マーカーコメントがない場合、ワークフローは PR Description の末尾にセクションを追加します。
@@ -158,7 +167,15 @@ jobs:
             --output .tmp/shiori-delta.md
         continue-on-error: true
 
-      # PR Description のマーカー区間を差分レポートで置換
+      # Triage レポートを生成
+      - name: Generate triage report
+        run: |
+          pnpm shiori triage \
+            --format markdown \
+            --output .tmp/shiori-triage.md
+        continue-on-error: true
+
+      # PR Description のマーカー区間を差分・triageレポートで置換
       - name: Update PR description
         uses: actions/github-script@v7
         with:
@@ -173,6 +190,14 @@ jobs:
               deltaContent = '_No delta report generated._';
             }
 
+            // Read triage report
+            let triageContent;
+            try {
+              triageContent = fs.readFileSync('.tmp/shiori-triage.md', 'utf-8').trim();
+            } catch {
+              triageContent = '_No triage report generated._';
+            }
+
             // Get current PR description
             const { data: pr } = await github.rest.pulls.get({
               owner: context.repo.owner,
@@ -181,26 +206,41 @@ jobs:
             });
             let body = pr.body || '';
 
-            const startMarker = '<!-- shiori-delta-start -->';
-            const endMarker = '<!-- shiori-delta-end -->';
-
-            const startIdx = body.indexOf(startMarker);
-            const endIdx = body.indexOf(endMarker);
-
-            if (startIdx !== -1 && endIdx !== -1) {
-              // Replace content between markers
-              body =
-                body.substring(0, startIdx + startMarker.length) +
-                '\n' + deltaContent + '\n' +
-                body.substring(endIdx);
-            } else {
-              // Append section at the end
-              body +=
-                '\n\n## Governance Summary\n\n' +
-                startMarker + '\n' +
-                deltaContent + '\n' +
-                endMarker;
+            // Helper: replace content between markers or append section
+            function replaceSection(body, startMarker, endMarker, content, heading) {
+              const startIdx = body.indexOf(startMarker);
+              const endIdx = body.indexOf(endMarker);
+              if (startIdx !== -1 && endIdx !== -1) {
+                return (
+                  body.substring(0, startIdx + startMarker.length) +
+                  '\n' + content + '\n' +
+                  body.substring(endIdx)
+                );
+              } else {
+                return (
+                  body +
+                  '\n\n## ' + heading + '\n\n' +
+                  startMarker + '\n' +
+                  content + '\n' +
+                  endMarker
+                );
+              }
             }
+
+            body = replaceSection(
+              body,
+              '<!-- shiori-delta-start -->',
+              '<!-- shiori-delta-end -->',
+              deltaContent,
+              'Governance Summary',
+            );
+            body = replaceSection(
+              body,
+              '<!-- shiori-triage-start -->',
+              '<!-- shiori-triage-end -->',
+              triageContent,
+              'Triage Report',
+            );
 
             await github.rest.pulls.update({
               owner: context.repo.owner,
@@ -257,6 +297,39 @@ CI 実行後、PR Description の Governance Summary セクションが以下の
 
 </details>
 <!-- shiori-delta-end -->
+
+## Triage Report
+
+<!-- shiori-triage-start -->
+
+# Shiori Triage Report
+
+**Generated:** 2025-01-15T10:00:00.000Z
+
+## Summary
+
+| Priority | Count |
+| -------- | ----- |
+| critical | 1     |
+| high     | 1     |
+| medium   | 0     |
+| low      | 0     |
+
+## Action Items
+
+### 🔴 Critical
+
+| Ref      | Issues  | Owner      | Action                                          |
+| -------- | ------- | ---------- | ----------------------------------------------- |
+| SUP-1234 | expired | team-infra | shiori resolve --ref SUP-1234 or extend expires |
+
+### 🟡 High
+
+| Ref      | Issues              | Owner | Action        |
+| -------- | ------------------- | ----- | ------------- |
+| SUP-9999 | missing-in-registry | -     | shiori update |
+
+<!-- shiori-triage-end -->
 ```
 
 ---
@@ -283,6 +356,30 @@ CI 実行後、PR Description の Governance Summary セクションが以下の
   run: pnpm shiori verify
   continue-on-error: true
 ```
+
+### Triage レポートをフィルタリングする
+
+```yaml
+# 特定のオーナーの技術負債のみ表示
+- name: Generate triage report
+  run: |
+    pnpm shiori triage \
+      --format markdown \
+      --owner team-platform \
+      --output .tmp/shiori-triage.md
+
+# 期限切れのみ表示
+- name: Generate triage report
+  run: |
+    pnpm shiori triage \
+      --format markdown \
+      --expired-only \
+      --output .tmp/shiori-triage.md
+```
+
+### Triage セクションを無効にする
+
+triage セクションが不要な場合は、ワークフローから triage ステップを削除し、PR テンプレートから `<!-- shiori-triage-start/end -->` マーカーを除去してください。delta セクションは独立して動作します。
 
 ### PR Comment と PR Description の両方を使う
 
@@ -324,7 +421,7 @@ jobs:
           path: .tmp/shiori-base-scan.json
           overwrite: true
 
-  # PR時にデルタを計算してPR Description を更新
+  # PR時にデルタ・triageを計算してPR Description を更新
   pr-description:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -361,6 +458,13 @@ jobs:
             --output .tmp/shiori-delta.md
         continue-on-error: true
 
+      - name: Triage
+        run: |
+          pnpm shiori triage \
+            --format markdown \
+            --output .tmp/shiori-triage.md
+        continue-on-error: true
+
       - name: Update PR description
         uses: actions/github-script@v7
         with:
@@ -372,28 +476,51 @@ jobs:
             } catch {
               deltaContent = '_No delta report generated._';
             }
+            let triageContent;
+            try {
+              triageContent = fs.readFileSync('.tmp/shiori-triage.md', 'utf-8').trim();
+            } catch {
+              triageContent = '_No triage report generated._';
+            }
             const { data: pr } = await github.rest.pulls.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: context.issue.number,
             });
             let body = pr.body || '';
-            const startMarker = '<!-- shiori-delta-start -->';
-            const endMarker = '<!-- shiori-delta-end -->';
-            const startIdx = body.indexOf(startMarker);
-            const endIdx = body.indexOf(endMarker);
-            if (startIdx !== -1 && endIdx !== -1) {
-              body =
-                body.substring(0, startIdx + startMarker.length) +
-                '\n' + deltaContent + '\n' +
-                body.substring(endIdx);
-            } else {
-              body +=
-                '\n\n## Governance Summary\n\n' +
-                startMarker + '\n' +
-                deltaContent + '\n' +
-                endMarker;
+            function replaceSection(body, startMarker, endMarker, content, heading) {
+              const startIdx = body.indexOf(startMarker);
+              const endIdx = body.indexOf(endMarker);
+              if (startIdx !== -1 && endIdx !== -1) {
+                return (
+                  body.substring(0, startIdx + startMarker.length) +
+                  '\n' + content + '\n' +
+                  body.substring(endIdx)
+                );
+              } else {
+                return (
+                  body +
+                  '\n\n## ' + heading + '\n\n' +
+                  startMarker + '\n' +
+                  content + '\n' +
+                  endMarker
+                );
+              }
             }
+            body = replaceSection(
+              body,
+              '<!-- shiori-delta-start -->',
+              '<!-- shiori-delta-end -->',
+              deltaContent,
+              'Governance Summary',
+            );
+            body = replaceSection(
+              body,
+              '<!-- shiori-triage-start -->',
+              '<!-- shiori-triage-end -->',
+              triageContent,
+              'Triage Report',
+            );
             await github.rest.pulls.update({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -423,7 +550,7 @@ Fork PR の場合、`pull_request_target` イベントの使用が必要な場�
 
 ### マーカーが手動で削除された
 
-マーカーコメント（`<!-- shiori-delta-start -->` / `<!-- shiori-delta-end -->`）が PR Description から削除された場合、ワークフローは末尾に新しいセクションを追加します。
+マーカーコメント（`<!-- shiori-delta-start/end -->` や `<!-- shiori-triage-start/end -->`）が PR Description から削除された場合、ワークフローは末尾に新しいセクションを追加します。
 
 ### `--max-increase` で意図せずCIが失敗する
 

@@ -113,7 +113,15 @@ jobs:
             --output .tmp/shiori-delta.md
         continue-on-error: true
 
-      # Replace marker section in PR Description with delta report
+      # Generate triage report for technical debt visibility
+      - name: Generate triage report
+        run: |
+          node dist/src/cli.js triage \
+            --format markdown \
+            --output .tmp/shiori-triage.md
+        continue-on-error: true
+
+      # Replace marker sections in PR Description with delta and triage reports
       - name: Update PR description
         uses: actions/github-script@v7
         with:
@@ -128,6 +136,14 @@ jobs:
               deltaContent = '_No delta report generated._';
             }
 
+            // Read triage report
+            let triageContent;
+            try {
+              triageContent = fs.readFileSync('.tmp/shiori-triage.md', 'utf-8').trim();
+            } catch {
+              triageContent = '_No triage report generated._';
+            }
+
             // Get current PR description
             const { data: pr } = await github.rest.pulls.get({
               owner: context.repo.owner,
@@ -136,26 +152,45 @@ jobs:
             });
             let body = pr.body || '';
 
-            const startMarker = '<!-- shiori-delta-start -->';
-            const endMarker = '<!-- shiori-delta-end -->';
+            // Helper: replace content between markers or append section
+            function replaceSection(body, startMarker, endMarker, content, heading) {
+              const startIdx = body.indexOf(startMarker);
+              const endIdx = body.indexOf(endMarker);
 
-            const startIdx = body.indexOf(startMarker);
-            const endIdx = body.indexOf(endMarker);
-
-            if (startIdx !== -1 && endIdx !== -1) {
-              // Replace content between markers
-              body =
-                body.substring(0, startIdx + startMarker.length) +
-                '\n' + deltaContent + '\n' +
-                body.substring(endIdx);
-            } else {
-              // Append section at the end
-              body +=
-                '\n\n## Governance Summary\n\n' +
-                startMarker + '\n' +
-                deltaContent + '\n' +
-                endMarker;
+              if (startIdx !== -1 && endIdx !== -1) {
+                return (
+                  body.substring(0, startIdx + startMarker.length) +
+                  '\n' + content + '\n' +
+                  body.substring(endIdx)
+                );
+              } else {
+                return (
+                  body +
+                  '\n\n## ' + heading + '\n\n' +
+                  startMarker + '\n' +
+                  content + '\n' +
+                  endMarker
+                );
+              }
             }
+
+            // Update delta section
+            body = replaceSection(
+              body,
+              '<!-- shiori-delta-start -->',
+              '<!-- shiori-delta-end -->',
+              deltaContent,
+              'Governance Summary',
+            );
+
+            // Update triage section
+            body = replaceSection(
+              body,
+              '<!-- shiori-triage-start -->',
+              '<!-- shiori-triage-end -->',
+              triageContent,
+              'Triage Report',
+            );
 
             await github.rest.pulls.update({
               owner: context.repo.owner,
