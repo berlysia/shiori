@@ -29,7 +29,7 @@ export const trendCommand = define({
   shiori trend --history ./reports/ --format csv -o trend.csv
 
   # CI recipe: save report, then compare trend
-  shiori report -f json -o ./reports/\$(date +%Y%m%dT%H%M%S).json
+  shiori report -f json -o ./reports/$(date +%Y%m%dT%H%M%S).json
   shiori trend --history ./reports/ --last 10`,
   rendering: { header: null },
   args: {

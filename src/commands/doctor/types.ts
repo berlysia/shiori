@@ -1,0 +1,25 @@
+import type { ResolvedConfig } from '../../core/config.ts';
+import type { DoctorCheck } from '../../core/types.ts';
+
+/** Options for the doctor command (pure logic) */
+export interface DoctorOptions {
+  /** Working directory */
+  cwd: string;
+  /** Explicit config directory (from --config flag) */
+  configDir?: string;
+  /** Whether to show fix suggestions */
+  fix?: boolean;
+}
+
+/** Result of the one-time config load */
+export interface ConfigLoadResult {
+  config: ResolvedConfig | undefined;
+  error?: Error;
+}
+
+/** Internal result from registry check, carrying refs for downstream checks */
+export interface RegistryCheckResult {
+  check: DoctorCheck;
+  /** Registry ref keys, available only when loading succeeded */
+  registryRefs?: string[];
+}

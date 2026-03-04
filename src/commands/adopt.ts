@@ -1,9 +1,5 @@
-import type {
-  ShioriCandidate,
-  Registry,
-  RegistryEntry,
-} from '../core/types.ts';
-import type { MigrateAction, MigrateResult } from './migrate.ts';
+import type { ShioriCandidate, Registry } from '../core/types.ts';
+import type { MigrateResult } from './migrate.ts';
 import { planMigration, groupActionsByFile } from './migrate.ts';
 
 /** Options for adopt planning */

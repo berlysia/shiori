@@ -5,7 +5,6 @@ import {
   CI_TEMPLATE_KINDS,
   CI_TEMPLATE_LABELS,
   CI_TEMPLATE_PATHS,
-  type CiTemplateKind,
 } from '../src/commands/init-ci-templates.ts';
 
 describe('CI_TEMPLATE_KINDS', () => {

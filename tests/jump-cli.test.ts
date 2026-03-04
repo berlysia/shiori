@@ -1,6 +1,6 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile, writeFile, mkdtemp, mkdir } from 'node:fs/promises';
+import { writeFile, mkdtemp, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { runCli, createTempBase } from './helpers/cli-test-utils.ts';
 

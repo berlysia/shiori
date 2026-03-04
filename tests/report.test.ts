@@ -532,15 +532,13 @@ describe('formatReportAsMarkdown', () => {
     );
     const critical = report({
       scanResult: makeScanResult(annotations),
-      registry: {
-        // All expired
-        ...Object.fromEntries(
-          annotations.map((a) => [
-            a.ref,
-            makeRegistryEntry({ expires: '2020-01-01' }),
-          ]),
-        ),
-      },
+      // All expired
+      registry: Object.fromEntries(
+        annotations.map((a) => [
+          a.ref,
+          makeRegistryEntry({ expires: '2020-01-01' }),
+        ]),
+      ),
       failOn: [],
       warnOn: [],
     });

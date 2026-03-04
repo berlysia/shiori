@@ -11,6 +11,7 @@ import {
   DEFAULT_CANDIDATE_PATTERNS,
   resolveCandidatePatterns,
 } from './providers/AnnotationProvider.ts';
+import { validateConfig, formatConfigWarnings } from './config-validation.ts';
 
 /** Default path for scan result (relative to cwd) */
 export const DEFAULT_SCAN_RESULT_PATH = '.config/shiori/scan-result.json';
@@ -102,6 +103,14 @@ export async function loadConfig(
     const raw: ShioriConfig = filename.endsWith('.json')
       ? (JSON.parse(content) as ShioriConfig)
       : ((parseYaml(content) as ShioriConfig) ?? {});
+
+    // Validate before resolving — warnings only, does not stop loading
+    const validationErrors = validateConfig(raw);
+    if (validationErrors.length > 0) {
+      for (const line of formatConfigWarnings(validationErrors)) {
+        console.error(line);
+      }
+    }
 
     return resolveConfig(raw);
   }
