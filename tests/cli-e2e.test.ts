@@ -1053,3 +1053,266 @@ describe('CLI E2E: multi-registry', () => {
     await rm(updateDir, { recursive: true, force: true });
   });
 });
+
+describe('CLI E2E: adopt command', () => {
+  const adoptBase = join(PROJECT_ROOT, '.tmp', 'test-adopt-e2e');
+
+  /** Create an isolated project directory with mixed tracked/untracked lint disables */
+  async function createAdoptFixture(
+    prefix: string,
+    options?: {
+      sourceFiles?: Record<string, string>;
+      registryEntries?: Record<string, object>;
+    },
+  ): Promise<string> {
+    await mkdir(adoptBase, { recursive: true });
+    const dir = await mkdtemp(join(adoptBase, `${prefix}-`));
+
+    const sources = options?.sourceFiles ?? {
+      'src/app.ts':
+        [
+          '// eslint-disable-next-line no-console',
+          'console.log("hello");',
+          '',
+          '// eslint-disable-next-line @typescript-eslint/no-explicit-any -- shiori: EXIST-001',
+          'const data: any = {};',
+          '',
+          '// eslint-disable-next-line no-debugger',
+          'debugger;',
+        ].join('\n') + '\n',
+      'src/styles.css':
+        [
+          '/* stylelint-disable-next-line plugin/baseline */',
+          '.flex { display: flex; }',
+        ].join('\n') + '\n',
+    };
+
+    for (const [path, content] of Object.entries(sources)) {
+      const fullPath = join(dir, path);
+      await mkdir(join(fullPath, '..'), { recursive: true });
+      await writeFile(fullPath, content, 'utf-8');
+    }
+
+    await mkdir(join(dir, '.config', 'shiori'), { recursive: true });
+    await writeFile(
+      join(dir, '.config', 'shiori', 'config.yaml'),
+      '# shiori configuration\n',
+      'utf-8',
+    );
+
+    const registry = options?.registryEntries ?? {
+      'EXIST-001': {
+        reason: 'pre-existing tracked annotation',
+        target: 'all',
+      },
+    };
+    await writeFile(
+      join(dir, '.config', 'shiori', 'registry.json'),
+      JSON.stringify(registry, null, 2) + '\n',
+      'utf-8',
+    );
+
+    return dir;
+  }
+
+  it('dry-run shows candidates without modifying files', async () => {
+    const dir = await createAdoptFixture('dry-run');
+    try {
+      // Scan
+      const scanResult = await runCli([
+        'scan',
+        '--patterns',
+        'src/**/*.ts,src/**/*.css',
+        '--cwd',
+        dir,
+      ]);
+      assert.equal(scanResult.exitCode, 0);
+      const scanPath = join(dir, 'scan-result.json');
+      await writeFile(scanPath, scanResult.stdout, 'utf-8');
+
+      const scan = JSON.parse(scanResult.stdout) as {
+        candidates: unknown[];
+      };
+      assert.ok(scan.candidates.length > 0, 'Should find untracked candidates');
+
+      // Adopt (dry-run, default)
+      const { exitCode, stdout, stderr } = await runCli([
+        'adopt',
+        '--cwd',
+        dir,
+        '--scan',
+        scanPath,
+      ]);
+      assert.equal(exitCode, 0);
+      assert.ok(stdout.includes('candidate(s)'));
+      assert.ok(stderr.includes('--apply'));
+
+      // Verify source files are untouched
+      const appContent = await readFile(join(dir, 'src/app.ts'), 'utf-8');
+      assert.ok(
+        !appContent.includes('ADOPT-'),
+        'Dry-run should not modify source files',
+      );
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('--apply writes annotations and registry, then check passes', async () => {
+    const dir = await createAdoptFixture('apply');
+    try {
+      // Scan
+      const scanResult = await runCli([
+        'scan',
+        '--patterns',
+        'src/**/*.ts,src/**/*.css',
+        '--cwd',
+        dir,
+      ]);
+      const scanPath = join(dir, 'scan-result.json');
+      await writeFile(scanPath, scanResult.stdout, 'utf-8');
+
+      // Apply adoption
+      const adoptResult = await runCli([
+        'adopt',
+        '--cwd',
+        dir,
+        '--scan',
+        scanPath,
+        '--apply',
+        '--prefix',
+        'ONBOARD',
+        '--reason',
+        'initial onboarding',
+        '--kind',
+        'onboarding',
+      ]);
+      assert.equal(adoptResult.exitCode, 0);
+      assert.ok(adoptResult.stderr.includes('Adopted'));
+      assert.ok(adoptResult.stderr.includes('shiori check'));
+
+      // Verify source files were modified
+      const appContent = await readFile(join(dir, 'src/app.ts'), 'utf-8');
+      assert.ok(
+        appContent.includes('shiori:'),
+        'Source should contain shiori annotation after adopt',
+      );
+      assert.ok(
+        appContent.includes('ONBOARD-'),
+        'Source should use custom prefix',
+      );
+
+      // Verify pre-existing annotation is preserved
+      assert.ok(
+        appContent.includes('EXIST-001'),
+        'Pre-existing annotation should not be altered',
+      );
+
+      // Verify registry was updated
+      const registryContent = await readFile(
+        join(dir, '.config', 'shiori', 'registry.json'),
+        'utf-8',
+      );
+      const registry = JSON.parse(registryContent) as Record<
+        string,
+        { reason?: string; kind?: string }
+      >;
+      assert.ok(
+        'EXIST-001' in registry,
+        'Pre-existing registry entry preserved',
+      );
+      const newEntries = Object.entries(registry).filter(([ref]) =>
+        ref.startsWith('ONBOARD-'),
+      );
+      assert.ok(newEntries.length > 0, 'New registry entries should exist');
+      for (const [, entry] of newEntries) {
+        assert.equal(entry.reason, 'initial onboarding');
+        assert.equal(entry.kind, 'onboarding');
+      }
+
+      // Full flow: re-scan → check should pass (all annotations tracked)
+      const checkResult = await runCli([
+        'check',
+        '--patterns',
+        'src/**/*.ts,src/**/*.css',
+        '--cwd',
+        dir,
+        '--fail-on',
+        'missing-in-registry',
+        '--warn-on',
+        'unused-in-source,expired,syntax-error',
+      ]);
+      assert.equal(
+        checkResult.exitCode,
+        0,
+        'check should pass after adoption (all annotations in registry)',
+      );
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('adopt with --apply on CSS files works correctly', async () => {
+    const dir = await createAdoptFixture('css', {
+      sourceFiles: {
+        'src/theme.css':
+          [
+            '/* stylelint-disable-next-line color-no-invalid-hex */',
+            '.a { color: red; }',
+            '',
+            '/* stylelint-disable-next-line declaration-no-important */',
+            '.b { font-size: 16px !important; }',
+          ].join('\n') + '\n',
+      },
+      registryEntries: {},
+    });
+    try {
+      // Scan
+      const scanResult = await runCli([
+        'scan',
+        '--patterns',
+        'src/**/*.css',
+        '--cwd',
+        dir,
+      ]);
+      assert.equal(scanResult.exitCode, 0);
+      const scanPath = join(dir, 'scan-result.json');
+      await writeFile(scanPath, scanResult.stdout, 'utf-8');
+
+      // Apply
+      const adoptResult = await runCli([
+        'adopt',
+        '--cwd',
+        dir,
+        '--scan',
+        scanPath,
+        '--apply',
+      ]);
+      assert.equal(adoptResult.exitCode, 0);
+
+      // Verify CSS was modified
+      const cssContent = await readFile(join(dir, 'src/theme.css'), 'utf-8');
+      assert.ok(
+        cssContent.includes('shiori:'),
+        'CSS source should contain shiori annotation',
+      );
+
+      // Verify all candidates were adopted
+      const registryContent = await readFile(
+        join(dir, '.config', 'shiori', 'registry.json'),
+        'utf-8',
+      );
+      const registry = JSON.parse(registryContent) as Record<string, unknown>;
+      const adoptRefs = Object.keys(registry).filter((r) =>
+        r.startsWith('ADOPT-'),
+      );
+      assert.equal(
+        adoptRefs.length,
+        2,
+        'Should have 2 adopted refs for 2 CSS candidates',
+      );
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});
