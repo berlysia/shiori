@@ -153,6 +153,40 @@ describe('health', () => {
     });
   });
 
+  describe('triage suggestion', () => {
+    it('appends triage insight when issues exist', () => {
+      const result = health({
+        scanResult: makeScanResult([makeAnnotation({ ref: 'MISS-001' })]),
+        registry: {},
+        failOn: [],
+        warnOn: [],
+      });
+
+      // Has issues (missing-in-registry), so triage insight should exist
+      assert.ok(result.issues.total > 0);
+      const triageInsight = result.insights.find((i) => i.label === 'triage');
+      assert.ok(triageInsight, 'triage insight should be present');
+      assert.equal(triageInsight.level, 'info');
+      assert.ok(triageInsight.message.includes('shiori triage'));
+      assert.ok(triageInsight.message.includes('--triage'));
+    });
+
+    it('does not append triage insight when no issues exist', () => {
+      const result = health({
+        scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
+        registry: {
+          'TEST-001': makeRegistryEntry(),
+        },
+        failOn: [],
+        warnOn: [],
+      });
+
+      assert.equal(result.issues.total, 0);
+      const triageInsight = result.insights.find((i) => i.label === 'triage');
+      assert.equal(triageInsight, undefined);
+    });
+  });
+
   describe('trend integration', () => {
     it('includes trend summary when trendResult is provided', () => {
       const trendResult = makeTrendResult();
@@ -343,6 +377,32 @@ describe('formatHealthSummary', () => {
 
     const output = formatHealthSummary(result);
     assert.ok(!output.includes('Expired:'));
+  });
+
+  it('shows triage suggestion when issues exist', () => {
+    const result = health({
+      scanResult: makeScanResult([makeAnnotation({ ref: 'MISS-001' })]),
+      registry: {},
+      failOn: [],
+      warnOn: [],
+    });
+
+    const output = formatHealthSummary(result);
+    assert.ok(output.includes('shiori health --triage'));
+  });
+
+  it('omits triage suggestion when no issues', () => {
+    const result = health({
+      scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
+      registry: {
+        'TEST-001': makeRegistryEntry(),
+      },
+      failOn: [],
+      warnOn: [],
+    });
+
+    const output = formatHealthSummary(result);
+    assert.ok(!output.includes('--triage'));
   });
 
   it('shows critical emoji for critical health', () => {

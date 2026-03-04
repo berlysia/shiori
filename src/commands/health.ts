@@ -41,6 +41,17 @@ export function buildHealthResult(
   reportResult: ReportResult,
   trendResult?: TrendResult,
 ): HealthResult {
+  const insights = [...reportResult.insights];
+
+  // Append triage suggestion when actionable issues exist
+  if (reportResult.totals.issues > 0) {
+    insights.push({
+      level: 'info',
+      label: 'triage',
+      message: `Run "shiori triage" to see a prioritized action list, or "shiori health --triage" to combine both.`,
+    });
+  }
+
   const result: HealthResult = {
     timestamp: reportResult.timestamp,
     health: { ...reportResult.health },
@@ -53,7 +64,7 @@ export function buildHealthResult(
       expired: reportResult.byType['expired'],
       expiringSoon: reportResult.byType['expiring-soon'],
     },
-    insights: reportResult.insights,
+    insights,
   };
 
   if (trendResult && trendResult.points.length > 0) {
@@ -103,6 +114,12 @@ export function formatHealthSummary(result: HealthResult): string {
         38,
       ) + '│',
     );
+  }
+
+  // Triage suggestion (when issues exist)
+  if (result.issues.total > 0) {
+    lines.push('├─────────────────────────────────────┤');
+    lines.push('│ 💡 Run: shiori health --triage'.padEnd(38) + '│');
   }
 
   lines.push('└─────────────────────────────────────┘');

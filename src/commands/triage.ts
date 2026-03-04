@@ -99,8 +99,8 @@ function highestPriority(issues: VerifyIssue[]): TriagePriority {
   return best;
 }
 
-/** Determine action from the highest-priority issue type */
-function determineAction(issues: VerifyIssue[]): string {
+/** Determine action from the highest-priority issue type, with ref substitution */
+function determineAction(issues: VerifyIssue[], ref: string): string {
   let bestPriority: TriagePriority = 'low';
   let bestType: VerifyIssueType = issues[0]!.type;
   for (const issue of issues) {
@@ -110,7 +110,7 @@ function determineAction(issues: VerifyIssue[]): string {
       bestType = issue.type;
     }
   }
-  return ACTION_HINTS[bestType];
+  return ACTION_HINTS[bestType].replaceAll('<ref>', ref);
 }
 
 // ── Main function ────────────────────────────────────────────
@@ -158,7 +158,7 @@ export function triage(options: TriageOptions): TriageResult {
     const url = resolveRefUrl(ref, refPatterns);
 
     const priority = highestPriority(issues);
-    const action = determineAction(issues);
+    const action = determineAction(issues, ref);
 
     items.push({
       ref,

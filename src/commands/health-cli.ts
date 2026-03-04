@@ -13,6 +13,7 @@ import {
   formatHealthSummary,
   type HealthFormat,
 } from './health.ts';
+import { triage, formatTriageOutput, type TriageFormat } from './triage.ts';
 import {
   parseAndValidateIssueTypes,
   createFormatValidator,
@@ -56,7 +57,13 @@ export const healthCommand = define({
   shiori health --snapshot ./reports/
 
   # Combine fail-on issue types and fail-on-level (OR evaluation)
-  shiori health --fail-on expired --fail-on-level critical`,
+  shiori health --fail-on expired --fail-on-level critical
+
+  # Show health + triage action list together
+  shiori health --triage
+
+  # Health + triage with markdown output
+  shiori health --triage --triage-format markdown`,
   rendering: { header: null },
   args: {
     patterns: {
@@ -133,6 +140,18 @@ export const healthCommand = define({
       toKebab: true,
       description:
         'Days before expiration to trigger expiring-soon warning. Overrides config. Default: 14',
+    },
+    triage: {
+      type: 'boolean',
+      short: 't',
+      description:
+        'Also run triage and append a prioritized action list after health output',
+    },
+    triageFormat: {
+      type: 'string',
+      toKebab: true,
+      description:
+        'Output format for triage section: "json", "markdown". Default: "markdown" (for summary) or "json" (for json)',
     },
   },
   run: async (ctx) => {
@@ -248,6 +267,34 @@ export const healthCommand = define({
     // Always show summary box on stderr (for CI visibility)
     if (format !== 'summary') {
       console.error(formatHealthSummary(result));
+    }
+
+    // --triage: run triage reusing the same scanResult (no duplicate scan)
+    if (ctx.values.triage) {
+      const triageFormat: TriageFormat =
+        (ctx.values.triageFormat as TriageFormat) ??
+        (format === 'json' ? 'json' : 'markdown');
+
+      const triageResult = triage({
+        scanResult,
+        registry,
+        failOn,
+        warnOn,
+        duplicates,
+        refPatterns: config.refPatterns,
+        refOrigins,
+        expiringThresholdDays,
+      });
+
+      const triageOutput = formatTriageOutput(triageResult, triageFormat);
+
+      // Separator between health and triage output
+      console.log('');
+      console.log(triageOutput);
+
+      console.error(
+        `Triage: ${triageResult.summary.total} item(s) — critical: ${triageResult.summary.byPriority.critical}, high: ${triageResult.summary.byPriority.high}, medium: ${triageResult.summary.byPriority.medium}, low: ${triageResult.summary.byPriority.low}`,
+      );
     }
 
     // Exit code: --fail-on (errors > 0) OR --fail-on-level

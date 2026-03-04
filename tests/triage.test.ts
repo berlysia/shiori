@@ -450,7 +450,7 @@ describe('triage', () => {
   });
 
   describe('action hints', () => {
-    it('sets action based on highest-priority issue type', () => {
+    it('replaces <ref> placeholder with actual ref in expired action', () => {
       const annotations = [makeAnnotation('ACT-001', 'src/a.ts', 1)];
       const registry: Registry = {
         'ACT-001': makeRegistryEntry({ expires: '2020-01-01' }),
@@ -466,11 +466,29 @@ describe('triage', () => {
 
       assert.equal(
         result.items[0]!.action,
-        'shiori resolve --ref <ref> or extend expires',
+        'shiori resolve --ref ACT-001 or extend expires',
       );
+      // Ensure no placeholder remains
+      assert.ok(!result.items[0]!.action.includes('<ref>'));
     });
 
-    it('sets action for missing-in-registry', () => {
+    it('replaces <ref> placeholder in unused-in-source action', () => {
+      const registry: Registry = {
+        'UNUSED-ACT': makeRegistryEntry(),
+      };
+
+      const result = triage({
+        scanResult: makeScanResult(),
+        registry,
+        failOn: [],
+        warnOn: [],
+      });
+
+      assert.equal(result.items[0]!.action, 'shiori resolve --ref UNUSED-ACT');
+      assert.ok(!result.items[0]!.action.includes('<ref>'));
+    });
+
+    it('sets action for missing-in-registry (no placeholder)', () => {
       const annotations = [makeAnnotation('MISS-ACT', 'src/a.ts', 1)];
 
       const result = triage({
