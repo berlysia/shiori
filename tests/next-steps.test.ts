@@ -142,6 +142,55 @@ describe('computeNextSteps', () => {
     );
   });
 
+  it('suggests --starter when 0 annotations and 0 candidates without starter', () => {
+    const result = computeNextSteps(baseInput);
+
+    assert.ok(
+      result.steps.some((s) => s.command === 'shiori init --starter eslint'),
+      'Expected --starter suggestion for empty project',
+    );
+    assert.ok(
+      result.steps.some((s) => s.message.includes('No annotations found')),
+      'Expected message about no annotations',
+    );
+  });
+
+  it('does not suggest --starter when annotations exist', () => {
+    const result = computeNextSteps({
+      ...baseInput,
+      annotationCount: 3,
+    });
+
+    assert.ok(
+      !result.steps.some((s) => s.command === 'shiori init --starter eslint'),
+      'Should not suggest --starter when annotations exist',
+    );
+  });
+
+  it('does not suggest --starter when candidates exist', () => {
+    const result = computeNextSteps({
+      ...baseInput,
+      candidateCount: 2,
+    });
+
+    assert.ok(
+      !result.steps.some((s) => s.command === 'shiori init --starter eslint'),
+      'Should not suggest --starter when candidates exist',
+    );
+  });
+
+  it('does not suggest --starter when starter was already used', () => {
+    const result = computeNextSteps({
+      ...baseInput,
+      hasStarter: true,
+    });
+
+    assert.ok(
+      !result.steps.some((s) => s.command === 'shiori init --starter eslint'),
+      'Should not suggest --starter when starter was already used',
+    );
+  });
+
   it('uses custom registryPath in registry review command', () => {
     const result = computeNextSteps({
       ...baseInput,

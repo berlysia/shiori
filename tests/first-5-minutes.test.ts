@@ -517,6 +517,12 @@ describe('First 5 Minutes E2E: Zero Annotations Project', () => {
       'Should show initialization message',
     );
 
+    // EP-0032: Next Steps should suggest --starter when nothing is found
+    assert.ok(
+      result.stderr.includes('shiori init --starter eslint'),
+      'Next steps should suggest --starter for empty project',
+    );
+
     // Registry should be created but empty
     const registryContent = await readFile(
       join(projectDir, '.config', 'shiori', 'registry.json'),
@@ -609,6 +615,16 @@ describe('First 5 Minutes E2E: Candidate Detection Flow', () => {
     assert.ok(
       result.stderr.includes('1 candidate(s)'),
       'Should find 1 candidate',
+    );
+
+    // EP-0032: Next Steps should guide user toward adopt when candidates exist
+    assert.ok(
+      result.stderr.includes('shiori adopt'),
+      'Next steps should suggest shiori adopt when candidates are detected',
+    );
+    assert.ok(
+      result.stderr.includes('untracked lint disable'),
+      'Next steps should mention untracked lint disables',
     );
   });
 

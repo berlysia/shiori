@@ -129,6 +129,20 @@ export function computeNextSteps(input: NextStepsInput): NextStepsResult {
     });
   }
 
+  // Empty project hint: suggest --starter when nothing was found and starter wasn't used
+  if (
+    input.annotationCount === 0 &&
+    input.candidateCount === 0 &&
+    !input.hasStarter
+  ) {
+    steps.push({
+      step: stepNum++,
+      message:
+        'No annotations found. Try a starter template to explore shiori:',
+      command: 'shiori init --starter eslint',
+    });
+  }
+
   return { steps };
 }
 
