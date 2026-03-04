@@ -115,6 +115,9 @@ export const initCommand = define({
     }
 
     const steps: string[] = [];
+    let annotationCount = 0;
+    let candidateCount = 0;
+    let registryEntryCount = 0;
 
     // Project initialization steps (skipped with --ci-only)
     if (!ctx.values.ciOnly) {
@@ -148,6 +151,20 @@ export const initCommand = define({
       await stepRegistry(initCtx);
       await stepGitignore(initCtx);
       steps.push(...initCtx.steps);
+
+      // Collect scan state for adaptive guidance
+      if (initCtx.scanResult) {
+        annotationCount = initCtx.scanResult.annotations.length;
+        candidateCount = initCtx.scanResult.candidates.length;
+      }
+      // Count registry entries from the step log (registry may have been skipped if it already existed)
+      const registryStep = initCtx.steps.find((s) => s.startsWith('registry:'));
+      if (registryStep) {
+        const match = registryStep.match(/(\d+) entries/);
+        if (match) {
+          registryEntryCount = parseInt(match[1]!, 10);
+        }
+      }
     }
 
     // CI workflow step
@@ -168,6 +185,10 @@ export const initCommand = define({
     stepSummary(steps, {
       ciOnly: ctx.values.ciOnly ?? false,
       ciKind,
+      annotationCount,
+      candidateCount,
+      registryEntryCount,
+      hasStarter: starterKind !== undefined,
     });
   },
 });

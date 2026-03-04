@@ -33,6 +33,7 @@ import {
   type CiTemplateKind,
 } from './init-ci-templates.ts';
 import type { ScanResult } from '../core/types.ts';
+import { computeNextSteps, formatNextSteps } from './next-steps.ts';
 import {
   STARTER_KINDS,
   STARTER_LABELS,
@@ -368,42 +369,42 @@ export async function stepCi(
   }
 }
 
+export interface StepSummaryOptions {
+  ciOnly: boolean;
+  ciKind?: CiTemplateKind;
+  /** Number of annotations found */
+  annotationCount: number;
+  /** Number of candidates found */
+  candidateCount: number;
+  /** Number of registry entries */
+  registryEntryCount: number;
+  /** Whether --starter was used */
+  hasStarter: boolean;
+}
+
 /** Step 6: Print summary */
-export function stepSummary(
-  steps: string[],
-  opts: { ciOnly: boolean; ciKind?: CiTemplateKind },
-): void {
+export function stepSummary(steps: string[], opts: StepSummaryOptions): void {
   console.error('shiori initialized:');
   for (const step of steps) {
     console.error(`  ${step}`);
   }
   console.error('');
-  console.error('Next steps:');
-  if (!opts.ciOnly) {
-    console.error(
-      '  1. Review and fill in registry entries (reason, owner, expires):',
-    );
-    console.error('     .config/shiori/registry.json');
-    console.error(
-      '  2. Run "shiori check" to verify annotations match the registry',
-    );
-    console.error(
-      '  3. Fix issues: "shiori update" adds missing refs to the registry',
-    );
+
+  const nextSteps = computeNextSteps({
+    annotationCount: opts.annotationCount,
+    candidateCount: opts.candidateCount,
+    registryEntryCount: opts.registryEntryCount,
+    hasCi: opts.ciKind !== undefined,
+    ciOnly: opts.ciOnly,
+    ciPath: opts.ciKind ? CI_TEMPLATE_PATHS[opts.ciKind] : undefined,
+    hasStarter: opts.hasStarter,
+  });
+
+  const lines = formatNextSteps(nextSteps);
+  for (const line of lines) {
+    console.error(line);
   }
-  if (opts.ciKind) {
-    console.error(
-      `  ${opts.ciOnly ? '1' : '4'}. Review the generated workflow: ${CI_TEMPLATE_PATHS[opts.ciKind]}`,
-    );
-    console.error(`  ${opts.ciOnly ? '2' : '5'}. Commit and push to enable CI`);
-  } else {
-    console.error(
-      '  4. Add "shiori check --fail-on missing-in-registry,expired" to CI',
-    );
-    console.error(
-      '     Or run "shiori init --ci basic" to generate a workflow',
-    );
-  }
+
   console.error('');
   console.error('Run "shiori docs" for full documentation.');
 }

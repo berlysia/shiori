@@ -1,0 +1,166 @@
+import type {
+  ShioriAnnotation,
+  Registry,
+  RegistryEntry,
+  VerifyIssue,
+} from '../core/types.ts';
+import type { RefPatternConfig } from '../core/ref-pattern.ts';
+import { resolveRefUrl } from '../core/ref-pattern.ts';
+import { verify } from './verify.ts';
+
+export interface WhyInput {
+  ref: string;
+  registry: Registry;
+  annotations: ShioriAnnotation[];
+  refPatterns: RefPatternConfig[] | undefined;
+  /** Reference date for expiry checks (default: now, injectable for tests) */
+  now?: Date;
+  /** Threshold in days for expiring-soon detection (default: 14) */
+  expiringThresholdDays?: number;
+}
+
+export interface WhyResult {
+  ref: string;
+  /** Registry entry (undefined if ref not in registry) */
+  registryEntry: RegistryEntry | undefined;
+  /** Source locations where this ref appears */
+  sourceLocations: Array<{ file: string; line: number; rule?: string }>;
+  /** Resolved URL from refPatterns */
+  url: string | undefined;
+  /** Verify issues related to this ref */
+  issues: VerifyIssue[];
+  /** Human-readable summary lines */
+  summary: string[];
+}
+
+/**
+ * Aggregate ref information for human consumption.
+ *
+ * Combines show() lookup and verify() diagnostics into a single
+ * result with pre-formatted summary lines. Pure function — no IO.
+ */
+export function why(input: WhyInput): WhyResult {
+  const { ref, registry, annotations, refPatterns, now } = input;
+
+  // Registry lookup
+  const registryEntry = registry[ref] ?? undefined;
+
+  // Source locations with rule info
+  const sourceLocations = annotations
+    .filter((a) => a.ref === ref)
+    .map((a) => ({
+      file: a.location.file,
+      line: a.location.line,
+      rule: a.rule,
+    }));
+
+  // URL resolution
+  const url = resolveRefUrl(ref, refPatterns);
+
+  // Run verify to find issues for this ref
+  const verifyResult = verify({
+    records: annotations,
+    registry,
+    failOn: [],
+    warnOn: [],
+    now,
+    refPatterns,
+    expiringThresholdDays: input.expiringThresholdDays,
+  });
+  const issues = verifyResult.issues.filter((issue) => issue.ref === ref);
+
+  // Build human-readable summary
+  const summary = buildSummary({
+    ref,
+    registryEntry,
+    sourceLocations,
+    url,
+    issues,
+  });
+
+  return {
+    ref,
+    registryEntry,
+    sourceLocations,
+    url,
+    issues,
+    summary,
+  };
+}
+
+/** Whether the why result found any information */
+export function isFound(result: WhyResult): boolean {
+  return (
+    result.registryEntry !== undefined || result.sourceLocations.length > 0
+  );
+}
+
+// ── Summary builder ──────────────────────────────────────────
+
+interface SummaryInput {
+  ref: string;
+  registryEntry: RegistryEntry | undefined;
+  sourceLocations: Array<{ file: string; line: number; rule?: string }>;
+  url: string | undefined;
+  issues: VerifyIssue[];
+}
+
+function buildSummary(input: SummaryInput): string[] {
+  const { ref, registryEntry, sourceLocations, url, issues } = input;
+  const lines: string[] = [];
+
+  // Header
+  lines.push(`ref: ${ref}`);
+
+  // Registry info
+  if (registryEntry) {
+    if (registryEntry.reason) {
+      lines.push(`reason: ${registryEntry.reason}`);
+    }
+    if (registryEntry.owner) {
+      lines.push(`owner: ${registryEntry.owner}`);
+    }
+    if (registryEntry.expires) {
+      lines.push(`expires: ${registryEntry.expires}`);
+    }
+    if (registryEntry.kind) {
+      lines.push(`kind: ${registryEntry.kind}`);
+    }
+    if (registryEntry.ticket) {
+      lines.push(`ticket: ${registryEntry.ticket}`);
+    }
+    if (registryEntry.notes) {
+      lines.push(`notes: ${registryEntry.notes}`);
+    }
+  } else {
+    lines.push('registry: not found');
+  }
+
+  // URL
+  if (url) {
+    lines.push(`url: ${url}`);
+  }
+
+  // Source locations
+  if (sourceLocations.length > 0) {
+    lines.push(`locations: ${sourceLocations.length} occurrence(s)`);
+    for (const loc of sourceLocations) {
+      const ruleLabel = loc.rule ? ` (${loc.rule})` : '';
+      lines.push(`  ${loc.file}:${loc.line}${ruleLabel}`);
+    }
+  } else {
+    lines.push('locations: none (not found in source)');
+  }
+
+  // Issues
+  if (issues.length > 0) {
+    lines.push(`issues: ${issues.length}`);
+    for (const issue of issues) {
+      lines.push(`  [${issue.severity}] ${issue.type}: ${issue.message}`);
+    }
+  } else {
+    lines.push('issues: none');
+  }
+
+  return lines;
+}

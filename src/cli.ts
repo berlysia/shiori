@@ -19,6 +19,7 @@ import { healthCommand } from './commands/health-cli.ts';
 import { adoptCommand } from './commands/adopt-cli.ts';
 import { doctorCommand } from './commands/doctor-cli.ts';
 import { resolveCommand } from './commands/resolve-cli.ts';
+import { whyCommand } from './commands/why-cli.ts';
 
 const main = define({
   name: 'shiori',
@@ -64,6 +65,7 @@ Other commands:
   shiori scan                    Extract annotations from source
   shiori verify                  Verify scan results against registry
   shiori show --ref <ref>        Look up a specific ref
+  shiori why --ref <ref>         Explain why an annotation exists
   shiori jump --ref <ref>        Print source location as file:line
   shiori candidates              List untracked lint disable comments
   shiori draft                   List annotations without a ref
@@ -98,6 +100,7 @@ try {
       docs: docsCommand,
       doctor: doctorCommand,
       resolve: resolveCommand,
+      why: whyCommand,
     },
   });
 } catch (err) {
