@@ -33,7 +33,7 @@ const DOGFOODING_ANNOTATIONS: {
   { ref: 'DEV-014', file: 'src/core/cli-validation.ts' },
   { ref: 'DEV-015', file: 'src/core/scan-result-loader.ts' },
   // DEV-016: resolved by assertScanResultShape() — shape validation added to readFromStdin()
-  { ref: 'DEV-017', file: 'src/commands/delta-cli.ts' },
+  // DEV-017: resolved by loadScanResultFromFile() — delta-cli now uses shared loader with isNodeError()
   { ref: 'DEV-018', file: 'src/core/report-files.ts' },
 ];
 

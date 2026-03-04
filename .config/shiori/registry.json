@@ -73,13 +73,6 @@
     "notes": "Node.js stdin without setEncoding() yields Buffer; type system does not reflect encoding state",
     "kind": "type-assertion"
   },
-  "DEV-017": {
-    "reason": "Error object cast to NodeJS.ErrnoException for .code property access; isNodeError() helper exists but not used here",
-    "target": "src/commands/delta-cli.ts",
-    "owner": "berlysia",
-    "notes": "Could be refactored to use isNodeError() from src/core/errors.ts for consistency with scan-result-loader.ts",
-    "kind": "type-assertion"
-  },
   "DEV-018": {
     "reason": "runtime JSON shape validated by isReportShape but static type requires assertion",
     "target": "src/core/report-files.ts",

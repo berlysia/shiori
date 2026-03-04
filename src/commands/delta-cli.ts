@@ -1,5 +1,4 @@
 import { define } from 'gunshi';
-import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { computeDelta, filterDelta } from './delta.ts';
 import type { ScanResult } from '../core/types.ts';
@@ -9,6 +8,8 @@ import {
 } from '../formatters/index.ts';
 import { createFormatValidator } from '../core/cli-validation.ts';
 import { writeOutput } from '../core/cli-output.ts';
+import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
+import { loadScanResultFromFile } from '../core/scan-result-loader.ts';
 
 const validateDeltaFormat = createFormatValidator<DeltaOutputFormat>([
   'json',
@@ -118,6 +119,19 @@ export const deltaCommand = define({
     const basePath = resolve(cwd, ctx.values.base);
     const headPath = resolve(cwd, ctx.values.head);
 
+    // Path boundary checks: refuse to read files outside cwd
+    try {
+      await assertWithinCwd(basePath, cwd);
+      await assertWithinCwd(headPath, cwd);
+    } catch (err) {
+      if (err instanceof PathBoundaryError) {
+        console.error(`Error: ${err.message}`);
+        process.exitCode = 1;
+        return;
+      }
+      throw err;
+    }
+
     const emptyScanResult: ScanResult = {
       annotations: [],
       candidates: [],
@@ -127,14 +141,12 @@ export const deltaCommand = define({
     let baseScan: ScanResult;
     let headScan: ScanResult;
     try {
-      baseScan = await readScanResultFile(basePath);
+      baseScan = await loadScanResultFromFile(basePath);
     } catch (err) {
       if (
         ctx.values.baseFallbackEmpty &&
         err instanceof Error &&
-        'code' in err &&
-        // shiori: DEV-017 reason="Error narrowed by instanceof but 'code' property access requires NodeJS.ErrnoException cast; isNodeError() helper exists but not used here"
-        (err as NodeJS.ErrnoException).code === 'ENOENT'
+        err.message.includes('not found')
       ) {
         baseScan = emptyScanResult;
         console.error(
@@ -150,7 +162,7 @@ export const deltaCommand = define({
     }
 
     try {
-      headScan = await readScanResultFile(headPath);
+      headScan = await loadScanResultFromFile(headPath);
     } catch (err) {
       console.error(
         `Error loading head scan result: ${err instanceof Error ? err.message : String(err)}`,
@@ -197,14 +209,3 @@ export const deltaCommand = define({
     }
   },
 });
-
-async function readScanResultFile(filePath: string): Promise<ScanResult> {
-  const content = await readFile(filePath, 'utf-8');
-  try {
-    return JSON.parse(content) as ScanResult;
-  } catch {
-    throw new Error(
-      `Failed to parse scan result as JSON: ${filePath}\nEnsure the file contains valid JSON from 'shiori scan'.`,
-    );
-  }
-}

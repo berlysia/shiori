@@ -67,8 +67,13 @@ function buildSummary(issues: VerifyIssue[]): VerifyResult['summary'] {
 }
 
 /**
- * Normalize expires for comparison.
- * YYYY-MM → YYYY-MM-99 to treat month-only as "end of month".
+ * Normalize expires for lexicographic comparison.
+ *
+ * YYYY-MM → YYYY-MM-99 so that month-only values sort after any
+ * real day in that month (max day is 31, so -99 always exceeds it).
+ * This means a YYYY-MM entry is treated as "expired after the last day
+ * of that month" and will trigger expiring-soon when the threshold window
+ * overlaps the month. See tests/verify.test.ts "handles YYYY-MM format".
  */
 function normalizeExpires(expires: string): string {
   return expires.length === 7 ? expires + '-99' : expires;

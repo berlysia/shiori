@@ -85,7 +85,7 @@ export async function loadScanResult(
 
   // 1. Explicit path (resolve relative paths against cwd)
   if (explicitPath && explicitPath !== '-') {
-    return readScanResultFile(resolve(cwd, explicitPath));
+    return loadScanResultFromFile(resolve(cwd, explicitPath));
   }
 
   // 2. Explicit stdin request
@@ -104,7 +104,7 @@ export async function loadScanResult(
   for (const candidate of candidates) {
     try {
       await access(candidate.path);
-      return await readScanResultFile(candidate.path);
+      return await loadScanResultFromFile(candidate.path);
     } catch (err) {
       if (isNodeError(err) && err.code === 'ENOENT') {
         // not found, try next
@@ -142,7 +142,13 @@ function assertScanResultShape(
   }
 }
 
-async function readScanResultFile(filePath: string): Promise<ScanResult> {
+/**
+ * Load and validate a scan result from a specific file path.
+ * Exported for direct use by commands that resolve paths themselves (e.g. delta).
+ */
+export async function loadScanResultFromFile(
+  filePath: string,
+): Promise<ScanResult> {
   let content: string;
   try {
     content = await readFile(filePath, 'utf-8');
