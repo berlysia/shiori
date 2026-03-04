@@ -6,6 +6,7 @@ import {
   planResolve,
   applyResolveToFile,
   formatResolvePreview,
+  checkScanFreshness,
 } from '../src/commands/resolve.ts';
 
 // ── removeAnnotation ─────────────────────────────────────────
@@ -234,6 +235,72 @@ describe('planResolve', () => {
     assert.equal(result.filesAffected, 0);
   });
 
+  it('skips annotation when line content does not match ref (stale scan)', () => {
+    // Simulate: scan result says line 1 has SUP-1234, but file has changed
+    const fileContent = 'const x = 42;\nconsole.log("hi");';
+    const annotations = [
+      makeAnnotation({
+        rule: 'no-console',
+        location: { file: 'src/foo.ts', line: 1 },
+      }),
+    ];
+
+    const result = planResolve({
+      ref: 'SUP-1234',
+      annotations,
+      registry: {},
+      fileContents: new Map([['src/foo.ts', fileContent]]),
+    });
+
+    assert.equal(result.actions.length, 0);
+    assert.equal(result.skipped.length, 1);
+    assert.equal(result.skipped[0]!.file, 'src/foo.ts');
+    assert.equal(result.skipped[0]!.line, 1);
+    assert.ok(result.skipped[0]!.reason.includes('does not match'));
+  });
+
+  it('skips annotation when line number exceeds file length (stale scan)', () => {
+    const fileContent = 'only one line';
+    const annotations = [
+      makeAnnotation({
+        location: { file: 'src/foo.ts', line: 100 },
+      }),
+    ];
+
+    const result = planResolve({
+      ref: 'SUP-1234',
+      annotations,
+      registry: {},
+      fileContents: new Map([['src/foo.ts', fileContent]]),
+    });
+
+    assert.equal(result.actions.length, 0);
+    assert.equal(result.skipped.length, 1);
+    assert.ok(result.skipped[0]!.reason.includes('out of range'));
+  });
+
+  it('skips annotation when line has shiori: but different ref', () => {
+    const fileContent =
+      '// eslint-disable-next-line no-console -- shiori: OTHER-999\nconsole.log("hi");';
+    const annotations = [
+      makeAnnotation({
+        rule: 'no-console',
+        location: { file: 'src/foo.ts', line: 1 },
+      }),
+    ];
+
+    const result = planResolve({
+      ref: 'SUP-1234',
+      annotations,
+      registry: {},
+      fileContents: new Map([['src/foo.ts', fileContent]]),
+    });
+
+    assert.equal(result.actions.length, 0);
+    assert.equal(result.skipped.length, 1);
+    assert.ok(result.skipped[0]!.reason.includes('does not match'));
+  });
+
   it('registry-only resolve (no source locations)', () => {
     const registry: Registry = {
       'SUP-1234': {
@@ -355,7 +422,7 @@ describe('applyResolveToFile', () => {
 describe('formatResolvePreview', () => {
   it('shows "no annotations" for empty result', () => {
     const output = formatResolvePreview(
-      { actions: [], registryRemovals: [], filesAffected: 0 },
+      { actions: [], registryRemovals: [], filesAffected: 0, skipped: [] },
       'SUP-1234',
     );
     assert.ok(output.includes('No annotations or registry entries found'));
@@ -377,6 +444,7 @@ describe('formatResolvePreview', () => {
         ],
         registryRemovals: ['SUP-1234'],
         filesAffected: 1,
+        skipped: [],
       },
       'SUP-1234',
     );
@@ -403,12 +471,37 @@ describe('formatResolvePreview', () => {
         ],
         registryRemovals: [],
         filesAffected: 1,
+        skipped: [],
       },
       'SUP-1234',
     );
 
     assert.ok(output.includes('remove entire line'));
     assert.ok(output.includes('shiori: SUP-1234 reason=workaround'));
+  });
+
+  it('shows skipped annotations in preview', () => {
+    const output = formatResolvePreview(
+      {
+        actions: [],
+        registryRemovals: ['SUP-1234'],
+        filesAffected: 0,
+        skipped: [
+          {
+            file: 'src/foo.ts',
+            line: 10,
+            reason:
+              'line content does not match scan result (file may have changed since last scan)',
+          },
+        ],
+      },
+      'SUP-1234',
+    );
+
+    assert.ok(output.includes('Skipped 1 annotation(s)'));
+    assert.ok(output.includes('src/foo.ts:10'));
+    assert.ok(output.includes('stale scan result'));
+    assert.ok(output.includes('shiori scan'));
   });
 });
 
@@ -454,5 +547,63 @@ describe('insertAnnotation/removeAnnotation roundtrip', () => {
     const inserted = insertAnnotation(original, 'DEV-099');
     const restored = removeAnnotation(inserted, 'DEV-099');
     assert.equal(restored, original);
+  });
+});
+
+// ── checkScanFreshness ──────────────────────────────────────
+
+describe('checkScanFreshness', () => {
+  it('reports fresh when all source files are older than scan result', () => {
+    const scanMtime = 2000;
+    const sourceFiles = new Map([
+      ['src/a.ts', 1000],
+      ['src/b.ts', 1500],
+    ]);
+
+    const result = checkScanFreshness(scanMtime, sourceFiles);
+    assert.equal(result.fresh, true);
+    assert.equal(result.staleFiles.length, 0);
+  });
+
+  it('reports stale when a source file is newer than scan result', () => {
+    const scanMtime = 1000;
+    const sourceFiles = new Map([
+      ['src/a.ts', 500],
+      ['src/b.ts', 2000],
+    ]);
+
+    const result = checkScanFreshness(scanMtime, sourceFiles);
+    assert.equal(result.fresh, false);
+    assert.deepEqual(result.staleFiles, ['src/b.ts']);
+  });
+
+  it('reports stale for all newer files', () => {
+    const scanMtime = 1000;
+    const sourceFiles = new Map([
+      ['src/a.ts', 2000],
+      ['src/b.ts', 3000],
+      ['src/c.ts', 500],
+    ]);
+
+    const result = checkScanFreshness(scanMtime, sourceFiles);
+    assert.equal(result.fresh, false);
+    assert.equal(result.staleFiles.length, 2);
+    assert.ok(result.staleFiles.includes('src/a.ts'));
+    assert.ok(result.staleFiles.includes('src/b.ts'));
+  });
+
+  it('reports fresh for empty source file map', () => {
+    const result = checkScanFreshness(1000, new Map());
+    assert.equal(result.fresh, true);
+    assert.equal(result.staleFiles.length, 0);
+  });
+
+  it('reports fresh when source file mtime equals scan result mtime', () => {
+    const scanMtime = 1000;
+    const sourceFiles = new Map([['src/a.ts', 1000]]);
+
+    const result = checkScanFreshness(scanMtime, sourceFiles);
+    assert.equal(result.fresh, true);
+    assert.equal(result.staleFiles.length, 0);
   });
 });

@@ -20,6 +20,16 @@ export interface ResolveAction {
   modifiedLine: string | null;
 }
 
+/** Info about an annotation skipped due to stale scan result */
+export interface SkippedAnnotation {
+  /** Source file path */
+  file: string;
+  /** Line number from scan result */
+  line: number;
+  /** Why it was skipped */
+  reason: string;
+}
+
 /** Result of resolve planning */
 export interface ResolveResult {
   /** Source change actions */
@@ -28,6 +38,8 @@ export interface ResolveResult {
   registryRemovals: string[];
   /** Number of unique files affected */
   filesAffected: number;
+  /** Annotations skipped due to stale scan data */
+  skipped: SkippedAnnotation[];
 }
 
 /** Options for resolve planning */
@@ -135,6 +147,7 @@ export function planResolve(options: ResolveOptions): ResolveResult {
   const actions: ResolveAction[] = [];
   const registryRemovals: string[] = [];
   const affectedFiles = new Set<string>();
+  const skipped: SkippedAnnotation[] = [];
 
   // Find all annotations matching the ref
   const matching = annotations.filter((a) => a.ref === ref);
@@ -146,9 +159,28 @@ export function planResolve(options: ResolveOptions): ResolveResult {
 
     const lines = content.split('\n');
     const lineIndex = line - 1;
-    if (lineIndex < 0 || lineIndex >= lines.length) continue;
+    if (lineIndex < 0 || lineIndex >= lines.length) {
+      skipped.push({
+        file,
+        line,
+        reason: `line ${line} out of range (file has ${lines.length} lines)`,
+      });
+      continue;
+    }
 
     const originalLine = lines[lineIndex]!;
+
+    // Stale scan-result guard: verify the line actually contains the target annotation
+    if (!originalLine.includes('shiori:') || !originalLine.includes(ref)) {
+      skipped.push({
+        file,
+        line,
+        reason:
+          'line content does not match scan result (file may have changed since last scan)',
+      });
+      continue;
+    }
+
     affectedFiles.add(file);
 
     if (removeDirective && annotation.rule) {
@@ -183,6 +215,7 @@ export function planResolve(options: ResolveOptions): ResolveResult {
     actions,
     registryRemovals,
     filesAffected: affectedFiles.size,
+    skipped,
   };
 }
 
@@ -296,8 +329,56 @@ export function formatResolvePreview(
     }
   }
 
+  if (result.skipped.length > 0) {
+    lines.push('');
+    lines.push(
+      `Skipped ${result.skipped.length} annotation(s) (stale scan result):`,
+    );
+    for (const s of result.skipped) {
+      lines.push(`  ${s.file}:${s.line}: ${s.reason}`);
+    }
+    lines.push('');
+    lines.push('Run "shiori scan" to refresh scan results before resolving.');
+  }
+
   lines.push('');
   lines.push('Run with --apply to execute.');
 
   return lines.join('\n');
+}
+
+// ── Scan result freshness check ─────────────────────────────
+
+/** Result of scan-result freshness check for resolve */
+export interface ScanFreshnessResult {
+  /** Whether the scan result is fresh enough */
+  fresh: boolean;
+  /** Source files that are newer than scan result */
+  staleFiles: string[];
+}
+
+/**
+ * Check if scan result is fresh relative to source files.
+ *
+ * Compares scan-result mtime against each source file's mtime.
+ * If any source file is newer than the scan result, the result is stale.
+ *
+ * Pure comparison logic — file stats must be provided by the caller.
+ */
+export function checkScanFreshness(
+  scanResultMtimeMs: number,
+  sourceFileMtimes: Map<string, number>,
+): ScanFreshnessResult {
+  const staleFiles: string[] = [];
+
+  for (const [file, mtimeMs] of sourceFileMtimes) {
+    if (mtimeMs > scanResultMtimeMs) {
+      staleFiles.push(file);
+    }
+  }
+
+  return {
+    fresh: staleFiles.length === 0,
+    staleFiles,
+  };
 }

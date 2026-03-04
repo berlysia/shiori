@@ -1,11 +1,14 @@
 import { define } from 'gunshi';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, stat } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { dirname, resolve } from 'node:path';
 import { saveRegistry } from '../core/registry.ts';
 import { loadConfigAndRegistry } from '../core/registry-loader.ts';
-import { loadScanResult } from '../core/scan-result-loader.ts';
+import {
+  loadScanResult,
+  resolveScanResultPath,
+} from '../core/scan-result-loader.ts';
 import {
   assertAllWithinCwd,
   PathBoundaryError,
@@ -16,6 +19,7 @@ import {
   applyResolveToFile,
   groupResolveActionsByFile,
   formatResolvePreview,
+  checkScanFreshness,
 } from './resolve.ts';
 
 const execFileAsync = promisify(execFile);
@@ -77,6 +81,12 @@ export const resolveCommand = define({
       description:
         'Also remove the lint disable comment/directive itself (not just the shiori annotation)',
     },
+    force: {
+      type: 'boolean',
+      short: 'f',
+      description:
+        'Skip scan-result freshness check (use when you know the scan result is valid)',
+    },
     cwd: {
       type: 'string',
       description: 'Working directory. Default: process.cwd()',
@@ -92,6 +102,7 @@ export const resolveCommand = define({
     const cwd = ctx.values.cwd ?? process.cwd();
     const apply = ctx.values.apply ?? false;
     const removeDirective = ctx.values['remove-directive'] ?? false;
+    const force = ctx.values.force ?? false;
     const ref = ctx.values.ref;
 
     if (!ref) {
@@ -107,11 +118,12 @@ export const resolveCommand = define({
     });
 
     // Load scan result
-    const scanResult = await loadScanResult({
+    const scanResultOptions = {
       explicitPath: ctx.values.scan,
       config,
       cwd,
-    });
+    };
+    const scanResult = await loadScanResult(scanResultOptions);
 
     // Pre-load file contents for matching annotations
     const matchingAnnotations = scanResult.annotations.filter(
@@ -129,6 +141,46 @@ export const resolveCommand = define({
         fileContents.set(file, content);
       } catch {
         console.error(`Warning: Could not read file ${filePath}, skipping.`);
+      }
+    }
+
+    // Scan-result freshness check: compare mtime of scan-result vs source files
+    if (!force && uniqueFiles.length > 0) {
+      const scanResultPath = await resolveScanResultPath(scanResultOptions);
+      if (scanResultPath) {
+        try {
+          const scanStat = await stat(scanResultPath);
+          const sourceFileMtimes = new Map<string, number>();
+          for (const file of uniqueFiles) {
+            try {
+              const fileStat = await stat(resolve(cwd, file));
+              sourceFileMtimes.set(file, fileStat.mtimeMs);
+            } catch {
+              // File stat failed — skip (already warned above)
+            }
+          }
+
+          const freshness = checkScanFreshness(
+            scanStat.mtimeMs,
+            sourceFileMtimes,
+          );
+          if (!freshness.fresh) {
+            console.error(
+              'Error: Source files have been modified since the last scan:',
+            );
+            for (const f of freshness.staleFiles) {
+              console.error(`  ${f}`);
+            }
+            console.error('');
+            console.error(
+              'Run "shiori scan" to refresh, or use --force to skip this check.',
+            );
+            process.exitCode = 1;
+            return;
+          }
+        } catch {
+          // Could not stat scan result file — proceed without freshness check
+        }
       }
     }
 
@@ -239,6 +291,19 @@ export const resolveCommand = define({
     if (result.registryRemovals.length > 0) {
       console.error(
         `Removed ${result.registryRemovals.length} registry entry/entries`,
+      );
+    }
+
+    if (result.skipped.length > 0) {
+      console.error('');
+      console.error(
+        `Skipped ${result.skipped.length} annotation(s) (stale scan result):`,
+      );
+      for (const s of result.skipped) {
+        console.error(`  ${s.file}:${s.line}: ${s.reason}`);
+      }
+      console.error(
+        'Run "shiori scan" to refresh scan results before resolving.',
       );
     }
 

@@ -13,6 +13,61 @@ export interface LoadScanResultOptions {
 }
 
 /**
+ * Resolve the scan result file path from options (without loading).
+ *
+ * Returns the absolute path if a file-based source is found, or null
+ * if the source is stdin.
+ */
+export async function resolveScanResultPath(
+  options: Pick<LoadScanResultOptions, 'explicitPath' | 'config' | 'cwd'>,
+): Promise<string | null> {
+  const { explicitPath, config, cwd } = options;
+
+  if (explicitPath === '-') return null;
+  if (explicitPath) return resolve(cwd, explicitPath);
+  if (!process.stdin.isTTY) return null;
+
+  const candidates = buildCandidates(config, cwd);
+  for (const candidate of candidates) {
+    try {
+      await access(candidate.path);
+      return candidate.path;
+    } catch (err) {
+      if (isNodeError(err) && err.code === 'ENOENT') continue;
+      throw err;
+    }
+  }
+  return null;
+}
+
+/**
+ * Build file-based resolution candidates.
+ */
+function buildCandidates(
+  config: ResolvedConfig,
+  cwd: string,
+): { label: string; path: string }[] {
+  const candidates: { label: string; path: string }[] = [];
+  const configPath = config.paths.scanResult;
+  const configFullPath = resolve(cwd, configPath);
+
+  if (configPath !== DEFAULT_SCAN_RESULT_PATH) {
+    candidates.push({ label: `config: ${configPath}`, path: configFullPath });
+    candidates.push({
+      label: DEFAULT_SCAN_RESULT_PATH,
+      path: resolve(cwd, DEFAULT_SCAN_RESULT_PATH),
+    });
+  } else {
+    candidates.push({
+      label: DEFAULT_SCAN_RESULT_PATH,
+      path: configFullPath,
+    });
+  }
+
+  return candidates;
+}
+
+/**
  * Load scan result from the best available source.
  *
  * Resolution order:
@@ -44,25 +99,7 @@ export async function loadScanResult(
   }
 
   // 4-5. File-based resolution
-  const candidates: { label: string; path: string }[] = [];
-
-  const configPath = config.paths.scanResult;
-  const configFullPath = resolve(cwd, configPath);
-
-  if (configPath !== DEFAULT_SCAN_RESULT_PATH) {
-    // Config specifies a custom path — try it first, then the default
-    candidates.push({ label: `config: ${configPath}`, path: configFullPath });
-    candidates.push({
-      label: DEFAULT_SCAN_RESULT_PATH,
-      path: resolve(cwd, DEFAULT_SCAN_RESULT_PATH),
-    });
-  } else {
-    // Default path only
-    candidates.push({
-      label: DEFAULT_SCAN_RESULT_PATH,
-      path: configFullPath,
-    });
-  }
+  const candidates = buildCandidates(config, cwd);
 
   for (const candidate of candidates) {
     try {
