@@ -73,7 +73,7 @@ jobs:
 
 PRブランチでスキャンを実行し、ベースと比較してPRコメントに差分を投稿します。
 
-```yaml
+````yaml
 # .github/workflows/shiori-pr.yml
 name: shiori PR delta
 
@@ -193,6 +193,43 @@ jobs:
             --output .tmp/shiori-delta.md
         continue-on-error: true
 
+      # オンボーディングセクションを追加（shiori を知らない開発者向け）
+      # チーム全体がオンボーディング済みになったらこのステップを削除してください。
+      - name: Append onboarding section
+        run: |
+          cat >> .tmp/shiori-delta.md << 'ONBOARDING'
+
+          ---
+
+          <details>
+          <summary>💡 shiori について</summary>
+
+          **shiori** はソースコード中の lint disable コメントや技術的判断を追跡・管理するガバナンスツールです。
+
+          このコメントは `shiori delta` によって自動投稿されています。
+
+          ### クイックスタート
+
+          ```bash
+          # インストール
+          pnpm add -D shiori
+
+          # プロジェクト初期化（レジストリ + CI テンプレート生成）
+          pnpm shiori init
+
+          # lint disable の候補を検出して追跡開始
+          pnpm shiori candidates
+          pnpm shiori adopt
+
+          # レジストリとの整合性を検証
+          pnpm shiori check
+          ```
+
+          📖 詳細: `pnpm shiori docs`
+
+          </details>
+          ONBOARDING
+
       # 差分レポートをPRコメントに投稿（既存コメントは上書き）
       - name: Post delta as PR comment
         uses: peter-evans/create-or-update-comment@v4
@@ -209,7 +246,7 @@ jobs:
         run: |
           echo "::error::shiori delta: annotation count exceeded --max-increase threshold"
           exit 1
-```
+````
 
 ---
 
@@ -273,6 +310,22 @@ jobs:
   continue-on-error: true
 ```
 
+### オンボーディングセクションを無効化する
+
+チーム全体が shiori に習熟したら、オンボーディングセクションの追加ステップを削除するか、
+環境変数で制御できます：
+
+```yaml
+- name: Append onboarding section
+  if: ${{ env.SHIORI_ONBOARDING != 'false' }}
+  run: |
+    cat >> .tmp/shiori-delta.md << 'ONBOARDING'
+    ...
+    ONBOARDING
+```
+
+詳細は [PR Onboarding Snippet](./pr-onboarding-snippet.md) を参照してください。
+
 ### キャッシュを使って高速化する
 
 ```yaml
@@ -289,7 +342,7 @@ jobs:
 
 ベーススキャンとPRデルタを1ファイルにまとめたシンプル構成：
 
-```yaml
+````yaml
 # .github/workflows/shiori.yml
 name: shiori
 
@@ -398,6 +451,41 @@ jobs:
             --output .tmp/shiori-delta.md
         continue-on-error: true
 
+      - name: Append onboarding section
+        run: |
+          cat >> .tmp/shiori-delta.md << 'ONBOARDING'
+
+          ---
+
+          <details>
+          <summary>💡 shiori について</summary>
+
+          **shiori** はソースコード中の lint disable コメントや技術的判断を追跡・管理するガバナンスツールです。
+
+          このコメントは `shiori delta` によって自動投稿されています。
+
+          ### クイックスタート
+
+          ```bash
+          # インストール
+          pnpm add -D shiori
+
+          # プロジェクト初期化
+          pnpm shiori init
+
+          # lint disable の候補を検出して追跡開始
+          pnpm shiori candidates
+          pnpm shiori adopt
+
+          # レジストリとの整合性を検証
+          pnpm shiori check
+          ```
+
+          📖 詳細: `pnpm shiori docs`
+
+          </details>
+          ONBOARDING
+
       - uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
@@ -408,7 +496,7 @@ jobs:
       - name: Fail if increased
         if: steps.delta.outcome == 'failure'
         run: exit 1
-```
+````
 
 ---
 
@@ -442,4 +530,5 @@ CI失敗は最終ステップで明示的に `exit 1` することで制御し�
 ## 関連
 
 - [ADR 018: 外部サービス連携戦略](../decisions/018-external-service-integration.md)
+- [PR Onboarding Snippet](./pr-onboarding-snippet.md)
 - [Alert-to-Ref ブリッジレシピ](./alert-to-ref.md)

@@ -65,7 +65,35 @@ describe('generateCiWorkflow', () => {
     assert.ok(yaml.includes('peter-evans/create-or-update-comment@v4'));
     assert.ok(yaml.includes('shiori-delta'));
     assert.ok(yaml.includes('upload-artifact@v4'));
-    assert.ok(yaml.includes('download-artifact@v4'));
+    assert.ok(yaml.includes('actions/github-script@v7'));
+    assert.ok(yaml.includes('actions: read'));
+  });
+
+  it('includes onboarding section in delta-pr-comment template', () => {
+    const yaml = generateCiWorkflow('delta-pr-comment');
+
+    assert.ok(yaml.includes('Append onboarding section'));
+    assert.ok(yaml.includes('shiori について'));
+    assert.ok(yaml.includes('pnpm add -D shiori'));
+    assert.ok(yaml.includes('pnpm shiori init'));
+    assert.ok(yaml.includes('pnpm shiori candidates'));
+    assert.ok(yaml.includes('pnpm shiori adopt'));
+    assert.ok(yaml.includes('pnpm shiori check'));
+    assert.ok(yaml.includes('pr-onboarding-snippet.md'));
+  });
+
+  it('places onboarding step before PR comment posting in delta-pr-comment', () => {
+    const yaml = generateCiWorkflow('delta-pr-comment');
+
+    const onboardingIndex = yaml.indexOf('Append onboarding section');
+    const postCommentIndex = yaml.indexOf('Post delta as PR comment');
+
+    assert.ok(onboardingIndex > 0, 'Onboarding section not found');
+    assert.ok(postCommentIndex > 0, 'Post comment step not found');
+    assert.ok(
+      onboardingIndex < postCommentIndex,
+      'Onboarding section should appear before PR comment posting',
+    );
   });
 
   it('includes generator comment for all templates', () => {

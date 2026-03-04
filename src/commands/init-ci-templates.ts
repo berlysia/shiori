@@ -168,6 +168,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      actions: read
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -177,10 +178,53 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
 
-      - uses: actions/download-artifact@v4
+      # download-artifact@v4 cannot retrieve artifacts across workflow runs
+      # (push and pull_request run as separate runs even in the same workflow).
+      # Use GitHub API via github-script to fetch the baseline from the latest
+      # successful push run.
+      - name: Download baseline scan artifact
+        uses: actions/github-script@v7
         with:
-          name: shiori-base-scan
-          path: .tmp/
+          script: |
+            const fs = require('fs');
+            const workflows = await github.rest.actions.listRepoWorkflows({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            const baselineWorkflow = workflows.data.workflows.find(
+              w => w.name === 'shiori'
+            );
+            if (!baselineWorkflow) return;
+
+            const runs = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: baselineWorkflow.id,
+              branch: 'main',
+              status: 'success',
+              per_page: 1,
+            });
+            if (runs.data.workflow_runs.length === 0) return;
+
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: runs.data.workflow_runs[0].id,
+            });
+            const artifact = artifacts.data.artifacts.find(
+              a => a.name === 'shiori-base-scan'
+            );
+            if (!artifact) return;
+
+            const download = await github.rest.actions.downloadArtifact({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              artifact_id: artifact.id,
+              archive_format: 'zip',
+            });
+            fs.mkdirSync('.tmp', { recursive: true });
+            fs.writeFileSync('.tmp/shiori-base-scan.zip', Buffer.from(download.data));
+            require('child_process').execSync('unzip -o .tmp/shiori-base-scan.zip -d .tmp/');
         continue-on-error: true
 
       - name: Scan (PR head)
@@ -197,6 +241,44 @@ jobs:
             --max-increase 0 \\
             --output .tmp/shiori-delta.md
         continue-on-error: true
+
+      # Append onboarding section for developers unfamiliar with shiori.
+      # Remove this step once your team is onboarded.
+      # See: docs/recipes/pr-onboarding-snippet.md
+      - name: Append onboarding section
+        run: |
+          cat >> .tmp/shiori-delta.md << 'ONBOARDING'
+
+          ---
+
+          <details>
+          <summary>💡 shiori について</summary>
+
+          **shiori** はソースコード中の lint disable コメントや技術的判断を追跡・管理するガバナンスツールです。
+
+          このコメントは \`shiori delta\` によって自動投稿されています。
+
+          ### クイックスタート
+
+          \`\`\`bash
+          # インストール
+          pnpm add -D shiori
+
+          # プロジェクト初期化（レジストリ + CI テンプレート生成）
+          pnpm shiori init
+
+          # lint disable の候補を検出して追跡開始
+          pnpm shiori candidates
+          pnpm shiori adopt
+
+          # レジストリとの整合性を検証
+          pnpm shiori check
+          \`\`\`
+
+          📖 詳細: \`pnpm shiori docs\`
+
+          </details>
+          ONBOARDING
 
       - name: Post delta as PR comment
         uses: peter-evans/create-or-update-comment@v4
