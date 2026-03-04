@@ -2,19 +2,86 @@
 
 [![CI](https://github.com/berlysia/shiori/actions/workflows/ci.yml/badge.svg)](https://github.com/berlysia/shiori/actions/workflows/ci.yml)
 
-Annotation tracking and governance tool.
+**Your `eslint-disable` comments are hiding technical debt. shiori makes it visible, trackable, and auditable.**
 
-## Purpose
+## The Problem
 
-`shiori` is a governance layer that recovers structured annotations — lint violations hidden by `disable` comments and other tracked exceptions — from source code, manages them in a registry, and verifies them in CI.
+When developers write `eslint-disable-next-line` or `stylelint-disable`, the violation disappears from lint results — permanently. No one knows why the rule was disabled, who owns the decision, or when it should be revisited.
 
-When developers use `stylelint-disable-next-line` or `eslint-disable-next-line`, those violations disappear from lint results entirely. This tool brings them back under organizational control by:
+**Without shiori** — lint disables are invisible noise:
 
-- Scanning source code for `shiori:` annotations (in lint disable comments and standalone)
-- Requiring each annotation to carry a tracking reference (e.g. `shiori: SUP-1234`)
-- Supporting annotation classification via `kind` field in the registry: `waive`, `design`, `compat`, `risk`, `migrate` (and custom kinds)
-- Verifying references against a JSON or YAML registry with reason, ownership, and expiration
-- Generating human-readable (Markdown) and machine-readable (JSON, SARIF, JSONL) reports
+```typescript
+// eslint-disable-next-line no-constant-condition
+while (true) {
+  /* ... */
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const data: any = fetchLegacyAPI();
+
+const raw: ShioriConfig = JSON.parse(content) as ShioriConfig;
+```
+
+**With shiori** — every exception is tracked, reasoned, and auditable:
+
+```typescript
+// eslint-disable-next-line no-constant-condition -- shiori: DEV-001
+while (true) {
+  /* ... */
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- shiori: SUP-5678 expires=2026-12-31
+const data: any = fetchLegacyAPI();
+
+// shiori: DEV-007 reason="config cast without schema validation"
+const raw: ShioriConfig = JSON.parse(content) as ShioriConfig;
+```
+
+Each `shiori:` annotation points to a registry entry with reason, owner, and expiration — so your team always knows _why_, _who_, and _when_.
+
+## Quick Start
+
+```bash
+# 1. Install
+pnpm add -D @berlysia/shiori      # or npm / yarn
+
+# 2. Initialize — scans source, creates registry, generates CI workflow
+shiori init --ci basic
+
+# 3. Check — verifies all annotations against the registry
+shiori check
+```
+
+That's it. Three commands to go from zero to CI-enforced annotation governance.
+
+> **Already have lint disables scattered across your codebase?** `shiori adopt` converts them in one step:
+>
+> ```bash
+> shiori scan && shiori adopt --apply   # Write annotations + registry entries
+> shiori check                          # Verify everything is tracked
+> ```
+
+## Your Governance Journey
+
+shiori supports three levels of governance maturity — start simple, grow as needed:
+
+```
+ Discover              Adopt                  Enforce
+ ─────────────────    ─────────────────      ─────────────────
+ shiori scan           shiori init            shiori check (CI)
+ shiori candidates     shiori adopt           --fail-on expired
+                       shiori update          PR delta comments
+                                              Governance badge
+
+ "What lint disables   "Track them with       "CI blocks PRs with
+  exist in our code?"   refs and metadata"     untracked disables"
+```
+
+| Stage        | Commands                  | What you get                                                            |
+| ------------ | ------------------------- | ----------------------------------------------------------------------- |
+| **Discover** | `scan`, `candidates`      | See all lint disables and untracked exceptions in your codebase         |
+| **Adopt**    | `init`, `adopt`, `update` | Track each disable with a ref, reason, owner, and expiration            |
+| **Enforce**  | `check`, `verify` (CI)    | CI fails on unregistered or expired annotations; PR comments show diffs |
 
 ## Annotation Syntax
 
@@ -44,78 +111,6 @@ See [ADR 007](docs/decisions/007-positional-ref-syntax.md) for the positional re
 - This tool operates as an external CLI that handles extraction, reconciliation, and reporting — complementary to (not replacing) lint rules.
 
 For a deeper exploration of this design choice — including the structural limitations of lint plugins, the complementary relationship with lint rules, and shiori's "Governance as Documentation" positioning — see **[Why shiori?](docs/why-shiori.md)**.
-
-## Quick Start — 5 Minutes to CI Governance
-
-```bash
-# 1. Install
-pnpm add -D @berlysia/shiori
-
-# 2. Initialize project + generate CI workflow
-shiori init --ci basic
-
-# 3. Check annotations against registry
-shiori check
-
-# 4. Fix issues — add missing refs to registry
-shiori update
-shiori check           # re-verify
-
-# 5. Resolve completed annotations
-shiori scan && shiori resolve --ref SUP-1234 --apply
-
-# 6. Commit and push — CI now enforces governance
-git add .github/workflows/shiori.yml .config/shiori/
-git push
-```
-
-### Adding shiori to an existing project
-
-Already have lint disable comments scattered across your codebase? `shiori adopt` converts them into tracked annotations in one step:
-
-```bash
-shiori scan && shiori adopt          # Preview what would be adopted
-shiori scan && shiori adopt --apply  # Write annotations + registry entries
-shiori check                         # Verify everything is tracked
-```
-
-That's it. `shiori init --ci` generates a ready-to-use GitHub Actions workflow. Choose your CI template:
-
-| Template           | Command                             | What it does                            |
-| ------------------ | ----------------------------------- | --------------------------------------- |
-| `basic`            | `shiori init --ci basic`            | Scan + verify on push/PR                |
-| `sarif`            | `shiori init --ci sarif`            | Verify + upload to GitHub Code Scanning |
-| `delta-pr-comment` | `shiori init --ci delta-pr-comment` | Post annotation diff as PR comment      |
-
-Use `--ci-only` to generate just the CI workflow without project initialization.
-
-See [CI Integration](#ci-integration) for full workflow examples and customization.
-
-## Architecture: Provider Design
-
-Annotation extraction is abstracted behind an `AnnotationProvider` interface, making the tool independent of any specific lint tool's internals.
-
-```
-┌─────────────┐     ┌──────────────────────┐     ┌─────────────────────┐
-│ Source Files │────▶│  AnnotationProvider   │────▶│ ShioriAnnotation[]  │
-└─────────────┘     │  (pluggable)          │     └─────────────────────┘
-                    └──────────────────────┘
-                              │
-                    ┌─────────┼─────────┐
-                    ▼         ▼         ▼
-             CommentProvider  (future)  (future)
-             (shiori: prefix)  ESLint   Remote
-                              native    registry
-                              suppress.
-```
-
-**Current:** `CommentProvider` — line-based text scanning for `shiori:` annotations in `stylelint-disable-*`, `eslint-disable-*`, and standalone comments.
-
-**Future providers** (not yet implemented):
-
-- ESLint native suppressions (`eslint-suppressions.json`)
-- External JSON suppressions
-- Remote registry APIs
 
 ## Usage
 
@@ -414,17 +409,9 @@ shiori docs
 
 Displays the full README documentation in the terminal.
 
-## Configuration
-
-See [docs/configuration.md](docs/configuration.md) for the full configuration reference, including scan patterns, candidate detection, and pattern-based ref resolution.
-
-## Programmatic API
-
-shiori exposes typed exports for editor extensions, CI tooling, and custom integrations. See [docs/api.md](docs/api.md) for the full API reference.
-
 ## CI Integration
 
-> **Quick setup:** `shiori init --ci basic` generates a ready-to-use workflow file. See [Quick Start](#quick-start--5-minutes-to-ci-governance) for the fastest path.
+> **Quick setup:** `shiori init --ci basic` generates a ready-to-use workflow file. See [Quick Start](#quick-start) for the fastest path.
 
 ### GitHub Actions — Basic
 
@@ -525,7 +512,7 @@ Then embed in your README:
 ![Governance Score](https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2FUSER%2FGIST_ID%2Fraw%2Fbadge.json)
 ```
 
-Score-based colors: 🟢 ≥80 (healthy), 🟡 50–79 (warning), 🔴 <50 (critical).
+Score-based colors: green >=80 (healthy), yellow 50-79 (warning), red <50 (critical).
 
 See [Governance Badge recipe](docs/recipes/governance-badge.md) for full setup with Gist token, scheduling, and troubleshooting.
 
@@ -541,7 +528,7 @@ shiori check --fail-on missing-in-registry,expired
 shiori check --fail-on expired --warn-on unused-in-source
 ```
 
-In SARIF output, `error` severity maps to ❌ error annotations and `warning` maps to ⚠️ warning annotations in the GitHub Code Scanning UI.
+In SARIF output, `error` severity maps to error annotations and `warning` maps to warning annotations in the GitHub Code Scanning UI.
 
 | Issue type                  | Default severity | Description                                   |
 | --------------------------- | ---------------- | --------------------------------------------- |
@@ -568,9 +555,43 @@ shiori supports multiple output formats for different integration targets:
 | `jsonl`    | `-f jsonl`          | Log aggregation, streaming pipelines            |
 | `badge`    | `-f badge`          | shields.io endpoint JSON (`shiori report` only) |
 
+## Configuration
+
+See [docs/configuration.md](docs/configuration.md) for the full configuration reference, including scan patterns, candidate detection, and pattern-based ref resolution.
+
+## Programmatic API
+
+shiori exposes typed exports for editor extensions, CI tooling, and custom integrations. See [docs/api.md](docs/api.md) for the full API reference.
+
+## Architecture: Provider Design
+
+Annotation extraction is abstracted behind an `AnnotationProvider` interface, making the tool independent of any specific lint tool's internals.
+
+```
+┌─────────────┐     ┌──────────────────────┐     ┌─────────────────────┐
+│ Source Files │────>│  AnnotationProvider   │────>│ ShioriAnnotation[]  │
+└─────────────┘     │  (pluggable)          │     └─────────────────────┘
+                    └──────────────────────┘
+                              │
+                    ┌─────────┼─────────┐
+                    v         v         v
+             CommentProvider  (future)  (future)
+             (shiori: prefix)  ESLint   Remote
+                              native    registry
+                              suppress.
+```
+
+**Current:** `CommentProvider` — line-based text scanning for `shiori:` annotations in `stylelint-disable-*`, `eslint-disable-*`, and standalone comments.
+
+**Future providers** (not yet implemented):
+
+- ESLint native suppressions (`eslint-suppressions.json`)
+- External JSON suppressions
+- Remote registry APIs
+
 ## Dogfooding
 
-shiori tracks its own development with shiori. The project maintains **10 tracked annotations** across 8 source files — from eslint suppress directives to type assertions and design decisions.
+shiori tracks its own development with shiori. The project maintains **11 tracked annotations** across 9 source files — from eslint suppress directives to type assertions and design decisions.
 
 **CI workflows in use:**
 
@@ -578,74 +599,6 @@ shiori tracks its own development with shiori. The project maintains **10 tracke
 - [`shiori-pr-description.yml`](.github/workflows/shiori-pr-description.yml) — Embeds governance summary in PR description
 - [`shiori-badge.yml`](.github/workflows/shiori-badge.yml) — Generates governance score badge on push to master
 - `shiori check` — Verifies annotation registry integrity in CI
-
-**What shiori tracks in its own codebase:**
-
-| Ref     | Kind            | Target                  | Description                                                  |
-| ------- | --------------- | ----------------------- | ------------------------------------------------------------ |
-| DEV-001 | lint-suppress   | `path-boundary.ts`      | `no-constant-condition` for idiomatic `while(true)` loop     |
-| DEV-002 | type-assertion  | `trend-cli.ts`          | JSON → `ReportResult` cast (expires 2026-06)                 |
-| DEV-003 | design-decision | `registry-generator.ts` | Intentional TODO placeholders in scaffold                    |
-| DEV-004 | type-assertion  | `delta-cli.ts`          | CLI `--format` narrowing gap                                 |
-| DEV-005 | type-assertion  | `trend-cli.ts`          | CLI `--format` narrowing gap                                 |
-| DEV-006 | type-assertion  | `report-cli.ts`         | CLI `--format` narrowing gap                                 |
-| DEV-007 | type-assertion  | `config.ts`             | Config parse without schema validation (expires 2026-06)     |
-| DEV-008 | type-assertion  | `scan-result-loader.ts` | Scan result parse without shape validation (expires 2026-06) |
-| DEV-009 | type-assertion  | `registry.ts`           | TypeScript narrowing limitation after typeof check           |
-| DEV-010 | type-assertion  | `candidates-cli.ts`     | CLI `--format` narrowing gap                                 |
-
-### Before / After: What shiori Makes Visible
-
-**Without shiori** — these type assertions and lint suppresses are invisible noise in the codebase:
-
-```typescript
-// eslint-disable-next-line no-constant-condition
-while (true) {
-  /* ... */
-}
-
-const format = (ctx.values.format ?? 'json') as DeltaOutputFormat;
-
-const raw: ShioriConfig = JSON.parse(content) as ShioriConfig;
-```
-
-Reviewers see the cast, but don't know _why_ it exists, _who_ owns it, or _when_ it should be revisited.
-
-**With shiori** — each exception is tracked, reasoned, and auditable:
-
-```typescript
-// eslint-disable-next-line no-constant-condition -- shiori: DEV-001 reason="infinite loop pattern requires eslint suppress"
-while (true) {
-  /* ... */
-}
-
-// shiori: DEV-004 reason="validated by DELTA_FORMATS.includes() but type not narrowed by control flow"
-const format = (ctx.values.format ?? 'json') as DeltaOutputFormat;
-
-// shiori: DEV-007 reason="parsed config cast without schema validation; EP-0011 would add JSON Schema checks"
-const raw: ShioriConfig = JSON.parse(content) as ShioriConfig;
-```
-
-The registry provides structured metadata:
-
-```json
-{
-  "DEV-007": {
-    "reason": "Config file parsed from JSON/YAML cast to ShioriConfig without schema validation",
-    "target": "src/core/config.ts",
-    "expires": "2026-06",
-    "ticket": "EP-0011",
-    "owner": "berlysia",
-    "kind": "type-assertion"
-  }
-}
-```
-
-And `shiori check -f summary` gives you a governance score at a glance.
-
-### PR Description Governance Summary
-
-Every PR to `master` automatically receives a governance summary in its description, showing which annotations were added, removed, or remain unchanged. This is powered by `shiori delta` and the [`shiori-pr-description.yml`](.github/workflows/shiori-pr-description.yml) workflow.
 
 To see shiori's current governance state locally:
 

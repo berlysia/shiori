@@ -1,15 +1,33 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
-import { writeFile, mkdir } from 'node:fs/promises';
-import { runCli, createTempBase } from './helpers/cli-test-utils.ts';
+import { writeFile, mkdir, rm } from 'node:fs/promises';
+import { runCli, PROJECT_ROOT } from './helpers/cli-test-utils.ts';
+
+/**
+ * Create a temp directory within PROJECT_ROOT/.tmp/ so that
+ * assertWithinCwd boundary checks pass (avoids PathBoundaryError
+ * when using os.tmpdir() which is outside the project).
+ */
+async function createProjectTempBase(
+  prefix: string,
+): Promise<{ baseDir: string; cleanup: () => Promise<void> }> {
+  const tmpRoot = join(PROJECT_ROOT, '.tmp', 'test-delta');
+  await mkdir(tmpRoot, { recursive: true });
+  const baseDir = join(tmpRoot, `${prefix}${Date.now()}`);
+  await mkdir(baseDir, { recursive: true });
+  return {
+    baseDir,
+    cleanup: () => rm(baseDir, { recursive: true, force: true }),
+  };
+}
 
 describe('delta-cli: --added-only', () => {
   let baseDir: string;
   let cleanup: () => Promise<void>;
 
   before(async () => {
-    ({ baseDir, cleanup } = await createTempBase('shiori-delta-added-'));
+    ({ baseDir, cleanup } = await createProjectTempBase('added-'));
   });
 
   after(async () => {
@@ -220,7 +238,7 @@ describe('delta-cli: --base-fallback-empty', () => {
   let cleanup: () => Promise<void>;
 
   before(async () => {
-    ({ baseDir, cleanup } = await createTempBase('shiori-delta-test-'));
+    ({ baseDir, cleanup } = await createProjectTempBase('fallback-'));
   });
 
   after(async () => {
