@@ -17,7 +17,7 @@ import {
   CONFIG_FILENAMES,
   type ResolvedConfig,
 } from '../core/config.ts';
-import { saveRegistry } from '../core/registry.ts';
+import { loadRegistry, saveRegistry } from '../core/registry.ts';
 import { initRegistry } from './registry-generator.ts';
 import { fileExists, fileContainsLine } from './init.ts';
 import {
@@ -113,6 +113,8 @@ export interface InitContext {
   steps: string[];
   /** Populated after stepScan */
   scanResult?: ScanResult;
+  /** Populated after stepRegistry — number of entries in the created/existing registry */
+  registryEntryCount: number;
 }
 
 // ── Argument validation ──────────────────────────────────────
@@ -197,6 +199,7 @@ export async function createInitContext(
     registryLabel: registryFlag ?? DEFAULT_REGISTRY_PATH,
     gitignorePath,
     steps: [],
+    registryEntryCount: 0,
   };
 }
 
@@ -320,6 +323,13 @@ export async function stepStarter(
 /** Step 3: Generate registry from scan results */
 export async function stepRegistry(ctx: InitContext): Promise<void> {
   if (await fileExists(ctx.registryPath)) {
+    // Count entries in the existing registry for adaptive guidance
+    try {
+      const { registry } = await loadRegistry(ctx.registryPath);
+      ctx.registryEntryCount = Object.keys(registry).length;
+    } catch {
+      // If loading fails, leave count at 0
+    }
     ctx.steps.push(`registry: ${ctx.registryLabel} already exists, skipped`);
   } else {
     const annotations = ctx.scanResult?.annotations ?? [];
@@ -327,6 +337,7 @@ export async function stepRegistry(ctx: InitContext): Promise<void> {
     await mkdir(dirname(ctx.registryPath), { recursive: true });
     await saveRegistry(ctx.registryPath, registry);
     const entryCount = Object.keys(registry).length;
+    ctx.registryEntryCount = entryCount;
     ctx.steps.push(
       `registry: created ${ctx.registryLabel} with ${entryCount} entries`,
     );

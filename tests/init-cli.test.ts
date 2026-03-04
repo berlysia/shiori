@@ -441,7 +441,12 @@ describe('init-cli: argument validation and error paths', () => {
       assert.ok(stderr.includes('shiori initialized:'));
       assert.ok(stderr.includes('Next steps:'));
       assert.ok(stderr.includes('shiori check'));
-      assert.ok(stderr.includes('shiori update'));
+      // With 1 annotation → registryEntryCount=1, so "Review registry" is shown
+      // instead of "shiori update" (which only appears when registryEntryCount=0)
+      assert.ok(
+        stderr.includes('Review and fill in registry entries'),
+        'Expected registry review guidance when entries exist',
+      );
       assert.ok(stderr.includes('shiori docs'));
     });
   });

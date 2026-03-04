@@ -157,14 +157,7 @@ export const initCommand = define({
         annotationCount = initCtx.scanResult.annotations.length;
         candidateCount = initCtx.scanResult.candidates.length;
       }
-      // Count registry entries from the step log (registry may have been skipped if it already existed)
-      const registryStep = initCtx.steps.find((s) => s.startsWith('registry:'));
-      if (registryStep) {
-        const match = registryStep.match(/(\d+) entries/);
-        if (match) {
-          registryEntryCount = parseInt(match[1]!, 10);
-        }
-      }
+      registryEntryCount = initCtx.registryEntryCount;
     }
 
     // CI workflow step

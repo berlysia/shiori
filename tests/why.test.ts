@@ -207,6 +207,38 @@ describe('why', () => {
       result.summary.some((line) => line.includes('missing-in-registry')),
     );
   });
+
+  it('does not report unused-in-source for other registry entries (scoped verify)', () => {
+    // why() scopes verify to the target ref only, so other registry entries
+    // that are "unused" in the scoped view should not generate issues.
+    const largeRegistry: Registry = {
+      'JIRA:PROJ-123': registry['JIRA:PROJ-123']!,
+      'OTHER-001': {
+        reason: 'unrelated entry',
+        target: 'other.ts',
+        expires: undefined,
+        ticket: undefined,
+        owner: undefined,
+        notes: undefined,
+        kind: undefined,
+      },
+    };
+
+    const result = why({
+      ref: 'JIRA:PROJ-123',
+      registry: largeRegistry,
+      annotations,
+      refPatterns,
+      now: new Date('2025-01-01'),
+    });
+
+    // Should not have unused-in-source for OTHER-001
+    assert.ok(
+      !result.issues.some((i) => i.type === 'unused-in-source'),
+      'Expected no unused-in-source issues for unrelated registry entries',
+    );
+    assert.deepEqual(result.issues, []);
+  });
 });
 
 describe('isFound (why)', () => {

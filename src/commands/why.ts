@@ -57,17 +57,22 @@ export function why(input: WhyInput): WhyResult {
   // URL resolution
   const url = resolveRefUrl(ref, refPatterns);
 
-  // Run verify to find issues for this ref
+  // Run verify scoped to this ref only (performance optimization).
+  // Filter records and registry to the target ref so verify() only
+  // processes relevant data, while keeping its single-responsibility intact.
+  const scopedRecords = annotations.filter((a) => a.ref === ref);
+  const scopedRegistry: Registry =
+    ref in registry ? { [ref]: registry[ref]! } : {};
   const verifyResult = verify({
-    records: annotations,
-    registry,
+    records: scopedRecords,
+    registry: scopedRegistry,
     failOn: [],
     warnOn: [],
     now,
     refPatterns,
     expiringThresholdDays: input.expiringThresholdDays,
   });
-  const issues = verifyResult.issues.filter((issue) => issue.ref === ref);
+  const issues = verifyResult.issues;
 
   // Build human-readable summary
   const summary = buildSummary({
