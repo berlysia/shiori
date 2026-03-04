@@ -539,7 +539,7 @@ describe('verify', () => {
       });
       const hints = formatActionHints(result);
       assert.ok(hints.some((h) => h.includes('unused-in-source')));
-      assert.ok(hints.some((h) => h.includes('Remove stale entries')));
+      assert.ok(hints.some((h) => h.includes('shiori resolve')));
     });
 
     it('shows hint for expired', () => {
@@ -556,6 +556,7 @@ describe('verify', () => {
       });
       const hints = formatActionHints(result);
       assert.ok(hints.some((h) => h.includes('expired')));
+      assert.ok(hints.some((h) => h.includes('shiori resolve')));
       assert.ok(hints.some((h) => h.includes('extend expires')));
     });
 

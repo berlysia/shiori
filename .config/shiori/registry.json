@@ -31,15 +31,6 @@
     "notes": "JSON Schema validation (EP-0011) would provide structural guarantee before cast",
     "kind": "type-assertion"
   },
-  "DEV-008": {
-    "reason": "Scan result JSON.parse output cast to ScanResult without structural validation",
-    "target": "src/core/scan-result-loader.ts",
-    "expires": "2026-06",
-    "ticket": "EP-0011",
-    "owner": "berlysia",
-    "notes": "Shape validation would catch corrupted or incompatible scan result files",
-    "kind": "type-assertion"
-  },
   "DEV-009": {
     "reason": "Registry entry type guard checks typeof=object but TS does not narrow to Record<string, unknown>",
     "target": "src/core/registry.ts",
@@ -80,15 +71,6 @@
     "target": "src/core/scan-result-loader.ts",
     "owner": "berlysia",
     "notes": "Node.js stdin without setEncoding() yields Buffer; type system does not reflect encoding state",
-    "kind": "type-assertion"
-  },
-  "DEV-016": {
-    "reason": "JSON.parse returns unknown; stdin-sourced scan result cast without shape validation",
-    "target": "src/core/scan-result-loader.ts",
-    "expires": "2026-06",
-    "ticket": "EP-0011",
-    "owner": "berlysia",
-    "notes": "Same pattern as DEV-008 but in readFromStdin(); JSON Schema validation (EP-0011) would fix both",
     "kind": "type-assertion"
   },
   "DEV-017": {

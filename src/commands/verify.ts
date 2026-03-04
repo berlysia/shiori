@@ -296,12 +296,12 @@ export function formatActionHints(result: VerifyResult): string[] {
   }
   if (byType['unused-in-source'] > 0) {
     hints.push(
-      `  unused-in-source (${byType['unused-in-source']}): Remove stale entries from the registry, or re-add the annotation in source.`,
+      `  unused-in-source (${byType['unused-in-source']}): Run "shiori resolve --ref <ref>" to clean up stale entries, or re-add the annotation in source.`,
     );
   }
   if (byType['expired'] > 0) {
     hints.push(
-      `  expired (${byType['expired']}): Resolve the underlying issue and remove the annotation, or extend expires in the registry.`,
+      `  expired (${byType['expired']}): Run "shiori resolve --ref <ref>" to remove resolved annotations, or extend expires in the registry.`,
     );
   }
   if (byType['syntax-error'] > 0) {

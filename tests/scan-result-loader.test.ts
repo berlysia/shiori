@@ -258,6 +258,86 @@ describe('loadScanResult', () => {
     );
   });
 
+  it('rejects object without annotations array', async () => {
+    const badShape = join(tmpDir, 'no-annotations.json');
+    await writeFile(badShape, JSON.stringify({ foo: 'bar' }), 'utf-8');
+
+    await assert.rejects(
+      () =>
+        loadScanResult({
+          explicitPath: badShape,
+          config: resolveConfig({}),
+          cwd: tmpDir,
+        }),
+      (err: Error) => {
+        assert.ok(
+          err.message.includes('missing or invalid "annotations" array'),
+        );
+        return true;
+      },
+    );
+  });
+
+  it('rejects object where annotations is not an array', async () => {
+    const badAnnotations = join(tmpDir, 'annotations-string.json');
+    await writeFile(
+      badAnnotations,
+      JSON.stringify({ annotations: 'string' }),
+      'utf-8',
+    );
+
+    await assert.rejects(
+      () =>
+        loadScanResult({
+          explicitPath: badAnnotations,
+          config: resolveConfig({}),
+          cwd: tmpDir,
+        }),
+      (err: Error) => {
+        assert.ok(
+          err.message.includes('missing or invalid "annotations" array'),
+        );
+        return true;
+      },
+    );
+  });
+
+  it('rejects non-object top-level value (array)', async () => {
+    const arrayFile = join(tmpDir, 'top-array.json');
+    await writeFile(arrayFile, JSON.stringify([1, 2, 3]), 'utf-8');
+
+    await assert.rejects(
+      () =>
+        loadScanResult({
+          explicitPath: arrayFile,
+          config: resolveConfig({}),
+          cwd: tmpDir,
+        }),
+      (err: Error) => {
+        assert.ok(err.message.includes('expected an object'));
+        return true;
+      },
+    );
+  });
+
+  it('rejects null top-level value', async () => {
+    const nullFile = join(tmpDir, 'null-value.json');
+    await writeFile(nullFile, 'null', 'utf-8');
+
+    await assert.rejects(
+      () =>
+        loadScanResult({
+          explicitPath: nullFile,
+          config: resolveConfig({}),
+          cwd: tmpDir,
+        }),
+      (err: Error) => {
+        assert.ok(err.message.includes('expected an object'));
+        return true;
+      },
+    );
+  });
+
   it('throws user-friendly message for invalid JSON in default path', async () => {
     const projectDir = join(tmpDir, 'bad-default');
     const configDir = join(projectDir, '.config', 'shiori');

@@ -18,6 +18,7 @@ import { trendCommand } from './commands/trend-cli.ts';
 import { healthCommand } from './commands/health-cli.ts';
 import { adoptCommand } from './commands/adopt-cli.ts';
 import { doctorCommand } from './commands/doctor-cli.ts';
+import { resolveCommand } from './commands/resolve-cli.ts';
 
 const main = define({
   name: 'shiori',
@@ -50,6 +51,7 @@ Workflow:
   shiori trend                   Compare governance scores over time
   shiori update                  Add new refs to the registry
   shiori adopt                   Adopt existing lint disables into shiori
+  shiori resolve --ref <ref>     Remove resolved/expired annotations
   shiori migrate                 Auto-migrate lint disable comments
   shiori watch                   Refresh scan result on each save
   shiori delta                   Compare scan results for PR review
@@ -95,6 +97,7 @@ try {
       delta: deltaCommand,
       docs: docsCommand,
       doctor: doctorCommand,
+      resolve: resolveCommand,
     },
   });
 } catch (err) {

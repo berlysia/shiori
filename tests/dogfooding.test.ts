@@ -25,14 +25,14 @@ const DOGFOODING_ANNOTATIONS: {
   { ref: 'DEV-003', file: 'src/commands/registry-generator.ts' },
   // DEV-004, DEV-005, DEV-006, DEV-010: resolved by createFormatValidator() — inline format assertions eliminated
   { ref: 'DEV-007', file: 'src/core/config.ts' },
-  { ref: 'DEV-008', file: 'src/core/scan-result-loader.ts' },
+  // DEV-008: resolved by assertScanResultShape() — shape validation added to readScanResultFile()
   { ref: 'DEV-009', file: 'src/core/registry.ts' },
   { ref: 'DEV-011', file: 'src/commands/verify.ts' },
   { ref: 'DEV-012', file: 'src/core/registry.ts' },
   { ref: 'DEV-013', file: 'src/core/cli-validation.ts' },
   { ref: 'DEV-014', file: 'src/core/cli-validation.ts' },
   { ref: 'DEV-015', file: 'src/core/scan-result-loader.ts' },
-  { ref: 'DEV-016', file: 'src/core/scan-result-loader.ts' },
+  // DEV-016: resolved by assertScanResultShape() — shape validation added to readFromStdin()
   { ref: 'DEV-017', file: 'src/commands/delta-cli.ts' },
   { ref: 'DEV-018', file: 'src/core/report-files.ts' },
 ];

@@ -1054,6 +1054,295 @@ describe('CLI E2E: multi-registry', () => {
   });
 });
 
+describe('CLI E2E: resolve command', () => {
+  const resolveBase = join(PROJECT_ROOT, '.tmp', 'test-resolve-e2e');
+
+  /** Create an isolated project directory with tracked annotations */
+  async function createResolveFixture(
+    prefix: string,
+    options?: {
+      sourceFiles?: Record<string, string>;
+      registryEntries?: Record<string, object>;
+    },
+  ): Promise<string> {
+    await mkdir(resolveBase, { recursive: true });
+    const dir = await mkdtemp(join(resolveBase, `${prefix}-`));
+
+    const sources = options?.sourceFiles ?? {
+      'src/app.ts':
+        [
+          '// eslint-disable-next-line no-console -- shiori: RESOLVE-001',
+          'console.log("hello");',
+          '',
+          '// shiori: RESOLVE-002 reason=workaround',
+          'const temp = 42;',
+          '',
+          '// eslint-disable-next-line @typescript-eslint/no-explicit-any -- shiori: KEEP-001',
+          'const data: any = {};',
+        ].join('\n') + '\n',
+    };
+
+    for (const [path, content] of Object.entries(sources)) {
+      const fullPath = join(dir, path);
+      await mkdir(join(fullPath, '..'), { recursive: true });
+      await writeFile(fullPath, content, 'utf-8');
+    }
+
+    await mkdir(join(dir, '.config', 'shiori'), { recursive: true });
+    await writeFile(
+      join(dir, '.config', 'shiori', 'config.yaml'),
+      '# shiori configuration\n',
+      'utf-8',
+    );
+
+    const registry = options?.registryEntries ?? {
+      'RESOLVE-001': {
+        reason: 'will be resolved',
+        target: 'src/app.ts',
+      },
+      'RESOLVE-002': {
+        reason: 'workaround to resolve',
+        target: 'src/app.ts',
+      },
+      'KEEP-001': {
+        reason: 'should remain',
+        target: 'src/app.ts',
+      },
+    };
+    await writeFile(
+      join(dir, '.config', 'shiori', 'registry.json'),
+      JSON.stringify(registry, null, 2) + '\n',
+      'utf-8',
+    );
+
+    return dir;
+  }
+
+  it('dry-run shows preview without modifying files', async () => {
+    const dir = await createResolveFixture('dry-run');
+    try {
+      // Scan
+      const scanResult = await runCli([
+        'scan',
+        '--patterns',
+        'src/**/*.ts',
+        '--cwd',
+        dir,
+      ]);
+      assert.equal(scanResult.exitCode, 0);
+      const scanPath = join(dir, 'scan-result.json');
+      await writeFile(scanPath, scanResult.stdout, 'utf-8');
+
+      // Resolve dry-run
+      const { exitCode, stdout } = await runCli([
+        'resolve',
+        '--ref',
+        'RESOLVE-001',
+        '--scan',
+        scanPath,
+        '--cwd',
+        dir,
+      ]);
+      assert.equal(exitCode, 0);
+      assert.ok(stdout.includes('Resolving ref "RESOLVE-001"'));
+      assert.ok(stdout.includes('Run with --apply to execute'));
+
+      // Verify source file is untouched
+      const appContent = await readFile(join(dir, 'src/app.ts'), 'utf-8');
+      assert.ok(
+        appContent.includes('shiori: RESOLVE-001'),
+        'Dry-run should not modify source files',
+      );
+
+      // Verify registry is untouched
+      const regContent = await readFile(
+        join(dir, '.config', 'shiori', 'registry.json'),
+        'utf-8',
+      );
+      const reg = JSON.parse(regContent) as Record<string, unknown>;
+      assert.ok(
+        'RESOLVE-001' in reg,
+        'Dry-run should not remove registry entry',
+      );
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('--apply removes annotation from source and entry from registry', async () => {
+    const dir = await createResolveFixture('apply');
+    try {
+      // Scan
+      const scanResult = await runCli([
+        'scan',
+        '--patterns',
+        'src/**/*.ts',
+        '--cwd',
+        dir,
+      ]);
+      const scanPath = join(dir, 'scan-result.json');
+      await writeFile(scanPath, scanResult.stdout, 'utf-8');
+
+      // Resolve --apply
+      const { exitCode, stderr } = await runCli([
+        'resolve',
+        '--ref',
+        'RESOLVE-001',
+        '--scan',
+        scanPath,
+        '--cwd',
+        dir,
+        '--apply',
+      ]);
+      assert.equal(exitCode, 0);
+      assert.ok(stderr.includes('Resolved ref "RESOLVE-001"'));
+
+      // Verify source: RESOLVE-001 annotation removed, KEEP-001 preserved
+      const appContent = await readFile(join(dir, 'src/app.ts'), 'utf-8');
+      assert.ok(
+        !appContent.includes('RESOLVE-001'),
+        'Source should not contain RESOLVE-001 after resolve',
+      );
+      assert.ok(
+        appContent.includes('KEEP-001'),
+        'Unrelated annotation should be preserved',
+      );
+      assert.ok(
+        appContent.includes('eslint-disable-next-line no-console'),
+        'Lint directive should be preserved (only annotation removed)',
+      );
+
+      // Verify registry: RESOLVE-001 removed, KEEP-001 preserved
+      const regContent = await readFile(
+        join(dir, '.config', 'shiori', 'registry.json'),
+        'utf-8',
+      );
+      const reg = JSON.parse(regContent) as Record<string, unknown>;
+      assert.ok(
+        !('RESOLVE-001' in reg),
+        'Registry should not contain RESOLVE-001 after resolve',
+      );
+      assert.ok(
+        'KEEP-001' in reg,
+        'Unrelated registry entry should be preserved',
+      );
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('--apply --remove-directive removes entire lint disable line', async () => {
+    const dir = await createResolveFixture('remove-directive');
+    try {
+      // Scan
+      const scanResult = await runCli([
+        'scan',
+        '--patterns',
+        'src/**/*.ts',
+        '--cwd',
+        dir,
+      ]);
+      const scanPath = join(dir, 'scan-result.json');
+      await writeFile(scanPath, scanResult.stdout, 'utf-8');
+
+      // Resolve --apply --remove-directive
+      const { exitCode } = await runCli([
+        'resolve',
+        '--ref',
+        'RESOLVE-001',
+        '--scan',
+        scanPath,
+        '--cwd',
+        dir,
+        '--apply',
+        '--remove-directive',
+      ]);
+      assert.equal(exitCode, 0);
+
+      // Verify entire lint disable line is removed
+      const appContent = await readFile(join(dir, 'src/app.ts'), 'utf-8');
+      assert.ok(
+        !appContent.includes('eslint-disable-next-line no-console'),
+        'Lint directive line should be removed with --remove-directive',
+      );
+      assert.ok(
+        !appContent.includes('RESOLVE-001'),
+        'Annotation should be removed',
+      );
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('resolves standalone shiori comment (removes entire line)', async () => {
+    const dir = await createResolveFixture('standalone');
+    try {
+      // Scan
+      const scanResult = await runCli([
+        'scan',
+        '--patterns',
+        'src/**/*.ts',
+        '--cwd',
+        dir,
+      ]);
+      const scanPath = join(dir, 'scan-result.json');
+      await writeFile(scanPath, scanResult.stdout, 'utf-8');
+
+      // Resolve RESOLVE-002 (standalone comment)
+      const { exitCode } = await runCli([
+        'resolve',
+        '--ref',
+        'RESOLVE-002',
+        '--scan',
+        scanPath,
+        '--cwd',
+        dir,
+        '--apply',
+      ]);
+      assert.equal(exitCode, 0);
+
+      const appContent = await readFile(join(dir, 'src/app.ts'), 'utf-8');
+      assert.ok(
+        !appContent.includes('RESOLVE-002'),
+        'Standalone comment should be completely removed',
+      );
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('shows empty result for non-existent ref', async () => {
+    const dir = await createResolveFixture('not-found');
+    try {
+      // Scan
+      const scanResult = await runCli([
+        'scan',
+        '--patterns',
+        'src/**/*.ts',
+        '--cwd',
+        dir,
+      ]);
+      const scanPath = join(dir, 'scan-result.json');
+      await writeFile(scanPath, scanResult.stdout, 'utf-8');
+
+      // Resolve non-existent ref
+      const { exitCode, stdout } = await runCli([
+        'resolve',
+        '--ref',
+        'NONEXISTENT-999',
+        '--scan',
+        scanPath,
+        '--cwd',
+        dir,
+      ]);
+      assert.equal(exitCode, 0);
+      assert.ok(stdout.includes('No annotations or registry entries found'));
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
 describe('CLI E2E: adopt command', () => {
   const adoptBase = join(PROJECT_ROOT, '.tmp', 'test-adopt-e2e');
 
