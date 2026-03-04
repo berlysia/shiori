@@ -11,7 +11,7 @@ describe('CI_TEMPLATE_KINDS', () => {
   it('contains all expected kinds', () => {
     assert.deepEqual(
       [...CI_TEMPLATE_KINDS],
-      ['basic', 'sarif', 'delta-pr-comment'],
+      ['basic', 'sarif', 'delta-pr-comment', 'checks-gate'],
     );
   });
 
@@ -94,6 +94,27 @@ describe('generateCiWorkflow', () => {
       onboardingIndex < postCommentIndex,
       'Onboarding section should appear before PR comment posting',
     );
+  });
+
+  it('generates valid YAML for checks-gate template', () => {
+    const yaml = generateCiWorkflow('checks-gate');
+
+    assert.ok(yaml.includes('name: shiori governance'));
+    assert.ok(yaml.includes('on:'));
+    assert.ok(yaml.includes('push:'));
+    assert.ok(yaml.includes('pull_request:'));
+    assert.ok(yaml.includes('shiori check'));
+    assert.ok(yaml.includes('--fail-on expired,missing-in-registry'));
+    assert.ok(yaml.includes('actions/checkout@v4'));
+    assert.ok(yaml.includes('pnpm install --frozen-lockfile'));
+  });
+
+  it('checks-gate template uses distinct workflow name for status checks', () => {
+    const yaml = generateCiWorkflow('checks-gate');
+
+    // Workflow name should be distinct from 'basic' template for status check identification
+    assert.ok(yaml.includes('name: shiori governance'));
+    assert.ok(yaml.includes('jobs:\n  check:'));
   });
 
   it('includes generator comment for all templates', () => {
