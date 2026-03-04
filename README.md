@@ -43,6 +43,8 @@ See [ADR 007](docs/decisions/007-positional-ref-syntax.md) for the positional re
 - Plugins can enforce comment formatting (e.g., requiring an ID), but **registry reconciliation, expiry detection, and inventory audits** are organizational concerns that bloat a plugin.
 - This tool operates as an external CLI that handles extraction, reconciliation, and reporting — complementary to (not replacing) lint rules.
 
+For a deeper exploration of this design choice — including the structural limitations of lint plugins, the complementary relationship with lint rules, and shiori's "Governance as Documentation" positioning — see **[Why shiori?](docs/why-shiori.md)**.
+
 ## Quick Start — 5 Minutes to CI Governance
 
 ```bash
