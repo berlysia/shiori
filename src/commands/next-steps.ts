@@ -20,6 +20,8 @@ export interface NextStepsInput {
   ciPath?: string;
   /** Whether --starter was used */
   hasStarter: boolean;
+  /** Registry file path for display in guidance (default: .config/shiori/registry.json) */
+  registryPath?: string;
 }
 
 export interface NextStep {
@@ -76,10 +78,11 @@ export function computeNextSteps(input: NextStepsInput): NextStepsResult {
 
   // Registry entries need review
   if (input.registryEntryCount > 0) {
+    const regPath = input.registryPath ?? '.config/shiori/registry.json';
     steps.push({
       step: stepNum++,
       message: 'Review and fill in registry entries (reason, owner, expires):',
-      command: 'cat .config/shiori/registry.json',
+      command: `cat ${regPath}`,
     });
   }
 

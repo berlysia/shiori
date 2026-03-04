@@ -142,6 +142,33 @@ describe('computeNextSteps', () => {
     );
   });
 
+  it('uses custom registryPath in registry review command', () => {
+    const result = computeNextSteps({
+      ...baseInput,
+      registryEntryCount: 3,
+      registryPath: 'custom/registry.yaml',
+    });
+
+    const registryStep = result.steps.find((s) =>
+      s.message.includes('Review and fill in registry entries'),
+    );
+    assert.ok(registryStep);
+    assert.equal(registryStep.command, 'cat custom/registry.yaml');
+  });
+
+  it('uses default registry path when registryPath is not provided', () => {
+    const result = computeNextSteps({
+      ...baseInput,
+      registryEntryCount: 3,
+    });
+
+    const registryStep = result.steps.find((s) =>
+      s.message.includes('Review and fill in registry entries'),
+    );
+    assert.ok(registryStep);
+    assert.equal(registryStep.command, 'cat .config/shiori/registry.json');
+  });
+
   it('step numbers are sequential', () => {
     const result = computeNextSteps({
       ...baseInput,

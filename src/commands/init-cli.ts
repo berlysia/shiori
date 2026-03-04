@@ -182,6 +182,7 @@ export const initCommand = define({
       candidateCount,
       registryEntryCount,
       hasStarter: starterKind !== undefined,
+      registryPath: ctx.values.registry,
     });
   },
 });

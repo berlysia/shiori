@@ -71,6 +71,9 @@ export const whyCommand = define({
       registry,
       annotations: scanResult.annotations,
       refPatterns: config.refPatterns,
+      expiringThresholdDays: config.verify.expiringThresholdDays,
+      duplicates: configAndRegistry.duplicates,
+      refOrigins: configAndRegistry.refOrigins,
     });
 
     if (ctx.values.json) {

@@ -4,6 +4,7 @@ import type {
   RegistryEntry,
   VerifyIssue,
 } from '../core/types.ts';
+import type { RegistryDuplicateWarning } from '../core/registry.ts';
 import type { RefPatternConfig } from '../core/ref-pattern.ts';
 import { resolveRefUrl } from '../core/ref-pattern.ts';
 import { verify } from './verify.ts';
@@ -17,6 +18,10 @@ export interface WhyInput {
   now?: Date;
   /** Threshold in days for expiring-soon detection (default: 14) */
   expiringThresholdDays?: number;
+  /** Registry duplicate warnings from multi-registry loading */
+  duplicates?: RegistryDuplicateWarning[];
+  /** Maps each ref to its origin registryFile (ADR 012 phase 2) */
+  refOrigins?: Map<string, string | null>;
 }
 
 export interface WhyResult {
@@ -63,6 +68,13 @@ export function why(input: WhyInput): WhyResult {
   const scopedRecords = annotations.filter((a) => a.ref === ref);
   const scopedRegistry: Registry =
     ref in registry ? { [ref]: registry[ref]! } : {};
+  // Scope duplicates and refOrigins to the target ref
+  const scopedDuplicates = input.duplicates?.filter((d) => d.ref === ref);
+  const scopedRefOrigins =
+    input.refOrigins && input.refOrigins.has(ref)
+      ? new Map([[ref, input.refOrigins.get(ref)!]])
+      : undefined;
+
   const verifyResult = verify({
     records: scopedRecords,
     registry: scopedRegistry,
@@ -71,6 +83,8 @@ export function why(input: WhyInput): WhyResult {
     now,
     refPatterns,
     expiringThresholdDays: input.expiringThresholdDays,
+    duplicates: scopedDuplicates,
+    refOrigins: scopedRefOrigins,
   });
   const issues = verifyResult.issues;
 

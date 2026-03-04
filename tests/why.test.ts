@@ -241,6 +241,165 @@ describe('why', () => {
   });
 });
 
+describe('why — expiringThresholdDays propagation', () => {
+  it('uses custom expiringThresholdDays for expiring-soon detection', () => {
+    const soonRegistry: Registry = {
+      'SOON-001': {
+        reason: 'Expiring soon workaround',
+        target: 'src/workaround.ts',
+        expires: '2025-01-20',
+        ticket: undefined,
+        owner: undefined,
+        notes: undefined,
+        kind: undefined,
+      },
+    };
+    const soonAnnotations = [
+      makeAnnotation('SOON-001', 'src/workaround.ts', 5),
+    ];
+
+    // With default (14 days), 2025-01-20 is within range from 2025-01-10
+    const resultDefault = why({
+      ref: 'SOON-001',
+      registry: soonRegistry,
+      annotations: soonAnnotations,
+      refPatterns: undefined,
+      now: new Date('2025-01-10'),
+    });
+    assert.ok(
+      resultDefault.issues.some((i) => i.type === 'expiring-soon'),
+      'Expected expiring-soon with default threshold',
+    );
+
+    // With 3 days, 2025-01-20 is NOT within range from 2025-01-10
+    const resultCustom = why({
+      ref: 'SOON-001',
+      registry: soonRegistry,
+      annotations: soonAnnotations,
+      refPatterns: undefined,
+      now: new Date('2025-01-10'),
+      expiringThresholdDays: 3,
+    });
+    assert.ok(
+      !resultCustom.issues.some((i) => i.type === 'expiring-soon'),
+      'Expected no expiring-soon with 3-day threshold',
+    );
+  });
+});
+
+describe('why — duplicates and refOrigins propagation', () => {
+  it('reports ref-collision when duplicates are provided', () => {
+    const reg: Registry = {
+      'DUP-001': {
+        reason: 'Duplicate test',
+        target: 'src/dup.ts',
+        expires: undefined,
+        ticket: undefined,
+        owner: undefined,
+        notes: undefined,
+        kind: undefined,
+      },
+    };
+    const ann = [makeAnnotation('DUP-001', 'src/dup.ts', 1)];
+
+    const result = why({
+      ref: 'DUP-001',
+      registry: reg,
+      annotations: ann,
+      refPatterns: undefined,
+      now: new Date('2025-01-01'),
+      duplicates: [
+        {
+          ref: 'DUP-001',
+          defaultFile: 'registry.json',
+          patternFile: 'registry-jira.json',
+        },
+      ],
+    });
+
+    assert.ok(
+      result.issues.some((i) => i.type === 'ref-collision'),
+      'Expected ref-collision issue from duplicates',
+    );
+  });
+
+  it('does not report ref-collision for unrelated duplicates', () => {
+    const reg: Registry = {
+      'CLEAN-001': {
+        reason: 'Clean entry',
+        target: 'src/clean.ts',
+        expires: undefined,
+        ticket: undefined,
+        owner: undefined,
+        notes: undefined,
+        kind: undefined,
+      },
+    };
+    const ann = [makeAnnotation('CLEAN-001', 'src/clean.ts', 1)];
+
+    const result = why({
+      ref: 'CLEAN-001',
+      registry: reg,
+      annotations: ann,
+      refPatterns: undefined,
+      now: new Date('2025-01-01'),
+      duplicates: [
+        {
+          ref: 'OTHER-DUP',
+          defaultFile: 'registry.json',
+          patternFile: 'registry-other.json',
+        },
+      ],
+    });
+
+    assert.ok(
+      !result.issues.some((i) => i.type === 'ref-collision'),
+      'Should not report ref-collision for unrelated ref',
+    );
+  });
+
+  it('reports registry-routing-mismatch when refOrigins mismatch', () => {
+    const reg: Registry = {
+      'JIRA:ROUTE-001': {
+        reason: 'Routing test',
+        target: 'src/route.ts',
+        expires: undefined,
+        ticket: undefined,
+        owner: undefined,
+        notes: undefined,
+        kind: undefined,
+      },
+    };
+    const ann = [makeAnnotation('JIRA:ROUTE-001', 'src/route.ts', 1)];
+    const patterns = [
+      {
+        match: 'JIRA:{id}',
+        urlTemplate: 'https://jira.example.com/browse/{id}',
+        registryFile: 'registry-jira.json',
+      },
+    ];
+
+    // ref is in default registry (null) but pattern routes to registry-jira.json
+    const refOrigins = new Map<string, string | null>([
+      ['JIRA:ROUTE-001', null],
+    ]);
+
+    const result = why({
+      ref: 'JIRA:ROUTE-001',
+      registry: reg,
+      annotations: ann,
+      refPatterns: patterns,
+      now: new Date('2025-01-01'),
+      refOrigins,
+    });
+
+    assert.ok(
+      result.issues.some((i) => i.type === 'registry-routing-mismatch'),
+      'Expected registry-routing-mismatch issue',
+    );
+  });
+});
+
 describe('isFound (why)', () => {
   it('returns true when registryEntry exists', () => {
     assert.equal(

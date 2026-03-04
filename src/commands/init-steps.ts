@@ -391,6 +391,8 @@ export interface StepSummaryOptions {
   registryEntryCount: number;
   /** Whether --starter was used */
   hasStarter: boolean;
+  /** Registry file path for display in next-steps guidance */
+  registryPath?: string;
 }
 
 /** Step 6: Print summary */
@@ -409,6 +411,7 @@ export function stepSummary(steps: string[], opts: StepSummaryOptions): void {
     ciOnly: opts.ciOnly,
     ciPath: opts.ciKind ? CI_TEMPLATE_PATHS[opts.ciKind] : undefined,
     hasStarter: opts.hasStarter,
+    registryPath: opts.registryPath,
   });
 
   const lines = formatNextSteps(nextSteps);
