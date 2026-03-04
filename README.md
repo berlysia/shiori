@@ -61,7 +61,10 @@ shiori check
 shiori update
 shiori check           # re-verify
 
-# 5. Commit and push — CI now enforces governance
+# 5. Resolve completed annotations
+shiori scan && shiori resolve --ref SUP-1234 --apply
+
+# 6. Commit and push — CI now enforces governance
 git add .github/workflows/shiori.yml .config/shiori/
 git push
 ```
@@ -238,6 +241,26 @@ Options:
 - `--reason` — Default reason for registry entries (default: `"adopted by shiori adopt"`)
 - `--kind` — Default kind for registry entries (default: `"adoption"`)
 - `--apply, -a` — Write changes to source files and registry (default: dry-run preview)
+- `--cwd` — Working directory (default: `process.cwd()`)
+- `--config, -c` — Path to config directory
+
+#### `resolve` — Remove resolved annotations
+
+```bash
+shiori scan && shiori resolve --ref SUP-1234          # Preview resolve plan (dry-run)
+shiori scan && shiori resolve --ref SUP-1234 --apply  # Apply: remove from source + registry
+shiori scan && shiori resolve --ref SUP-1234 --apply --remove-directive  # Also remove lint disable directive
+```
+
+Removes annotations for a resolved ref from source files and the registry. Default mode is dry-run (preview only). Use `--apply` to write changes.
+
+Options:
+
+- `--ref` — The ref to resolve (required)
+- `--scan, -s` — Path to scan result JSON (default: auto-detect or stdin)
+- `--registry, -r` — Path to registry file (auto-detected from config)
+- `--apply, -a` — Write changes to source files and registry (default: dry-run preview)
+- `--remove-directive` — Also remove the lint disable directive itself (not just the shiori annotation)
 - `--cwd` — Working directory (default: `process.cwd()`)
 - `--config, -c` — Path to config directory
 

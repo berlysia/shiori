@@ -48,9 +48,9 @@ Source Files → CommentProvider.scan() → ShioriAnnotation[]
 
 Each command has a pure logic module and a CLI wrapper (e.g., `scan.ts` + `scan-cli.ts`). CLI framework: gunshi.
 
-Implemented commands (18):
+Implemented commands (19):
 
-- **Workflow**: `init`, `scan`, `verify`, `check`, `update`, `adopt`, `migrate`, `watch`, `draft`, `candidates`
+- **Workflow**: `init`, `scan`, `verify`, `check`, `update`, `adopt`, `resolve`, `migrate`, `watch`, `draft`, `candidates`
 - **Governance & Insights**: `health`, `report`, `trend`, `delta`
 - **Diagnostics**: `doctor`
 - **Information**: `show`, `jump`, `docs`
