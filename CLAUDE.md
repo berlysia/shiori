@@ -48,7 +48,12 @@ Source Files → CommentProvider.scan() → ShioriAnnotation[]
 
 Each command has a pure logic module and a CLI wrapper (e.g., `scan.ts` + `scan-cli.ts`). CLI framework: gunshi.
 
-Implemented commands: `init`, `scan`, `verify`, `check`, `update`, `draft`, `candidates`, `show`, `docs`.
+Implemented commands (18):
+
+- **Workflow**: `init`, `scan`, `verify`, `check`, `update`, `adopt`, `migrate`, `watch`, `draft`, `candidates`
+- **Governance & Insights**: `health`, `report`, `trend`, `delta`
+- **Diagnostics**: `doctor`
+- **Information**: `show`, `jump`, `docs`
 
 ### CommentProvider Classification Paths
 
@@ -85,6 +90,15 @@ ADRs are in `docs/decisions/`:
 - **010**: Multi-registry loading (namespace-based registry file splitting)
 - **011**: JSON Schema registry validation (proposed)
 - **012**: Pattern-based ref resolution (supersedes ADR 008)
+- **013**: CLI ergonomics improvement
+- **014**: init and update commands
+- **015**: Scan false positive prevention
+- **016**: Auto-migration tooling for existing codebases
+- **017**: Multi-language comment support
+- **018**: External service integration strategy
+- **019**: Node.js version requirements
+- **020**: Package exports and CI pipeline
+- **021**: VSCode extension
 
 ## Dogfooding: shiori で自身の開発を追跡
 
