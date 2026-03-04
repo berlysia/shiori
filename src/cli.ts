@@ -20,6 +20,7 @@ import { adoptCommand } from './commands/adopt-cli.ts';
 import { doctorCommand } from './commands/doctor-cli.ts';
 import { resolveCommand } from './commands/resolve-cli.ts';
 import { whyCommand } from './commands/why-cli.ts';
+import { triageCommand } from './commands/triage-cli.ts';
 
 const main = define({
   name: 'shiori',
@@ -48,6 +49,7 @@ Workflow:
   shiori init                    Set up shiori in your project
   shiori check                   Scan and verify against registry
   shiori health                  Quick governance health summary
+  shiori triage                  Prioritized action list by ref
   shiori report                  Generate governance health report
   shiori trend                   Compare governance scores over time
   shiori update                  Add new refs to the registry
@@ -101,6 +103,7 @@ try {
       doctor: doctorCommand,
       resolve: resolveCommand,
       why: whyCommand,
+      triage: triageCommand,
     },
   });
 } catch (err) {

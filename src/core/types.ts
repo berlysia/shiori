@@ -299,6 +299,9 @@ export type DoctorFormat = 'text' | 'json';
 /** Health output format */
 export type HealthFormat = 'json' | 'summary';
 
+/** Triage output format */
+export type TriageFormat = 'json' | 'markdown';
+
 /** Health command result — synthesises report + optional trend */
 export interface HealthResult {
   /** ISO timestamp when health was computed */
