@@ -85,10 +85,11 @@ on:
 jobs:
   delta-comment:
     runs-on: ubuntu-latest
-    # PRコメントの書き込み権限が必要
+    # PRコメントの書き込みと、クロスワークフロー artifact 取得に actions: read が必要
     permissions:
       contents: read
       pull-requests: write
+      actions: read
 
     steps:
       - uses: actions/checkout@v4
@@ -105,12 +106,72 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # ベースラインartifactを取得。存在しない場合（初PRなど）は後続ステップで --base-fallback-empty が補完。
+      # ベースラインartifactを取得。
+      # actions/download-artifact@v4 は同一ワークフロー内の artifact しか取得できないため、
+      # クロスワークフロー（別ワークフローで保存された artifact）には GitHub API を使用する。
       - name: Download baseline scan artifact
-        uses: actions/download-artifact@v4
+        uses: actions/github-script@v7
         with:
-          name: shiori-base-scan
-          path: .tmp/
+          script: |
+            const fs = require('fs');
+
+            // 'shiori baseline' ワークフローの最新成功ランを検索
+            const workflows = await github.rest.actions.listRepoWorkflows({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            const baselineWorkflow = workflows.data.workflows.find(
+              w => w.name === 'shiori baseline'
+            );
+            if (!baselineWorkflow) {
+              console.log('No baseline workflow found, skipping');
+              return;
+            }
+
+            const runs = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: baselineWorkflow.id,
+              branch: 'main',
+              status: 'success',
+              per_page: 1,
+            });
+            if (runs.data.workflow_runs.length === 0) {
+              console.log('No successful baseline runs found, skipping');
+              return;
+            }
+
+            const runId = runs.data.workflow_runs[0].id;
+
+            // 該当ランの artifact を検索
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: runId,
+            });
+            const artifact = artifacts.data.artifacts.find(
+              a => a.name === 'shiori-base-scan'
+            );
+            if (!artifact) {
+              console.log('No baseline scan artifact found, skipping');
+              return;
+            }
+
+            // artifact をダウンロードして展開
+            const download = await github.rest.actions.downloadArtifact({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              artifact_id: artifact.id,
+              archive_format: 'zip',
+            });
+
+            fs.mkdirSync('.tmp', { recursive: true });
+            const zipPath = '.tmp/shiori-base-scan.zip';
+            fs.writeFileSync(zipPath, Buffer.from(download.data));
+
+            const { execSync } = require('child_process');
+            execSync(`unzip -o ${zipPath} -d .tmp/`);
+            console.log('Baseline scan artifact downloaded successfully');
         continue-on-error: true
 
       # PRブランチのアノテーションをスキャン
@@ -130,8 +191,6 @@ jobs:
             --base-fallback-empty \
             --max-increase 0 \
             --output .tmp/shiori-delta.md
-          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
-        # CIゲートのexit codeを保持しつつ、コメント投稿は継続させる
         continue-on-error: true
 
       # 差分レポートをPRコメントに投稿（既存コメントは上書き）
@@ -146,7 +205,7 @@ jobs:
 
       # --max-increase を超えた場合にCIを失敗させる
       - name: Fail if annotation count increased
-        if: steps.delta.outputs.exit_code \!= '0'
+        if: steps.delta.outcome == 'failure'
         run: |
           echo "::error::shiori delta: annotation count exceeded --max-increase threshold"
           exit 1
@@ -267,6 +326,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+      actions: read
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -276,10 +336,51 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
 
-      - uses: actions/download-artifact@v4
+      # push と pull_request は別ワークフローランで実行されるため、
+      # download-artifact では取得できない。GitHub API を使用する。
+      - name: Download baseline scan artifact
+        uses: actions/github-script@v7
         with:
-          name: shiori-base-scan
-          path: .tmp/
+          script: |
+            const fs = require('fs');
+            const workflows = await github.rest.actions.listRepoWorkflows({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+            const baselineWorkflow = workflows.data.workflows.find(
+              w => w.name === 'shiori'
+            );
+            if (!baselineWorkflow) return;
+
+            const runs = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: baselineWorkflow.id,
+              branch: 'main',
+              status: 'success',
+              per_page: 1,
+            });
+            if (runs.data.workflow_runs.length === 0) return;
+
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: runs.data.workflow_runs[0].id,
+            });
+            const artifact = artifacts.data.artifacts.find(
+              a => a.name === 'shiori-base-scan'
+            );
+            if (!artifact) return;
+
+            const download = await github.rest.actions.downloadArtifact({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              artifact_id: artifact.id,
+              archive_format: 'zip',
+            });
+            fs.mkdirSync('.tmp', { recursive: true });
+            fs.writeFileSync('.tmp/shiori-base-scan.zip', Buffer.from(download.data));
+            require('child_process').execSync('unzip -o .tmp/shiori-base-scan.zip -d .tmp/');
         continue-on-error: true
 
       - name: Scan (PR head)
@@ -295,7 +396,6 @@ jobs:
             --base-fallback-empty \
             --max-increase 0 \
             --output .tmp/shiori-delta.md
-          echo "exit_code=$?" >> "$GITHUB_OUTPUT"
         continue-on-error: true
 
       - uses: peter-evans/create-or-update-comment@v4
@@ -306,7 +406,7 @@ jobs:
           body-includes: '<\!-- shiori-delta -->'
 
       - name: Fail if increased
-        if: steps.delta.outputs.exit_code \!= '0'
+        if: steps.delta.outcome == 'failure'
         run: exit 1
 ```
 
@@ -316,9 +416,16 @@ jobs:
 
 ### ベースラインが見つからない（初回PRの場合）
 
-`actions/download-artifact` が失敗しても `continue-on-error: true` により処理は継続します。
+GitHub API による artifact 取得ステップが失敗しても `continue-on-error: true` により処理は継続します。
 `shiori delta --base-fallback-empty` フラグがベースファイル不在を空のスキャン結果として扱うため、
 初回PRでは全アノテーションが「Added」として表示されます。
+
+### なぜ `actions/download-artifact` ではなく GitHub API を使うのか
+
+`actions/download-artifact@v4` は**同一ワークフローラン内**の artifact しか取得できません。
+ベーススキャンとPRデルタは別のワークフローラン（または同一ワークフロー内でも `push` / `pull_request` で別ラン）で実行されるため、
+クロスワークフローの artifact 取得には `actions/github-script@v7` 経由で GitHub REST API を使用する必要があります。
+この方式には `actions: read` 権限が追加で必要です。
 
 ### PRコメントが毎回新規投稿される
 
