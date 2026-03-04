@@ -13,6 +13,8 @@ import {
   checkRefPatternsConsistency,
   checkGitignore,
   checkScanResultFreshness,
+  checkExpiredEntries,
+  checkRegistryCompleteness,
 } from './doctor/checks.ts';
 
 // Re-export public APIs for backward compatibility (tests, CLI wrapper)
@@ -24,6 +26,8 @@ export {
   checkRefPatternsConsistency,
   checkScanResultFreshness,
   checkGitignore,
+  checkExpiredEntries,
+  checkRegistryCompleteness,
 } from './doctor/checks.ts';
 
 /**
@@ -64,6 +68,12 @@ export async function doctor(options: DoctorOptions): Promise<DoctorResult> {
       registryCheck.registryRefs,
     );
     checks.push(refPatternsCheck);
+  }
+
+  // Registry content checks (depend on registry data)
+  if (registryCheck.registry) {
+    checks.push(checkExpiredEntries(registryCheck.registry));
+    checks.push(checkRegistryCompleteness(registryCheck.registry));
   }
 
   checks.push(gitignoreCheck);

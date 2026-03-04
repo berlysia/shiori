@@ -1,5 +1,5 @@
 import type { ResolvedConfig } from '../../core/config.ts';
-import type { DoctorCheck } from '../../core/types.ts';
+import type { DoctorCheck, Registry } from '../../core/types.ts';
 
 /** Options for the doctor command (pure logic) */
 export interface DoctorOptions {
@@ -22,4 +22,6 @@ export interface RegistryCheckResult {
   check: DoctorCheck;
   /** Registry ref keys, available only when loading succeeded */
   registryRefs?: string[];
+  /** Full registry data, available only when loading succeeded */
+  registry?: Registry;
 }

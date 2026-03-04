@@ -8,6 +8,7 @@ import {
   DEFAULT_SCAN_RESULT_PATH,
 } from '../../core/config.ts';
 import type { ResolvedConfig } from '../../core/config.ts';
+import type { Registry } from '../../core/types.ts';
 import { loadMultiRegistry } from '../../core/registry.ts';
 import { matchRefPattern } from '../../core/ref-pattern.ts';
 import type { DoctorCheck } from '../../core/types.ts';
@@ -197,6 +198,7 @@ export async function checkRegistryWithConfig(
           fix: 'Run "shiori verify" to see detailed validation errors',
         },
         registryRefs,
+        registry: result.registry,
       };
     }
 
@@ -210,6 +212,7 @@ export async function checkRegistryWithConfig(
           fix: 'Check for duplicate refs across registry files',
         },
         registryRefs,
+        registry: result.registry,
       };
     }
 
@@ -221,6 +224,7 @@ export async function checkRegistryWithConfig(
         message: `Registry loaded (${entryCount} entries)`,
       },
       registryRefs,
+      registry: result.registry,
     };
   } catch (err) {
     return {
@@ -415,4 +419,102 @@ export async function checkGitignore(cwd: string): Promise<DoctorCheck> {
       message: `Error reading .gitignore: ${err instanceof Error ? err.message : String(err)}`,
     };
   }
+}
+
+/**
+ * Check for expired registry entries.
+ *
+ * Warns when entries have an `expires` date in the past, indicating
+ * workarounds or temporary suppression that should have been resolved.
+ */
+export function checkExpiredEntries(
+  registry: Registry,
+  now?: Date,
+): DoctorCheck {
+  const currentDate = now ?? new Date();
+  const entries = Object.entries(registry);
+  if (entries.length === 0) {
+    return {
+      name: 'expired-entries',
+      label: 'Expired entries',
+      status: 'pass',
+      message: 'No registry entries to check',
+    };
+  }
+
+  const expired: string[] = [];
+  for (const [ref, entry] of entries) {
+    if (!entry.expires) continue;
+    // Parse YYYY-MM-DD or YYYY-MM format
+    const expiresDate = new Date(entry.expires);
+    if (!Number.isNaN(expiresDate.getTime()) && expiresDate < currentDate) {
+      expired.push(ref);
+    }
+  }
+
+  if (expired.length === 0) {
+    return {
+      name: 'expired-entries',
+      label: 'Expired entries',
+      status: 'pass',
+      message: 'No expired entries in registry',
+    };
+  }
+
+  const examples = expired.slice(0, 3).join(', ');
+  const suffix = expired.length > 3 ? `, … (${expired.length} total)` : '';
+
+  return {
+    name: 'expired-entries',
+    label: 'Expired entries',
+    status: 'warn',
+    message: `${expired.length} expired entry/entries in registry: ${examples}${suffix}`,
+    fix: 'Review and resolve expired entries, or update their expiration dates',
+  };
+}
+
+/**
+ * Check that registry entries have required metadata (reason, owner).
+ *
+ * Warns about entries with placeholder reasons or missing owners,
+ * which indicate incomplete onboarding.
+ */
+export function checkRegistryCompleteness(registry: Registry): DoctorCheck {
+  const entries = Object.entries(registry);
+  if (entries.length === 0) {
+    return {
+      name: 'registry-completeness',
+      label: 'Registry completeness',
+      status: 'pass',
+      message: 'No registry entries to check',
+    };
+  }
+
+  const incomplete: string[] = [];
+  for (const [ref, entry] of entries) {
+    if (entry.reason === 'TODO: fill in reason') {
+      incomplete.push(ref);
+    }
+  }
+
+  if (incomplete.length === 0) {
+    return {
+      name: 'registry-completeness',
+      label: 'Registry completeness',
+      status: 'pass',
+      message: `All ${entries.length} entries have reasons filled in`,
+    };
+  }
+
+  const examples = incomplete.slice(0, 3).join(', ');
+  const suffix =
+    incomplete.length > 3 ? `, … (${incomplete.length} total)` : '';
+
+  return {
+    name: 'registry-completeness',
+    label: 'Registry completeness',
+    status: 'warn',
+    message: `${incomplete.length} entry/entries have placeholder reasons: ${examples}${suffix}`,
+    fix: 'Fill in reasons for these entries in the registry file',
+  };
 }

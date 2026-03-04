@@ -11,11 +11,13 @@ import {
   checkGitignore,
   checkRefPatternsConsistency,
   checkScanResultFreshness,
+  checkExpiredEntries,
+  checkRegistryCompleteness,
   formatDoctor,
   formatDoctorText,
 } from '../src/commands/doctor.ts';
 import type { ResolvedConfig } from '../src/core/config.ts';
-import type { DoctorResult } from '../src/core/types.ts';
+import type { DoctorResult, Registry } from '../src/core/types.ts';
 
 /** Create a partial ResolvedConfig for testing (only the fields under test) */
 function partialConfig(partial: Partial<ResolvedConfig>): ResolvedConfig {
@@ -225,8 +227,8 @@ describe('doctor', () => {
       const scanResultPath = join(dir, '.config', 'shiori', 'scan-result.json');
       await writeFile(scanResultPath, '[]', 'utf-8');
       const result = await doctor({ cwd: dir });
-      // node-version, config, registry, ref-patterns, gitignore, scan-result
-      assert.equal(result.checks.length, 6);
+      // node-version, config, registry, ref-patterns, expired-entries, registry-completeness, gitignore, scan-result
+      assert.equal(result.checks.length, 8);
       assert.ok(result.summary.pass >= 4); // node-version, config, registry, ref-patterns at minimum
       assert.equal(result.summary.fail, 0);
     } finally {
@@ -463,5 +465,169 @@ describe('checkScanResultFreshness', () => {
     } finally {
       await cleanup();
     }
+  });
+});
+
+describe('checkExpiredEntries', () => {
+  const now = new Date('2026-03-04T00:00:00Z');
+
+  it('returns pass when no entries exist', () => {
+    const registry: Registry = {};
+    const result = checkExpiredEntries(registry, now);
+    assert.equal(result.name, 'expired-entries');
+    assert.equal(result.status, 'pass');
+    assert.ok(result.message.includes('No registry entries'));
+  });
+
+  it('returns pass when no entries are expired', () => {
+    const registry: Registry = {
+      'DEV-001': {
+        reason: 'test',
+        target: 'all',
+        expires: '2027-06',
+        ticket: undefined,
+        owner: undefined,
+        notes: undefined,
+        kind: undefined,
+      },
+    };
+    const result = checkExpiredEntries(registry, now);
+    assert.equal(result.status, 'pass');
+    assert.ok(result.message.includes('No expired entries'));
+  });
+
+  it('returns warn when entries are expired', () => {
+    const registry: Registry = {
+      'DEV-001': {
+        reason: 'test',
+        target: 'all',
+        expires: '2025-01-01',
+        ticket: undefined,
+        owner: undefined,
+        notes: undefined,
+        kind: undefined,
+      },
+      'DEV-002': {
+        reason: 'test2',
+        target: 'all',
+        expires: '2025-06-15',
+        ticket: undefined,
+        owner: undefined,
+        notes: undefined,
+        kind: undefined,
+      },
+    };
+    const result = checkExpiredEntries(registry, now);
+    assert.equal(result.status, 'warn');
+    assert.ok(result.message.includes('2 expired'));
+    assert.ok(result.message.includes('DEV-001'));
+    assert.ok(result.fix?.includes('resolve'));
+  });
+
+  it('ignores entries without expires', () => {
+    const registry: Registry = {
+      'DEV-001': {
+        reason: 'test',
+        target: 'all',
+        expires: undefined,
+        ticket: undefined,
+        owner: undefined,
+        notes: undefined,
+        kind: undefined,
+      },
+    };
+    const result = checkExpiredEntries(registry, now);
+    assert.equal(result.status, 'pass');
+  });
+
+  it('truncates examples when many expired entries', () => {
+    const registry: Registry = {};
+    for (let i = 1; i <= 5; i++) {
+      registry[`EXP-${String(i).padStart(3, '0')}`] = {
+        reason: 'test',
+        target: 'all',
+        expires: '2024-01-01',
+        ticket: undefined,
+        owner: undefined,
+        notes: undefined,
+        kind: undefined,
+      };
+    }
+    const result = checkExpiredEntries(registry, now);
+    assert.equal(result.status, 'warn');
+    assert.ok(result.message.includes('5 total'));
+  });
+});
+
+describe('checkRegistryCompleteness', () => {
+  it('returns pass when no entries exist', () => {
+    const registry: Registry = {};
+    const result = checkRegistryCompleteness(registry);
+    assert.equal(result.name, 'registry-completeness');
+    assert.equal(result.status, 'pass');
+    assert.ok(result.message.includes('No registry entries'));
+  });
+
+  it('returns pass when all entries have reasons', () => {
+    const registry: Registry = {
+      'DEV-001': {
+        reason: 'vendor prefix fallback',
+        target: 'all',
+        expires: undefined,
+        ticket: undefined,
+        owner: undefined,
+        notes: undefined,
+        kind: undefined,
+      },
+    };
+    const result = checkRegistryCompleteness(registry);
+    assert.equal(result.status, 'pass');
+    assert.ok(result.message.includes('All 1 entries have reasons'));
+  });
+
+  it('returns warn when entries have placeholder reasons', () => {
+    const registry: Registry = {
+      'DEV-001': {
+        reason: 'TODO: fill in reason',
+        target: 'all',
+        expires: undefined,
+        ticket: undefined,
+        owner: undefined,
+        notes: undefined,
+        kind: undefined,
+      },
+      'DEV-002': {
+        reason: 'real reason',
+        target: 'all',
+        expires: undefined,
+        ticket: undefined,
+        owner: undefined,
+        notes: undefined,
+        kind: undefined,
+      },
+    };
+    const result = checkRegistryCompleteness(registry);
+    assert.equal(result.status, 'warn');
+    assert.ok(result.message.includes('1 entry/entries have placeholder'));
+    assert.ok(result.message.includes('DEV-001'));
+    assert.ok(result.fix?.includes('Fill in reasons'));
+  });
+
+  it('truncates examples when many incomplete entries', () => {
+    const registry: Registry = {};
+    for (let i = 1; i <= 5; i++) {
+      registry[`INC-${String(i).padStart(3, '0')}`] = {
+        reason: 'TODO: fill in reason',
+        target: 'all',
+        expires: undefined,
+        ticket: undefined,
+        owner: undefined,
+        notes: undefined,
+        kind: undefined,
+      };
+    }
+    const result = checkRegistryCompleteness(registry);
+    assert.equal(result.status, 'warn');
+    assert.ok(result.message.includes('5 total'));
   });
 });
