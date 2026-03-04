@@ -5,7 +5,11 @@ import type {
   ShioriAnnotation,
   DeltaResult,
 } from '../src/core/types.ts';
-import { computeDelta, formatDeltaAsJson } from '../src/commands/delta.ts';
+import {
+  computeDelta,
+  filterDelta,
+  formatDeltaAsJson,
+} from '../src/commands/delta.ts';
 
 function makeAnnotation(
   ref: string,
@@ -171,6 +175,61 @@ describe('computeDelta', () => {
     assert.equal(result.deltas[0]!.kind, 'added');
     assert.equal(result.deltas[1]!.kind, 'removed');
     assert.equal(result.deltas[2]!.kind, 'unchanged');
+  });
+});
+
+describe('filterDelta', () => {
+  it('filters to added-only', () => {
+    const base = makeScanResult([
+      makeAnnotation('KEEP-001'),
+      makeAnnotation('REMOVE-001'),
+    ]);
+    const head = makeScanResult([
+      makeAnnotation('KEEP-001'),
+      makeAnnotation('ADD-001'),
+    ]);
+
+    const full = computeDelta({ base, head });
+    const filtered = filterDelta(full, ['added']);
+
+    assert.equal(filtered.deltas.length, 1);
+    assert.equal(filtered.deltas[0]!.kind, 'added');
+    assert.equal(filtered.deltas[0]!.ref, 'ADD-001');
+    assert.equal(filtered.summary.added, 1);
+    assert.equal(filtered.summary.removed, 0);
+    assert.equal(filtered.summary.unchanged, 0);
+    assert.equal(filtered.summary.net, 1);
+  });
+
+  it('filters to multiple kinds', () => {
+    const base = makeScanResult([
+      makeAnnotation('KEEP-001'),
+      makeAnnotation('REMOVE-001'),
+    ]);
+    const head = makeScanResult([
+      makeAnnotation('KEEP-001'),
+      makeAnnotation('ADD-001'),
+    ]);
+
+    const full = computeDelta({ base, head });
+    const filtered = filterDelta(full, ['added', 'removed']);
+
+    assert.equal(filtered.deltas.length, 2);
+    assert.ok(filtered.deltas.some((d) => d.kind === 'added'));
+    assert.ok(filtered.deltas.some((d) => d.kind === 'removed'));
+    assert.equal(filtered.summary.unchanged, 0);
+  });
+
+  it('returns empty result when no deltas match', () => {
+    const base = makeScanResult([makeAnnotation('KEEP-001')]);
+    const head = makeScanResult([makeAnnotation('KEEP-001')]);
+
+    const full = computeDelta({ base, head });
+    const filtered = filterDelta(full, ['added']);
+
+    assert.equal(filtered.deltas.length, 0);
+    assert.equal(filtered.summary.added, 0);
+    assert.equal(filtered.summary.net, 0);
   });
 });
 

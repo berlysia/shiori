@@ -1,7 +1,7 @@
 import { define } from 'gunshi';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { computeDelta } from './delta.ts';
+import { computeDelta, filterDelta } from './delta.ts';
 import type { ScanResult } from '../core/types.ts';
 import {
   formatDeltaOutput,
@@ -30,6 +30,9 @@ export const deltaCommand = define({
 
   # Save delta report to file
   shiori delta --base base-scan.json --head head-scan.json -o delta-report.json
+
+  # Show only newly added annotations (for PR review)
+  shiori delta --base base-scan.json --head head-scan.json --added-only --format markdown
 
   # Initial PR with no prior baseline (base file may not exist)
   shiori delta --base base-scan.json --head head-scan.json --base-fallback-empty`,
@@ -62,6 +65,12 @@ export const deltaCommand = define({
       type: 'string',
       short: 'o',
       description: 'Output file path. If omitted, writes to stdout',
+    },
+    addedOnly: {
+      type: 'boolean',
+      toKebab: true,
+      description:
+        'Show only added annotations in the output. Useful for PR reviews that focus on newly introduced lint suppressions.',
     },
     baseFallbackEmpty: {
       type: 'boolean',
@@ -150,12 +159,17 @@ export const deltaCommand = define({
       return;
     }
 
-    // Compute delta
-    const deltaResult = computeDelta({ base: baseScan, head: headScan });
+    // Compute delta (full result used for CI gate judgment)
+    const fullDeltaResult = computeDelta({ base: baseScan, head: headScan });
+
+    // Apply kind filter for display output only
+    const displayDeltaResult = ctx.values.addedOnly
+      ? filterDelta(fullDeltaResult, ['added'])
+      : fullDeltaResult;
 
     const output = formatDeltaOutput({
       format,
-      deltaResult,
+      deltaResult: displayDeltaResult,
       maxIncrease,
     });
 
@@ -167,16 +181,16 @@ export const deltaCommand = define({
     });
     if (!written) return;
 
-    // Log summary to stderr
+    // Log summary to stderr (always uses full result for accurate counts)
     console.error(
-      `Delta: +${deltaResult.summary.added} added, -${deltaResult.summary.removed} removed, ${deltaResult.summary.unchanged} unchanged (net: ${deltaResult.summary.net >= 0 ? '+' : ''}${deltaResult.summary.net})`,
+      `Delta: +${fullDeltaResult.summary.added} added, -${fullDeltaResult.summary.removed} removed, ${fullDeltaResult.summary.unchanged} unchanged (net: ${fullDeltaResult.summary.net >= 0 ? '+' : ''}${fullDeltaResult.summary.net})`,
     );
 
-    // CI gate: --max-increase
+    // CI gate: --max-increase (uses full result, not filtered)
     if (maxIncrease !== undefined) {
-      if (deltaResult.summary.net > maxIncrease) {
+      if (fullDeltaResult.summary.net > maxIncrease) {
         console.error(
-          `Error: Net annotation increase (${deltaResult.summary.net}) exceeds maximum allowed (${maxIncrease})`,
+          `Error: Net annotation increase (${fullDeltaResult.summary.net}) exceeds maximum allowed (${maxIncrease})`,
         );
         process.exitCode = 1;
       }

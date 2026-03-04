@@ -106,6 +106,26 @@ function groupByRef(
 }
 
 /**
+ * Filter a DeltaResult to include only deltas of the specified kind(s).
+ * Summary is recalculated from the filtered deltas.
+ */
+export function filterDelta(
+  result: DeltaResult,
+  kinds: DeltaKind[],
+): DeltaResult {
+  const kindSet = new Set(kinds);
+  const deltas = result.deltas.filter((d) => kindSet.has(d.kind));
+  const summary: DeltaSummary = {
+    added: deltas.filter((d) => d.kind === 'added').length,
+    removed: deltas.filter((d) => d.kind === 'removed').length,
+    unchanged: deltas.filter((d) => d.kind === 'unchanged').length,
+    net: 0,
+  };
+  summary.net = summary.added - summary.removed;
+  return { deltas, summary };
+}
+
+/**
  * Format a DeltaResult as JSON string.
  */
 export function formatDeltaAsJson(result: DeltaResult): string {
