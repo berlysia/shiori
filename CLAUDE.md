@@ -99,6 +99,7 @@ ADRs are in `docs/decisions/`:
 - **019**: Node.js version requirements
 - **020**: Package exports and CI pipeline
 - **021**: VSCode extension
+- **022**: Workspace governance (`--workspace` flag for monorepo cross-package scanning)
 
 ## Dogfooding: shiori で自身の開発を追跡
 
