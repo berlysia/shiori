@@ -1,0 +1,20 @@
+{
+  "SUP-100": {
+    "reason": "debug logging in core",
+    "target": "all"
+  },
+  "SUP-101": {
+    "reason": "legacy flag in core",
+    "target": "all",
+    "expires": "2027-06"
+  },
+  "SUP-200": {
+    "reason": "hex color usage in UI",
+    "target": "all",
+    "expires": "2027-12"
+  },
+  "SUP-201": {
+    "reason": "temporary workaround for UI bug",
+    "target": "all"
+  }
+}

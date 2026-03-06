@@ -1,5 +1,5 @@
 ---
-status: Proposed
+status: Accepted
 deps:
   - 10
   - 12
