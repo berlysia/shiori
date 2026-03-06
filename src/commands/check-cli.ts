@@ -20,6 +20,11 @@ import {
 } from '../core/scan-defaults.ts';
 import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
 import { writeOutput } from '../core/cli-output.ts';
+import {
+  detectWorkspaces,
+  scanWorkspaces,
+  type PackageScanResult,
+} from '../core/workspace.ts';
 
 export const checkCommand = define({
   name: 'check',
@@ -34,7 +39,10 @@ export const checkCommand = define({
   shiori check --save-scan
 
   # Markdown output
-  shiori check -f markdown -o report.md`,
+  shiori check -f markdown -o report.md
+
+  # Scan all packages in monorepo workspace
+  shiori check --workspace`,
   rendering: { header: null },
   args: {
     patterns: {
@@ -95,6 +103,12 @@ export const checkCommand = define({
       description:
         'Path to config directory (YAML/JSON auto-detected). Default: <cwd>/.config/shiori',
     },
+    workspace: {
+      type: 'boolean',
+      toKebab: true,
+      description:
+        'Scan all packages in monorepo workspace (pnpm/npm workspaces)',
+    },
     expiringThreshold: {
       type: 'string',
       toKebab: true,
@@ -129,15 +143,52 @@ export const checkCommand = define({
       ? ctx.values.ignore.split(',').map((s: string) => s.trim())
       : (config.scanIgnore ?? DEFAULT_SCAN_IGNORE);
 
-    // Scan
+    const isWorkspaceMode = ctx.values.workspace ?? false;
+
+    // Scan — workspace mode uses detectWorkspaces + scanWorkspaces,
+    // single-package mode uses scan() directly.
     const provider = new CommentProvider();
-    const scanResult = await scan({
+    const scanOptions = {
       patterns,
       ignore,
       provider,
-      cwd,
       providerOptions: { candidatePatterns: config.candidatePatterns },
-    });
+    };
+
+    let scanResult: import('../core/types.ts').ScanResult;
+    let packageResults: PackageScanResult[] | undefined;
+
+    if (isWorkspaceMode) {
+      const detection = await detectWorkspaces(cwd);
+      if (!detection) {
+        console.error(
+          'Error: No workspace configuration found. Ensure pnpm-workspace.yaml or package.json#workspaces exists.',
+        );
+        process.exitCode = 1;
+        return;
+      }
+
+      console.error(
+        `Workspace detected (${detection.source}): ${detection.packages.length} package(s)`,
+      );
+
+      const workspaceResult = await scanWorkspaces(
+        detection.packages,
+        cwd,
+        scanOptions,
+      );
+      scanResult = workspaceResult.merged;
+      packageResults = workspaceResult.packages;
+
+      // Per-package scan summary
+      for (const pkg of workspaceResult.packages) {
+        console.error(
+          `  ${pkg.package} (${pkg.dir}): ${pkg.scanResult.annotations.length} annotation(s), ${pkg.scanResult.candidates.length} candidate(s)`,
+        );
+      }
+    } else {
+      scanResult = await scan({ ...scanOptions, cwd });
+    }
 
     console.error(
       `Scanned ${scanResult.filesScanned} files, found ${scanResult.annotations.length} annotation(s), ${scanResult.candidates.length} candidate(s)`,
@@ -181,13 +232,40 @@ export const checkCommand = define({
       expiringThresholdDays,
     });
 
-    const output = formatVerifyOutput({
-      format,
-      verifyResult,
-      annotations: scanResult.annotations,
-      candidates: scanResult.candidates,
-      registry,
-    });
+    // Format output — workspace mode wraps verifyResult with package breakdown
+    let output: string;
+
+    if (isWorkspaceMode && packageResults && format === 'json') {
+      // Build per-package issue summary by matching issue file paths to package dirs
+      const packageSummaries = packageResults.map((pkg) => {
+        const prefix = pkg.dir + '/';
+        const pkgIssues = verifyResult.issues.filter((issue) =>
+          issue.file?.startsWith(prefix),
+        );
+        return {
+          name: pkg.package,
+          dir: pkg.dir,
+          issues: pkgIssues.length,
+          errors: pkgIssues.filter((i) => i.severity === 'error').length,
+          warnings: pkgIssues.filter((i) => i.severity === 'warning').length,
+        };
+      });
+
+      const workspaceOutput = {
+        workspace: true,
+        packages: packageSummaries,
+        verifyResult,
+      };
+      output = JSON.stringify(workspaceOutput, null, 2);
+    } else {
+      output = formatVerifyOutput({
+        format,
+        verifyResult,
+        annotations: scanResult.annotations,
+        candidates: scanResult.candidates,
+        registry,
+      });
+    }
 
     const written = await writeOutput(output, {
       outputPath: ctx.values.output,
