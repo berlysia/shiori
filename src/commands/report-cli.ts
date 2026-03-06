@@ -22,6 +22,7 @@ const validateReportFormat = createFormatValidator<ReportFormat>([
   'json',
   'markdown',
   'badge',
+  'html',
 ] as const);
 
 export const reportCommand = define({
@@ -35,6 +36,9 @@ export const reportCommand = define({
 
   # Generate shields.io badge JSON
   shiori report -f badge -o badge.json
+
+  # Generate self-contained HTML dashboard
+  shiori report -f html -o report.html
 
   # Include issue types in fail-on for exit code
   shiori report --fail-on expired,missing-in-registry`,
@@ -74,7 +78,7 @@ export const reportCommand = define({
       type: 'string',
       short: 'f',
       description:
-        'Output format: "json", "markdown", "badge" (shields.io endpoint). Default: "json"',
+        'Output format: "json", "markdown", "badge" (shields.io endpoint), "html" (self-contained dashboard). Default: "json"',
       default: 'json',
     },
     output: {
