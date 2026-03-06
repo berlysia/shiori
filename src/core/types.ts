@@ -289,10 +289,60 @@ export interface DoctorResult {
     warn: number;
     fail: number;
   };
+  /** Maturity assessment (present when --maturity is used) */
+  maturity?: MaturityResult;
 }
 
 /** Output format for doctor command */
 export type DoctorFormat = 'text' | 'json';
+
+// ── Maturity types (EP-0040) ─────────────────────────────────
+
+/** Governance maturity level (0-4) */
+export type MaturityLevel = 0 | 1 | 2 | 3 | 4;
+
+/** Description for each maturity level */
+export const MATURITY_LEVEL_LABELS: Record<MaturityLevel, string> = {
+  0: 'Not initialized',
+  1: 'Basic setup',
+  2: 'CI integrated',
+  3: 'Visible governance',
+  4: 'Continuous monitoring',
+};
+
+/** A signal detected (or not) contributing to maturity level assessment */
+export interface MaturitySignal {
+  /** Signal identifier */
+  name: string;
+  /** Human-readable label */
+  label: string;
+  /** Whether this signal was detected */
+  detected: boolean;
+  /** Detail message */
+  message: string;
+}
+
+/** Next action recommendation for advancing to the next maturity level */
+export interface MaturityNextAction {
+  /** Target maturity level */
+  targetLevel: MaturityLevel;
+  /** Recommended command or action */
+  action: string;
+  /** Description of what this achieves */
+  description: string;
+}
+
+/** Result of a maturity level assessment */
+export interface MaturityResult {
+  /** Current maturity level (0-4) */
+  level: MaturityLevel;
+  /** Human-readable label for the current level */
+  levelLabel: string;
+  /** Detected signals */
+  signals: MaturitySignal[];
+  /** Recommended next actions to reach higher levels */
+  nextActions: MaturityNextAction[];
+}
 
 // ── Health types (EP-0024) ───────────────────────────────────
 

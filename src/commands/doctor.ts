@@ -3,7 +3,9 @@ import type {
   DoctorCheckStatus,
   DoctorResult,
   DoctorFormat,
+  MaturityResult,
 } from '../core/types.ts';
+import type { MaturityLevel } from '../core/types.ts';
 import type { DoctorOptions } from './doctor/types.ts';
 import {
   loadConfigOnce,
@@ -16,6 +18,7 @@ import {
   checkExpiredEntries,
   checkRegistryCompleteness,
 } from './doctor/checks.ts';
+import { assessMaturity } from './doctor/maturity.ts';
 
 // Re-export public APIs for backward compatibility (tests, CLI wrapper)
 export type { DoctorOptions } from './doctor/types.ts';
@@ -29,6 +32,7 @@ export {
   checkExpiredEntries,
   checkRegistryCompleteness,
 } from './doctor/checks.ts';
+export { assessMaturity } from './doctor/maturity.ts';
 
 /**
  * Run all diagnostic checks and return the result.
@@ -85,7 +89,14 @@ export async function doctor(options: DoctorOptions): Promise<DoctorResult> {
     fail: checks.filter((c) => c.status === 'fail').length,
   };
 
-  return { checks, summary };
+  const result: DoctorResult = { checks, summary };
+
+  // Maturity assessment (when --maturity flag is used)
+  if (options.maturity) {
+    result.maturity = await assessMaturity(options.cwd, configLoadResult);
+  }
+
+  return result;
 }
 
 /** Status icon for display */
@@ -128,6 +139,49 @@ export function formatDoctorText(
   if (result.summary.fail > 0) parts.push(`${result.summary.fail} failed`);
   lines.push(`  ${parts.join(', ')}`);
 
+  // Maturity assessment section
+  if (result.maturity) {
+    lines.push('');
+    lines.push(formatMaturityText(result.maturity));
+  }
+
+  return lines.join('\n');
+}
+
+/** Format maturity level bar: filled blocks for achieved, empty for remaining */
+function maturityBar(level: MaturityLevel): string {
+  return '█'.repeat(level) + '░'.repeat(4 - level);
+}
+
+/**
+ * Format the maturity assessment as human-readable text.
+ */
+export function formatMaturityText(maturity: MaturityResult): string {
+  const lines: string[] = [];
+
+  lines.push(
+    `Governance Maturity: Level ${maturity.level}/4 — ${maturity.levelLabel}`,
+  );
+  lines.push(`  [${maturityBar(maturity.level as MaturityLevel)}]`);
+  lines.push('');
+
+  // Show signals
+  lines.push('  Signals:');
+  for (const signal of maturity.signals) {
+    const icon = signal.detected ? '✓' : '·';
+    lines.push(`    ${icon} ${signal.label}: ${signal.message}`);
+  }
+
+  // Show next actions
+  if (maturity.nextActions.length > 0) {
+    lines.push('');
+    lines.push('  Next steps:');
+    for (const action of maturity.nextActions) {
+      lines.push(`    → Level ${action.targetLevel}: ${action.description}`);
+      lines.push(`      Run: ${action.action}`);
+    }
+  }
+
   return lines.join('\n');
 }
 
@@ -147,4 +201,4 @@ export function formatDoctor(
   }
 }
 
-export type { DoctorResult, DoctorFormat };
+export type { DoctorResult, DoctorFormat, MaturityResult };

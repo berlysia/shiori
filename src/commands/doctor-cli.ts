@@ -16,6 +16,9 @@ export const doctorCommand = define({
   # Show fix suggestions for each issue
   shiori doctor --fix
 
+  # Assess governance maturity level (0-4)
+  shiori doctor --maturity
+
   # JSON output for tooling
   shiori doctor -f json`,
   rendering: { header: null },
@@ -34,6 +37,10 @@ export const doctorCommand = define({
       type: 'boolean',
       description: 'Show fix suggestions for each issue',
     },
+    maturity: {
+      type: 'boolean',
+      description: 'Assess governance maturity level (0-4)',
+    },
     format: {
       type: 'string',
       short: 'f',
@@ -47,11 +54,13 @@ export const doctorCommand = define({
 
     const cwd = ctx.values.cwd ?? process.cwd();
     const showFix = ctx.values.fix ?? false;
+    const maturity = ctx.values.maturity ?? false;
 
     const result = await doctor({
       cwd,
       configDir: ctx.values.config,
       fix: showFix,
+      maturity,
     });
 
     const output = formatDoctor(result, format, showFix);

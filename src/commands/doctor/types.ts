@@ -9,6 +9,8 @@ export interface DoctorOptions {
   configDir?: string;
   /** Whether to show fix suggestions */
   fix?: boolean;
+  /** Whether to run maturity assessment (--maturity flag) */
+  maturity?: boolean;
 }
 
 /** Result of the one-time config load */
