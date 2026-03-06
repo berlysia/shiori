@@ -11,6 +11,10 @@ export interface DoctorOptions {
   fix?: boolean;
   /** Whether to run maturity assessment (--maturity flag) */
   maturity?: boolean;
+  /** Whether to run upgrade wizard (--upgrade flag) */
+  upgrade?: boolean;
+  /** Skip interactive confirmation (--yes flag, used with --upgrade) */
+  yes?: boolean;
 }
 
 /** Result of the one-time config load */

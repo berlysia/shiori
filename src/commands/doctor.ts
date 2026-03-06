@@ -19,6 +19,7 @@ import {
   checkRegistryCompleteness,
 } from './doctor/checks.ts';
 import { assessMaturity } from './doctor/maturity.ts';
+import { buildUpgradePlan } from './doctor/upgrade.ts';
 
 // Re-export public APIs for backward compatibility (tests, CLI wrapper)
 export type { DoctorOptions } from './doctor/types.ts';
@@ -33,6 +34,15 @@ export {
   checkRegistryCompleteness,
 } from './doctor/checks.ts';
 export { assessMaturity } from './doctor/maturity.ts';
+export { buildUpgradePlan } from './doctor/upgrade.ts';
+export type {
+  UpgradePlan,
+  UpgradeAction,
+  UpgradeActionKind,
+  UpgradeActionResult,
+  UpgradeResult,
+} from './doctor/upgrade.ts';
+export { formatUpgradePlan, formatUpgradeResult } from './doctor/upgrade.ts';
 
 /**
  * Run all diagnostic checks and return the result.
@@ -91,8 +101,8 @@ export async function doctor(options: DoctorOptions): Promise<DoctorResult> {
 
   const result: DoctorResult = { checks, summary };
 
-  // Maturity assessment (when --maturity flag is used)
-  if (options.maturity) {
+  // Maturity assessment (when --maturity or --upgrade flag is used)
+  if (options.maturity || options.upgrade) {
     result.maturity = await assessMaturity(options.cwd, configLoadResult);
   }
 

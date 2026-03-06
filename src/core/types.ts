@@ -289,8 +289,10 @@ export interface DoctorResult {
     warn: number;
     fail: number;
   };
-  /** Maturity assessment (present when --maturity is used) */
+  /** Maturity assessment (present when --maturity or --upgrade is used) */
   maturity?: MaturityResult;
+  /** Upgrade plan/result (present when --upgrade is used) */
+  upgrade?: import('../commands/doctor/upgrade.ts').UpgradeResult;
 }
 
 /** Output format for doctor command */
