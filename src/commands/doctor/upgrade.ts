@@ -25,6 +25,9 @@ export type UpgradeActionKind =
   | 'snapshot-setup'
   | 'scheduled-workflow';
 
+/** Badge workflow mode: artifacts-only (no secrets) or gist (requires PAT + Gist ID) */
+export type BadgeMode = 'artifacts' | 'gist';
+
 /** A concrete upgrade step the wizard can execute */
 export interface UpgradeAction {
   /** Action identifier */
@@ -39,6 +42,8 @@ export interface UpgradeAction {
   command: string;
   /** CI template kind (only for ci-workflow / badge-workflow actions) */
   ciTemplateKind?: CiTemplateKind;
+  /** Badge mode (only for badge-workflow actions) */
+  badgeMode?: BadgeMode;
 }
 
 /** Result of upgrade plan generation */
@@ -72,15 +77,25 @@ export interface UpgradeResult {
 
 // ── Plan generation ──────────────────────────────────────────
 
+/** Options for building an upgrade plan */
+export interface BuildUpgradePlanOptions {
+  /** Badge mode for Level 2→3 upgrade. Default: 'artifacts' (no secrets needed) */
+  badgeMode?: BadgeMode;
+}
+
 /**
  * Build an upgrade plan based on current maturity assessment.
  *
  * Only includes actions for the NEXT level (incremental upgrade).
  * Users run `--upgrade` repeatedly to climb levels progressively.
  */
-export function buildUpgradePlan(maturity: MaturityResult): UpgradePlan {
+export function buildUpgradePlan(
+  maturity: MaturityResult,
+  options?: BuildUpgradePlanOptions,
+): UpgradePlan {
   const currentLevel = maturity.level;
   const actions: UpgradeAction[] = [];
+  const badgeMode = options?.badgeMode ?? 'artifacts';
 
   const has = (name: string): boolean =>
     maturity.signals.some((s) => s.name === name && s.detected);
@@ -107,15 +122,23 @@ export function buildUpgradePlan(maturity: MaturityResult): UpgradePlan {
       ciTemplateKind: 'basic',
     });
   } else if (currentLevel < 3) {
-    // Level 2 → 3: Add badge workflow
+    // Level 2 → 3: Add badge workflow (artifacts-only or gist)
+    const ciTemplateKind: CiTemplateKind =
+      badgeMode === 'gist' ? 'badge-gist' : 'badge';
     actions.push({
       kind: 'badge-workflow',
       targetLevel: 3,
-      title: 'Add governance badge',
+      title:
+        badgeMode === 'gist'
+          ? 'Add governance badge (Gist mode)'
+          : 'Add governance badge (Artifacts-only)',
       description:
-        'Generate a badge workflow to visualize governance score in your README',
-      command: 'shiori init --ci badge',
-      ciTemplateKind: 'badge',
+        badgeMode === 'gist'
+          ? 'Generate a badge workflow that uploads governance score to GitHub Gist for stable badge URL'
+          : 'Generate a badge workflow using GitHub Actions Artifacts (no secrets required)',
+      command: `shiori init --ci ${ciTemplateKind}`,
+      ciTemplateKind,
+      badgeMode,
     });
   } else if (currentLevel < 4) {
     // Level 3 → 4: Snapshot history + scheduled workflow

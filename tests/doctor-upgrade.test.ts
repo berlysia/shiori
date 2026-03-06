@@ -102,7 +102,7 @@ describe('buildUpgradePlan', () => {
     assert.equal(plan.actions[0]!.ciTemplateKind, 'basic');
   });
 
-  it('returns badge-workflow action for level 2', () => {
+  it('returns badge-workflow action for level 2 (default: artifacts)', () => {
     const plan = buildUpgradePlan(maturityResult(2));
     assert.equal(plan.currentLevel, 2);
     assert.equal(plan.targetLevel, 3);
@@ -110,6 +110,41 @@ describe('buildUpgradePlan', () => {
     assert.equal(plan.actions[0]!.kind, 'badge-workflow');
     assert.equal(plan.actions[0]!.ciTemplateKind, 'badge');
     assert.equal(plan.actions[0]!.command, 'shiori init --ci badge');
+    assert.equal(plan.actions[0]!.badgeMode, 'artifacts');
+  });
+
+  it('returns badge-workflow with artifacts template when badgeMode is artifacts', () => {
+    const plan = buildUpgradePlan(maturityResult(2), {
+      badgeMode: 'artifacts',
+    });
+    assert.equal(plan.actions[0]!.ciTemplateKind, 'badge');
+    assert.equal(plan.actions[0]!.badgeMode, 'artifacts');
+    assert.equal(plan.actions[0]!.command, 'shiori init --ci badge');
+    assert.ok(plan.actions[0]!.title.includes('Artifacts-only'));
+  });
+
+  it('returns badge-workflow with gist template when badgeMode is gist', () => {
+    const plan = buildUpgradePlan(maturityResult(2), { badgeMode: 'gist' });
+    assert.equal(plan.actions[0]!.ciTemplateKind, 'badge-gist');
+    assert.equal(plan.actions[0]!.badgeMode, 'gist');
+    assert.equal(plan.actions[0]!.command, 'shiori init --ci badge-gist');
+    assert.ok(plan.actions[0]!.title.includes('Gist mode'));
+    assert.ok(plan.actions[0]!.description.includes('Gist'));
+  });
+
+  it('badgeMode option has no effect on non-badge upgrades', () => {
+    const plan0 = buildUpgradePlan(maturityResult(0), { badgeMode: 'gist' });
+    assert.equal(plan0.actions[0]!.kind, 'init');
+    assert.equal(plan0.actions[0]!.badgeMode, undefined);
+
+    const plan1 = buildUpgradePlan(maturityResult(1), { badgeMode: 'gist' });
+    assert.equal(plan1.actions[0]!.kind, 'ci-workflow');
+    assert.equal(plan1.actions[0]!.badgeMode, undefined);
+
+    const plan3 = buildUpgradePlan(maturityResult(3), { badgeMode: 'gist' });
+    for (const action of plan3.actions) {
+      assert.equal(action.badgeMode, undefined);
+    }
   });
 
   it('returns snapshot and scheduled actions for level 3', () => {
@@ -154,6 +189,24 @@ describe('formatUpgradePlan', () => {
     const text = formatUpgradePlan(plan);
     assert.ok(text.includes('already at maximum'));
     assert.ok(text.includes('No upgrade actions needed'));
+  });
+
+  it('formats artifacts-only badge plan', () => {
+    const plan = buildUpgradePlan(maturityResult(2), {
+      badgeMode: 'artifacts',
+    });
+    const text = formatUpgradePlan(plan);
+    assert.ok(text.includes('Artifacts-only'));
+    assert.ok(text.includes('Level 2/4'));
+    assert.ok(text.includes('Level 3/4'));
+  });
+
+  it('formats gist badge plan', () => {
+    const plan = buildUpgradePlan(maturityResult(2), { badgeMode: 'gist' });
+    const text = formatUpgradePlan(plan);
+    assert.ok(text.includes('Gist mode'));
+    assert.ok(text.includes('Level 2/4'));
+    assert.ok(text.includes('Level 3/4'));
   });
 });
 

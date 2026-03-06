@@ -11,7 +11,14 @@ describe('CI_TEMPLATE_KINDS', () => {
   it('contains all expected kinds', () => {
     assert.deepEqual(
       [...CI_TEMPLATE_KINDS],
-      ['basic', 'sarif', 'delta-pr-comment', 'checks-gate', 'badge'],
+      [
+        'basic',
+        'sarif',
+        'delta-pr-comment',
+        'checks-gate',
+        'badge',
+        'badge-gist',
+      ],
     );
   });
 
@@ -203,5 +210,55 @@ describe('generateCiWorkflow', () => {
       const yaml = generateCiWorkflow(kind);
       assert.ok(yaml.length > 0, `Empty output for kind: ${kind}`);
     }
+  });
+
+  it('generates valid YAML for badge-gist template', () => {
+    const yaml = generateCiWorkflow('badge-gist');
+
+    assert.ok(yaml.includes('name: shiori badge'));
+    assert.ok(yaml.includes('on:'));
+    assert.ok(yaml.includes('push:'));
+    assert.ok(yaml.includes('workflow_dispatch:'));
+    assert.ok(yaml.includes('shiori report --format badge'));
+    assert.ok(yaml.includes('actions/checkout@v4'));
+    assert.ok(yaml.includes('pnpm install --frozen-lockfile'));
+    assert.ok(yaml.includes('upload-artifact@v4'));
+    assert.ok(yaml.includes('shiori-badge'));
+  });
+
+  it('badge-gist template includes active Gist upload step', () => {
+    const yaml = generateCiWorkflow('badge-gist');
+
+    // Gist upload should be active (not commented out)
+    assert.ok(yaml.includes('- name: Upload badge to Gist'));
+    assert.ok(yaml.includes('actions-deploy-gist@v1'));
+    assert.ok(yaml.includes('GIST_TOKEN'));
+    assert.ok(yaml.includes('GIST_ID'));
+    // Should NOT be commented
+    assert.ok(
+      !yaml.includes('# - name: Upload badge to Gist'),
+      'Gist upload step should not be commented out in badge-gist template',
+    );
+  });
+
+  it('badge-gist template outputs to same path as badge template', () => {
+    assert.equal(CI_TEMPLATE_PATHS['badge-gist'], CI_TEMPLATE_PATHS['badge']);
+  });
+
+  it('badge-gist template outputs shields.io JSON', () => {
+    const yaml = generateCiWorkflow('badge-gist');
+
+    assert.ok(
+      yaml.includes('shiori-badge.json'),
+      'Badge output should use .json extension',
+    );
+  });
+
+  it('badge-gist template includes prerequisite documentation', () => {
+    const yaml = generateCiWorkflow('badge-gist');
+
+    assert.ok(yaml.includes('Prerequisites:'));
+    assert.ok(yaml.includes('Create a GitHub Gist'));
+    assert.ok(yaml.includes('Create a PAT with gist scope'));
   });
 });

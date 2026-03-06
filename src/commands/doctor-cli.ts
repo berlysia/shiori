@@ -23,7 +23,7 @@ import {
   PathBoundaryError,
   type CiTemplateKind,
 } from './init-steps.ts';
-import type { UpgradeAction } from './doctor/upgrade.ts';
+import type { UpgradeAction, BadgeMode } from './doctor/upgrade.ts';
 
 const validateDoctorFormat = createFormatValidator<DoctorFormat>(
   ['text', 'json'] as const,
@@ -97,12 +97,14 @@ async function executeUpgradeAction(
         const steps: string[] = [];
         try {
           await stepCi(cwd, action.ciTemplateKind, steps);
+          const hint =
+            action.badgeMode === 'gist'
+              ? '\n     💡 Configure GIST_TOKEN secret and GIST_ID variable in your repository settings.'
+              : '\n     💡 To upgrade to a stable badge URL, re-run with Gist mode: shiori init --ci badge-gist';
           return {
             kind: action.kind,
             executed: true,
-            message:
-              (steps[0] ?? 'Badge workflow generated') +
-              '\n     💡 For stable badge URL, configure Gist upload: see comments in the generated workflow.',
+            message: (steps[0] ?? 'Badge workflow generated') + hint,
           };
         } catch (err) {
           if (err instanceof PathBoundaryError) {
@@ -159,6 +161,30 @@ async function confirm(message: string): Promise<boolean> {
       answer.trim().toLowerCase() === 'y' ||
       answer.trim().toLowerCase() === 'yes'
     );
+  } finally {
+    rl.close();
+  }
+}
+
+/**
+ * Ask user to choose badge mode for Level 2→3 upgrade.
+ * Returns 'artifacts' (default) or 'gist'.
+ */
+async function promptBadgeMode(): Promise<BadgeMode> {
+  const rl = createInterface({
+    input: process.stdin,
+    output: process.stderr,
+  });
+  try {
+    console.error('Badge workflow mode:');
+    console.error(
+      '  1. Artifacts-only — no secrets required, uses nightly.link for badge URL',
+    );
+    console.error(
+      '  2. Gist — stable badge URL via GitHub Gist (requires PAT + Gist setup)',
+    );
+    const answer = await rl.question('Choose badge mode [1/2] (default: 1): ');
+    return answer.trim() === '2' ? 'gist' : 'artifacts';
   } finally {
     rl.close();
   }
@@ -249,7 +275,16 @@ export const doctorCommand = define({
 
     // Upgrade wizard flow
     if (upgrade && result.maturity) {
-      const plan = buildUpgradePlan(result.maturity);
+      // Determine badge mode for Level 2→3 upgrade
+      let badgeMode: BadgeMode = 'artifacts';
+      const isLevel2To3 = result.maturity.level === 2;
+      if (isLevel2To3 && !yes) {
+        badgeMode = await promptBadgeMode();
+        console.error('');
+      }
+      // --yes defaults to artifacts (no secrets needed)
+
+      const plan = buildUpgradePlan(result.maturity, { badgeMode });
 
       if (plan.actions.length === 0) {
         console.error(formatUpgradePlan(plan));

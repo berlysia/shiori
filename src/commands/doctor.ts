@@ -41,6 +41,8 @@ export type {
   UpgradeActionKind,
   UpgradeActionResult,
   UpgradeResult,
+  BadgeMode,
+  BuildUpgradePlanOptions,
 } from './doctor/upgrade.ts';
 export { formatUpgradePlan, formatUpgradeResult } from './doctor/upgrade.ts';
 

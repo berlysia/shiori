@@ -119,7 +119,7 @@ describe('doctor --upgrade CLI', () => {
     );
   });
 
-  it('executes badge-workflow for level 2 project with --yes', async () => {
+  it('executes badge-workflow for level 2 project with --yes (artifacts-only default)', async () => {
     const dir = await createFixtureDir(baseDir, 'upgrade-badge');
 
     // Set up level 2 signals (config + registry + gitignore + CI workflow)
@@ -143,15 +143,27 @@ describe('doctor --upgrade CLI', () => {
       { baseDir, timeout: 10000 },
     );
 
-    // Should show badge-workflow upgrade action and indicate Level 2→3 upgrade
+    // --yes should default to artifacts-only badge mode
     assert.ok(
-      stderr.includes('Add governance badge'),
-      `Expected badge upgrade plan, got: ${stderr.slice(0, 500)}`,
+      stderr.includes('Artifacts-only'),
+      `Expected artifacts-only badge upgrade plan, got: ${stderr.slice(0, 500)}`,
     );
 
     // Verify badge workflow file was created at the expected path
     const badgePath = join(dir, '.github', 'workflows', 'shiori-badge.yml');
     await access(badgePath);
+
+    // Verify the generated workflow uses artifacts-only (Gist upload is commented out)
+    const { readFile } = await import('node:fs/promises');
+    const content = await readFile(badgePath, 'utf-8');
+    assert.ok(
+      content.includes('# - name: Upload badge to Gist'),
+      'Artifacts-only template should have Gist upload commented out',
+    );
+    assert.ok(
+      content.includes('Upload badge as artifact'),
+      'Artifacts-only template should include artifact upload',
+    );
   });
 
   it('includes upgrade result in JSON output with --yes', async () => {
