@@ -41,3 +41,17 @@ jobs:
       - name: shiori health (dogfooding)
         if: matrix.node-version == 22
         run: node dist/src/cli.js health
+
+      # Dogfooding: generate HTML governance dashboard
+      - name: shiori report --format html (dogfooding)
+        if: matrix.node-version == 22
+        run: node dist/src/cli.js report --format html --output .tmp/shiori-report.html
+
+      - name: Upload HTML governance report
+        if: matrix.node-version == 22
+        uses: actions/upload-artifact@v4
+        with:
+          name: shiori-governance-report
+          path: .tmp/shiori-report.html
+          retention-days: 90
+          overwrite: true
