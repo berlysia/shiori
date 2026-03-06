@@ -13,9 +13,9 @@ import { join } from 'node:path';
 
 import {
   detectWorkspaces,
-  scanWorkspaces,
   type WorkspaceDetectionResult,
 } from '../src/core/workspace.ts';
+import { scanWorkspaces } from '../src/commands/scan-workspaces.ts';
 import { CommentProvider } from '../src/core/providers/CommentProvider.ts';
 
 const FIXTURES_DIR = new URL('./fixtures/scenarios', import.meta.url).pathname;

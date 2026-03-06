@@ -1,11 +1,12 @@
 /**
- * Workspace detection and cross-package scanning.
+ * Workspace detection and result merging.
  *
  * Provides lightweight monorepo workspace detection (pnpm, npm/yarn)
- * and parallel package-level scanning with path normalization.
+ * and pure merge logic for per-package scan results.
  *
- * Design: CLI orchestration layer only — pure logic (verify, report, health)
- * remains untouched. See ADR 022.
+ * Design: Pure core module — no dependency on commands layer.
+ * Orchestration (scanWorkspaces) lives in commands/scan-workspaces.ts.
+ * See ADR 022.
  */
 import { readFile } from 'node:fs/promises';
 import { join, posix } from 'node:path';
@@ -13,8 +14,6 @@ import fg from 'fast-glob';
 import { parse as parseYaml } from 'yaml';
 
 import type { ScanResult, ShioriAnnotation, ShioriCandidate } from './types.ts';
-import type { ScanOptions } from '../commands/scan.ts';
-import { scan } from '../commands/scan.ts';
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -157,45 +156,15 @@ async function resolvePackageGlobs(
   return packages;
 }
 
-// ── Scanning ─────────────────────────────────────────────────
-
-/**
- * Scan all workspace packages and merge results.
- *
- * Each package is scanned independently with its own cwd.
- * Annotation/candidate location.file paths are normalized to
- * `<pkg.dir>/<relative-path>` (root-relative) in the merged result.
- *
- * @param packages - Workspace packages to scan
- * @param rootCwd - Workspace root directory (for registry resolution)
- * @param scanOptions - Scan options (without cwd — each package provides its own)
- */
-export async function scanWorkspaces(
-  packages: WorkspacePackage[],
-  rootCwd: string,
-  scanOptions: Omit<ScanOptions, 'cwd'>,
-): Promise<WorkspaceScanResult> {
-  const packageResults = await Promise.all(
-    packages.map(async (pkg): Promise<PackageScanResult> => {
-      const pkgCwd = join(rootCwd, pkg.dir);
-      const scanResult = await scan({ ...scanOptions, cwd: pkgCwd });
-      return {
-        package: pkg.name,
-        dir: pkg.dir,
-        scanResult,
-      };
-    }),
-  );
-
-  const merged = mergePackageResults(packageResults);
-  return { packages: packageResults, merged };
-}
+// ── Merging ──────────────────────────────────────────────────
 
 /**
  * Merge per-package scan results into a single ScanResult.
  * Rewrites location.file to root-relative paths: `<pkg.dir>/<file>`.
+ *
+ * Pure function — no I/O, no dependency on commands layer.
  */
-function mergePackageResults(results: PackageScanResult[]): ScanResult {
+export function mergePackageResults(results: PackageScanResult[]): ScanResult {
   const allAnnotations: ShioriAnnotation[] = [];
   const allCandidates: ShioriCandidate[] = [];
   let filesScanned = 0;

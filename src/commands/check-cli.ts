@@ -20,11 +20,8 @@ import {
 } from '../core/scan-defaults.ts';
 import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
 import { writeOutput } from '../core/cli-output.ts';
-import {
-  detectWorkspaces,
-  scanWorkspaces,
-  type PackageScanResult,
-} from '../core/workspace.ts';
+import { detectWorkspaces } from '../core/workspace.ts';
+import { scanWorkspaces, type PackageScanResult } from './scan-workspaces.ts';
 
 export const checkCommand = define({
   name: 'check',

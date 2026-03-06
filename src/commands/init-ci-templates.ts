@@ -2,17 +2,13 @@
  * GitHub Actions workflow templates for shiori CI integration.
  *
  * Each template is a pure function returning YAML string content.
- * Template selection is driven by CiTemplateKind.
+ * Template selection is driven by CiTemplateKind (defined in core/types.ts).
  */
 
-/** Available CI template kinds */
-export type CiTemplateKind =
-  | 'basic'
-  | 'sarif'
-  | 'delta-pr-comment'
-  | 'checks-gate'
-  | 'badge'
-  | 'badge-gist';
+import type { CiTemplateKind } from '../core/types.ts';
+
+// Re-export for backward compatibility
+export type { CiTemplateKind } from '../core/types.ts';
 
 /** All valid CI template kinds (single source of truth) */
 export const CI_TEMPLATE_KINDS: readonly CiTemplateKind[] = [

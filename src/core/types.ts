@@ -260,6 +260,77 @@ export type ReportFormat = 'json' | 'markdown' | 'badge';
 /** Output format for trend command */
 export type TrendFormat = 'json' | 'markdown' | 'csv';
 
+// ── CI template types ────────────────────────────────────────
+
+/** Available CI template kinds */
+export type CiTemplateKind =
+  | 'basic'
+  | 'sarif'
+  | 'delta-pr-comment'
+  | 'checks-gate'
+  | 'badge'
+  | 'badge-gist';
+
+// ── Upgrade types (promoted from commands/doctor/upgrade.ts) ─
+
+/** Kind of upgrade action that maps to an executable operation */
+export type UpgradeActionKind =
+  | 'init'
+  | 'ci-workflow'
+  | 'badge-workflow'
+  | 'snapshot-setup'
+  | 'scheduled-workflow';
+
+/** Badge workflow mode: artifacts-only (no secrets) or gist (requires PAT + Gist ID) */
+export type BadgeMode = 'artifacts' | 'gist';
+
+/** A concrete upgrade step the wizard can execute */
+export interface UpgradeAction {
+  /** Action identifier */
+  kind: UpgradeActionKind;
+  /** Target maturity level this action contributes to */
+  targetLevel: MaturityLevel;
+  /** Human-readable title */
+  title: string;
+  /** Detailed description of what this action does */
+  description: string;
+  /** CLI command equivalent (for display and --yes mode logging) */
+  command: string;
+  /** CI template kind (only for ci-workflow / badge-workflow actions) */
+  ciTemplateKind?: CiTemplateKind;
+  /** Badge mode (only for badge-workflow actions) */
+  badgeMode?: BadgeMode;
+}
+
+/** Result of upgrade plan generation */
+export interface UpgradePlan {
+  /** Current maturity level */
+  currentLevel: MaturityLevel;
+  /** Target maturity level after all actions */
+  targetLevel: MaturityLevel;
+  /** Ordered list of upgrade actions */
+  actions: UpgradeAction[];
+}
+
+/** Result of a single action execution */
+export interface UpgradeActionResult {
+  kind: UpgradeActionKind;
+  /** Whether the action was executed (false = skipped/already done) */
+  executed: boolean;
+  /** Human-readable status message */
+  message: string;
+}
+
+/** Overall upgrade execution result */
+export interface UpgradeResult {
+  /** The plan that was executed */
+  plan: UpgradePlan;
+  /** Results for each action */
+  actionResults: UpgradeActionResult[];
+  /** Maturity level after upgrade (re-assessed) */
+  newLevel: MaturityLevel;
+}
+
 // ── Doctor types (EP-0026) ───────────────────────────────────
 
 /** Status of a single doctor diagnostic check */
@@ -292,7 +363,7 @@ export interface DoctorResult {
   /** Maturity assessment (present when --maturity or --upgrade is used) */
   maturity?: MaturityResult;
   /** Upgrade plan/result (present when --upgrade is used) */
-  upgrade?: import('../commands/doctor/upgrade.ts').UpgradeResult;
+  upgrade?: UpgradeResult;
 }
 
 /** Output format for doctor command */
