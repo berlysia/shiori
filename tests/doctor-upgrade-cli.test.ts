@@ -119,6 +119,41 @@ describe('doctor --upgrade CLI', () => {
     );
   });
 
+  it('executes badge-workflow for level 2 project with --yes', async () => {
+    const dir = await createFixtureDir(baseDir, 'upgrade-badge');
+
+    // Set up level 2 signals (config + registry + gitignore + CI workflow)
+    const configDir = join(dir, '.config', 'shiori');
+    await writeFile(join(configDir, 'config.yaml'), '# config\n', 'utf-8');
+    await writeFile(
+      join(dir, '.gitignore'),
+      '.config/shiori/scan-result.json\n',
+      'utf-8',
+    );
+    const workflowDir = join(dir, '.github', 'workflows');
+    await mkdir(workflowDir, { recursive: true });
+    await writeFile(
+      join(workflowDir, 'ci.yml'),
+      'name: CI\non: push\njobs:\n  check:\n    runs-on: ubuntu-latest\n    steps:\n      - run: shiori verify\n',
+      'utf-8',
+    );
+
+    const { stderr } = await runCli(
+      ['doctor', '--cwd', dir, '--upgrade', '--yes'],
+      { baseDir, timeout: 10000 },
+    );
+
+    // Should show badge-workflow upgrade action and indicate Level 2→3 upgrade
+    assert.ok(
+      stderr.includes('Add governance badge'),
+      `Expected badge upgrade plan, got: ${stderr.slice(0, 500)}`,
+    );
+
+    // Verify badge workflow file was created at the expected path
+    const badgePath = join(dir, '.github', 'workflows', 'shiori-badge.yml');
+    await access(badgePath);
+  });
+
   it('includes upgrade result in JSON output with --yes', async () => {
     const dir = await createFixtureDir(baseDir, 'upgrade-json', {
       skipRegistry: true,

@@ -108,6 +108,8 @@ describe('buildUpgradePlan', () => {
     assert.equal(plan.targetLevel, 3);
     assert.equal(plan.actions.length, 1);
     assert.equal(plan.actions[0]!.kind, 'badge-workflow');
+    assert.equal(plan.actions[0]!.ciTemplateKind, 'badge');
+    assert.equal(plan.actions[0]!.command, 'shiori init --ci badge');
   });
 
   it('returns snapshot and scheduled actions for level 3', () => {

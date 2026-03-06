@@ -11,7 +11,7 @@ describe('CI_TEMPLATE_KINDS', () => {
   it('contains all expected kinds', () => {
     assert.deepEqual(
       [...CI_TEMPLATE_KINDS],
-      ['basic', 'sarif', 'delta-pr-comment', 'checks-gate'],
+      ['basic', 'sarif', 'delta-pr-comment', 'checks-gate', 'badge'],
     );
   });
 
@@ -115,6 +115,44 @@ describe('generateCiWorkflow', () => {
     // Workflow name should be distinct from 'basic' template for status check identification
     assert.ok(yaml.includes('name: shiori governance'));
     assert.ok(yaml.includes('jobs:\n  check:'));
+  });
+
+  it('generates valid YAML for badge template', () => {
+    const yaml = generateCiWorkflow('badge');
+
+    assert.ok(yaml.includes('name: shiori badge'));
+    assert.ok(yaml.includes('on:'));
+    assert.ok(yaml.includes('push:'));
+    assert.ok(yaml.includes('workflow_dispatch:'));
+    assert.ok(yaml.includes('shiori report --format badge'));
+    assert.ok(yaml.includes('actions/checkout@v4'));
+    assert.ok(yaml.includes('pnpm install --frozen-lockfile'));
+    assert.ok(yaml.includes('upload-artifact@v4'));
+    assert.ok(yaml.includes('shiori-badge'));
+  });
+
+  it('badge template outputs to separate workflow file', () => {
+    assert.equal(
+      CI_TEMPLATE_PATHS['badge'],
+      '.github/workflows/shiori-badge.yml',
+    );
+  });
+
+  it('badge template includes Gist upload as commented-out step', () => {
+    const yaml = generateCiWorkflow('badge');
+
+    assert.ok(yaml.includes('# - name: Upload badge to Gist'));
+    assert.ok(yaml.includes('actions-deploy-gist@v1'));
+    assert.ok(yaml.includes('GIST_TOKEN'));
+    assert.ok(yaml.includes('GIST_ID'));
+  });
+
+  it('badge template uses pnpm shiori command', () => {
+    const yaml = generateCiWorkflow('badge');
+
+    assert.ok(yaml.includes('pnpm shiori report'));
+    // Should NOT use node dist/ directly
+    assert.ok(!yaml.includes('node dist/'));
   });
 
   it('includes generator comment for all templates', () => {

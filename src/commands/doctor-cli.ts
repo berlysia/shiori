@@ -93,12 +93,32 @@ async function executeUpgradeAction(
     }
 
     case 'badge-workflow': {
-      // Badge workflow needs manual setup — provide guidance
+      if (action.ciTemplateKind) {
+        const steps: string[] = [];
+        try {
+          await stepCi(cwd, action.ciTemplateKind, steps);
+          return {
+            kind: action.kind,
+            executed: true,
+            message:
+              (steps[0] ?? 'Badge workflow generated') +
+              '\n     💡 For stable badge URL, configure Gist upload: see comments in the generated workflow.',
+          };
+        } catch (err) {
+          if (err instanceof PathBoundaryError) {
+            return {
+              kind: action.kind,
+              executed: false,
+              message: `Skipped badge workflow: ${err.message}`,
+            };
+          }
+          throw err;
+        }
+      }
       return {
         kind: action.kind,
         executed: false,
-        message:
-          'Badge workflow requires manual setup. Run: shiori report --format badge',
+        message: 'No CI template kind specified',
       };
     }
 

@@ -114,8 +114,8 @@ export function buildUpgradePlan(maturity: MaturityResult): UpgradePlan {
       title: 'Add governance badge',
       description:
         'Generate a badge workflow to visualize governance score in your README',
-      command: 'shiori init --ci basic',
-      ciTemplateKind: 'basic',
+      command: 'shiori init --ci badge',
+      ciTemplateKind: 'badge',
     });
   } else if (currentLevel < 4) {
     // Level 3 → 4: Snapshot history + scheduled workflow
