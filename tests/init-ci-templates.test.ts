@@ -147,6 +147,19 @@ describe('generateCiWorkflow', () => {
     assert.ok(yaml.includes('GIST_ID'));
   });
 
+  it('badge template outputs shields.io JSON (not SVG)', () => {
+    const yaml = generateCiWorkflow('badge');
+
+    assert.ok(
+      yaml.includes('shiori-badge.json'),
+      'Badge output should use .json extension',
+    );
+    assert.ok(
+      !yaml.includes('shiori-badge.svg'),
+      'Badge output should NOT use .svg extension',
+    );
+  });
+
   it('badge template uses pnpm shiori command', () => {
     const yaml = generateCiWorkflow('badge');
 
