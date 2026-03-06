@@ -288,6 +288,9 @@ export function formatActionHints(result: VerifyResult): string[] {
 
   if (result.summary.total === 0) {
     hints.push('All checks passed. Registry is in sync with source.');
+    hints.push(
+      'Run "shiori doctor --maturity" to assess your governance maturity level.',
+    );
     return hints;
   }
 
@@ -339,6 +342,10 @@ export function formatActionHints(result: VerifyResult): string[] {
       `  expiring-soon (${byType['expiring-soon']}): Entries approaching expiration. Extend expires or resolve the underlying issue.`,
     );
   }
+
+  hints.push(
+    'Run "shiori doctor --maturity" for governance improvement recommendations.',
+  );
 
   return hints;
 }

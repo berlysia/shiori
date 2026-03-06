@@ -509,8 +509,12 @@ describe('verify', () => {
         now: referenceDate,
       });
       const hints = formatActionHints(result);
-      assert.equal(hints.length, 1);
+      assert.equal(hints.length, 2);
       assert.ok(hints[0]!.includes('All checks passed'));
+      assert.ok(
+        hints.some((h) => h.includes('shiori doctor --maturity')),
+        'should include maturity hint when all checks pass',
+      );
     });
 
     it('shows hint for missing-in-registry', () => {
@@ -643,6 +647,26 @@ describe('verify', () => {
       assert.ok(hints.some((h) => h.includes('unused-in-source')));
       assert.ok(hints.some((h) => h.includes('expired')));
       assert.ok(hints.some((h) => h.includes('syntax-error')));
+    });
+
+    it('includes maturity hint when issues exist', () => {
+      const records = [makeAnnotation({ ref: 'SUP-NEW' })];
+      const result = verify({
+        records,
+        registry: {},
+        failOn: ['missing-in-registry'],
+        warnOn: [],
+        now: referenceDate,
+      });
+      const hints = formatActionHints(result);
+      assert.ok(
+        hints.some((h) => h.includes('shiori doctor --maturity')),
+        'should include maturity hint when issues exist',
+      );
+      assert.ok(
+        hints.some((h) => h.includes('governance improvement')),
+        'should mention governance improvement',
+      );
     });
   });
 
