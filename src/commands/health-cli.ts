@@ -1,8 +1,4 @@
 import { define } from 'gunshi';
-import {
-  loadConfigAndRegistry,
-  reportRegistryIssues,
-} from '../core/registry-loader.ts';
 import { scan } from './scan.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
 import { report } from './report.ts';
@@ -18,13 +14,15 @@ import {
   parseAndValidateIssueTypes,
   createFormatValidator,
 } from '../core/cli-validation.ts';
-import {
-  DEFAULT_SCAN_PATTERNS,
-  DEFAULT_SCAN_IGNORE,
-} from '../core/scan-defaults.ts';
 import { saveSnapshot, loadSnapshots } from '../core/snapshot.ts';
 import { writeOutput } from '../core/cli-output.ts';
 import type { HealthLevel } from '../core/types.ts';
+import {
+  createBaseContext,
+  withRegistry,
+  resolveScanPatterns,
+  resolveExpiringThreshold,
+} from '../core/cli-context.ts';
 
 const validateHealthFormat = createFormatValidator<HealthFormat>(
   ['json', 'summary'] as const,
@@ -177,23 +175,17 @@ export const healthCommand = define({
     }
     const failOnLevel = failOnLevelValue as HealthLevel | undefined;
 
-    const cwd = ctx.values.cwd ?? process.cwd();
-
-    const configAndRegistry = await loadConfigAndRegistry({
-      cwd,
+    const base = createBaseContext(ctx.values.cwd);
+    const regCtx = await withRegistry(base, {
       configDir: ctx.values.config,
       registryPath: ctx.values.registry,
     });
-    reportRegistryIssues(configAndRegistry);
-    const { config, registry, duplicates, refOrigins } = configAndRegistry;
 
-    const patterns = ctx.values.patterns
-      ? ctx.values.patterns.split(',').map((s: string) => s.trim())
-      : (config.scanPatterns ?? DEFAULT_SCAN_PATTERNS);
-
-    const ignore = ctx.values.ignore
-      ? ctx.values.ignore.split(',').map((s: string) => s.trim())
-      : (config.scanIgnore ?? DEFAULT_SCAN_IGNORE);
+    const { patterns, ignore } = resolveScanPatterns(
+      ctx.values.patterns,
+      ctx.values.ignore,
+      regCtx.config,
+    );
 
     // Scan
     const provider = new CommentProvider();
@@ -201,8 +193,8 @@ export const healthCommand = define({
       patterns,
       ignore,
       provider,
-      cwd,
-      providerOptions: { candidatePatterns: config.candidatePatterns },
+      cwd: base.cwd,
+      providerOptions: { candidatePatterns: regCtx.config.candidatePatterns },
     });
 
     console.error(
@@ -210,24 +202,29 @@ export const healthCommand = define({
     );
 
     // Generate report (health composes this)
-    const expiringThresholdDays = ctx.values.expiringThreshold
-      ? Number(ctx.values.expiringThreshold)
-      : config.verify.expiringThresholdDays;
+    const expiringThresholdDays = resolveExpiringThreshold(
+      ctx.values.expiringThreshold,
+      regCtx.config,
+    );
 
     const reportResult = report({
       scanResult,
-      registry,
+      registry: regCtx.registry,
       failOn,
       warnOn,
-      duplicates,
-      refPatterns: config.refPatterns,
-      refOrigins,
+      duplicates: regCtx.duplicates,
+      refPatterns: regCtx.config.refPatterns,
+      refOrigins: regCtx.refOrigins,
       expiringThresholdDays,
     });
 
     // Save snapshot if requested
     if (ctx.values.snapshot) {
-      const result = await saveSnapshot(reportResult, ctx.values.snapshot, cwd);
+      const result = await saveSnapshot(
+        reportResult,
+        ctx.values.snapshot,
+        base.cwd,
+      );
       if (!result.ok) {
         console.error(`Error: ${result.error}`);
         process.exitCode = 1;
@@ -239,7 +236,7 @@ export const healthCommand = define({
     // Load trend data if --history is provided
     let trendResult = undefined;
     if (ctx.values.history) {
-      const reports = await loadSnapshots(ctx.values.history, cwd, {
+      const reports = await loadSnapshots(ctx.values.history, base.cwd, {
         onDirectoryError: (msg) => console.error(`Warning: ${msg}`),
         onNoFiles: (dir) =>
           console.error(`Warning: No JSON files found in ${dir}`),
@@ -259,7 +256,7 @@ export const healthCommand = define({
 
     const written = await writeOutput(output, {
       outputPath: ctx.values.output,
-      cwd,
+      cwd: base.cwd,
       label: 'Health report',
     });
     if (!written) return;
@@ -277,12 +274,12 @@ export const healthCommand = define({
 
       const triageResult = triage({
         scanResult,
-        registry,
+        registry: regCtx.registry,
         failOn,
         warnOn,
-        duplicates,
-        refPatterns: config.refPatterns,
-        refOrigins,
+        duplicates: regCtx.duplicates,
+        refPatterns: regCtx.config.refPatterns,
+        refOrigins: regCtx.refOrigins,
         expiringThresholdDays,
       });
 

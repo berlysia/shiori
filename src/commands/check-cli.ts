@@ -1,10 +1,6 @@
 import { define } from 'gunshi';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
-import {
-  loadConfigAndRegistry,
-  reportRegistryIssues,
-} from '../core/registry-loader.ts';
 import { scan } from './scan.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
 import { check } from './check.ts';
@@ -14,15 +10,17 @@ import {
   parseAndValidateIssueTypes,
   validateOutputFormat,
 } from '../core/cli-validation.ts';
-import {
-  DEFAULT_SCAN_PATTERNS,
-  DEFAULT_SCAN_IGNORE,
-} from '../core/scan-defaults.ts';
 import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
 import { writeOutput } from '../core/cli-output.ts';
 import { detectWorkspaces } from '../core/workspace.ts';
 import { scanWorkspaces, type PackageScanResult } from './scan-workspaces.ts';
 import { collectUniqueRefs, resolveRefStatuses } from '../core/ref-status.ts';
+import {
+  createBaseContext,
+  withRegistry,
+  resolveScanPatterns,
+  resolveExpiringThreshold,
+} from '../core/cli-context.ts';
 
 export const checkCommand = define({
   name: 'check',
@@ -129,23 +127,17 @@ export const checkCommand = define({
     const format = validateOutputFormat(ctx.values.format);
     if (format === null) return;
 
-    const cwd = ctx.values.cwd ?? process.cwd();
-
-    const configAndRegistry = await loadConfigAndRegistry({
-      cwd,
+    const base = createBaseContext(ctx.values.cwd);
+    const regCtx = await withRegistry(base, {
       configDir: ctx.values.config,
       registryPath: ctx.values.registry,
     });
-    reportRegistryIssues(configAndRegistry);
-    const { config, registry, duplicates, refOrigins } = configAndRegistry;
 
-    const patterns = ctx.values.patterns
-      ? ctx.values.patterns.split(',').map((s: string) => s.trim())
-      : (config.scanPatterns ?? DEFAULT_SCAN_PATTERNS);
-
-    const ignore = ctx.values.ignore
-      ? ctx.values.ignore.split(',').map((s: string) => s.trim())
-      : (config.scanIgnore ?? DEFAULT_SCAN_IGNORE);
+    const { patterns, ignore } = resolveScanPatterns(
+      ctx.values.patterns,
+      ctx.values.ignore,
+      regCtx.config,
+    );
 
     const isWorkspaceMode = ctx.values.workspace ?? false;
 
@@ -156,14 +148,14 @@ export const checkCommand = define({
       patterns,
       ignore,
       provider,
-      providerOptions: { candidatePatterns: config.candidatePatterns },
+      providerOptions: { candidatePatterns: regCtx.config.candidatePatterns },
     };
 
     let scanResult: import('../core/types.ts').ScanResult;
     let packageResults: PackageScanResult[] | undefined;
 
     if (isWorkspaceMode) {
-      const detection = await detectWorkspaces(cwd);
+      const detection = await detectWorkspaces(base.cwd);
       if (!detection) {
         console.error(
           'Error: No workspace configuration found. Ensure pnpm-workspace.yaml or package.json#workspaces exists.',
@@ -178,7 +170,7 @@ export const checkCommand = define({
 
       const workspaceResult = await scanWorkspaces(
         detection.packages,
-        cwd,
+        base.cwd,
         scanOptions,
       );
       scanResult = workspaceResult.merged;
@@ -191,7 +183,7 @@ export const checkCommand = define({
         );
       }
     } else {
-      scanResult = await scan({ ...scanOptions, cwd });
+      scanResult = await scan({ ...scanOptions, cwd: base.cwd });
     }
 
     console.error(
@@ -200,9 +192,9 @@ export const checkCommand = define({
 
     // Optionally save scan result
     if (ctx.values.saveScan) {
-      const scanOutputPath = resolve(cwd, config.paths.scanResult);
+      const scanOutputPath = resolve(base.cwd, regCtx.config.paths.scanResult);
       try {
-        await assertWithinCwd(scanOutputPath, cwd);
+        await assertWithinCwd(scanOutputPath, base.cwd);
       } catch (err) {
         if (err instanceof PathBoundaryError) {
           console.error(`Error: ${err.message}`);
@@ -217,7 +209,7 @@ export const checkCommand = define({
         JSON.stringify(scanResult, null, 2) + '\n',
         'utf-8',
       );
-      console.error(`Scan result saved to ${config.paths.scanResult}`);
+      console.error(`Scan result saved to ${regCtx.config.paths.scanResult}`);
     }
 
     // Resolve ref statuses via external command (if provided)
@@ -247,18 +239,19 @@ export const checkCommand = define({
     }
 
     // Verify
-    const expiringThresholdDays = ctx.values.expiringThreshold
-      ? Number(ctx.values.expiringThreshold)
-      : config.verify.expiringThresholdDays;
+    const expiringThresholdDays = resolveExpiringThreshold(
+      ctx.values.expiringThreshold,
+      regCtx.config,
+    );
 
     const { verifyResult } = check({
       scanResult,
-      registry,
+      registry: regCtx.registry,
       failOn,
       warnOn,
-      duplicates,
-      refPatterns: config.refPatterns,
-      refOrigins,
+      duplicates: regCtx.duplicates,
+      refPatterns: regCtx.config.refPatterns,
+      refOrigins: regCtx.refOrigins,
       expiringThresholdDays,
       refStatuses,
     });
@@ -294,13 +287,13 @@ export const checkCommand = define({
         verifyResult,
         annotations: scanResult.annotations,
         candidates: scanResult.candidates,
-        registry,
+        registry: regCtx.registry,
       });
     }
 
     const written = await writeOutput(output, {
       outputPath: ctx.values.output,
-      cwd,
+      cwd: base.cwd,
       label: 'Report',
     });
     if (!written) return;

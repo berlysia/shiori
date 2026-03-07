@@ -1,9 +1,4 @@
 import { define } from 'gunshi';
-import {
-  loadConfigAndRegistry,
-  reportRegistryIssues,
-} from '../core/registry-loader.ts';
-import { loadScanResult } from '../core/scan-result-loader.ts';
 import { verify, formatActionHints } from './verify.ts';
 import { formatVerifyOutput } from '../formatters/index.ts';
 import {
@@ -11,6 +6,12 @@ import {
   validateOutputFormat,
 } from '../core/cli-validation.ts';
 import { writeOutput } from '../core/cli-output.ts';
+import {
+  createBaseContext,
+  withRegistry,
+  withScanResult,
+  resolveExpiringThreshold,
+} from '../core/cli-context.ts';
 
 export const verifyCommand = define({
   name: 'verify',
@@ -90,34 +91,26 @@ export const verifyCommand = define({
     const format = validateOutputFormat(ctx.values.format);
     if (format === null) return;
 
-    const cwd = ctx.values.cwd ?? process.cwd();
-
-    const configAndRegistry = await loadConfigAndRegistry({
-      cwd,
+    const base = createBaseContext(ctx.values.cwd);
+    const regCtx = await withRegistry(base, {
       configDir: ctx.values.config,
       registryPath: ctx.values.registry,
     });
-    reportRegistryIssues(configAndRegistry);
-    const { config, registry, duplicates, refOrigins } = configAndRegistry;
+    const { scanResult } = await withScanResult(regCtx, ctx.values.scan);
 
-    const scanResult = await loadScanResult({
-      explicitPath: ctx.values.scan,
-      config,
-      cwd,
-    });
-
-    const expiringThresholdDays = ctx.values.expiringThreshold
-      ? Number(ctx.values.expiringThreshold)
-      : config.verify.expiringThresholdDays;
+    const expiringThresholdDays = resolveExpiringThreshold(
+      ctx.values.expiringThreshold,
+      regCtx.config,
+    );
 
     const result = verify({
       records: scanResult.annotations,
-      registry,
+      registry: regCtx.registry,
       failOn,
       warnOn,
-      duplicates,
-      refPatterns: config.refPatterns,
-      refOrigins,
+      duplicates: regCtx.duplicates,
+      refPatterns: regCtx.config.refPatterns,
+      refOrigins: regCtx.refOrigins,
       expiringThresholdDays,
     });
 
@@ -126,12 +119,12 @@ export const verifyCommand = define({
       verifyResult: result,
       annotations: scanResult.annotations,
       candidates: [],
-      registry,
+      registry: regCtx.registry,
     });
 
     const written = await writeOutput(output, {
       outputPath: ctx.values.output,
-      cwd,
+      cwd: base.cwd,
       label: 'Report',
     });
     if (!written) return;
