@@ -4,6 +4,9 @@ import type {
   ReportInsight,
   BreakdownEntry,
   VerifyIssueType,
+  DeltaResult,
+  DeltaKind,
+  AnnotationDelta,
 } from '../core/types.ts';
 
 /**
@@ -136,6 +139,35 @@ function renderStyles(healthColorValue: string): string {
     font-size: 0.8rem;
     text-align: center;
   }
+  .delta-summary {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  .delta-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  .delta-badge.added { background: rgba(34,197,94,0.15); color: #22c55e; }
+  .delta-badge.removed { background: rgba(239,68,68,0.15); color: #ef4444; }
+  .delta-badge.unchanged { background: rgba(148,163,184,0.15); color: #94a3b8; }
+  .delta-badge.net { background: rgba(59,130,246,0.15); color: #3b82f6; }
+  .delta-table tr.delta-added td { border-left: 3px solid #22c55e; }
+  .delta-table tr.delta-removed td { border-left: 3px solid #ef4444; }
+  .delta-table tr.delta-unchanged td { border-left: 3px solid var(--border); }
+  .delta-kind {
+    display: inline-block;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  .delta-kind.added { background: rgba(34,197,94,0.15); color: #22c55e; }
+  .delta-kind.removed { background: rgba(239,68,68,0.15); color: #ef4444; }
+  .delta-kind.unchanged { background: rgba(148,163,184,0.15); color: #94a3b8; }
 </style>`;
 }
 
@@ -253,6 +285,75 @@ ${rows}
 }
 
 /**
+ * Map delta kind to display icon.
+ */
+function deltaKindIcon(kind: DeltaKind): string {
+  switch (kind) {
+    case 'added':
+      return '+';
+    case 'removed':
+      return '\u2212'; // minus sign
+    case 'unchanged':
+      return '=';
+  }
+}
+
+/**
+ * Get the display location from a delta entry (file:line).
+ */
+function deltaLocation(delta: AnnotationDelta): string {
+  const annotation = delta.head ?? delta.base;
+  if (!annotation) return '';
+  return `${annotation.location.file}:${annotation.location.line}`;
+}
+
+/**
+ * Render the governance diff overlay section.
+ * Shows summary badges and a table of changed annotations.
+ */
+function renderDeltaOverlay(delta: DeltaResult): string {
+  const { summary, deltas } = delta;
+
+  // Summary badges
+  const netSign = summary.net > 0 ? '+' : '';
+  const summaryHtml = `<div class="delta-summary">
+    <span class="delta-badge added">+${summary.added} added</span>
+    <span class="delta-badge removed">\u2212${summary.removed} removed</span>
+    <span class="delta-badge unchanged">${summary.unchanged} unchanged</span>
+    <span class="delta-badge net">net ${netSign}${summary.net}</span>
+  </div>`;
+
+  // Only show the table if there are changes (added or removed)
+  const changedDeltas = deltas.filter((d) => d.kind !== 'unchanged');
+  if (changedDeltas.length === 0) {
+    return `<div class="section">
+  <h2>Changes</h2>
+  ${summaryHtml}
+  <p class="empty">No changes since last scan.</p>
+</div>`;
+  }
+
+  const rows = changedDeltas
+    .map((d) => {
+      const icon = deltaKindIcon(d.kind);
+      const location = escapeHtml(deltaLocation(d));
+      return `    <tr class="delta-${d.kind}"><td><span class="delta-kind ${d.kind}">${icon} ${d.kind}</span></td><td>${escapeHtml(d.ref)}</td><td>${location}</td></tr>`;
+    })
+    .join('\n');
+
+  return `<div class="section">
+  <h2>Changes</h2>
+  ${summaryHtml}
+  <table class="delta-table">
+    <thead><tr><th>Change</th><th>Ref</th><th>Location</th></tr></thead>
+    <tbody>
+${rows}
+    </tbody>
+  </table>
+</div>`;
+}
+
+/**
  * Render the interactive script (collapsible sections toggle).
  */
 function renderScript(): string {
@@ -274,6 +375,8 @@ function renderScript(): string {
 export interface HtmlReportOptions {
   /** Auto-refresh interval in seconds (0 or undefined = no auto-refresh) */
   autoRefreshSeconds?: number;
+  /** Delta result for governance diff overlay (computed from previous and current scan) */
+  delta?: DeltaResult;
 }
 
 /**
@@ -294,8 +397,11 @@ export function formatReportAsHtml(
       ? `\n  <meta http-equiv="refresh" content="${autoRefresh}">`
       : '';
 
+  const deltaSection = options?.delta ? renderDeltaOverlay(options.delta) : '';
+
   const sections = [
     renderHealthSection(result),
+    deltaSection,
     renderOverviewTable(result),
     renderInsights(result.insights),
     renderIssueBreakdown(result.byType),

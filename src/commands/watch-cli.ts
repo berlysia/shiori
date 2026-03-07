@@ -15,6 +15,8 @@ import {
 } from '../core/scan-defaults.ts';
 import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
 import { formatReportAsHtml } from '../formatters/report-html-formatter.ts';
+import { computeDelta } from './delta.ts';
+import type { ScanResult } from '../core/types.ts';
 
 function parseList(value: string | undefined, fallback: string[]): string[] {
   if (!value) return fallback;
@@ -220,6 +222,7 @@ export const watchCommand = define({
 
     let ignoreEventsUntil = 0;
     let browserOpened = false;
+    let previousScanResult: ScanResult | undefined;
 
     const refresh = async (reason: string): Promise<void> => {
       const result = await scan({
@@ -298,15 +301,24 @@ export const watchCommand = define({
           expiringThresholdDays: config.verify.expiringThresholdDays,
         });
 
+        // Compute governance diff overlay when previous scan exists
+        const delta = previousScanResult
+          ? computeDelta({ base: previousScanResult, head: result })
+          : undefined;
+
         const html = formatReportAsHtml(reportResult, {
           autoRefreshSeconds: DASHBOARD_REFRESH_SECONDS,
+          delta,
         });
 
         await mkdir(dirname(dashboardPath), { recursive: true });
         await writeFile(dashboardPath, html, 'utf-8');
 
+        const deltaInfo = delta
+          ? ` delta=+${delta.summary.added}/-${delta.summary.removed}`
+          : '';
         console.error(
-          `[${now()}] dashboard updated - health=${reportResult.health.level} score=${reportResult.health.score}/100`,
+          `[${now()}] dashboard updated - health=${reportResult.health.level} score=${reportResult.health.score}/100${deltaInfo}`,
         );
 
         if (openBrowser && !browserOpened) {
@@ -314,6 +326,9 @@ export const watchCommand = define({
           browserOpened = true;
         }
       }
+
+      // Store current scan for next diff overlay computation
+      previousScanResult = result;
 
       ignoreEventsUntil = Date.now() + Math.max(300, debounceMs);
     };

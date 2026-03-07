@@ -1,6 +1,10 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { ReportResult, VerifyIssueType } from '../../src/core/types.ts';
+import type {
+  ReportResult,
+  VerifyIssueType,
+  DeltaResult,
+} from '../../src/core/types.ts';
 import { formatReportAsHtml } from '../../src/formatters/report-html-formatter.ts';
 
 function makeByType(
@@ -374,5 +378,192 @@ describe('formatReportAsHtml', () => {
     assert.ok(html.includes('&quot;'), 'escapes quotes');
     assert.ok(html.includes('&lt;b&gt;'), 'escapes tags in insight labels');
     assert.ok(html.includes('&lt;rule&gt;'), 'escapes tags in rule names');
+  });
+
+  describe('governance diff overlay', () => {
+    function makeDelta(overrides: Partial<DeltaResult> = {}): DeltaResult {
+      return {
+        deltas: [],
+        summary: { added: 0, removed: 0, unchanged: 0, net: 0 },
+        ...overrides,
+      };
+    }
+
+    function makeAnnotation(ref: string, file: string, line: number) {
+      return {
+        ref,
+        tagged: true,
+        ignored: false,
+        location: { file, line },
+      };
+    }
+
+    it('omits delta section when no delta option is provided', () => {
+      const html = formatReportAsHtml(makeReportResult());
+
+      assert.equal(
+        html.match(/<h2>Changes<\/h2>/g),
+        null,
+        'no changes section without delta',
+      );
+    });
+
+    it('renders delta summary badges', () => {
+      const delta = makeDelta({
+        summary: { added: 3, removed: 1, unchanged: 5, net: 2 },
+        deltas: [
+          {
+            kind: 'added',
+            ref: 'SUP-100',
+            head: makeAnnotation('SUP-100', 'src/a.ts', 10),
+          },
+        ],
+      });
+      const html = formatReportAsHtml(makeReportResult(), { delta });
+
+      assert.ok(html.includes('Changes'), 'has Changes heading');
+      assert.ok(html.includes('+3 added'), 'shows added count');
+      assert.ok(html.includes('1 removed'), 'shows removed count');
+      assert.ok(html.includes('5 unchanged'), 'shows unchanged count');
+      assert.ok(html.includes('net +2'), 'shows net positive');
+    });
+
+    it('renders delta summary with negative net', () => {
+      const delta = makeDelta({
+        summary: { added: 1, removed: 4, unchanged: 2, net: -3 },
+        deltas: [
+          {
+            kind: 'removed',
+            ref: 'SUP-200',
+            base: makeAnnotation('SUP-200', 'src/b.ts', 20),
+          },
+        ],
+      });
+      const html = formatReportAsHtml(makeReportResult(), { delta });
+
+      assert.ok(html.includes('net -3'), 'shows net negative');
+    });
+
+    it('renders change table with added and removed entries', () => {
+      const delta = makeDelta({
+        summary: { added: 1, removed: 1, unchanged: 1, net: 0 },
+        deltas: [
+          {
+            kind: 'added',
+            ref: 'SUP-NEW',
+            head: makeAnnotation('SUP-NEW', 'src/new.ts', 5),
+          },
+          {
+            kind: 'removed',
+            ref: 'SUP-OLD',
+            base: makeAnnotation('SUP-OLD', 'src/old.ts', 15),
+          },
+          {
+            kind: 'unchanged',
+            ref: 'SUP-SAME',
+            head: makeAnnotation('SUP-SAME', 'src/same.ts', 25),
+            base: makeAnnotation('SUP-SAME', 'src/same.ts', 25),
+          },
+        ],
+      });
+      const html = formatReportAsHtml(makeReportResult(), { delta });
+
+      // Change table should exist (in body, not just CSS)
+      assert.ok(
+        html.includes('<table class="delta-table">'),
+        'has delta table element',
+      );
+      // Added and removed entries are shown
+      assert.ok(html.includes('SUP-NEW'), 'shows added ref');
+      assert.ok(html.includes('src/new.ts:5'), 'shows added location');
+      assert.ok(html.includes('SUP-OLD'), 'shows removed ref');
+      assert.ok(html.includes('src/old.ts:15'), 'shows removed location');
+      // Unchanged entries are NOT shown in the table (filtered out)
+      assert.ok(!html.includes('SUP-SAME'), 'unchanged not in table');
+    });
+
+    it('shows "no changes" message when all deltas are unchanged', () => {
+      const delta = makeDelta({
+        summary: { added: 0, removed: 0, unchanged: 3, net: 0 },
+        deltas: [
+          {
+            kind: 'unchanged',
+            ref: 'SUP-1',
+            head: makeAnnotation('SUP-1', 'a.ts', 1),
+            base: makeAnnotation('SUP-1', 'a.ts', 1),
+          },
+        ],
+      });
+      const html = formatReportAsHtml(makeReportResult(), { delta });
+
+      assert.ok(
+        html.includes('No changes since last scan'),
+        'shows no changes message',
+      );
+      // No table element in the changes section (CSS class exists in <style> but no <table>)
+      assert.ok(
+        !html.includes('<table class="delta-table">'),
+        'no delta table element when no changes',
+      );
+    });
+
+    it('includes delta CSS styles', () => {
+      const delta = makeDelta({
+        summary: { added: 1, removed: 0, unchanged: 0, net: 1 },
+        deltas: [
+          {
+            kind: 'added',
+            ref: 'X-1',
+            head: makeAnnotation('X-1', 'x.ts', 1),
+          },
+        ],
+      });
+      const html = formatReportAsHtml(makeReportResult(), { delta });
+
+      assert.ok(html.includes('.delta-summary'), 'has delta-summary style');
+      assert.ok(html.includes('.delta-badge'), 'has delta-badge style');
+      assert.ok(html.includes('.delta-kind'), 'has delta-kind style');
+    });
+
+    it('escapes HTML in delta ref and location', () => {
+      const delta = makeDelta({
+        summary: { added: 1, removed: 0, unchanged: 0, net: 1 },
+        deltas: [
+          {
+            kind: 'added',
+            ref: '<script>',
+            head: makeAnnotation('<script>', 'src/<evil>.ts', 1),
+          },
+        ],
+      });
+      const html = formatReportAsHtml(makeReportResult(), { delta });
+
+      assert.ok(html.includes('&lt;script&gt;'), 'escapes ref in delta table');
+      assert.ok(
+        html.includes('&lt;evil&gt;'),
+        'escapes file path in delta table',
+      );
+    });
+
+    it('renders delta between health section and overview', () => {
+      const delta = makeDelta({
+        summary: { added: 1, removed: 0, unchanged: 0, net: 1 },
+        deltas: [
+          {
+            kind: 'added',
+            ref: 'POS-1',
+            head: makeAnnotation('POS-1', 'a.ts', 1),
+          },
+        ],
+      });
+      const html = formatReportAsHtml(makeReportResult(), { delta });
+
+      const healthIdx = html.indexOf('health-card');
+      const changesIdx = html.indexOf('Changes');
+      const overviewIdx = html.indexOf('Overview');
+
+      assert.ok(healthIdx < changesIdx, 'delta after health section');
+      assert.ok(changesIdx < overviewIdx, 'delta before overview section');
+    });
   });
 });
