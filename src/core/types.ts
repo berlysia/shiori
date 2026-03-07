@@ -1,3 +1,17 @@
+/** Git blame provenance information for an annotation */
+export interface ProvenanceInfo {
+  /** Author name from git blame */
+  author: string;
+  /** Author email from git blame */
+  authorEmail: string;
+  /** Commit date as ISO 8601 string */
+  date: string;
+  /** Short commit hash (typically 7-8 chars) */
+  commitHash: string;
+  /** First line of commit message */
+  commitSummary: string;
+}
+
 /** A single annotation extracted from source code */
 export interface ShioriAnnotation {
   /** Reference ID. e.g. "SUP-1234", "ADR:0007". Empty string if untracked or draft */
@@ -19,6 +33,8 @@ export interface ShioriAnnotation {
     file: string;
     line: number;
   };
+  /** Git blame provenance (populated by enrichWithProvenance) */
+  provenance?: ProvenanceInfo;
 }
 
 /** Candidate pattern category (tool name like 'eslint', 'stylelint', 'typescript' or keyword like 'todo', 'fixme') */

@@ -7,6 +7,7 @@ import type {
   DeltaResult,
   DeltaKind,
   AnnotationDelta,
+  ShioriAnnotation,
 } from '../core/types.ts';
 
 /**
@@ -168,6 +169,8 @@ function renderStyles(healthColorValue: string): string {
   .delta-kind.added { background: rgba(34,197,94,0.15); color: #22c55e; }
   .delta-kind.removed { background: rgba(239,68,68,0.15); color: #ef4444; }
   .delta-kind.unchanged { background: rgba(148,163,184,0.15); color: #94a3b8; }
+  .provenance-table td.provenance-hash { font-family: monospace; font-size: 0.85rem; }
+  .provenance-table td.provenance-date { white-space: nowrap; }
 </style>`;
 }
 
@@ -354,6 +357,33 @@ ${rows}
 }
 
 /**
+ * Render the provenance section showing git blame info per annotation.
+ * Only annotations with provenance data are shown.
+ */
+function renderProvenanceSection(annotations: ShioriAnnotation[]): string {
+  const withProvenance = annotations.filter((a) => a.provenance);
+  if (withProvenance.length === 0) return '';
+
+  const rows = withProvenance
+    .map((a) => {
+      const p = a.provenance!;
+      const location = `${a.location.file}:${a.location.line}`;
+      return `    <tr><td>${escapeHtml(a.ref || '(draft)')}</td><td>${escapeHtml(location)}</td><td class="provenance-hash">${escapeHtml(p.commitHash)}</td><td>${escapeHtml(p.author)}</td><td class="provenance-date">${escapeHtml(p.date.slice(0, 10))}</td><td>${escapeHtml(p.commitSummary)}</td></tr>`;
+    })
+    .join('\n');
+
+  return `<div class="section">
+  <h2>Provenance</h2>
+  <table class="provenance-table">
+    <thead><tr><th>Ref</th><th>Location</th><th>Commit</th><th>Author</th><th>Date</th><th>Summary</th></tr></thead>
+    <tbody>
+${rows}
+    </tbody>
+  </table>
+</div>`;
+}
+
+/**
  * Render the interactive script (collapsible sections toggle).
  */
 function renderScript(): string {
@@ -377,6 +407,8 @@ export interface HtmlReportOptions {
   autoRefreshSeconds?: number;
   /** Delta result for governance diff overlay (computed from previous and current scan) */
   delta?: DeltaResult;
+  /** Annotations enriched with provenance info (for provenance section) */
+  annotations?: ShioriAnnotation[];
 }
 
 /**
@@ -398,6 +430,9 @@ export function formatReportAsHtml(
       : '';
 
   const deltaSection = options?.delta ? renderDeltaOverlay(options.delta) : '';
+  const provenanceSection = options?.annotations
+    ? renderProvenanceSection(options.annotations)
+    : '';
 
   const sections = [
     renderHealthSection(result),
@@ -408,6 +443,7 @@ export function formatReportAsHtml(
     renderBreakdownTable('Annotations by Rule', 'Rule', result.byRule),
     renderBreakdownTable('Ownership', 'Owner', result.byOwner),
     renderBreakdownTable('Annotation Kinds', 'Kind', result.byKind),
+    provenanceSection,
   ]
     .filter((s) => s !== '')
     .join('\n');

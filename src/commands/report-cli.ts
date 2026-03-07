@@ -20,6 +20,7 @@ import {
 import { writeOutput } from '../core/cli-output.ts';
 import { loadScanResultFromFile } from '../core/scan-result-loader.ts';
 import { computeDelta } from './delta.ts';
+import { enrichWithProvenance } from '../core/provenance.ts';
 
 const validateReportFormat = createFormatValidator<ReportFormat>([
   'json',
@@ -45,6 +46,9 @@ export const reportCommand = define({
 
   # Generate HTML dashboard with diff overlay from previous scan
   shiori report -f html --diff-base .tmp/prev-scan.json -o report.html
+
+  # Generate HTML dashboard with git blame provenance
+  shiori report -f html --provenance -o report.html
 
   # Include issue types in fail-on for exit code
   shiori report --fail-on expired,missing-in-registry`,
@@ -114,6 +118,12 @@ export const reportCommand = define({
       description:
         'Path to previous scan result JSON for diff overlay (used with --format html)',
     },
+    provenance: {
+      type: 'boolean',
+      description:
+        'Enrich annotations with git blame provenance (author, date, commit). Used with --format html',
+      default: 'false',
+    },
   },
   run: async (ctx) => {
     // Validate options early
@@ -173,6 +183,23 @@ export const reportCommand = define({
       expiringThresholdDays,
     });
 
+    // Enrich with git blame provenance when --provenance is set
+    const useProvenance = ctx.values.provenance === true;
+    let enrichedAnnotations = scanResult.annotations;
+    if (useProvenance) {
+      console.error('Enriching annotations with git blame provenance...');
+      enrichedAnnotations = await enrichWithProvenance(
+        scanResult.annotations,
+        cwd,
+      );
+      const enrichedCount = enrichedAnnotations.filter(
+        (a) => a.provenance,
+      ).length;
+      console.error(
+        `Provenance: ${enrichedCount}/${enrichedAnnotations.length} annotation(s) enriched`,
+      );
+    }
+
     // Compute governance diff overlay when --diff-base is provided
     const diffBasePath = ctx.values.diffBase;
     const delta = diffBasePath
@@ -182,7 +209,10 @@ export const reportCommand = define({
         })
       : undefined;
 
-    const output = formatReportOutput(result, format, { delta });
+    const output = formatReportOutput(result, format, {
+      delta,
+      annotations: useProvenance ? enrichedAnnotations : undefined,
+    });
 
     const written = await writeOutput(output, {
       outputPath: ctx.values.output,

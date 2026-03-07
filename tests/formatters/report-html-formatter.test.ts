@@ -4,6 +4,7 @@ import type {
   ReportResult,
   VerifyIssueType,
   DeltaResult,
+  ShioriAnnotation,
 } from '../../src/core/types.ts';
 import { formatReportAsHtml } from '../../src/formatters/report-html-formatter.ts';
 
@@ -564,6 +565,169 @@ describe('formatReportAsHtml', () => {
 
       assert.ok(healthIdx < changesIdx, 'delta after health section');
       assert.ok(changesIdx < overviewIdx, 'delta before overview section');
+    });
+  });
+
+  describe('provenance section', () => {
+    function makeAnnotationWithProvenance(
+      ref: string,
+      file: string,
+      line: number,
+    ): ShioriAnnotation {
+      return {
+        ref,
+        tagged: true,
+        ignored: false,
+        location: { file, line },
+        provenance: {
+          author: 'Jane Doe',
+          authorEmail: 'jane@example.com',
+          date: '2024-03-08T00:00:00.000Z',
+          commitHash: 'abcdef1',
+          commitSummary: 'fix: resolve issue',
+        },
+      };
+    }
+
+    it('omits provenance section when annotations option is not provided', () => {
+      const html = formatReportAsHtml(makeReportResult());
+
+      assert.equal(
+        html.match(/<h2>Provenance<\/h2>/g),
+        null,
+        'no provenance section without annotations option',
+      );
+    });
+
+    it('omits provenance section when no annotations have provenance', () => {
+      const annotations: ShioriAnnotation[] = [
+        {
+          ref: 'SUP-1',
+          tagged: true,
+          ignored: false,
+          location: { file: 'a.ts', line: 1 },
+        },
+      ];
+      const html = formatReportAsHtml(makeReportResult(), { annotations });
+
+      assert.equal(
+        html.match(/<h2>Provenance<\/h2>/g),
+        null,
+        'no provenance section when no provenance data',
+      );
+    });
+
+    it('renders provenance table with enriched annotations', () => {
+      const annotations = [
+        makeAnnotationWithProvenance('SUP-1234', 'src/parser.ts', 10),
+        makeAnnotationWithProvenance('ADR:0007', 'src/types.ts', 5),
+      ];
+      const html = formatReportAsHtml(makeReportResult(), { annotations });
+
+      assert.ok(html.includes('Provenance'), 'has Provenance heading');
+      assert.ok(
+        html.includes('provenance-table'),
+        'has provenance table class',
+      );
+      assert.ok(html.includes('SUP-1234'), 'shows ref');
+      assert.ok(html.includes('src/parser.ts:10'), 'shows location');
+      assert.ok(html.includes('abcdef1'), 'shows commit hash');
+      assert.ok(html.includes('Jane Doe'), 'shows author');
+      assert.ok(html.includes('2024-03-08'), 'shows date');
+      assert.ok(html.includes('fix: resolve issue'), 'shows summary');
+    });
+
+    it('renders draft annotation ref as (draft)', () => {
+      const annotations: ShioriAnnotation[] = [
+        {
+          ref: '',
+          tagged: true,
+          ignored: false,
+          location: { file: 'src/a.ts', line: 1 },
+          provenance: {
+            author: 'John',
+            authorEmail: 'john@example.com',
+            date: '2024-01-01T00:00:00.000Z',
+            commitHash: '1234567',
+            commitSummary: 'add draft',
+          },
+        },
+      ];
+      const html = formatReportAsHtml(makeReportResult(), { annotations });
+
+      assert.ok(html.includes('(draft)'), 'shows (draft) for empty ref');
+    });
+
+    it('escapes HTML in provenance data', () => {
+      const annotations: ShioriAnnotation[] = [
+        {
+          ref: '<script>',
+          tagged: true,
+          ignored: false,
+          location: { file: 'src/<evil>.ts', line: 1 },
+          provenance: {
+            author: '<b>Evil</b>',
+            authorEmail: 'evil@example.com',
+            date: '2024-01-01T00:00:00.000Z',
+            commitHash: 'abc1234',
+            commitSummary: 'fix: <script>alert(1)</script>',
+          },
+        },
+      ];
+      const html = formatReportAsHtml(makeReportResult(), { annotations });
+
+      assert.ok(html.includes('&lt;script&gt;'), 'escapes ref in provenance');
+      assert.ok(
+        html.includes('&lt;evil&gt;'),
+        'escapes file path in provenance',
+      );
+      assert.ok(
+        html.includes('&lt;b&gt;Evil&lt;/b&gt;'),
+        'escapes author in provenance',
+      );
+    });
+
+    it('includes provenance CSS styles', () => {
+      const annotations = [makeAnnotationWithProvenance('SUP-1', 'a.ts', 1)];
+      const html = formatReportAsHtml(makeReportResult(), { annotations });
+
+      assert.ok(
+        html.includes('.provenance-table'),
+        'has provenance-table style',
+      );
+      assert.ok(html.includes('.provenance-hash'), 'has provenance-hash style');
+    });
+
+    it('renders provenance after breakdown sections', () => {
+      const annotations = [makeAnnotationWithProvenance('SUP-1', 'a.ts', 1)];
+      const html = formatReportAsHtml(makeReportResult(), { annotations });
+
+      const ownershipIdx = html.indexOf('Ownership');
+      const provenanceIdx = html.indexOf('Provenance');
+
+      assert.ok(
+        ownershipIdx < provenanceIdx,
+        'provenance after ownership section',
+      );
+    });
+
+    it('only shows annotations that have provenance', () => {
+      const annotations: ShioriAnnotation[] = [
+        makeAnnotationWithProvenance('HAS-PROV', 'a.ts', 1),
+        {
+          ref: 'NO-PROV',
+          tagged: true,
+          ignored: false,
+          location: { file: 'b.ts', line: 2 },
+        },
+      ];
+      const html = formatReportAsHtml(makeReportResult(), { annotations });
+
+      assert.ok(html.includes('HAS-PROV'), 'shows annotation with provenance');
+      assert.ok(
+        !html.includes('NO-PROV'),
+        'does not show annotation without provenance',
+      );
     });
   });
 });
