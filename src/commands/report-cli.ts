@@ -21,6 +21,8 @@ import { writeOutput } from '../core/cli-output.ts';
 import { loadScanResultFromFile } from '../core/scan-result-loader.ts';
 import { computeDelta } from './delta.ts';
 import { enrichWithProvenance } from '../core/provenance.ts';
+import { buildChronicle } from '../core/chronicle.ts';
+import { collectUniqueRefs, resolveRefStatuses } from '../core/ref-status.ts';
 
 const validateReportFormat = createFormatValidator<ReportFormat>([
   'json',
@@ -49,6 +51,12 @@ export const reportCommand = define({
 
   # Generate HTML dashboard with git blame provenance
   shiori report -f html --provenance -o report.html
+
+  # Generate HTML dashboard with annotation chronicle timeline
+  shiori report -f html --timeline -o report.html
+
+  # Chronicle with external ref status integration
+  shiori report -f html --timeline --ref-status-command "scripts/check-status.sh" -o report.html
 
   # Include issue types in fail-on for exit code
   shiori report --fail-on expired,missing-in-registry`,
@@ -124,6 +132,18 @@ export const reportCommand = define({
         'Enrich annotations with git blame provenance (author, date, commit). Used with --format html',
       default: 'false',
     },
+    timeline: {
+      type: 'boolean',
+      description:
+        'Show annotation chronicle timeline (per-ref lifecycle events). Implies --provenance. Used with --format html',
+      default: 'false',
+    },
+    refStatusCommand: {
+      type: 'string',
+      toKebab: true,
+      description:
+        'External command for ref status lookup (stdin: refs, stdout: JSONL). Used with --timeline',
+    },
   },
   run: async (ctx) => {
     // Validate options early
@@ -183,8 +203,9 @@ export const reportCommand = define({
       expiringThresholdDays,
     });
 
-    // Enrich with git blame provenance when --provenance is set
-    const useProvenance = ctx.values.provenance === true;
+    // --timeline implies --provenance
+    const useTimeline = ctx.values.timeline === true;
+    const useProvenance = ctx.values.provenance === true || useTimeline;
     let enrichedAnnotations = scanResult.annotations;
     if (useProvenance) {
       console.error('Enriching annotations with git blame provenance...');
@@ -200,6 +221,39 @@ export const reportCommand = define({
       );
     }
 
+    // Build annotation chronicle when --timeline is set
+    let chronicle;
+    if (useTimeline) {
+      console.error('Building annotation chronicle...');
+      // Resolve external ref statuses if --ref-status-command is provided
+      let refStatuses;
+      const refStatusCommand = ctx.values.refStatusCommand;
+      if (refStatusCommand) {
+        try {
+          const uniqueRefs = collectUniqueRefs(enrichedAnnotations);
+          console.error(
+            `Resolving ref statuses for ${uniqueRefs.length} ref(s)...`,
+          );
+          refStatuses = await resolveRefStatuses(refStatusCommand, uniqueRefs);
+          console.error(`Ref status: ${refStatuses.size} status(es) resolved`);
+        } catch (error) {
+          console.error(
+            `Warning: ref-status-command failed: ${error instanceof Error ? error.message : String(error)}`,
+          );
+          // Graceful degradation: continue without ref statuses
+        }
+      }
+
+      chronicle = buildChronicle({
+        annotations: enrichedAnnotations,
+        registry,
+        refStatuses,
+      });
+      console.error(
+        `Chronicle: ${chronicle.summary.totalRefs} ref(s), ${chronicle.summary.withProvenance} with provenance`,
+      );
+    }
+
     // Compute governance diff overlay when --diff-base is provided
     const diffBasePath = ctx.values.diffBase;
     const delta = diffBasePath
@@ -212,6 +266,7 @@ export const reportCommand = define({
     const output = formatReportOutput(result, format, {
       delta,
       annotations: useProvenance ? enrichedAnnotations : undefined,
+      chronicle,
     });
 
     const written = await writeOutput(output, {

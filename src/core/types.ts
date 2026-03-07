@@ -434,6 +434,79 @@ export interface MaturityResult {
   nextActions: MaturityNextAction[];
 }
 
+// ── Chronicle types (EP-0048) ────────────────────────────────
+
+/**
+ * Event types that can appear in a chronicle timeline.
+ * - 'introduced': When the annotation was first committed (from provenance)
+ * - 'expires': When the annotation is scheduled to expire (from source/registry)
+ * - 'expired': When the annotation's expiration date has passed
+ * - 'status-closed': When the referenced ticket/issue was closed (from ref-status)
+ */
+export type ChronicleEventType =
+  | 'introduced'
+  | 'expires'
+  | 'expired'
+  | 'status-closed';
+
+/** A single event in an annotation's timeline */
+export interface ChronicleEvent {
+  /** Event type */
+  type: ChronicleEventType;
+  /** ISO 8601 date string (YYYY-MM-DD or full ISO) */
+  date: string;
+  /** Human-readable description of the event */
+  label: string;
+}
+
+/** Chronicle entry for a single ref — aggregates timeline events */
+export interface ChronicleEntry {
+  /** The tracking reference (e.g. "SUP-1234") */
+  ref: string;
+  /** All source locations where this ref appears */
+  locations: Array<{ file: string; line: number }>;
+  /** Timeline events sorted by date (oldest first) */
+  events: ChronicleEvent[];
+  /** Current ref status from external command (undefined if unavailable) */
+  currentStatus?: RefStatusValue;
+  /** Registry owner (if present) */
+  owner?: string;
+  /** Registry kind (if present) */
+  kind?: string;
+}
+
+/** Ref status values (re-exported from ref-status for convenience) */
+export type RefStatusValue = 'open' | 'closed' | 'unknown';
+
+/** Options for building a chronicle */
+export interface BuildChronicleOptions {
+  /** Annotations (ideally enriched with provenance) */
+  annotations: ShioriAnnotation[];
+  /** Registry data */
+  registry: Registry;
+  /** Ref status map (from external command, may be undefined) */
+  refStatuses?: Map<string, RefStatusValue>;
+  /** Reference date for expiration checks (defaults to current date) */
+  now?: Date;
+}
+
+/** Result of building a chronicle */
+export interface ChronicleResult {
+  /** Chronicle entries sorted by ref */
+  entries: ChronicleEntry[];
+  /** Summary statistics */
+  summary: {
+    /** Total unique refs processed */
+    totalRefs: number;
+    /** Refs with provenance data */
+    withProvenance: number;
+    /** Refs with ref-status data */
+    withRefStatus: number;
+    /** Refs with expiration dates */
+    withExpires: number;
+  };
+}
+
 // ── Health types (EP-0024) ───────────────────────────────────
 
 /** Health output format */

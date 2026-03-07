@@ -8,6 +8,10 @@ import type {
   DeltaKind,
   AnnotationDelta,
   ShioriAnnotation,
+  ChronicleResult,
+  ChronicleEntry,
+  ChronicleEvent,
+  ChronicleEventType,
 } from '../core/types.ts';
 
 /**
@@ -171,6 +175,88 @@ function renderStyles(healthColorValue: string): string {
   .delta-kind.unchanged { background: rgba(148,163,184,0.15); color: #94a3b8; }
   .provenance-table td.provenance-hash { font-family: monospace; font-size: 0.85rem; }
   .provenance-table td.provenance-date { white-space: nowrap; }
+  .chronicle-entry {
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+  }
+  .chronicle-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .chronicle-ref {
+    font-weight: 700;
+    font-size: 1rem;
+    font-family: monospace;
+  }
+  .chronicle-meta {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+  .chronicle-status {
+    display: inline-block;
+    padding: 0.1rem 0.5rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+  .chronicle-status.open { background: rgba(34,197,94,0.15); color: #22c55e; }
+  .chronicle-status.closed { background: rgba(239,68,68,0.15); color: #ef4444; }
+  .chronicle-status.unknown { background: rgba(148,163,184,0.15); color: #94a3b8; }
+  .chronicle-timeline {
+    position: relative;
+    padding-left: 1.5rem;
+    border-left: 2px solid var(--border);
+  }
+  .chronicle-event {
+    position: relative;
+    padding: 0.25rem 0 0.5rem 0.75rem;
+    font-size: 0.85rem;
+  }
+  .chronicle-event::before {
+    content: '';
+    position: absolute;
+    left: -1.85rem;
+    top: 0.45rem;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--border);
+  }
+  .chronicle-event.introduced::before { background: #22c55e; }
+  .chronicle-event.expires::before { background: #3b82f6; }
+  .chronicle-event.expired::before { background: #ef4444; }
+  .chronicle-event.status-closed::before { background: #f59e0b; }
+  .chronicle-event-date {
+    font-family: monospace;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-right: 0.5rem;
+  }
+  .chronicle-locations {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+  }
+  .chronicle-summary {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+  }
+  .chronicle-stat {
+    padding: 0.25rem 0.75rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    background: rgba(148,163,184,0.15);
+    color: var(--text-muted);
+  }
 </style>`;
 }
 
@@ -384,6 +470,92 @@ ${rows}
 }
 
 /**
+ * Map chronicle event type to display icon.
+ */
+function chronicleEventIcon(type: ChronicleEventType): string {
+  switch (type) {
+    case 'introduced':
+      return '\u{1F7E2}'; // green circle
+    case 'expires':
+      return '\u{1F535}'; // blue circle
+    case 'expired':
+      return '\u{1F534}'; // red circle
+    case 'status-closed':
+      return '\u{1F7E0}'; // orange circle
+  }
+}
+
+/**
+ * Render a single chronicle event as HTML.
+ */
+function renderChronicleEvent(event: ChronicleEvent): string {
+  const icon = chronicleEventIcon(event.type);
+  return `<div class="chronicle-event ${event.type}">
+      <span class="chronicle-event-date">${escapeHtml(event.date)}</span>
+      ${icon} ${escapeHtml(event.label)}
+    </div>`;
+}
+
+/**
+ * Render a single chronicle entry (ref card with timeline).
+ */
+function renderChronicleEntry(entry: ChronicleEntry): string {
+  const statusBadge = entry.currentStatus
+    ? `<span class="chronicle-status ${entry.currentStatus}">${entry.currentStatus}</span>`
+    : '';
+  const metaParts: string[] = [];
+  if (entry.owner) metaParts.push(`owner: ${escapeHtml(entry.owner)}`);
+  if (entry.kind) metaParts.push(`kind: ${escapeHtml(entry.kind)}`);
+  const metaHtml =
+    metaParts.length > 0
+      ? `<span class="chronicle-meta">${metaParts.join(' · ')}</span>`
+      : '';
+
+  const eventsHtml =
+    entry.events.length > 0
+      ? `<div class="chronicle-timeline">\n${entry.events.map(renderChronicleEvent).join('\n')}\n    </div>`
+      : '<p class="empty">No timeline events available.</p>';
+
+  const locations = entry.locations
+    .map((l) => `${escapeHtml(l.file)}:${l.line}`)
+    .join(', ');
+
+  return `<div class="chronicle-entry">
+    <div class="chronicle-header">
+      <span class="chronicle-ref">${escapeHtml(entry.ref)}</span>
+      ${statusBadge}
+      ${metaHtml}
+    </div>
+    ${eventsHtml}
+    <div class="chronicle-locations">${locations}</div>
+  </div>`;
+}
+
+/**
+ * Render the chronicle timeline section.
+ * Shows per-ref timeline cards with events sorted chronologically.
+ */
+function renderChronicleSection(chronicle: ChronicleResult): string {
+  if (chronicle.entries.length === 0) return '';
+
+  const { summary } = chronicle;
+  const summaryHtml = `<div class="chronicle-summary">
+    <span class="chronicle-stat">${summary.totalRefs} refs</span>
+    <span class="chronicle-stat">${summary.withProvenance} with provenance</span>
+    <span class="chronicle-stat">${summary.withRefStatus} with status</span>
+    <span class="chronicle-stat">${summary.withExpires} with expiry</span>
+  </div>`;
+
+  const entriesHtml = chronicle.entries.map(renderChronicleEntry).join('\n');
+
+  return `<div class="section">
+  <h2>Annotation Chronicle</h2>
+  ${summaryHtml}
+  ${entriesHtml}
+</div>`;
+}
+
+/**
  * Render the interactive script (collapsible sections toggle).
  */
 function renderScript(): string {
@@ -409,6 +581,8 @@ export interface HtmlReportOptions {
   delta?: DeltaResult;
   /** Annotations enriched with provenance info (for provenance section) */
   annotations?: ShioriAnnotation[];
+  /** Chronicle result for annotation timeline visualization (EP-0048) */
+  chronicle?: ChronicleResult;
 }
 
 /**
@@ -433,6 +607,9 @@ export function formatReportAsHtml(
   const provenanceSection = options?.annotations
     ? renderProvenanceSection(options.annotations)
     : '';
+  const chronicleSection = options?.chronicle
+    ? renderChronicleSection(options.chronicle)
+    : '';
 
   const sections = [
     renderHealthSection(result),
@@ -444,6 +621,7 @@ export function formatReportAsHtml(
     renderBreakdownTable('Ownership', 'Owner', result.byOwner),
     renderBreakdownTable('Annotation Kinds', 'Kind', result.byKind),
     provenanceSection,
+    chronicleSection,
   ]
     .filter((s) => s !== '')
     .join('\n');
