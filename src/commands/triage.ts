@@ -66,6 +66,7 @@ const ISSUE_TYPE_PRIORITY: Record<VerifyIssueType, TriagePriority> = {
   'ref-collision': 'medium',
   'unrouted-ref': 'low',
   'registry-routing-mismatch': 'low',
+  'ref-status-closed': 'high',
 };
 
 // ── Action hints ─────────────────────────────────────────────
@@ -80,6 +81,7 @@ const ACTION_HINTS: Record<VerifyIssueType, string> = {
   'ref-collision': 'consolidate to single registry',
   'unrouted-ref': 'add refPattern or rename',
   'registry-routing-mismatch': 'move to correct registry file',
+  'ref-status-closed': 'shiori resolve --ref <ref> (issue/ticket is closed)',
 };
 
 // ── Priority helpers ─────────────────────────────────────────

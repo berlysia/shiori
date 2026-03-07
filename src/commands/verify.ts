@@ -11,6 +11,7 @@ import type { RegistryDuplicateWarning } from '../core/registry.ts';
 import type { RefPatternConfig } from '../core/ref-pattern.ts';
 import { isValidRef } from '../core/ref-validation.ts';
 import { matchRefPattern } from '../core/ref-pattern.ts';
+import type { RefStatus } from '../core/ref-status.ts';
 
 export type { OutputFormat } from '../core/types.ts';
 
@@ -37,6 +38,8 @@ export interface VerifyOptions {
   refOrigins?: Map<string, string | null>;
   /** Threshold in days for expiring-soon detection (default: 14) */
   expiringThresholdDays?: number;
+  /** External ref status map (from --ref-status-command). Maps ref to its status. */
+  refStatuses?: Map<string, RefStatus>;
 }
 
 function determineSeverity(
@@ -269,6 +272,27 @@ export function verify(options: VerifyOptions): VerifyResult {
     }
   }
 
+  // Check ref-status-closed (external command reported ref's issue/ticket as closed)
+  if (options.refStatuses) {
+    const reportedClosed = new Set<string>();
+    for (const record of records) {
+      if (record.ref === '' || record.ignored) continue;
+      if (reportedClosed.has(record.ref)) continue;
+      const status = options.refStatuses.get(record.ref);
+      if (status === 'closed') {
+        reportedClosed.add(record.ref);
+        issues.push({
+          type: 'ref-status-closed',
+          severity: determineSeverity('ref-status-closed', failOn, warnOn),
+          ref: record.ref,
+          message: `Ref "${record.ref}" references a closed issue/ticket — annotation may be removable`,
+          file: record.location.file,
+          line: record.location.line,
+        });
+      }
+    }
+  }
+
   return {
     timestamp: now.toISOString(),
     issues,
@@ -340,6 +364,11 @@ export function formatActionHints(result: VerifyResult): string[] {
   if (byType['expiring-soon'] > 0) {
     hints.push(
       `  expiring-soon (${byType['expiring-soon']}): Entries approaching expiration. Extend expires or resolve the underlying issue.`,
+    );
+  }
+  if (byType['ref-status-closed'] > 0) {
+    hints.push(
+      `  ref-status-closed (${byType['ref-status-closed']}): Referenced issue/ticket is closed. Run "shiori resolve --ref <ref>" to clean up the annotation.`,
     );
   }
 

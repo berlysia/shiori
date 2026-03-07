@@ -22,6 +22,7 @@ import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
 import { writeOutput } from '../core/cli-output.ts';
 import { detectWorkspaces } from '../core/workspace.ts';
 import { scanWorkspaces, type PackageScanResult } from './scan-workspaces.ts';
+import { collectUniqueRefs, resolveRefStatuses } from '../core/ref-status.ts';
 
 export const checkCommand = define({
   name: 'check',
@@ -111,6 +112,12 @@ export const checkCommand = define({
       toKebab: true,
       description:
         'Days before expiration to trigger expiring-soon warning. Overrides config. Default: 14',
+    },
+    refStatusCommand: {
+      type: 'string',
+      toKebab: true,
+      description:
+        'External command to check ref statuses. Receives refs on stdin (newline-delimited), returns JSONL with {ref, status} on stdout',
     },
   },
   run: async (ctx) => {
@@ -213,6 +220,32 @@ export const checkCommand = define({
       console.error(`Scan result saved to ${config.paths.scanResult}`);
     }
 
+    // Resolve ref statuses via external command (if provided)
+    const refStatusCommand = ctx.values.refStatusCommand;
+    let refStatuses:
+      | Map<string, import('../core/ref-status.ts').RefStatus>
+      | undefined;
+
+    if (refStatusCommand) {
+      const uniqueRefs = collectUniqueRefs(scanResult.annotations);
+      if (uniqueRefs.length > 0) {
+        try {
+          refStatuses = await resolveRefStatuses(refStatusCommand, uniqueRefs);
+          const closedCount = [...refStatuses.values()].filter(
+            (s) => s === 'closed',
+          ).length;
+          console.error(
+            `Ref status: ${uniqueRefs.length} ref(s) queried, ${closedCount} closed`,
+          );
+        } catch (err) {
+          console.error(
+            `Warning: ref-status-command failed: ${err instanceof Error ? err.message : String(err)}`,
+          );
+          // Continue without ref statuses — graceful degradation
+        }
+      }
+    }
+
     // Verify
     const expiringThresholdDays = ctx.values.expiringThreshold
       ? Number(ctx.values.expiringThreshold)
@@ -227,6 +260,7 @@ export const checkCommand = define({
       refPatterns: config.refPatterns,
       refOrigins,
       expiringThresholdDays,
+      refStatuses,
     });
 
     // Format output — workspace mode wraps verifyResult with package breakdown

@@ -1249,12 +1249,250 @@ describe('verify', () => {
     });
   });
 
+  describe('ref-status-closed', () => {
+    it('detects closed ref status', () => {
+      const records = [makeAnnotation({ ref: 'SUP-CLOSED' })];
+      const registry: Registry = { 'SUP-CLOSED': makeRegistryEntry() };
+      const refStatuses = new Map([['SUP-CLOSED', 'closed' as const]]);
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        refStatuses,
+      });
+      const closed = result.issues.filter(
+        (i) => i.type === 'ref-status-closed',
+      );
+      assert.equal(closed.length, 1);
+      assert.equal(closed[0]!.ref, 'SUP-CLOSED');
+      assert.ok(closed[0]!.message.includes('closed'));
+    });
+
+    it('does not report open ref status', () => {
+      const records = [makeAnnotation({ ref: 'SUP-OPEN' })];
+      const registry: Registry = { 'SUP-OPEN': makeRegistryEntry() };
+      const refStatuses = new Map([['SUP-OPEN', 'open' as const]]);
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        refStatuses,
+      });
+      const closed = result.issues.filter(
+        (i) => i.type === 'ref-status-closed',
+      );
+      assert.equal(closed.length, 0);
+    });
+
+    it('does not report unknown ref status', () => {
+      const records = [makeAnnotation({ ref: 'SUP-UNK' })];
+      const registry: Registry = { 'SUP-UNK': makeRegistryEntry() };
+      const refStatuses = new Map([['SUP-UNK', 'unknown' as const]]);
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        refStatuses,
+      });
+      const closed = result.issues.filter(
+        (i) => i.type === 'ref-status-closed',
+      );
+      assert.equal(closed.length, 0);
+    });
+
+    it('does not report when refStatuses is not provided', () => {
+      const records = [makeAnnotation({ ref: 'SUP-001' })];
+      const registry: Registry = { 'SUP-001': makeRegistryEntry() };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+      });
+      const closed = result.issues.filter(
+        (i) => i.type === 'ref-status-closed',
+      );
+      assert.equal(closed.length, 0);
+    });
+
+    it('skips ignored annotations', () => {
+      const records = [makeAnnotation({ ref: 'SUP-CLOSED', ignored: true })];
+      const registry: Registry = { 'SUP-CLOSED': makeRegistryEntry() };
+      const refStatuses = new Map([['SUP-CLOSED', 'closed' as const]]);
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        refStatuses,
+      });
+      const closed = result.issues.filter(
+        (i) => i.type === 'ref-status-closed',
+      );
+      assert.equal(closed.length, 0);
+    });
+
+    it('skips empty refs', () => {
+      const records = [makeAnnotation({ ref: '' })];
+      const refStatuses = new Map([['', 'closed' as const]]);
+      const result = verify({
+        records,
+        registry: {},
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        refStatuses,
+      });
+      const closed = result.issues.filter(
+        (i) => i.type === 'ref-status-closed',
+      );
+      assert.equal(closed.length, 0);
+    });
+
+    it('deduplicates ref-status-closed issues by ref', () => {
+      const records = [
+        makeAnnotation({
+          ref: 'SUP-CLOSED',
+          location: { file: 'a.ts', line: 1 },
+        }),
+        makeAnnotation({
+          ref: 'SUP-CLOSED',
+          location: { file: 'b.ts', line: 2 },
+        }),
+      ];
+      const registry: Registry = { 'SUP-CLOSED': makeRegistryEntry() };
+      const refStatuses = new Map([['SUP-CLOSED', 'closed' as const]]);
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        refStatuses,
+      });
+      const closed = result.issues.filter(
+        (i) => i.type === 'ref-status-closed',
+      );
+      assert.equal(closed.length, 1);
+    });
+
+    it('defaults to warning severity', () => {
+      const records = [makeAnnotation({ ref: 'SUP-CLOSED' })];
+      const registry: Registry = { 'SUP-CLOSED': makeRegistryEntry() };
+      const refStatuses = new Map([['SUP-CLOSED', 'closed' as const]]);
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        refStatuses,
+      });
+      const closed = result.issues.filter(
+        (i) => i.type === 'ref-status-closed',
+      );
+      assert.equal(closed[0]!.severity, 'warning');
+    });
+
+    it('respects failOn for error severity', () => {
+      const records = [makeAnnotation({ ref: 'SUP-CLOSED' })];
+      const registry: Registry = { 'SUP-CLOSED': makeRegistryEntry() };
+      const refStatuses = new Map([['SUP-CLOSED', 'closed' as const]]);
+      const result = verify({
+        records,
+        registry,
+        failOn: ['ref-status-closed'],
+        warnOn: [],
+        now: referenceDate,
+        refStatuses,
+      });
+      const closed = result.issues.filter(
+        (i) => i.type === 'ref-status-closed',
+      );
+      assert.equal(closed[0]!.severity, 'error');
+    });
+
+    it('includes ref-status-closed in summary byType', () => {
+      const records = [makeAnnotation({ ref: 'SUP-CLOSED' })];
+      const registry: Registry = { 'SUP-CLOSED': makeRegistryEntry() };
+      const refStatuses = new Map([['SUP-CLOSED', 'closed' as const]]);
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        refStatuses,
+      });
+      assert.equal(result.summary.byType['ref-status-closed'], 1);
+    });
+
+    it('includes file and line in issue', () => {
+      const records = [
+        makeAnnotation({
+          ref: 'SUP-CLOSED',
+          location: { file: 'foo.ts', line: 42 },
+        }),
+      ];
+      const registry: Registry = { 'SUP-CLOSED': makeRegistryEntry() };
+      const refStatuses = new Map([['SUP-CLOSED', 'closed' as const]]);
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        refStatuses,
+      });
+      const closed = result.issues.filter(
+        (i) => i.type === 'ref-status-closed',
+      );
+      assert.equal(closed[0]!.file, 'foo.ts');
+      assert.equal(closed[0]!.line, 42);
+    });
+  });
+
+  describe('formatActionHints for ref-status-closed', () => {
+    it('shows hint for ref-status-closed', () => {
+      const records = [makeAnnotation({ ref: 'SUP-CLOSED' })];
+      const registry: Registry = { 'SUP-CLOSED': makeRegistryEntry() };
+      const refStatuses = new Map([['SUP-CLOSED', 'closed' as const]]);
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+        refStatuses,
+      });
+      const hints = formatActionHints(result);
+      assert.ok(hints.some((h) => h.includes('ref-status-closed')));
+      assert.ok(hints.some((h) => h.includes('shiori resolve')));
+    });
+  });
+
   describe('VERIFY_ISSUE_TYPES sync', () => {
     it('VERIFY_ISSUE_TYPES includes expiring-soon', async () => {
       const { VERIFY_ISSUE_TYPES } = await import('../src/core/types.ts');
       assert.ok(
         VERIFY_ISSUE_TYPES.includes('expiring-soon'),
         'expiring-soon must be in VERIFY_ISSUE_TYPES',
+      );
+    });
+
+    it('VERIFY_ISSUE_TYPES includes ref-status-closed', async () => {
+      const { VERIFY_ISSUE_TYPES } = await import('../src/core/types.ts');
+      assert.ok(
+        VERIFY_ISSUE_TYPES.includes('ref-status-closed'),
+        'ref-status-closed must be in VERIFY_ISSUE_TYPES',
       );
     });
   });

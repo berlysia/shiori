@@ -69,6 +69,13 @@ const MESSAGE_TEMPLATES: Record<
     template: (ref) => `ID "${ref}" expires on 2026-03-01 (within 14 days)`,
     hasRef: true,
   },
+
+  // ref-status-closed: Ref "<ref>" pattern
+  'ref-status-closed': {
+    template: (ref) =>
+      `Ref "${ref}" references a closed issue/ticket — annotation may be removable`,
+    hasRef: true,
+  },
 };
 
 describe('alert-to-ref ref extraction', () => {

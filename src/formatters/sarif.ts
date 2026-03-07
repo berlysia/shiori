@@ -56,6 +56,8 @@ const RULE_DESCRIPTIONS: Record<VerifyIssueType, string> = {
   'registry-routing-mismatch':
     'Registry entry exists in a file that does not match its routing pattern',
   'expiring-soon': 'Registry entry is approaching its expiration date',
+  'ref-status-closed':
+    'Referenced issue/ticket reported as closed by external status command',
 };
 
 /**

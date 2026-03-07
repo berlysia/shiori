@@ -21,6 +21,7 @@ function makeByType(
     'unrouted-ref': 0,
     'registry-routing-mismatch': 0,
     'expiring-soon': 0,
+    'ref-status-closed': 0,
     ...overrides,
   };
 }
