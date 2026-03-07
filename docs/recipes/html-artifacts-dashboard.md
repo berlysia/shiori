@@ -109,6 +109,7 @@ HTML レポートには以下のセクションが含まれます：
 | Annotations by Rule | lint ルール別のアノテーション数                    |
 | Ownership           | オーナー別のアノテーション数                       |
 | Annotation Kinds    | kind 別のアノテーション数                          |
+| Changes (diff)      | `--diff-base` 指定時のみ: 追加・削除アノテーション |
 
 ## カスタマイズ
 
@@ -132,6 +133,108 @@ on:
 ```
 
 PR ワークフローでは Artifacts が PR の Checks タブからアクセスできます。
+
+### Diff Overlay 付きレポートを生成する
+
+`--diff-base` オプションで前回のスキャン結果（ScanResult JSON）を指定すると、HTML レポートに差分オーバーレイが追加されます。追加・削除されたアノテーションが視覚的に表示されます。
+
+```yaml
+# .github/workflows/shiori-html-diff-report.yml
+name: shiori html diff report
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      # 前回の ScanResult を Artifacts から取得
+      - name: Download previous scan result
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const artifacts = await github.rest.actions.listArtifactsForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              name: 'shiori-scan-result',
+              per_page: 1,
+            });
+            if (artifacts.data.artifacts.length > 0) {
+              const artifact = artifacts.data.artifacts[0];
+              const download = await github.rest.actions.downloadArtifact({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                artifact_id: artifact.id,
+                archive_format: 'zip',
+              });
+              const fs = require('fs');
+              fs.writeFileSync('.tmp/shiori-prev-scan.zip', Buffer.from(download.data));
+              require('child_process').execSync('unzip -o .tmp/shiori-prev-scan.zip -d .tmp/');
+            }
+
+      # 今回のスキャンを実行
+      - name: Scan
+        run: npx shiori scan --output .tmp/shiori-scan.json
+
+      # Diff 付き HTML レポート生成（前回の ScanResult が存在する場合）
+      - name: Generate HTML report with diff
+        run: |
+          if [ -f .tmp/shiori-prev-scan.json ]; then
+            npx shiori report --format html --diff-base .tmp/shiori-prev-scan.json --output .tmp/shiori-report.html
+          else
+            npx shiori report --format html --output .tmp/shiori-report.html
+          fi
+
+      # 今回の ScanResult を Artifacts に保存（次回の --diff-base 用）
+      - name: Upload scan result
+        uses: actions/upload-artifact@v4
+        with:
+          name: shiori-scan-result
+          path: .tmp/shiori-scan.json
+          retention-days: 90
+          overwrite: true
+
+      - name: Upload HTML report
+        uses: actions/upload-artifact@v4
+        with:
+          name: shiori-governance-report
+          path: .tmp/shiori-report.html
+          retention-days: 90
+          overwrite: true
+```
+
+PR ワークフローでも同様のパターンで main ブランチの ScanResult と比較できます:
+
+```yaml
+# PR 用: main の ScanResult を取得して diff 付きレポートを生成
+- name: Generate PR diff report
+  run: |
+    npx shiori scan --output .tmp/shiori-scan.json
+    if [ -f .tmp/shiori-prev-scan.json ]; then
+      npx shiori report --format html --diff-base .tmp/shiori-prev-scan.json --output .tmp/shiori-report.html
+    else
+      npx shiori report --format html --output .tmp/shiori-report.html
+    fi
+```
 
 ### Badge レシピと組み合わせる
 

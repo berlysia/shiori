@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import { define } from 'gunshi';
 import {
   loadConfigAndRegistry,
@@ -17,6 +18,8 @@ import {
   DEFAULT_SCAN_IGNORE,
 } from '../core/scan-defaults.ts';
 import { writeOutput } from '../core/cli-output.ts';
+import { loadScanResultFromFile } from '../core/scan-result-loader.ts';
+import { computeDelta } from './delta.ts';
 
 const validateReportFormat = createFormatValidator<ReportFormat>([
   'json',
@@ -39,6 +42,9 @@ export const reportCommand = define({
 
   # Generate self-contained HTML dashboard
   shiori report -f html -o report.html
+
+  # Generate HTML dashboard with diff overlay from previous scan
+  shiori report -f html --diff-base .tmp/prev-scan.json -o report.html
 
   # Include issue types in fail-on for exit code
   shiori report --fail-on expired,missing-in-registry`,
@@ -102,6 +108,12 @@ export const reportCommand = define({
       description:
         'Days before expiration to trigger expiring-soon warning. Overrides config. Default: 14',
     },
+    diffBase: {
+      type: 'string',
+      toKebab: true,
+      description:
+        'Path to previous scan result JSON for diff overlay (used with --format html)',
+    },
   },
   run: async (ctx) => {
     // Validate options early
@@ -161,7 +173,16 @@ export const reportCommand = define({
       expiringThresholdDays,
     });
 
-    const output = formatReportOutput(result, format);
+    // Compute governance diff overlay when --diff-base is provided
+    const diffBasePath = ctx.values.diffBase;
+    const delta = diffBasePath
+      ? computeDelta({
+          base: await loadScanResultFromFile(resolve(cwd, diffBasePath)),
+          head: scanResult,
+        })
+      : undefined;
+
+    const output = formatReportOutput(result, format, { delta });
 
     const written = await writeOutput(output, {
       outputPath: ctx.values.output,

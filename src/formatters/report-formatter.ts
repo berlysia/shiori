@@ -1,6 +1,9 @@
 import type { ReportResult, ReportFormat, HealthLevel } from '../core/types.ts';
 import { healthEmoji, insightIcon } from '../core/emoji.ts';
-import { formatReportAsHtml } from './report-html-formatter.ts';
+import {
+  formatReportAsHtml,
+  type HtmlReportOptions,
+} from './report-html-formatter.ts';
 
 /**
  * Shields.io endpoint badge JSON structure.
@@ -141,10 +144,14 @@ export function formatReportAsBadge(result: ReportResult): string {
 
 /**
  * Format report result for output.
+ *
+ * The optional `htmlOptions` parameter is forwarded to the HTML formatter
+ * when `format` is `'html'`. It is ignored for other formats.
  */
 export function formatReportOutput(
   result: ReportResult,
   format: ReportFormat,
+  htmlOptions?: HtmlReportOptions,
 ): string {
   switch (format) {
     case 'markdown':
@@ -152,7 +159,7 @@ export function formatReportOutput(
     case 'badge':
       return formatReportAsBadge(result);
     case 'html':
-      return formatReportAsHtml(result);
+      return formatReportAsHtml(result, htmlOptions);
     default:
       return JSON.stringify(result, null, 2);
   }
