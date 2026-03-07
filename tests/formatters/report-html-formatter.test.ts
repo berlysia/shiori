@@ -279,6 +279,75 @@ describe('formatReportAsHtml', () => {
     assert.ok(html.includes('2026-03-07T00:00:00.000Z'), 'shows timestamp');
   });
 
+  describe('auto-refresh (dashboard mode)', () => {
+    it('includes meta refresh tag when autoRefreshSeconds is set', () => {
+      const html = formatReportAsHtml(makeReportResult(), {
+        autoRefreshSeconds: 3,
+      });
+
+      assert.ok(
+        html.includes('<meta http-equiv="refresh" content="3">'),
+        'has meta refresh with interval',
+      );
+    });
+
+    it('uses Dashboard title when auto-refresh is enabled', () => {
+      const html = formatReportAsHtml(makeReportResult(), {
+        autoRefreshSeconds: 5,
+      });
+
+      assert.ok(
+        html.includes('<title>Shiori Governance Dashboard</title>'),
+        'title is Dashboard in live mode',
+      );
+      assert.ok(
+        html.includes('<h1>Shiori Governance Dashboard</h1>'),
+        'heading is Dashboard in live mode',
+      );
+    });
+
+    it('uses Report title when auto-refresh is not set', () => {
+      const html = formatReportAsHtml(makeReportResult());
+
+      assert.ok(
+        html.includes('<title>Shiori Governance Report</title>'),
+        'title is Report when no auto-refresh',
+      );
+    });
+
+    it('shows live indicator when auto-refresh is enabled', () => {
+      const html = formatReportAsHtml(makeReportResult(), {
+        autoRefreshSeconds: 3,
+      });
+
+      assert.ok(html.includes('Live'), 'shows live indicator');
+      assert.ok(
+        html.includes('auto-refreshing every 3s'),
+        'shows refresh interval',
+      );
+    });
+
+    it('does not include meta refresh when autoRefreshSeconds is 0', () => {
+      const html = formatReportAsHtml(makeReportResult(), {
+        autoRefreshSeconds: 0,
+      });
+
+      assert.ok(
+        !html.includes('http-equiv="refresh"'),
+        'no meta refresh when 0',
+      );
+    });
+
+    it('does not include meta refresh when options is undefined', () => {
+      const html = formatReportAsHtml(makeReportResult());
+
+      assert.ok(
+        !html.includes('http-equiv="refresh"'),
+        'no meta refresh without options',
+      );
+    });
+  });
+
   it('escapes HTML special characters in user data', () => {
     const result = makeReportResult({
       health: {

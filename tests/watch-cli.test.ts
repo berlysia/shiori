@@ -1,6 +1,13 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile, writeFile, mkdtemp, mkdir, rm } from 'node:fs/promises';
+import {
+  readFile,
+  writeFile,
+  mkdtemp,
+  mkdir,
+  rm,
+  access,
+} from 'node:fs/promises';
 import { join } from 'node:path';
 import {
   runCli as _runCli,
@@ -411,6 +418,139 @@ describe('watch-cli: argument validation and error paths', () => {
       assert.equal(exitCode, 0);
       assert.ok(stderr.includes('annotations='));
       assert.ok(stderr.includes('candidates='));
+    });
+  });
+
+  describe('--dashboard mode', () => {
+    it('generates HTML dashboard file with --once', async () => {
+      const outputPath = join(tmpDir, 'watch-dashboard.json');
+      const dashboardPath = join(tmpDir, 'watch-dashboard.html');
+      const registryPath = join(tmpDir, 'watch-dashboard-registry.json');
+
+      // Create a registry with an entry matching fixtures
+      const registryContent = await readFile(
+        join(PROJECT_ROOT, REGISTRY_PATH),
+        'utf-8',
+      );
+      await writeFile(registryPath, registryContent, 'utf-8');
+
+      const { exitCode, stderr } = await runCli([
+        'watch',
+        '--once',
+        '--dashboard',
+        '--dashboard-output',
+        dashboardPath,
+        '--patterns',
+        SCAN_PATTERNS,
+        '--ignore',
+        SCAN_IGNORE,
+        '--output',
+        outputPath,
+        '--registry',
+        registryPath,
+      ]);
+
+      assert.equal(exitCode, 0);
+      assert.ok(
+        stderr.includes('dashboard updated'),
+        'stderr reports dashboard update',
+      );
+      assert.ok(
+        stderr.includes('Dashboard written to'),
+        'stderr reports dashboard path',
+      );
+
+      // Verify dashboard HTML file was created
+      await access(dashboardPath);
+      const html = await readFile(dashboardPath, 'utf-8');
+      assert.ok(html.includes('<!DOCTYPE html>'), 'valid HTML document');
+      assert.ok(
+        html.includes('Shiori Governance Dashboard'),
+        'has dashboard title',
+      );
+      assert.ok(
+        html.includes('http-equiv="refresh"'),
+        'has auto-refresh meta tag',
+      );
+      assert.ok(html.includes('auto-refreshing every'), 'has live indicator');
+    });
+
+    it('includes health score in dashboard stderr', async () => {
+      const outputPath = join(tmpDir, 'watch-dash-health.json');
+      const dashboardPath = join(tmpDir, 'watch-dash-health.html');
+      const registryPath = join(tmpDir, 'watch-dash-health-registry.json');
+
+      await writeFile(registryPath, '{}', 'utf-8');
+
+      const { exitCode, stderr } = await runCli([
+        'watch',
+        '--once',
+        '--dashboard',
+        '--dashboard-output',
+        dashboardPath,
+        '--patterns',
+        SCAN_PATTERNS,
+        '--ignore',
+        SCAN_IGNORE,
+        '--output',
+        outputPath,
+        '--registry',
+        registryPath,
+      ]);
+
+      assert.equal(exitCode, 0);
+      assert.ok(stderr.includes('health='), 'stderr includes health level');
+      assert.ok(stderr.includes('score='), 'stderr includes health score');
+    });
+
+    it('warns when --open is used without --dashboard', async () => {
+      const outputPath = join(tmpDir, 'watch-open-warn.json');
+      const { exitCode, stderr } = await runCli([
+        'watch',
+        '--once',
+        '--open',
+        '--patterns',
+        SCAN_PATTERNS,
+        '--ignore',
+        SCAN_IGNORE,
+        '--output',
+        outputPath,
+      ]);
+
+      assert.equal(exitCode, 0);
+      assert.ok(
+        stderr.includes('--open requires --dashboard'),
+        'warns about --open without --dashboard',
+      );
+    });
+
+    it('creates dashboard parent directories', async () => {
+      const outputPath = join(tmpDir, 'watch-dash-nested.json');
+      const dashboardPath = join(tmpDir, 'nested', 'deep', 'dashboard.html');
+      const registryPath = join(tmpDir, 'watch-dash-nested-registry.json');
+
+      await writeFile(registryPath, '{}', 'utf-8');
+
+      const { exitCode } = await runCli([
+        'watch',
+        '--once',
+        '--dashboard',
+        '--dashboard-output',
+        dashboardPath,
+        '--patterns',
+        SCAN_PATTERNS,
+        '--ignore',
+        SCAN_IGNORE,
+        '--output',
+        outputPath,
+        '--registry',
+        registryPath,
+      ]);
+
+      assert.equal(exitCode, 0);
+      await access(dashboardPath);
+      const html = await readFile(dashboardPath, 'utf-8');
+      assert.ok(html.includes('<!DOCTYPE html>'));
     });
   });
 });

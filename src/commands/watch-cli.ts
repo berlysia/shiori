@@ -2,16 +2,19 @@ import { define } from 'gunshi';
 import { watch as watchFs } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, relative, resolve, sep } from 'node:path';
+import { execSync } from 'node:child_process';
 import { loadConfig, resolveRegistryPath } from '../core/config.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
 import { loadMultiRegistry, saveRegistry } from '../core/registry.ts';
 import { scan } from './scan.ts';
+import { watchReport } from './watch.ts';
 import { initRegistry, routeRegistryByPattern } from './registry-generator.ts';
 import {
   DEFAULT_SCAN_PATTERNS,
   DEFAULT_SCAN_IGNORE,
 } from '../core/scan-defaults.ts';
 import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
+import { formatReportAsHtml } from '../formatters/report-html-formatter.ts';
 
 function parseList(value: string | undefined, fallback: string[]): string[] {
   if (!value) return fallback;
@@ -27,6 +30,34 @@ function now(): string {
   return new Date().toISOString();
 }
 
+/** Default dashboard HTML output path (relative to cwd) */
+const DEFAULT_DASHBOARD_PATH = '.config/shiori/dashboard.html';
+
+/** Auto-refresh interval for dashboard (seconds) */
+const DASHBOARD_REFRESH_SECONDS = 3;
+
+/**
+ * Open a file in the default browser.
+ * Best-effort — failures are silently ignored.
+ */
+function openInBrowser(filePath: string): void {
+  try {
+    const platform = process.platform;
+    if (platform === 'darwin') {
+      execSync(`open ${JSON.stringify(filePath)}`, { stdio: 'ignore' });
+    } else if (platform === 'win32') {
+      execSync(`start "" ${JSON.stringify(filePath)}`, {
+        stdio: 'ignore',
+        shell: 'cmd.exe',
+      });
+    } else {
+      execSync(`xdg-open ${JSON.stringify(filePath)}`, { stdio: 'ignore' });
+    }
+  } catch {
+    // Best-effort: ignore errors on headless environments
+  }
+}
+
 export const watchCommand = define({
   name: 'watch',
   description: 'Watch files and refresh scan result on each save',
@@ -35,6 +66,9 @@ export const watchCommand = define({
 
   # Also sync registry on each refresh
   shiori watch --sync-registry
+
+  # Live governance dashboard in browser
+  shiori watch --dashboard --open
 
   # Run one refresh and exit (for scripts/CI)
   shiori watch --once`,
@@ -67,7 +101,7 @@ export const watchCommand = define({
       type: 'string',
       short: 'r',
       description:
-        'Path to registry file (used only with --sync-registry, otherwise ignored)',
+        'Path to registry file (used with --sync-registry or --dashboard)',
     },
     debounceMs: {
       type: 'string',
@@ -77,6 +111,21 @@ export const watchCommand = define({
     once: {
       type: 'boolean',
       description: 'Run one refresh and exit (no watcher)',
+    },
+    dashboard: {
+      type: 'boolean',
+      description:
+        'Generate live HTML governance dashboard (auto-refreshing). Implies registry loading',
+    },
+    dashboardOutput: {
+      type: 'string',
+      toKebab: true,
+      description:
+        'Dashboard HTML output path. Default: .config/shiori/dashboard.html',
+    },
+    open: {
+      type: 'boolean',
+      description: 'Open dashboard in default browser (requires --dashboard)',
     },
     cwd: {
       type: 'string',
@@ -116,16 +165,36 @@ export const watchCommand = define({
     }
 
     const syncRegistry = Boolean(ctx.values.syncRegistry);
-    const registryPath = syncRegistry
+    const dashboardMode = Boolean(ctx.values.dashboard);
+    const openBrowser = Boolean(ctx.values.open);
+
+    if (openBrowser && !dashboardMode) {
+      console.error('Warning: --open requires --dashboard. Ignoring --open.');
+    }
+
+    // Registry is needed for --sync-registry or --dashboard
+    const needsRegistry = syncRegistry || dashboardMode;
+    const registryPath = needsRegistry
       ? await resolveRegistryPath(ctx.values.registry, config, cwd)
       : undefined;
     const registryRel = registryPath
       ? asRelativeNormalized(cwd, registryPath)
       : undefined;
 
+    // Dashboard output path
+    const dashboardPath = dashboardMode
+      ? resolve(cwd, ctx.values.dashboardOutput ?? DEFAULT_DASHBOARD_PATH)
+      : undefined;
+    const dashboardRel = dashboardPath
+      ? asRelativeNormalized(cwd, dashboardPath)
+      : undefined;
+
     // Validate all write targets are within cwd before any I/O
     try {
       await assertWithinCwd(outputPath, cwd);
+      if (dashboardPath) {
+        await assertWithinCwd(dashboardPath, cwd);
+      }
       if (registryPath) {
         await assertWithinCwd(registryPath, cwd);
         if (config.refPatterns) {
@@ -150,6 +219,7 @@ export const watchCommand = define({
     }
 
     let ignoreEventsUntil = 0;
+    let browserOpened = false;
 
     const refresh = async (reason: string): Promise<void> => {
       const result = await scan({
@@ -210,12 +280,50 @@ export const watchCommand = define({
         );
       }
 
+      // Dashboard: generate HTML report
+      if (dashboardMode && dashboardPath && registryPath) {
+        const { registry, duplicates, refOrigins } = await loadMultiRegistry(
+          registryPath,
+          config.refPatterns,
+        );
+
+        const reportResult = watchReport({
+          scanResult: result,
+          registry,
+          failOn: [],
+          warnOn: [],
+          refPatterns: config.refPatterns,
+          duplicates,
+          refOrigins,
+          expiringThresholdDays: config.verify.expiringThresholdDays,
+        });
+
+        const html = formatReportAsHtml(reportResult, {
+          autoRefreshSeconds: DASHBOARD_REFRESH_SECONDS,
+        });
+
+        await mkdir(dirname(dashboardPath), { recursive: true });
+        await writeFile(dashboardPath, html, 'utf-8');
+
+        console.error(
+          `[${now()}] dashboard updated - health=${reportResult.health.level} score=${reportResult.health.score}/100`,
+        );
+
+        if (openBrowser && !browserOpened) {
+          openInBrowser(dashboardPath);
+          browserOpened = true;
+        }
+      }
+
       ignoreEventsUntil = Date.now() + Math.max(300, debounceMs);
     };
 
     await refresh('initial');
     if (ctx.values.once) {
       console.error(`Saved scan result to ${outputRel}`);
+      if (dashboardRel) {
+        console.error(`Dashboard written to ${dashboardRel}`);
+      }
       return;
     }
 
@@ -224,6 +332,11 @@ export const watchCommand = define({
     );
     if (registryRel) {
       console.error(`Registry sync enabled: ${registryRel}`);
+    }
+    if (dashboardRel) {
+      console.error(
+        `Dashboard: ${dashboardRel} (auto-refresh: ${DASHBOARD_REFRESH_SECONDS}s)`,
+      );
     }
 
     await new Promise<void>((resolvePromise) => {
@@ -239,6 +352,7 @@ export const watchCommand = define({
           if (normalized !== '') {
             if (normalized === outputRel) return;
             if (registryRel && normalized === registryRel) return;
+            if (dashboardRel && normalized === dashboardRel) return;
           }
 
           if (timer) clearTimeout(timer);
