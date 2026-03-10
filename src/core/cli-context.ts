@@ -27,7 +27,7 @@ import {
 import type { ScanResult } from './types.ts';
 import { DEFAULT_SCAN_PATTERNS, DEFAULT_SCAN_IGNORE } from './scan-defaults.ts';
 import { assertWithinCwd, PathBoundaryError } from './path-boundary.ts';
-import { routeRegistryByPattern } from '../commands/registry-generator.ts';
+import { routeRegistryByPattern } from './registry-router.ts';
 
 const execFileAsync = promisify(execFile);
 

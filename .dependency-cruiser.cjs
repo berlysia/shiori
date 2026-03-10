@@ -59,6 +59,9 @@ module.exports = {
 
     // Rule 6: No horizontal dependencies between command pure logic modules
     // CLI wrappers (-cli.ts) may import any command module.
+    // Composition sources: modules that compose multiple commands by design.
+    //   scan-workspaces → scan, init-steps → scan/init/registry/next-steps/ci-templates
+    //   doctor → doctor/* sub-modules
     // Composition targets: higher-level commands that compose lower-level ones.
     //   check → verify, report → verify, health → report, adopt → migrate
     {
@@ -68,7 +71,13 @@ module.exports = {
       severity: 'error',
       from: {
         path: '^src/commands/',
-        pathNot: '-cli\\.ts$',
+        pathNot: [
+          '-cli\\.ts$',
+          'scan-workspaces\\.ts$',
+          'init-steps\\.ts$',
+          'doctor\\.ts$',
+          'doctor/.*\\.ts$',
+        ],
       },
       to: {
         path: '^src/commands/',

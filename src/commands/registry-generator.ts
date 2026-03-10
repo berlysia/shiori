@@ -1,10 +1,9 @@
 import type { Registry, ShioriAnnotation } from '../core/types.ts';
-import type { RefPatternConfig } from '../core/ref-pattern.ts';
-import { matchRefPattern } from '../core/ref-pattern.ts';
 import { isValidRef } from '../core/ref-validation.ts';
 
 // Re-export for backward compatibility
 export { REF_PATTERN, isValidRef } from '../core/ref-validation.ts';
+export { routeRegistryByPattern } from '../core/registry-router.ts';
 
 export interface InitRegistryOptions {
   /** Shiori annotations from scan */
@@ -75,36 +74,4 @@ export function initRegistry(options: InitRegistryOptions): Registry {
   }
 
   return registry;
-}
-
-/**
- * Route a registry into per-pattern registries based on ref pattern config.
- * Returns a map of registryFile → Registry, plus null key for entries
- * without a matching pattern.
- */
-export function routeRegistryByPattern(
-  registry: Registry,
-  patterns: RefPatternConfig[] | undefined,
-): Map<string | null, Registry> {
-  const routed = new Map<string | null, Registry>();
-
-  for (const [ref, entry] of Object.entries(registry)) {
-    let target: string | null = null;
-
-    if (patterns) {
-      const match = matchRefPattern(ref, patterns);
-      if (match?.config.registryFile) {
-        target = match.config.registryFile;
-      }
-    }
-
-    const existing = routed.get(target);
-    if (existing) {
-      existing[ref] = entry;
-    } else {
-      routed.set(target, { [ref]: entry });
-    }
-  }
-
-  return routed;
 }
