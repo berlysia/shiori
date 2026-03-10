@@ -1,0 +1,41 @@
+name: zizmor
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/**'
+      - '.github/zizmor.yml'
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/**'
+      - '.github/zizmor.yml'
+
+permissions: {}
+
+jobs:
+  zizmor:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - uses: zizmorcore/zizmor-action@71321a20a9ded102f6e9ce5718a2fcec2c4f70d8 # v0.5.2
+        with:
+          install-only: true
+
+      - name: Run zizmor
+        run: zizmor -c .github/zizmor.yml --format sarif . > results.sarif
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@820e3160e279568db735cee8ed8f8e77a6da7818 # v3
+        with:
+          sarif_file: results.sarif
+          category: zizmor

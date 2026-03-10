@@ -6,6 +6,8 @@ on:
     - cron: '0 9 * * 1'
   workflow_dispatch: # Manual trigger
 
+permissions: {}
+
 jobs:
   check-expires:
     runs-on: ubuntu-latest
@@ -14,11 +16,13 @@ jobs:
       issues: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
           cache: pnpm
@@ -47,8 +51,10 @@ jobs:
         if: steps.shiori.outputs.expiring != '0' || steps.shiori.outputs.expired != '0'
         env:
           GH_TOKEN: ${{ github.token }}
+          SHIORI_EXPIRED: ${{ steps.shiori.outputs.expired }}
+          SHIORI_EXPIRING: ${{ steps.shiori.outputs.expiring }}
         run: |
-          TITLE="shiori: $(date +%Y-%m-%d) — ${{ steps.shiori.outputs.expired }} expired, ${{ steps.shiori.outputs.expiring }} expiring soon"
+          TITLE="shiori: $(date +%Y-%m-%d) — ${SHIORI_EXPIRED} expired, ${SHIORI_EXPIRING} expiring soon"
 
           # Generate markdown report for issue body
           BODY=$(node dist/src/cli.js check \

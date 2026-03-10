@@ -1,0 +1,6 @@
+rules:
+  cache-poisoning:
+    ignore:
+      # actions/setup-node does not enable caching by default (cache input defaults to '').
+      # This is a false positive from zizmor detecting pnpm/action-setup in the same job.
+      - release.yml

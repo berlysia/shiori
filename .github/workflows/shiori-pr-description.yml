@@ -4,6 +4,8 @@ on:
   pull_request:
     branches: [master]
 
+permissions: {}
+
 jobs:
   delta-description:
     runs-on: ubuntu-latest
@@ -13,11 +15,13 @@ jobs:
       actions: read
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
           cache: pnpm
@@ -30,7 +34,7 @@ jobs:
       # actions/download-artifact@v4 only works within the same workflow run,
       # so we use the GitHub API to fetch cross-workflow artifacts.
       - name: Download baseline scan artifact
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         with:
           script: |
             const fs = require('fs');
@@ -123,7 +127,7 @@ jobs:
 
       # Replace marker sections in PR Description with delta and triage reports
       - name: Update PR description
-        uses: actions/github-script@v7
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         with:
           script: |
             const fs = require('fs');
