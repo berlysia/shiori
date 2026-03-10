@@ -100,6 +100,8 @@ ADRs are in `docs/decisions/`:
 - **020**: Package exports and CI pipeline
 - **021**: VSCode extension
 - **022**: Workspace governance (`--workspace` flag for monorepo cross-package scanning)
+- **023**: Annotation Chronicle (provenance × ref-status × registry timeline integration)
+- **024**: Health score redesign (from debt reduction to decision tracking coverage)
 
 ## Dogfooding: shiori で自身の開発を追跡
 
