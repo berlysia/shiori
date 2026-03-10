@@ -1,7 +1,5 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Project Overview
 
 shiori is an annotation tracking and governance CLI tool. It recovers structured annotations (lint violations hidden by `disable` comments) from source code, manages them in a JSON registry, and verifies them in CI. Early development stage (0.0.1), no external users yet.
@@ -38,17 +36,15 @@ Source Files → CommentProvider.scan() → ShioriAnnotation[]
 
 ### Core Modules (`src/core/`)
 
-- **types.ts** — All shared types (`ShioriAnnotation`, `Registry`, `VerifyIssue`, etc.)
-- **parser.ts** — `parseShioriFields()`: parses `shiori: <ref> [key=value ...]` annotation syntax
-- **registry.ts** — Registry loading, validation, saving (JSON and YAML formats, auto-detected by file extension)
-- **providers/AnnotationProvider.ts** — Provider interface (pluggable extraction)
-- **providers/CommentProvider.ts** — Current implementation: line-based text scanning for lint disable comments
+- **types.ts** — Shared types (`ShioriAnnotation`, `Registry`, `VerifyIssue`, etc.)
+- **parser.ts** — `parseShioriFields()`: `shiori: <ref> [key=value ...]` syntax parsing
+- **registry.ts** — Registry load/validate/save (JSON, YAML, auto-detected by extension)
+- **providers/AnnotationProvider.ts** — Provider interface
+- **providers/CommentProvider.ts** — Line-based text scanning for lint disable comments
 
 ### Commands (`src/commands/`)
 
-Each command has a pure logic module and a CLI wrapper (e.g., `scan.ts` + `scan-cli.ts`). CLI framework: gunshi.
-
-Implemented commands (21):
+Pattern: `scan.ts` (logic) + `scan-cli.ts` (CLI wrapper). Framework: gunshi. Commands (21):
 
 - **Workflow**: `init`, `scan`, `verify`, `check`, `update`, `adopt`, `resolve`, `migrate`, `watch`, `draft`, `candidates`
 - **Governance & Insights**: `health`, `triage`, `report`, `trend`, `delta`
@@ -76,50 +72,13 @@ Positional ref syntax: first token is the tracking reference, remaining tokens a
 
 ### Design Decisions
 
-ADRs are in `docs/decisions/`:
+ADRs in `docs/decisions/` (001-024). Read specific ADRs when relevant to current task.
+Key ADRs for annotation parsing: 003 (key=value syntax), 005 (drafts), 006 (candidates), 007 (positional ref).
 
-- **001**: External CLI over lint plugin (disable comments are invisible to lint results)
-- **002**: Annotation model generalization (suppression → annotation, multiple verbs)
-- **003**: `shiori: key=value` syntax migration (from `verb(<id>)` format)
-- **004**: `kind` field registry-only migration (from source comments to registry)
-- **005**: Draft annotations (`shiori:` with no ref as intentional draft state)
-- **006**: Candidate detection and `shiori:ignore` (malformed → syntax-error, auto-detect lint disable candidates)
-- **007**: Positional ref syntax (`ref=` replaced by positional first token)
-- **008**: Namespace resolution (`parseRef()` and `resolveRefUrl()` for `NAMESPACE:id` refs)
-- **009**: `shiori show` command (ref information lookup with registry, source locations, URL)
-- **010**: Multi-registry loading (namespace-based registry file splitting)
-- **011**: JSON Schema registry validation (proposed)
-- **012**: Pattern-based ref resolution (supersedes ADR 008)
-- **013**: CLI ergonomics improvement
-- **014**: init and update commands
-- **015**: Scan false positive prevention
-- **016**: Auto-migration tooling for existing codebases
-- **017**: Multi-language comment support
-- **018**: External service integration strategy
-- **019**: Node.js version requirements
-- **020**: Package exports and CI pipeline
-- **021**: VSCode extension
-- **022**: Workspace governance (`--workspace` flag for monorepo cross-package scanning)
-- **023**: Annotation Chronicle (provenance × ref-status × registry timeline integration)
-- **024**: Health score redesign (from debt reduction to decision tracking coverage)
+## Dogfooding (`shiori verify` で自己追跡)
 
-## Dogfooding: shiori で自身の開発を追跡
+レジストリ: `.config/shiori/registry.json`
 
-開発中に遭遇した技術的決定・TODO・ワークアラウンドは shiori 自身を使ってコード内アノテーションとレジストリで管理する。
-
-### 使い方
-
-コード内でメモしたいことがあれば `shiori:` アノテーションを書く:
-
-```typescript
-// shiori: DEV-001 reason=workaround for X
-// eslint-disable-next-line some-rule -- shiori: DEV-002 expires=2026-06
-```
-
-レジストリ (`.config/shiori/registry.json`) にエントリを追加して構造化情報を保存する。
-
-### 運用ルール
-
-- ref のプレフィックスは `DEV-` (開発メモ)、`ADR-` (設計決定参照) を使用
-- `expires` は期限のあるワークアラウンドに必ず設定
-- `pnpm build && shiori verify` で整合性を確認
+- ref プレフィックス: `DEV-` (開発メモ), `ADR-` (設計決定参照)
+- `expires` は期限付きワークアラウンドに必須
+- 整合性確認: `pnpm build && shiori verify`
