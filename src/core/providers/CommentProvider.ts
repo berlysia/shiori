@@ -195,9 +195,9 @@ function parseMatcherRest(
  * CommentProvider: extracts shiori annotations and candidates from source code comments.
  *
  * Classification paths:
- * - **Path A**: Lint directive + `shiori:` prefix → full annotation with rule
- * - **Path B**: Standalone `shiori:` comment → annotation without rule
- * - **Path C**: Lint directive without `shiori:` → candidate for potential tracking
+ * - **Path A**: Lint directive + annotation prefix → full annotation with rule
+ * - **Path B**: Standalone annotation comment → annotation without rule
+ * - **Path C**: Lint directive without annotation prefix → candidate for potential tracking
  * - **Path D**: Regular comment → ignored
  */
 export class CommentProvider implements AnnotationProvider {
@@ -317,6 +317,21 @@ export class CommentProvider implements AnnotationProvider {
       // Path B: standalone annotation prefix (no matcher matched)
       const shioriMatch = text.match(SHIORI_PREFIX_RE);
       if (shioriMatch) {
+        // Check for ignore directive before parsing fields.
+        // Only apply when the ignore marker co-occurs with another
+        // annotation prefix (e.g. in a JSDoc block with examples).
+        // A bare standalone directive is parsed as ref="ignore".
+        const ignoreIdx = text.search(SHIORI_IGNORE_RE);
+        if (ignoreIdx >= 0 && ignoreIdx !== shioriMatch.index) {
+          annotations.push({
+            ref: '',
+            rule: undefined,
+            tagged: true,
+            ignored: true,
+            location: { file: file.path, line },
+          });
+          continue;
+        }
         const fieldsStr = text
           .slice(shioriMatch.index! + shioriMatch[0].length)
           .trim();

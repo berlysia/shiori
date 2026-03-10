@@ -1,0 +1,13 @@
+scan:
+  ignore:
+    - '**/node_modules/**'
+    - '**/dist/**'
+    - '**/.git/**'
+    - '**/tests/**'
+    - '**/test/**'
+    - '**/__tests__/**'
+    - '**/*.test.*'
+    - '**/*.spec.*'
+    - '**/.config/**'
+    # Project-specific: template string literals contain shiori: examples
+    - '**/templates/**'

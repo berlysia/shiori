@@ -64,15 +64,15 @@ export interface ResolveOptions {
  * Returns the modified line, or null if the entire line should be deleted.
  *
  * Cases:
- *  1. `-- shiori: REF [key=value]` → remove `--` and everything after
- *  2. standalone `// shiori: REF` → null (delete line)
- *  3. block comment `/* ... shiori: REF ... * /` → remove shiori portion
- *  4. `-- other text shiori: REF` → remove shiori portion only
- *  5. multiple shiori annotations → remove only the target ref
+ *  1. separator + annotation (`-- <annotation>`) → remove separator and after
+ *  2. standalone line comment annotation → null (delete line)
+ *  3. block comment annotation → remove annotation portion
+ *  4. separator + other text + annotation → remove annotation portion only
+ *  5. multiple annotations → remove only the target ref
  */
 export function removeAnnotation(line: string, ref: string): string | null {
   const escapedRef = escapeRegex(ref);
-  // Match `shiori:` (with optional space) then the ref, then optional key=value pairs
+  // Match annotation prefix (with optional space) then the ref, then optional key=value pairs
   const shioriPattern = new RegExp(
     `\\s*shiori:\\s*${escapedRef}(?:\\s+[a-z]+=\\S+)*`,
   );
@@ -82,7 +82,7 @@ export function removeAnnotation(line: string, ref: string): string | null {
     return line;
   }
 
-  // Detect standalone shiori comment (entire comment is just `// shiori: REF ...`)
+  // Detect standalone annotation line comment (entire comment is just the annotation)
   const standaloneLineComment = new RegExp(
     `^(\\s*)\\/\\/\\s*shiori:\\s*${escapedRef}(?:\\s+[a-z]+=\\S+)*\\s*$`,
   );
@@ -90,7 +90,7 @@ export function removeAnnotation(line: string, ref: string): string | null {
     return null; // Delete entire line
   }
 
-  // Detect standalone block comment (entire comment is `/* shiori: REF ... */`)
+  // Detect standalone block comment annotation (entire comment is just the annotation)
   const standaloneBlockComment = new RegExp(
     `^(\\s*)\\/\\*\\s*shiori:\\s*${escapedRef}(?:\\s+[a-z]+=\\S+)*\\s*\\*\\/\\s*$`,
   );

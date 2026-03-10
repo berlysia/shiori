@@ -153,11 +153,11 @@ export function planMigration(options: MigrateOptions): MigrateResult {
 /**
  * Insert shiori annotation into a source line.
  *
- * Handles both line comments (`//`) and block comments (`/* ... * /`).
+ * Handles both line comments and block comments.
  * For lint disable comments with `--` separator convention (eslint, stylelint),
- * inserts ` -- shiori: REF` or appends ` shiori: REF` after existing `--`.
+ * inserts a separator + annotation or appends annotation after existing `--`.
  *
- * Block comment aware: inserts before the closing `* /` delimiter.
+ * Block comment aware: inserts before the closing delimiter.
  */
 export function insertAnnotation(line: string, ref: string): string {
   const annotation = `shiori: ${ref}`;
@@ -183,7 +183,7 @@ export function insertAnnotation(line: string, ref: string): string {
   const hasSeparator = inner.indexOf(' -- ') >= 0;
 
   if (hasSeparator) {
-    // Already has separator — append shiori: after existing meta content
+    // Already has separator — append annotation after existing meta content
     return `${inner} ${annotation}${suffix}`;
   }
 
