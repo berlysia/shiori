@@ -2,22 +2,21 @@
   "name": "@berlysia/shiori",
   "version": "0.1.0",
   "description": "Annotation tracking and governance CLI tool for recovering structured annotations from source code",
-  "type": "module",
-  "license": "MIT",
   "keywords": [
-    "lint",
     "annotations",
-    "governance",
-    "eslint",
-    "stylelint",
+    "ci",
     "disable-comments",
+    "eslint",
+    "governance",
+    "lint",
     "registry",
-    "ci"
+    "stylelint"
   ],
   "homepage": "https://github.com/berlysia/shiori#readme",
   "bugs": {
     "url": "https://github.com/berlysia/shiori/issues"
   },
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/berlysia/shiori.git"
@@ -28,6 +27,7 @@
   "files": [
     "dist/src/"
   ],
+  "type": "module",
   "exports": {
     ".": {
       "types": "./dist/src/core/types.d.ts",
@@ -42,6 +42,9 @@
       "import": "./dist/src/commands/show.js"
     }
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "clean": "rm -rf dist",
     "build": "tsc",
@@ -52,17 +55,11 @@
     "lint:boundaries": "depcruise src/ --config .dependency-cruiser.cjs",
     "link:local": "pnpm build && pnpm link --global",
     "unlink:local": "pnpm unlink --global",
+    "build:playground": "esbuild src/playground/index.ts --bundle --format=esm --target=es2022 --outfile=playground/shiori-playground.js --minify --sourcemap --metafile=playground/meta.json --platform=browser && cp src/playground/index.html playground/index.html",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepublishOnly": "pnpm clean && pnpm build && pnpm test",
     "prepare": "husky"
-  },
-  "packageManager": "pnpm@10.27.0",
-  "publishConfig": {
-    "access": "public"
-  },
-  "engines": {
-    "node": ">=18.0.0"
   },
   "dependencies": {
     "fast-glob": "^3.3.3",
@@ -72,10 +69,15 @@
   "devDependencies": {
     "@types/node": "25.2.0",
     "dependency-cruiser": "17.3.8",
+    "esbuild": "0.27.3",
     "husky": "9.1.7",
     "lint-staged": "16.2.7",
     "oxlint": "1.43.0",
     "prettier": "^3.8.1",
     "typescript": "^5.9.3"
-  }
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "packageManager": "pnpm@10.27.0"
 }

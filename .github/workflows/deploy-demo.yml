@@ -38,6 +38,16 @@ jobs:
       - name: Generate HTML governance report
         run: node dist/src/cli.js report --format html --timeline --provenance --output _site/index.html
 
+      - name: Build playground
+        run: pnpm run build:playground
+
+      - name: Copy playground to _site
+        run: |
+          mkdir -p _site/playground
+          cp playground/shiori-playground.js _site/playground/
+          cp playground/shiori-playground.js.map _site/playground/
+          cp playground/index.html _site/playground/
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
 

@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>shiori Playground</title>
+<style>
+:root {
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --border: #334155;
+  --text: #e2e8f0;
+  --text-muted: #94a3b8;
+  --accent: #38bdf8;
+  --error: #f87171;
+  --warning: #fbbf24;
+  --success: #34d399;
+  --font-mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+header {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+header h1 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--accent);
+}
+header span {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+header .file-ext {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+header .file-ext label {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+header .file-ext select {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+.main {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+.panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.panel:first-child {
+  border-right: 1px solid var(--border);
+}
+.panel-header {
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+#editor {
+  flex: 1;
+  width: 100%;
+  background: transparent;
+  color: var(--text);
+  border: none;
+  resize: none;
+  padding: 16px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  outline: none;
+  tab-size: 2;
+}
+#output {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.section { margin-bottom: 20px; }
+.section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+.annotation, .candidate, .issue {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+}
+.annotation .ref {
+  color: var(--accent);
+  font-weight: 600;
+}
+.annotation .rule {
+  color: var(--warning);
+  font-size: 12px;
+}
+.annotation .meta {
+  color: var(--text-muted);
+  font-size: 11px;
+  margin-top: 4px;
+}
+.candidate .pattern {
+  color: var(--warning);
+  font-weight: 600;
+}
+.issue {
+  border-left: 3px solid;
+}
+.issue.error { border-left-color: var(--error); }
+.issue.warning { border-left-color: var(--warning); }
+.issue .type {
+  font-weight: 600;
+  font-size: 12px;
+}
+.issue.error .type { color: var(--error); }
+.issue.warning .type { color: var(--warning); }
+.issue .message {
+  color: var(--text-muted);
+  font-size: 12px;
+  margin-top: 2px;
+}
+.summary {
+  display: flex;
+  gap: 16px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+.summary .stat {
+  font-size: 12px;
+}
+.summary .stat .label {
+  color: var(--text-muted);
+}
+.summary .stat .value {
+  font-weight: 700;
+}
+.empty {
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 12px;
+}
+footer {
+  padding: 8px 20px;
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: center;
+  flex-shrink: 0;
+}
+footer a { color: var(--accent); text-decoration: none; }
+footer a:hover { text-decoration: underline; }
+@media (max-width: 768px) {
+  .main { flex-direction: column; }
+  .panel:first-child { border-right: none; border-bottom: 1px solid var(--border); }
+  .panel { min-height: 40vh; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>shiori Playground</h1>
+  <span>Annotation tracking — live preview</span>
+  <div class="file-ext">
+    <label for="ext">File type:</label>
+    <select id="ext">
+      <option value=".ts">.ts</option>
+      <option value=".js">.js</option>
+      <option value=".css">.css</option>
+      <option value=".py">.py</option>
+      <option value=".rb">.rb</option>
+      <option value=".html">.html</option>
+      <option value=".sql">.sql</option>
+      <option value=".lua">.lua</option>
+    </select>
+  </div>
+</header>
+<div class="main">
+  <div class="panel">
+    <div class="panel-header">Source Code</div>
+    <textarea id="editor" spellcheck="false">// eslint-disable-next-line no-console -- shiori: SUP-1234 expires=2026-06
+console.log('hello');
+
+// shiori: ADR:0007 reason="positional ref syntax"
+
+/* stylelint-disable-next-line color-named -- shiori: CSS-001 */
+.btn { color: red; }
+
+// @ts-expect-error
+const x: any = 42;
+
+// TODO: refactor this later</textarea>
+  </div>
+  <div class="panel">
+    <div class="panel-header">Parse Result</div>
+    <div id="output"></div>
+  </div>
+</div>
+<footer>
+  <a href="https://github.com/berlysia/shiori">shiori</a> — Annotation tracking &amp; governance CLI
+</footer>
+<script type="module">
+import * as shiori from './shiori-playground.js';
+
+const editor = document.getElementById('editor');
+const output = document.getElementById('output');
+const extSelect = document.getElementById('ext');
+
+// Sample registry for verify demo
+const SAMPLE_REGISTRY = {
+  'SUP-1234': {
+    reason: 'Legacy console logging for debugging',
+    target: 'src/app.ts',
+    expires: '2026-06',
+    ticket: 'https://example.com/issues/1234',
+    owner: 'team-platform',
+    notes: undefined,
+    kind: 'workaround',
+  },
+  'ADR:0007': {
+    reason: 'Positional ref syntax design decision',
+    target: 'src/core/parser.ts',
+    expires: undefined,
+    ticket: undefined,
+    owner: 'team-core',
+    notes: 'Architecture Decision Record',
+    kind: 'decision',
+  },
+};
+
+function update() {
+  const code = editor.value;
+  const ext = extSelect.value;
+  const fileName = `example${ext}`;
+
+  // Scan
+  const provider = new shiori.CommentProvider();
+  const result = provider.scan({ path: fileName, content: code });
+
+  // Verify
+  const verifyResult = shiori.verify({
+    records: result.annotations,
+    registry: SAMPLE_REGISTRY,
+    failOn: ['missing-in-registry', 'expired', 'syntax-error'],
+    warnOn: ['unused-in-source', 'expiring-soon', 'ref-format'],
+  });
+
+  render(result, verifyResult);
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function render(scanResult, verifyResult) {
+  const { annotations, candidates } = scanResult;
+  let html = '';
+
+  // Summary
+  html += '<div class="summary">';
+  html += `<div class="stat"><span class="label">Annotations: </span><span class="value">${annotations.filter(a => !a.ignored).length}</span></div>`;
+  html += `<div class="stat"><span class="label">Candidates: </span><span class="value">${candidates.length}</span></div>`;
+  html += `<div class="stat"><span class="label">Issues: </span><span class="value">${verifyResult.summary.total}</span></div>`;
+  html += `<div class="stat"><span class="label">Errors: </span><span class="value" style="color:var(--error)">${verifyResult.summary.errors}</span></div>`;
+  html += `<div class="stat"><span class="label">Warnings: </span><span class="value" style="color:var(--warning)">${verifyResult.summary.warnings}</span></div>`;
+  html += '</div>';
+
+  // Annotations
+  html += '<div class="section"><div class="section-title">Annotations</div>';
+  const tracked = annotations.filter(a => !a.ignored);
+  if (tracked.length === 0) {
+    html += '<div class="empty">No annotations found</div>';
+  } else {
+    for (const a of tracked) {
+      html += '<div class="annotation">';
+      html += `<span class="ref">${escapeHtml(a.ref || '(empty ref)')}</span>`;
+      if (a.rule) html += ` <span class="rule">${escapeHtml(a.rule)}</span>`;
+      html += `<div class="meta">line ${a.location.line}`;
+      if (a.expires) html += ` · expires ${escapeHtml(a.expires)}`;
+      if (a.reason) html += ` · ${escapeHtml(a.reason)}`;
+      if (a.syntaxErrors?.length) html += ` · ⚠ ${a.syntaxErrors.map(escapeHtml).join(', ')}`;
+      html += '</div></div>';
+    }
+  }
+  html += '</div>';
+
+  // Candidates
+  html += '<div class="section"><div class="section-title">Candidates (untracked)</div>';
+  if (candidates.length === 0) {
+    html += '<div class="empty">No candidates found</div>';
+  } else {
+    for (const c of candidates) {
+      html += '<div class="candidate">';
+      html += `<span class="pattern">${escapeHtml(c.pattern)}</span>`;
+      if (c.directive) html += `:${escapeHtml(c.directive)}`;
+      if (c.rule) html += ` <span class="rule">${escapeHtml(c.rule)}</span>`;
+      if (c.text) html += ` <span style="color:var(--text-muted)">${escapeHtml(c.text)}</span>`;
+      html += `<div class="meta">line ${c.location.line}</div>`;
+      html += '</div>';
+    }
+  }
+  html += '</div>';
+
+  // Verify issues
+  html += '<div class="section"><div class="section-title">Verify Issues</div>';
+  if (verifyResult.issues.length === 0) {
+    html += '<div class="empty">No issues — registry in sync ✓</div>';
+  } else {
+    for (const issue of verifyResult.issues) {
+      html += `<div class="issue ${issue.severity}">`;
+      html += `<span class="type">${escapeHtml(issue.type)}</span>`;
+      html += `<div class="message">${escapeHtml(issue.message)}</div>`;
+      html += '</div>';
+    }
+  }
+  html += '</div>';
+
+  output.innerHTML = html;
+}
+
+editor.addEventListener('input', update);
+extSelect.addEventListener('change', update);
+update();
+</script>
+</body>
+</html>

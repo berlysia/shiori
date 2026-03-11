@@ -1,5 +1,6 @@
 node_modules/
 dist/
+/playground/
 .tmp/
 .config/shiori/scan-result.json
 .config/ralf/
