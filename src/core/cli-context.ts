@@ -133,7 +133,7 @@ export function resolveScanPatterns(
 
   const ignore = ignoreArg
     ? ignoreArg.split(',').map((s) => s.trim())
-    : (config.scanIgnore ?? DEFAULT_SCAN_IGNORE);
+    : [...DEFAULT_SCAN_IGNORE, ...(config.scanIgnore ?? [])];
 
   return { patterns, ignore };
 }

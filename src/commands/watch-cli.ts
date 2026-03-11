@@ -149,10 +149,10 @@ export const watchCommand = define({
       ctx.values.patterns,
       config.scanPatterns ?? DEFAULT_SCAN_PATTERNS,
     );
-    const ignore = parseList(
-      ctx.values.ignore,
-      config.scanIgnore ?? DEFAULT_SCAN_IGNORE,
-    );
+    const ignore = parseList(ctx.values.ignore, [
+      ...DEFAULT_SCAN_IGNORE,
+      ...(config.scanIgnore ?? []),
+    ]);
 
     const outputPath = resolve(
       cwd,

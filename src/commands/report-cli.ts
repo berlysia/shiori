@@ -171,7 +171,7 @@ export const reportCommand = define({
 
     const ignore = ctx.values.ignore
       ? ctx.values.ignore.split(',').map((s: string) => s.trim())
-      : (config.scanIgnore ?? DEFAULT_SCAN_IGNORE);
+      : [...DEFAULT_SCAN_IGNORE, ...(config.scanIgnore ?? [])];
 
     // Scan
     const provider = new CommentProvider();

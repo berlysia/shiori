@@ -1,5 +1,3 @@
-import { extname } from 'node:path';
-
 /** Comment syntax definition for a language family */
 export interface CommentSyntax {
   /** Line comment prefixes (e.g., ["//"], ["#"]) */
@@ -83,7 +81,8 @@ export const DEFAULT_SYNTAX_FAMILY = 'c';
  * Returns C-style syntax for unknown extensions (backward compatible).
  */
 export function getCommentSyntax(filePath: string): CommentSyntax {
-  const ext = extname(filePath);
+  const dotIndex = filePath.lastIndexOf('.');
+  const ext = dotIndex > 0 ? filePath.slice(dotIndex) : '';
   const family = EXTENSION_MAP[ext] ?? DEFAULT_SYNTAX_FAMILY;
   return COMMENT_SYNTAXES[family] ?? COMMENT_SYNTAXES[DEFAULT_SYNTAX_FAMILY]!;
 }

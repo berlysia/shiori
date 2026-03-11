@@ -11,6 +11,7 @@ import {
   resolveExpiringThreshold,
 } from '../src/core/cli-context.ts';
 import type { ResolvedConfig } from '../src/core/config.ts';
+import { DEFAULT_SCAN_IGNORE } from '../src/core/scan-defaults.ts';
 
 /** Minimal resolved config for testing */
 function makeConfig(overrides?: Partial<ResolvedConfig>): ResolvedConfig {
@@ -142,7 +143,7 @@ describe('resolveScanPatterns', () => {
     assert.deepEqual(result.ignore, ['*.test.*']);
   });
 
-  it('falls back to config scan patterns', () => {
+  it('merges config scanIgnore with defaults (EP-0051)', () => {
     const config = makeConfig({
       scanPatterns: ['**/*.css'],
       scanIgnore: ['**/vendor/**'],
@@ -150,7 +151,10 @@ describe('resolveScanPatterns', () => {
     const result = resolveScanPatterns(undefined, undefined, config);
 
     assert.deepEqual(result.patterns, ['**/*.css']);
-    assert.deepEqual(result.ignore, ['**/vendor/**']);
+    // Config scanIgnore is appended to defaults, not replacing them
+    assert.deepEqual(result.ignore, [...DEFAULT_SCAN_IGNORE, '**/vendor/**']);
+    assert.ok(result.ignore.includes('**/node_modules/**'));
+    assert.ok(result.ignore.includes('**/vendor/**'));
   });
 
   it('falls back to defaults when config has no patterns', () => {

@@ -234,7 +234,7 @@ export async function stepScan(
 
   const ignore = opts.ignoreFlag
     ? opts.ignoreFlag.split(',').map((s) => s.trim())
-    : (ctx.config.scanIgnore ?? DEFAULT_SCAN_IGNORE);
+    : [...DEFAULT_SCAN_IGNORE, ...(ctx.config.scanIgnore ?? [])];
 
   const provider = new CommentProvider();
   const scanResult = await scan({
@@ -297,7 +297,7 @@ export async function stepStarter(
       ...(ctx.config.scanPatterns ?? DEFAULT_SCAN_PATTERNS),
       ...starter.scanPatterns,
     ];
-    const ignore = ctx.config.scanIgnore ?? DEFAULT_SCAN_IGNORE;
+    const ignore = [...DEFAULT_SCAN_IGNORE, ...(ctx.config.scanIgnore ?? [])];
 
     const freshScan = await scan({
       patterns,
