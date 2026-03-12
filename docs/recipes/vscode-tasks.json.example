@@ -22,6 +22,24 @@
       }
     },
     {
+      "label": "shiori: Annotate with reason + expires (apply)",
+      "type": "shell",
+      "command": "pnpm shiori annotate --target ${file}:${lineNumber} --ref ${input:ref} --reason ${input:reason} --expires ${input:expires} --apply",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "shiori: Annotate + Verify",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "shiori: Annotate current line (apply)",
+        "shiori: Verify (diagnostic)"
+      ]
+    },
+    {
       "label": "shiori: Verify (diagnostic)",
       "type": "shell",
       "command": "pnpm shiori verify --format diagnostic",
@@ -98,6 +116,18 @@
       "id": "ref",
       "type": "promptString",
       "description": "Tracking reference (e.g. SUP-1234, ADR:0007)",
+      "default": ""
+    },
+    {
+      "id": "reason",
+      "type": "promptString",
+      "description": "Reason for the annotation",
+      "default": ""
+    },
+    {
+      "id": "expires",
+      "type": "promptString",
+      "description": "Expiration date (YYYY-MM-DD or YYYY-MM)",
       "default": ""
     },
     {
