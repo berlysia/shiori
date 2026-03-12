@@ -134,12 +134,13 @@ jobs:
 
       - name: shiori check
         run: pnpm shiori check --fail-on expired,missing-in-registry
-        continue-on-error: true
 
       - name: Generate SARIF
+        if: always()
         run: pnpm shiori verify --format sarif --output .tmp/shiori.sarif
 
       - name: Upload SARIF
+        if: always()
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: .tmp/shiori.sarif
