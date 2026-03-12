@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="refresh" content="3" />
+    <title>Shiori Governance Dashboard</title>
+    <style>
+      :root {
+        --health-color: #eab308;
+        --bg: #0f172a;
+        --surface: #1e293b;
+        --surface-alt: #334155;
+        --text: #f1f5f9;
+        --text-muted: #94a3b8;
+        --border: #475569;
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.6;
+        padding: 2rem;
+        max-width: 960px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 1.5rem;
+        margin-bottom: 0.25rem;
+      }
+      h2 {
+        font-size: 1.125rem;
+        margin: 1.5rem 0 0.75rem;
+        color: var(--text-muted);
+      }
+      .meta {
+        color: var(--text-muted);
+        font-size: 0.85rem;
+        margin-bottom: 1.5rem;
+      }
+      .health-card {
+        background: var(--surface);
+        border-left: 4px solid var(--health-color);
+        border-radius: 8px;
+        padding: 1.25rem;
+        margin-bottom: 1.5rem;
+      }
+      .health-score {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--health-color);
+      }
+      .health-label {
+        color: var(--text-muted);
+        font-size: 0.85rem;
+      }
+      .health-summary {
+        margin-top: 0.5rem;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--surface);
+        border-radius: 8px;
+        overflow: hidden;
+        margin-bottom: 1rem;
+      }
+      th,
+      td {
+        padding: 0.6rem 1rem;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+      }
+      th {
+        background: var(--surface-alt);
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--text-muted);
+      }
+      td {
+        font-size: 0.9rem;
+      }
+      tr:last-child td {
+        border-bottom: none;
+      }
+      .insight-list {
+        list-style: none;
+      }
+      .insight-item {
+        background: var(--surface);
+        border-radius: 6px;
+        padding: 0.75rem 1rem;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+      }
+      .insight-label {
+        font-weight: 600;
+      }
+      .section {
+        margin-bottom: 1.5rem;
+      }
+      .empty {
+        color: var(--text-muted);
+        font-style: italic;
+        font-size: 0.9rem;
+      }
+      footer {
+        margin-top: 2rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--border);
+        color: var(--text-muted);
+        font-size: 0.8rem;
+        text-align: center;
+      }
+      .delta-summary {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1rem;
+      }
+      .delta-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        font-weight: 600;
+      }
+      .delta-badge.added {
+        background: rgba(34, 197, 94, 0.15);
+        color: #22c55e;
+      }
+      .delta-badge.removed {
+        background: rgba(239, 68, 68, 0.15);
+        color: #ef4444;
+      }
+      .delta-badge.unchanged {
+        background: rgba(148, 163, 184, 0.15);
+        color: #94a3b8;
+      }
+      .delta-badge.net {
+        background: rgba(59, 130, 246, 0.15);
+        color: #3b82f6;
+      }
+      .delta-table tr.delta-added td {
+        border-left: 3px solid #22c55e;
+      }
+      .delta-table tr.delta-removed td {
+        border-left: 3px solid #ef4444;
+      }
+      .delta-table tr.delta-unchanged td {
+        border-left: 3px solid var(--border);
+      }
+      .delta-kind {
+        display: inline-block;
+        padding: 0.1rem 0.4rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+      .delta-kind.added {
+        background: rgba(34, 197, 94, 0.15);
+        color: #22c55e;
+      }
+      .delta-kind.removed {
+        background: rgba(239, 68, 68, 0.15);
+        color: #ef4444;
+      }
+      .delta-kind.unchanged {
+        background: rgba(148, 163, 184, 0.15);
+        color: #94a3b8;
+      }
+      .provenance-table td.provenance-hash {
+        font-family: monospace;
+        font-size: 0.85rem;
+      }
+      .provenance-table td.provenance-date {
+        white-space: nowrap;
+      }
+      .chronicle-entry {
+        background: var(--surface);
+        border-radius: 8px;
+        padding: 1rem 1.25rem;
+        margin-bottom: 1rem;
+      }
+      .chronicle-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 0.75rem;
+        flex-wrap: wrap;
+      }
+      .chronicle-ref {
+        font-weight: 700;
+        font-size: 1rem;
+        font-family: monospace;
+      }
+      .chronicle-meta {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+      }
+      .chronicle-status {
+        display: inline-block;
+        padding: 0.1rem 0.5rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+      .chronicle-status.open {
+        background: rgba(34, 197, 94, 0.15);
+        color: #22c55e;
+      }
+      .chronicle-status.closed {
+        background: rgba(239, 68, 68, 0.15);
+        color: #ef4444;
+      }
+      .chronicle-status.unknown {
+        background: rgba(148, 163, 184, 0.15);
+        color: #94a3b8;
+      }
+      .chronicle-timeline {
+        position: relative;
+        padding-left: 1.5rem;
+        border-left: 2px solid var(--border);
+      }
+      .chronicle-event {
+        position: relative;
+        padding: 0.25rem 0 0.5rem 0.75rem;
+        font-size: 0.85rem;
+      }
+      .chronicle-event::before {
+        content: '';
+        position: absolute;
+        left: -1.85rem;
+        top: 0.45rem;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--border);
+      }
+      .chronicle-event.introduced::before {
+        background: #22c55e;
+      }
+      .chronicle-event.expires::before {
+        background: #3b82f6;
+      }
+      .chronicle-event.expired::before {
+        background: #ef4444;
+      }
+      .chronicle-event.status-closed::before {
+        background: #f59e0b;
+      }
+      .chronicle-event-date {
+        font-family: monospace;
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        margin-right: 0.5rem;
+      }
+      .chronicle-locations {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        margin-top: 0.25rem;
+      }
+      .chronicle-summary {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+      }
+      .chronicle-stat {
+        padding: 0.25rem 0.75rem;
+        border-radius: 999px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        background: rgba(148, 163, 184, 0.15);
+        color: var(--text-muted);
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Shiori Governance Dashboard</h1>
+    <div class="meta">Generated: 2026-03-12T19:42:47.454Z</div>
+    <div class="meta live-indicator">
+      🟢 Live &mdash; auto-refreshing every 3s
+    </div>
+    <div class="health-card">
+      <div class="health-score">🟡 77/100</div>
+      <div class="health-label">warning</div>
+      <div class="health-summary">
+        Governance health: 77/100. 4 issue(s) require attention.
+      </div>
+    </div>
+    <div class="section">
+      <h2>Overview</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Metric</th>
+            <th>Count</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Tracked annotations</td>
+            <td>5</td>
+          </tr>
+          <tr>
+            <td>Untracked candidates</td>
+            <td>1</td>
+          </tr>
+          <tr>
+            <td>Registry entries</td>
+            <td>0</td>
+          </tr>
+          <tr>
+            <td>Issues (errors)</td>
+            <td>0</td>
+          </tr>
+          <tr>
+            <td>Issues (warnings)</td>
+            <td>4</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="section">
+      <h2>Insights</h2>
+      <ul class="insight-list">
+        <li class="insight-item">
+          ⚠️ <span class="insight-label">unregistered</span>: 4 annotation(s)
+          are not registered. Run &quot;shiori update&quot; to add them.
+        </li>
+        <li class="insight-item">
+          ℹ️ <span class="insight-label">candidates</span>: 1 lint disable
+          comment(s) detected without shiori tracking (17% untracked). Run
+          &quot;shiori candidates&quot; to review.
+        </li>
+      </ul>
+    </div>
+    <div class="section">
+      <h2>Issues by Type</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Type</th>
+            <th>Count</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>missing-in-registry</td>
+            <td>4</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="section">
+      <h2>Annotations by Rule</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Rule</th>
+            <th>Count</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>@typescript-eslint/no-explicit-any</td>
+            <td>1</td>
+          </tr>
+          <tr>
+            <td>no-console</td>
+            <td>1</td>
+          </tr>
+          <tr>
+            <td>plugin/baseline</td>
+            <td>1</td>
+          </tr>
+          <tr>
+            <td>plugin/no-unsupported</td>
+            <td>1</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <footer>
+      Generated by shiori &mdash; annotation tracking &amp; governance
+    </footer>
+    <script>
+      document.querySelectorAll('h2').forEach(function (h2) {
+        h2.style.cursor = 'pointer';
+        h2.addEventListener('click', function () {
+          var section = h2.parentElement;
+          var content = section.querySelectorAll('table, ul');
+          content.forEach(function (el) {
+            el.style.display = el.style.display === 'none' ? '' : 'none';
+          });
+        });
+      });
+    </script>
+  </body>
+</html>

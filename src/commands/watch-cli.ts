@@ -15,7 +15,9 @@ import {
 } from '../core/scan-defaults.ts';
 import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
 import { formatReportAsHtml } from '../formatters/report-html-formatter.ts';
+import { formatAsDiagnostic } from '../formatters/diagnostic.ts';
 import { computeDelta } from './delta.ts';
+import { verify } from './verify.ts';
 import type { ScanResult } from '../core/types.ts';
 
 function parseList(value: string | undefined, fallback: string[]): string[] {
@@ -135,6 +137,13 @@ export const watchCommand = define({
       type: 'boolean',
       description: 'Open dashboard in default browser (requires --dashboard)',
     },
+    format: {
+      type: 'string',
+      short: 'f',
+      description:
+        'Output format: "pretty" (default) or "diagnostic" (one-issue-per-line, GCC-compatible)',
+      default: 'pretty',
+    },
     cwd: {
       type: 'string',
       description: 'Working directory. Default: process.cwd()',
@@ -172,16 +181,36 @@ export const watchCommand = define({
       throw new Error(`Invalid --debounce-ms value: ${debounceMsRaw}`);
     }
 
+    const formatMode = ctx.values.format ?? 'pretty';
+    if (formatMode !== 'pretty' && formatMode !== 'diagnostic') {
+      console.error(
+        `Error: --format must be "pretty" or "diagnostic" (got "${formatMode}")`,
+      );
+      process.exitCode = 1;
+      return;
+    }
+
+    const diagnosticMode = formatMode === 'diagnostic';
+
     const syncRegistry = Boolean(ctx.values.syncRegistry);
     const dashboardMode = Boolean(ctx.values.dashboard);
     const openBrowser = Boolean(ctx.values.open);
+
+    // --format diagnostic and --dashboard are mutually exclusive
+    if (diagnosticMode && dashboardMode) {
+      console.error(
+        'Error: --format diagnostic and --dashboard are mutually exclusive',
+      );
+      process.exitCode = 1;
+      return;
+    }
 
     if (openBrowser && !dashboardMode) {
       console.error('Warning: --open requires --dashboard. Ignoring --open.');
     }
 
-    // Registry is needed for --sync-registry or --dashboard
-    const needsRegistry = syncRegistry || dashboardMode;
+    // Registry is needed for --sync-registry, --dashboard, or --format diagnostic
+    const needsRegistry = syncRegistry || dashboardMode || diagnosticMode;
     const registryPath = needsRegistry
       ? await resolveRegistryPath(ctx.values.registry, config, cwd)
       : undefined;
@@ -330,6 +359,30 @@ export const watchCommand = define({
         if (openBrowser && !browserOpened) {
           openInBrowser(dashboardPath);
           browserOpened = true;
+        }
+      }
+
+      // Diagnostic output: verify annotations and emit GCC-compatible lines to stdout
+      if (diagnosticMode && registryPath) {
+        const { registry, duplicates, refOrigins } = await loadMultiRegistry(
+          registryPath,
+          config.refPatterns,
+        );
+
+        const verifyResult = verify({
+          records: result.annotations,
+          registry,
+          failOn: [],
+          warnOn: [],
+          duplicates,
+          refPatterns: config.refPatterns,
+          refOrigins,
+          expiringThresholdDays: config.verify.expiringThresholdDays,
+        });
+
+        const diagnosticOutput = formatAsDiagnostic(verifyResult);
+        if (diagnosticOutput) {
+          console.log(diagnosticOutput);
         }
       }
 

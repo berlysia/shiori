@@ -553,4 +553,158 @@ describe('watch-cli: argument validation and error paths', () => {
       assert.ok(html.includes('<!DOCTYPE html>'));
     });
   });
+
+  describe('--format flag', () => {
+    it('rejects invalid format value', async () => {
+      const outputPath = join(tmpDir, 'watch-format-invalid.json');
+      const { exitCode, stderr } = await runCli([
+        'watch',
+        '--once',
+        '--format',
+        'invalid',
+        '--patterns',
+        SCAN_PATTERNS,
+        '--ignore',
+        SCAN_IGNORE,
+        '--output',
+        outputPath,
+      ]);
+
+      assert.equal(exitCode, 1);
+      assert.ok(
+        stderr.includes('--format must be'),
+        'stderr reports invalid format',
+      );
+    });
+
+    it('errors when --format diagnostic and --dashboard are both specified', async () => {
+      const outputPath = join(tmpDir, 'watch-format-dash-excl.json');
+      const registryPath = join(tmpDir, 'watch-format-dash-excl-registry.json');
+      await writeFile(registryPath, '{}', 'utf-8');
+
+      const { exitCode, stderr } = await runCli([
+        'watch',
+        '--once',
+        '--format',
+        'diagnostic',
+        '--dashboard',
+        '--patterns',
+        SCAN_PATTERNS,
+        '--ignore',
+        SCAN_IGNORE,
+        '--output',
+        outputPath,
+        '--registry',
+        registryPath,
+      ]);
+
+      assert.equal(exitCode, 1);
+      assert.ok(
+        stderr.includes('mutually exclusive'),
+        'stderr reports mutual exclusion',
+      );
+    });
+
+    it('outputs GCC-compatible diagnostic lines to stdout with --format diagnostic', async () => {
+      const outputPath = join(tmpDir, 'watch-format-diag.json');
+      const registryPath = join(tmpDir, 'watch-format-diag-registry.json');
+
+      // Copy fixture registry (missing SUP-2002, has expired SUP-9999)
+      const registryContent = await readFile(
+        join(PROJECT_ROOT, REGISTRY_PATH),
+        'utf-8',
+      );
+      await writeFile(registryPath, registryContent, 'utf-8');
+
+      const { exitCode, stdout, stderr } = await runCli([
+        'watch',
+        '--once',
+        '--format',
+        'diagnostic',
+        '--patterns',
+        SCAN_PATTERNS,
+        '--ignore',
+        SCAN_IGNORE,
+        '--output',
+        outputPath,
+        '--registry',
+        registryPath,
+      ]);
+
+      assert.equal(exitCode, 0);
+
+      // Status messages go to stderr
+      assert.ok(stderr.includes('refreshed (initial)'));
+
+      // Diagnostic output goes to stdout
+      assert.ok(stdout.length > 0, 'stdout should have diagnostic output');
+
+      // Verify GCC-compatible format: file:line:column: severity: message [type]
+      const lines = stdout.trim().split('\n');
+      for (const line of lines) {
+        assert.ok(
+          /^.+:\d+:\d+: (error|warning): .+ \[.+\]$/.test(line),
+          `Line should match GCC diagnostic format: ${line}`,
+        );
+      }
+    });
+
+    it('outputs nothing to stdout when no issues exist with --format diagnostic', async () => {
+      // Create a minimal fixture with no issues
+      const cwdDir = await mkdtemp(join(tmpDir, 'diag-clean-'));
+      await mkdir(join(cwdDir, 'src'), { recursive: true });
+      await writeFile(
+        join(cwdDir, 'src', 'clean.ts'),
+        '// shiori: CLEAN-001\nconst x = 1;\n',
+        'utf-8',
+      );
+      const registryPath = join(cwdDir, 'registry.json');
+      await writeFile(
+        registryPath,
+        JSON.stringify({
+          'CLEAN-001': {
+            reason: 'test',
+            target: 'all',
+          },
+        }),
+        'utf-8',
+      );
+      const outputPath = join(cwdDir, 'scan-result.json');
+
+      const { exitCode, stdout } = await runCli([
+        'watch',
+        '--once',
+        '--format',
+        'diagnostic',
+        '--cwd',
+        cwdDir,
+        '--patterns',
+        'src/**/*.ts',
+        '--output',
+        outputPath,
+        '--registry',
+        registryPath,
+      ]);
+
+      assert.equal(exitCode, 0);
+      assert.equal(stdout.trim(), '', 'stdout should be empty when no issues');
+    });
+
+    it('pretty format (default) does not emit diagnostic lines to stdout', async () => {
+      const outputPath = join(tmpDir, 'watch-format-pretty.json');
+      const { exitCode, stdout } = await runCli([
+        'watch',
+        '--once',
+        '--patterns',
+        SCAN_PATTERNS,
+        '--ignore',
+        SCAN_IGNORE,
+        '--output',
+        outputPath,
+      ]);
+
+      assert.equal(exitCode, 0);
+      assert.equal(stdout.trim(), '', 'stdout should be empty in pretty mode');
+    });
+  });
 });
