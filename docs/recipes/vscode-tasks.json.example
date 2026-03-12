@@ -2,6 +2,70 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "shiori: Annotate current line (dry-run)",
+      "type": "shell",
+      "command": "pnpm shiori annotate --target ${file}:${lineNumber} --ref ${input:ref} --format json",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "shiori: Annotate current line (apply)",
+      "type": "shell",
+      "command": "pnpm shiori annotate --target ${file}:${lineNumber} --ref ${input:ref} --apply",
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "shiori: Verify (diagnostic)",
+      "type": "shell",
+      "command": "pnpm shiori verify --format diagnostic",
+      "problemMatcher": {
+        "owner": "shiori",
+        "fileLocation": ["relative", "${workspaceFolder}"],
+        "pattern": {
+          "regexp": "^(.+):(\\d+):(\\d+):\\s+(error|warning):\\s+(.+)\\s+\\[(.+)\\]$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5,
+          "code": 6
+        }
+      },
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      }
+    },
+    {
+      "label": "shiori: Check (diagnostic)",
+      "type": "shell",
+      "command": "pnpm shiori check --format diagnostic",
+      "problemMatcher": {
+        "owner": "shiori",
+        "fileLocation": ["relative", "${workspaceFolder}"],
+        "pattern": {
+          "regexp": "^(.+):(\\d+):(\\d+):\\s+(error|warning):\\s+(.+)\\s+\\[(.+)\\]$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5,
+          "code": 6
+        }
+      },
+      "presentation": {
+        "reveal": "silent",
+        "panel": "shared"
+      }
+    },
+    {
       "label": "shiori: Jump to ref from alert",
       "type": "shell",
       "command": "docs/recipes/alert-to-ref.sh",
@@ -15,15 +79,27 @@
     {
       "label": "shiori: Verify (SARIF)",
       "type": "shell",
-      "command": "shiori",
-      "args": ["verify", "--format", "sarif"],
+      "command": "pnpm shiori verify --format sarif",
       "problemMatcher": [],
       "presentation": {
         "reveal": "always"
       }
+    },
+    {
+      "label": "shiori: Live Dashboard",
+      "type": "shell",
+      "command": "pnpm shiori watch --dashboard --open",
+      "isBackground": true,
+      "problemMatcher": []
     }
   ],
   "inputs": [
+    {
+      "id": "ref",
+      "type": "promptString",
+      "description": "Tracking reference (e.g. SUP-1234, ADR:0007)",
+      "default": ""
+    },
     {
       "id": "repo",
       "type": "promptString",
