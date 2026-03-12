@@ -3,6 +3,7 @@ import type {
   VerifyIssueType,
   VerifyResult,
 } from '../core/types.ts';
+import { VERSION } from '../core/version.ts';
 
 interface SarifLocation {
   physicalLocation: {
@@ -105,7 +106,7 @@ export function formatAsSarif(result: VerifyResult): string {
         tool: {
           driver: {
             name: 'shiori',
-            version: '0.1.0',
+            version: VERSION,
             rules,
           },
         },

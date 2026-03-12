@@ -115,7 +115,7 @@ export const checkCommand = define({
       type: 'string',
       toKebab: true,
       description:
-        'External command to check ref statuses. Receives refs on stdin (newline-delimited), returns JSONL with {ref, status} on stdout',
+        'External command to check ref statuses. Receives refs on stdin (newline-delimited), returns JSONL with {ref, status} on stdout. Note: command path must not contain spaces',
     },
   },
   run: async (ctx) => {

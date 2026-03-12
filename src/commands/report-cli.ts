@@ -143,7 +143,7 @@ export const reportCommand = define({
       type: 'string',
       toKebab: true,
       description:
-        'External command for ref status lookup (stdin: refs, stdout: JSONL). Used with --timeline',
+        'External command for ref status lookup (stdin: refs, stdout: JSONL). Used with --timeline. Note: command path must not contain spaces',
     },
   },
   run: async (ctx) => {

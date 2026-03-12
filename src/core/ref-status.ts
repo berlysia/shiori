@@ -64,6 +64,9 @@ export function parseRefStatusLine(line: string): RefStatusEntry | undefined {
  * Default ref-status runner using child_process.execFile.
  * Splits the command string into program + args, pipes refs via stdin,
  * and parses JSONL from stdout.
+ *
+ * Note: The command string is split on whitespace, so paths containing
+ * spaces are not supported. Use symlinks or wrapper scripts as a workaround.
  */
 export const defaultRefStatusRunner: RefStatusRunner = (
   command: string,
