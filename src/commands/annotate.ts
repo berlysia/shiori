@@ -1,7 +1,13 @@
-import type { Registry, RegistryEntry } from '../core/types.ts';
+import type {
+  RegistryEntry,
+  AnnotateOptions,
+  AnnotateResult,
+} from '../core/types.ts';
 import { isValidRef } from '../core/ref-validation.ts';
 import { getCommentSyntax } from '../core/comment-syntax.ts';
 import { insertAnnotation } from './migrate.ts';
+
+export type { AnnotateOptions, AnnotateResult } from '../core/types.ts';
 
 /** Error class for annotate command failures */
 export class AnnotateError extends Error {
@@ -9,40 +15,6 @@ export class AnnotateError extends Error {
     super(message);
     this.name = 'AnnotateError';
   }
-}
-
-/** Options for planning an annotation */
-export interface AnnotateOptions {
-  /** Target file path (relative to cwd) */
-  file: string;
-  /** Target line number (1-based) */
-  line: number;
-  /** Annotation ref (e.g. "SUP-1234") */
-  ref: string;
-  /** Optional reason text */
-  reason?: string;
-  /** Optional expiration date */
-  expires?: string;
-  /** Optional kind (registry-only, not in source comment) */
-  kind?: string;
-  /** Existing file content */
-  content: string;
-  /** Existing registry */
-  existingRegistry: Registry;
-}
-
-/** Result of planning an annotation */
-export interface AnnotateResult {
-  /** Modified file content */
-  content: string;
-  /** Generated registry entry */
-  registryEntry: RegistryEntry;
-  /** The ref key for the registry */
-  ref: string;
-  /** Whether a new line was inserted (vs modifying existing line) */
-  lineInserted: boolean;
-  /** Warnings (e.g. line too long) */
-  warnings: string[];
 }
 
 /** Regex to detect existing shiori annotation on a line */

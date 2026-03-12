@@ -276,6 +276,191 @@ describe('annotate-cli: error handling', () => {
   });
 });
 
+describe('annotate-cli: --format json (EP-0058)', () => {
+  let baseDir: string;
+  let cleanup: () => Promise<void>;
+
+  before(async () => {
+    ({ baseDir, cleanup } = await createTempBase('shiori-annotate-json-'));
+  });
+
+  after(async () => {
+    await cleanup();
+  });
+
+  it('outputs structured JSON in dry-run mode', async () => {
+    const dir = await createFixtureDir(baseDir, 'json-dry', {
+      sourceFiles: {
+        'src/app.ts':
+          '// eslint-disable-next-line no-console\nconsole.log("hi");\n',
+      },
+    });
+
+    const { stdout, exitCode } = await runCli([
+      'annotate',
+      '--target',
+      'src/app.ts:1',
+      '--ref',
+      'SUP-1234',
+      '--format',
+      'json',
+      '--cwd',
+      dir,
+    ]);
+
+    assert.equal(exitCode, 0);
+    const output = JSON.parse(stdout);
+    assert.equal(output.file, 'src/app.ts');
+    assert.equal(output.line, 1);
+    assert.equal(output.ref, 'SUP-1234');
+    assert.equal(output.action, 'append');
+    assert.equal(output.lineInserted, false);
+    assert.ok(output.annotationLine.includes('shiori: SUP-1234'));
+    assert.ok(output.registryEntry);
+  });
+
+  it('outputs structured JSON in apply mode', async () => {
+    const dir = await createFixtureDir(baseDir, 'json-apply', {
+      sourceFiles: {
+        'src/util.ts': 'const x = 1;\nconst y = 2;\n',
+      },
+    });
+
+    const { stdout, exitCode, stderr } = await runCli([
+      'annotate',
+      '--target',
+      'src/util.ts:1',
+      '--ref',
+      'DEV-001',
+      '--format',
+      'json',
+      '--apply',
+      '--cwd',
+      dir,
+    ]);
+
+    assert.equal(exitCode, 0);
+    const output = JSON.parse(stdout);
+    assert.equal(output.file, 'src/util.ts');
+    assert.equal(output.ref, 'DEV-001');
+    assert.equal(output.action, 'insert');
+    assert.equal(output.lineInserted, true);
+
+    // stderr still has human-readable status
+    assert.ok(stderr.includes('Annotated src/util.ts:1'));
+
+    // Verify file was actually modified
+    const content = await readFile(join(dir, 'src/util.ts'), 'utf-8');
+    assert.ok(content.includes('shiori: DEV-001'));
+  });
+
+  it('writes JSON output to file with --output', async () => {
+    const dir = await createFixtureDir(baseDir, 'json-output', {
+      sourceFiles: {
+        'src/app.ts':
+          '// eslint-disable-next-line no-console\nconsole.log("hi");\n',
+      },
+    });
+
+    const { exitCode } = await runCli([
+      'annotate',
+      '--target',
+      'src/app.ts:1',
+      '--ref',
+      'SUP-9999',
+      '--format',
+      'json',
+      '--output',
+      'result.json',
+      '--cwd',
+      dir,
+    ]);
+
+    assert.equal(exitCode, 0);
+
+    // Verify output file was written
+    const outputContent = await readFile(join(dir, 'result.json'), 'utf-8');
+    const output = JSON.parse(outputContent);
+    assert.equal(output.file, 'src/app.ts');
+    assert.equal(output.ref, 'SUP-9999');
+  });
+
+  it('rejects invalid --format value', async () => {
+    const dir = await createFixtureDir(baseDir, 'json-bad-format', {
+      sourceFiles: { 'src/app.ts': 'const x = 1;\n' },
+    });
+
+    const { exitCode, stderr } = await runCli([
+      'annotate',
+      '--target',
+      'src/app.ts:1',
+      '--ref',
+      'SUP-1234',
+      '--format',
+      'sarif',
+      '--cwd',
+      dir,
+    ]);
+
+    assert.equal(exitCode, 1);
+    assert.ok(stderr.includes('Invalid --format'));
+  });
+
+  it('writes text output to file with --output in apply mode', async () => {
+    const dir = await createFixtureDir(baseDir, 'text-output-apply', {
+      sourceFiles: {
+        'src/app.ts':
+          '// eslint-disable-next-line no-console\nconsole.log("hi");\n',
+      },
+    });
+
+    const { exitCode, stderr } = await runCli([
+      'annotate',
+      '--target',
+      'src/app.ts:1',
+      '--ref',
+      'SUP-8888',
+      '--format',
+      'text',
+      '--output',
+      'preview.txt',
+      '--apply',
+      '--cwd',
+      dir,
+    ]);
+
+    assert.equal(exitCode, 0);
+    assert.ok(stderr.includes('Annotated src/app.ts:1'));
+
+    // Verify text output file was written
+    const outputContent = await readFile(join(dir, 'preview.txt'), 'utf-8');
+    assert.ok(outputContent.includes('Target: src/app.ts:1'));
+    assert.ok(outputContent.includes('Ref: SUP-8888'));
+  });
+
+  it('defaults to text format when --format is not specified', async () => {
+    const dir = await createFixtureDir(baseDir, 'json-default', {
+      sourceFiles: {
+        'src/app.ts': 'const x = 1;\n',
+      },
+    });
+
+    const { stdout, exitCode } = await runCli([
+      'annotate',
+      '--target',
+      'src/app.ts:1',
+      '--ref',
+      'SUP-1234',
+      '--cwd',
+      dir,
+    ]);
+
+    assert.equal(exitCode, 0);
+    // Text format has "Target:" prefix, not JSON
+    assert.ok(stdout.includes('Target: src/app.ts:1'));
+  });
+});
+
 describe('annotate-cli: annotate → verify E2E path (AC-7)', () => {
   let baseDir: string;
   let cleanup: () => Promise<void>;

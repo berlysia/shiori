@@ -25,6 +25,10 @@ export {
   formatReportOutput,
   type ShieldsBadge,
 } from './report-formatter.ts';
+export {
+  formatAnnotateAsJson,
+  type AnnotateJsonOutput,
+} from './annotate-formatter.ts';
 
 export interface FormatVerifyOutputOptions {
   format: OutputFormat;

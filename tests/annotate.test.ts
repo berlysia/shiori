@@ -8,6 +8,10 @@ import {
   formatAnnotatePreview,
   AnnotateError,
 } from '../src/commands/annotate.ts';
+import {
+  formatAnnotateAsJson,
+  type AnnotateJsonOutput,
+} from '../src/formatters/annotate-formatter.ts';
 
 describe('buildAnnotationString', () => {
   it('returns ref only when no fields', () => {
@@ -358,5 +362,89 @@ describe('formatAnnotatePreview', () => {
 
     assert.ok(preview.includes('Target: app.ts:1'));
     assert.ok(preview.includes('Append annotation to existing comment'));
+  });
+});
+
+describe('formatAnnotateAsJson', () => {
+  const emptyRegistry: Registry = {};
+
+  it('returns valid JSON with correct schema for line insertion', () => {
+    const content = 'const x = 1;\nconst y = 2;\n';
+    const result = planAnnotation({
+      file: 'app.ts',
+      line: 1,
+      ref: 'SUP-1234',
+      content,
+      existingRegistry: emptyRegistry,
+    });
+    const jsonStr = formatAnnotateAsJson({ file: 'app.ts', line: 1 }, result);
+    const output: AnnotateJsonOutput = JSON.parse(jsonStr);
+
+    assert.equal(output.file, 'app.ts');
+    assert.equal(output.line, 1);
+    assert.equal(output.ref, 'SUP-1234');
+    assert.equal(output.action, 'insert');
+    assert.equal(output.lineInserted, true);
+    assert.ok(output.annotationLine.includes('shiori: SUP-1234'));
+    assert.equal(output.registryEntry.reason, 'annotated by shiori annotate');
+    assert.equal(output.registryEntry.kind, 'annotation');
+    assert.equal(output.registryEntry.target, 'app.ts');
+    assert.deepEqual(output.warnings, []);
+  });
+
+  it('returns action=append for existing comment modification', () => {
+    const content =
+      '// eslint-disable-next-line no-console\nconsole.log("hi");\n';
+    const result = planAnnotation({
+      file: 'app.ts',
+      line: 1,
+      ref: 'SUP-1234',
+      content,
+      existingRegistry: emptyRegistry,
+    });
+    const jsonStr = formatAnnotateAsJson({ file: 'app.ts', line: 1 }, result);
+    const output: AnnotateJsonOutput = JSON.parse(jsonStr);
+
+    assert.equal(output.action, 'append');
+    assert.equal(output.lineInserted, false);
+    assert.ok(output.annotationLine.includes('shiori: SUP-1234'));
+  });
+
+  it('includes custom fields in registry entry', () => {
+    const content = 'const x = 1;\n';
+    const result = planAnnotation({
+      file: 'app.ts',
+      line: 1,
+      ref: 'SUP-5678',
+      reason: 'workaround',
+      expires: '2026-12',
+      kind: 'tech-debt',
+      content,
+      existingRegistry: emptyRegistry,
+    });
+    const jsonStr = formatAnnotateAsJson({ file: 'app.ts', line: 1 }, result);
+    const output: AnnotateJsonOutput = JSON.parse(jsonStr);
+
+    assert.equal(output.registryEntry.reason, 'workaround');
+    assert.equal(output.registryEntry.expires, '2026-12');
+    assert.equal(output.registryEntry.kind, 'tech-debt');
+  });
+
+  it('includes warnings in output', () => {
+    // Create a very long line that triggers the length warning
+    const longComment = '// ' + 'a'.repeat(200);
+    const content = longComment + '\nconst y = 2;\n';
+    const result = planAnnotation({
+      file: 'app.ts',
+      line: 1,
+      ref: 'SUP-1234',
+      content,
+      existingRegistry: emptyRegistry,
+    });
+    const jsonStr = formatAnnotateAsJson({ file: 'app.ts', line: 1 }, result);
+    const output: AnnotateJsonOutput = JSON.parse(jsonStr);
+
+    assert.ok(output.warnings.length > 0);
+    assert.ok(output.warnings[0]!.includes('line length'));
   });
 });

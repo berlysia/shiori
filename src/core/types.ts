@@ -513,6 +513,45 @@ export interface ChronicleResult {
   };
 }
 
+// ── Annotate types (EP-0058) ─────────────────────────────────
+
+/** Output format for annotate command */
+export type AnnotateFormat = 'text' | 'json';
+
+/** Options for planning an annotation */
+export interface AnnotateOptions {
+  /** Target file path (relative to cwd) */
+  file: string;
+  /** Target line number (1-based) */
+  line: number;
+  /** Annotation ref (e.g. "SUP-1234") */
+  ref: string;
+  /** Optional reason text */
+  reason?: string;
+  /** Optional expiration date */
+  expires?: string;
+  /** Optional kind (registry-only, not in source comment) */
+  kind?: string;
+  /** Existing file content */
+  content: string;
+  /** Existing registry */
+  existingRegistry: Registry;
+}
+
+/** Result of planning an annotation */
+export interface AnnotateResult {
+  /** Modified file content */
+  content: string;
+  /** Generated registry entry */
+  registryEntry: RegistryEntry;
+  /** The ref key for the registry */
+  ref: string;
+  /** Whether a new line was inserted (vs modifying existing line) */
+  lineInserted: boolean;
+  /** Warnings (e.g. line too long) */
+  warnings: string[];
+}
+
 // ── Health types (EP-0024) ───────────────────────────────────
 
 /** Health output format */

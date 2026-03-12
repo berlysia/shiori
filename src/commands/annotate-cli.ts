@@ -4,12 +4,21 @@ import { dirname, resolve } from 'node:path';
 import { saveRegistry } from '../core/registry.ts';
 import { loadConfigAndRegistry } from '../core/registry-loader.ts';
 import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
+import { createFormatValidator } from '../core/cli-validation.ts';
+import { writeOutput } from '../core/cli-output.ts';
+import type { AnnotateFormat } from '../core/types.ts';
 import { routeRegistryByPattern, isValidRef } from './registry-generator.ts';
 import {
   planAnnotation,
   formatAnnotatePreview,
   AnnotateError,
 } from './annotate.ts';
+import { formatAnnotateAsJson } from '../formatters/annotate-formatter.ts';
+
+const validateAnnotateFormat = createFormatValidator<AnnotateFormat>(
+  ['text', 'json'] as const,
+  'text',
+);
 
 /**
  * Parse --target flag value into file path and line number.
@@ -47,7 +56,13 @@ export const annotateCommand = define({
   shiori annotate --target src/app.ts:10 --ref SUP-1234 --reason "workaround for issue" --expires 2026-06 --apply
 
   # With custom kind (registry-only)
-  shiori annotate --target src/app.ts:10 --ref ADR:0007 --kind decision --apply`,
+  shiori annotate --target src/app.ts:10 --ref ADR:0007 --kind decision --apply
+
+  # JSON output for editor integration
+  shiori annotate --target src/app.ts:10 --ref SUP-1234 --format json
+
+  # JSON output to file
+  shiori annotate --target src/app.ts:10 --ref SUP-1234 --format json --output result.json`,
   rendering: { header: null },
   args: {
     target: {
@@ -96,10 +111,25 @@ export const annotateCommand = define({
       description:
         'Path to registry file (auto-detected from config or .config/shiori/registry.json)',
     },
+    format: {
+      type: 'string',
+      short: 'f',
+      description:
+        'Output format: "text" (human-readable, default) or "json" (structured for editor integration)',
+    },
+    output: {
+      type: 'string',
+      short: 'o',
+      description: 'Write output to file instead of stdout',
+    },
   },
   run: async (ctx) => {
     const cwd = ctx.values.cwd ?? process.cwd();
     const apply = ctx.values.apply ?? false;
+
+    // Validate --format
+    const format = validateAnnotateFormat(ctx.values.format);
+    if (format === null) return;
 
     // Parse --target
     const targetValue = ctx.values.target;
@@ -196,12 +226,23 @@ export const annotateCommand = define({
     }
 
     if (!apply) {
-      // Dry-run: show preview
-      console.log(formatAnnotatePreview({ file, line }, result));
-      console.error('');
-      console.error(
-        'Run with --apply to write changes to source file and registry.',
-      );
+      // Dry-run: format and output preview
+      const output =
+        format === 'json'
+          ? formatAnnotateAsJson({ file, line }, result)
+          : formatAnnotatePreview({ file, line }, result);
+      const written = await writeOutput(output, {
+        outputPath: ctx.values.output,
+        cwd,
+        label: 'Annotate preview',
+      });
+      if (!written) return;
+      if (format === 'text') {
+        console.error('');
+        console.error(
+          'Run with --apply to write changes to source file and registry.',
+        );
+      }
       return;
     }
 
@@ -230,7 +271,19 @@ export const annotateCommand = define({
       await saveRegistry(registryPath, mergedRegistry);
     }
 
-    // Report success
+    // Output result (both text and json formats respect --output)
+    const output =
+      format === 'json'
+        ? formatAnnotateAsJson({ file, line }, result)
+        : formatAnnotatePreview({ file, line }, result);
+    const written = await writeOutput(output, {
+      outputPath: ctx.values.output,
+      cwd,
+      label: 'Annotate result',
+    });
+    if (!written) return;
+
+    // Report success to stderr (always, for both formats)
     console.error(`Annotated ${file}:${line} with ref "${ref}"`);
     if (result.lineInserted) {
       console.error('Inserted new comment line above target line.');
