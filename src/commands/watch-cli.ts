@@ -2,7 +2,7 @@ import { define } from 'gunshi';
 import { watch as watchFs } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, relative, resolve, sep } from 'node:path';
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { loadConfig, resolveRegistryPath } from '../core/config.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
 import { loadMultiRegistry, saveRegistry } from '../core/registry.ts';
@@ -40,20 +40,26 @@ const DASHBOARD_REFRESH_SECONDS = 3;
 
 /**
  * Open a file in the default browser.
+ * Uses execFileSync with argument arrays to avoid shell interpretation
+ * and prevent command injection via user-controlled file paths.
  * Best-effort — failures are silently ignored.
  */
 function openInBrowser(filePath: string): void {
   try {
     const platform = process.platform;
     if (platform === 'darwin') {
-      execSync(`open ${JSON.stringify(filePath)}`, { stdio: 'ignore' });
+      execFileSync('open', [filePath], { stdio: 'ignore' });
     } else if (platform === 'win32') {
-      execSync(`start "" ${JSON.stringify(filePath)}`, {
-        stdio: 'ignore',
-        shell: 'cmd.exe',
-      });
+      // Windows: cmd.exe /c start requires shell, use powershell Start-Process instead
+      execFileSync(
+        'powershell',
+        ['-NoProfile', '-Command', 'Start-Process', filePath],
+        {
+          stdio: 'ignore',
+        },
+      );
     } else {
-      execSync(`xdg-open ${JSON.stringify(filePath)}`, { stdio: 'ignore' });
+      execFileSync('xdg-open', [filePath], { stdio: 'ignore' });
     }
   } catch {
     // Best-effort: ignore errors on headless environments
