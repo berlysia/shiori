@@ -21,6 +21,7 @@ import { doctorCommand } from './commands/doctor-cli.ts';
 import { resolveCommand } from './commands/resolve-cli.ts';
 import { whyCommand } from './commands/why-cli.ts';
 import { triageCommand } from './commands/triage-cli.ts';
+import { annotateCommand } from './commands/annotate-cli.ts';
 import { VERSION } from './core/version.ts';
 
 const main = define({
@@ -55,6 +56,7 @@ Workflow:
   shiori trend                   Compare governance scores over time
   shiori update                  Add new refs to the registry
   shiori adopt                   Adopt existing lint disables into shiori
+  shiori annotate --target ...   Insert annotation into source + registry
   shiori resolve --ref <ref>     Remove resolved/expired annotations
   shiori migrate                 Auto-migrate lint disable comments
   shiori watch                   Refresh scan result on each save
@@ -105,6 +107,7 @@ try {
       resolve: resolveCommand,
       why: whyCommand,
       triage: triageCommand,
+      annotate: annotateCommand,
     },
   });
 } catch (err) {
