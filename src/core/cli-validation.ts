@@ -7,6 +7,7 @@ const VALID_OUTPUT_FORMATS: readonly string[] = [
   'sarif',
   'summary',
   'jsonl',
+  'diagnostic',
 ];
 
 const VALID_PROVIDERS: readonly string[] = ['comment'];

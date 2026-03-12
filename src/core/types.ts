@@ -115,7 +115,13 @@ export interface VerifyIssue {
 }
 
 /** Output format for verify/scan commands */
-export type OutputFormat = 'json' | 'markdown' | 'sarif' | 'summary' | 'jsonl';
+export type OutputFormat =
+  | 'json'
+  | 'markdown'
+  | 'sarif'
+  | 'summary'
+  | 'jsonl'
+  | 'diagnostic';
 
 /** Verify command output */
 export interface VerifyResult {

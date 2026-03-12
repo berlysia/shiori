@@ -7,12 +7,14 @@ import type {
 } from '../core/types.ts';
 import { formatVerifyResultAsMarkdown } from './markdown.ts';
 import { formatDeltaAsMarkdown } from './delta-markdown.ts';
+import { formatAsDiagnostic } from './diagnostic.ts';
 import { formatAsJsonl } from './jsonl.ts';
 import { formatAsSarif } from './sarif.ts';
 import { formatAsSummary } from './summary.ts';
 import type { OutputFormat } from './types.ts';
 
 export type { OutputFormat } from './types.ts';
+export { formatAsDiagnostic } from './diagnostic.ts';
 export { formatAsJsonl } from './jsonl.ts';
 export { formatAsSarif } from './sarif.ts';
 export { formatAsSummary, type SummaryInput } from './summary.ts';
@@ -48,6 +50,8 @@ export function formatVerifyOutput(options: FormatVerifyOutputOptions): string {
       });
     case 'jsonl':
       return formatAsJsonl(verifyResult);
+    case 'diagnostic':
+      return formatAsDiagnostic(verifyResult);
     default:
       return JSON.stringify(verifyResult, null, 2);
   }
