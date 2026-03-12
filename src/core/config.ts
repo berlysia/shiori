@@ -11,7 +11,11 @@ import {
   DEFAULT_CANDIDATE_PATTERNS,
   resolveCandidatePatterns,
 } from './providers/AnnotationProvider.ts';
-import { validateConfig, formatConfigWarnings } from './config-validation.ts';
+import {
+  validateConfig,
+  formatConfigWarnings,
+  isPositiveInteger,
+} from './config-validation.ts';
 
 /** Default path for scan result (relative to cwd) */
 export const DEFAULT_SCAN_RESULT_PATH = '.config/shiori/scan-result.json';
@@ -66,6 +70,9 @@ export interface ResolvedConfig {
     expiringThresholdDays: number;
   };
 }
+
+/** Default expiring threshold (days) when config value is absent or invalid */
+const DEFAULT_EXPIRING_THRESHOLD_DAYS = 14;
 
 const CONFIG_DIR = '.config/shiori';
 /** Config file candidates in priority order: yaml (canonical) → yml (common abbreviation) → json (backward compat) */
@@ -128,6 +135,12 @@ export async function loadConfig(
  * @returns Fully resolved config with all defaults applied
  */
 export function resolveConfig(raw: ShioriConfig): ResolvedConfig {
+  // Guard: expiringThresholdDays must be a positive integer, else fall back to default
+  const rawThreshold = raw.verify?.expiringThresholdDays;
+  const expiringThresholdDays = isPositiveInteger(rawThreshold)
+    ? rawThreshold
+    : DEFAULT_EXPIRING_THRESHOLD_DAYS;
+
   return {
     candidatePatterns: resolveCandidatePatterns({
       ...DEFAULT_CANDIDATE_PATTERNS,
@@ -141,7 +154,7 @@ export function resolveConfig(raw: ShioriConfig): ResolvedConfig {
       registry: raw.paths?.registry,
     },
     verify: {
-      expiringThresholdDays: raw.verify?.expiringThresholdDays ?? 14,
+      expiringThresholdDays,
     },
   };
 }

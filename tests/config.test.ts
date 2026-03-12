@@ -377,6 +377,42 @@ describe('config', () => {
       assert.equal(kwMap.note, false);
       assert.equal(kwMap.todo, true);
     });
+
+    it('falls back to default when expiringThresholdDays is invalid', () => {
+      // String value should fall back to default 14
+      const config = resolveConfig({
+        verify: { expiringThresholdDays: 'seven' as unknown as number },
+      });
+      assert.equal(config.verify.expiringThresholdDays, 14);
+    });
+
+    it('falls back to default when expiringThresholdDays is zero', () => {
+      const config = resolveConfig({
+        verify: { expiringThresholdDays: 0 },
+      });
+      assert.equal(config.verify.expiringThresholdDays, 14);
+    });
+
+    it('falls back to default when expiringThresholdDays is negative', () => {
+      const config = resolveConfig({
+        verify: { expiringThresholdDays: -5 },
+      });
+      assert.equal(config.verify.expiringThresholdDays, 14);
+    });
+
+    it('falls back to default when expiringThresholdDays is float', () => {
+      const config = resolveConfig({
+        verify: { expiringThresholdDays: 3.5 },
+      });
+      assert.equal(config.verify.expiringThresholdDays, 14);
+    });
+
+    it('accepts valid expiringThresholdDays', () => {
+      const config = resolveConfig({
+        verify: { expiringThresholdDays: 30 },
+      });
+      assert.equal(config.verify.expiringThresholdDays, 30);
+    });
   });
 
   describe('resolveRegistryPath', () => {

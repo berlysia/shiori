@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   validateConfig,
   formatConfigWarnings,
+  isPositiveInteger,
 } from '../src/core/config-validation.ts';
 
 describe('validateConfig', () => {
@@ -76,14 +77,18 @@ describe('validateConfig', () => {
     assert.equal(errors.length, 0);
   });
 
-  it('skips section validation when section value is not an object', () => {
+  it('detects type errors when section value is not an object', () => {
     const errors = validateConfig({
       scan: 'not-an-object',
       paths: 42,
       verify: null,
     });
-    // Only the top-level keys are valid, section contents aren't objects
-    assert.equal(errors.length, 0);
+    // Phase 2: all non-object sections produce type errors (including null)
+    assert.equal(errors.length, 3);
+    const paths = errors.map((e) => e.path);
+    assert.ok(paths.includes('scan'));
+    assert.ok(paths.includes('paths'));
+    assert.ok(paths.includes('verify'));
   });
 
   it('detects multiple errors across sections', () => {
@@ -97,6 +102,170 @@ describe('validateConfig', () => {
     assert.ok(paths.includes('typoTop'));
     assert.ok(paths.includes('scan.badKey'));
     assert.ok(paths.includes('paths.oops'));
+  });
+
+  // ── Phase 2: Value type validation ──────────────────────
+
+  it('detects non-string-array in scan.patterns', () => {
+    const errors = validateConfig({
+      scan: { patterns: 'not-an-array' },
+    });
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0]!.path, 'scan.patterns');
+    assert.ok(errors[0]!.message.includes('expected string[]'));
+  });
+
+  it('detects non-string-array in scan.ignore', () => {
+    const errors = validateConfig({
+      scan: { ignore: [42, true] },
+    });
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0]!.path, 'scan.ignore');
+    assert.ok(errors[0]!.message.includes('expected string[]'));
+  });
+
+  it('detects non-string paths.scanResult', () => {
+    const errors = validateConfig({
+      paths: { scanResult: 123 },
+    });
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0]!.path, 'paths.scanResult');
+    assert.ok(errors[0]!.message.includes('expected string'));
+  });
+
+  it('detects non-string paths.registry', () => {
+    const errors = validateConfig({
+      paths: { registry: true },
+    });
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0]!.path, 'paths.registry');
+    assert.ok(errors[0]!.message.includes('expected string'));
+  });
+
+  it('detects non-positive-integer verify.expiringThresholdDays', () => {
+    const errors = validateConfig({
+      verify: { expiringThresholdDays: 'seven' },
+    });
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0]!.path, 'verify.expiringThresholdDays');
+    assert.ok(errors[0]!.message.includes('expected positive integer'));
+  });
+
+  it('detects zero verify.expiringThresholdDays', () => {
+    const errors = validateConfig({
+      verify: { expiringThresholdDays: 0 },
+    });
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0]!.path, 'verify.expiringThresholdDays');
+  });
+
+  it('detects negative verify.expiringThresholdDays', () => {
+    const errors = validateConfig({
+      verify: { expiringThresholdDays: -5 },
+    });
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0]!.path, 'verify.expiringThresholdDays');
+  });
+
+  it('detects float verify.expiringThresholdDays', () => {
+    const errors = validateConfig({
+      verify: { expiringThresholdDays: 3.5 },
+    });
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0]!.path, 'verify.expiringThresholdDays');
+  });
+
+  it('detects non-array refPatterns', () => {
+    const errors = validateConfig({
+      refPatterns: 'not-an-array',
+    });
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0]!.path, 'refPatterns');
+    assert.ok(errors[0]!.message.includes('expected array'));
+  });
+
+  it('detects non-object entry in refPatterns', () => {
+    const errors = validateConfig({
+      refPatterns: ['not-an-object'],
+    });
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0]!.path, 'refPatterns[0]');
+    assert.ok(errors[0]!.message.includes('expected object'));
+  });
+
+  it('detects missing match field in refPatterns entry', () => {
+    const errors = validateConfig({
+      refPatterns: [{ urlTemplate: 'https://example.com/{id}' }],
+    });
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0]!.path, 'refPatterns[0].match');
+    assert.ok(errors[0]!.message.includes("'match' must be a string"));
+  });
+
+  it('accepts valid refPatterns entries', () => {
+    const errors = validateConfig({
+      refPatterns: [
+        { match: 'DEV-{id}' },
+        { match: 'JIRA-{id}', urlTemplate: 'https://jira.example.com/{id}' },
+      ],
+    });
+    assert.equal(errors.length, 0);
+  });
+
+  it('accepts valid config with all value types correct', () => {
+    const errors = validateConfig({
+      candidates: { eslint: true },
+      refPatterns: [{ match: 'SUP-{id}' }],
+      scan: { patterns: ['src/**'], ignore: ['dist/**'] },
+      paths: { scanResult: 'scan.json', registry: 'reg.json' },
+      verify: { expiringThresholdDays: 7 },
+    });
+    assert.equal(errors.length, 0);
+  });
+
+  it('detects null verify section as type error', () => {
+    // Phase 1 skips null sections for key checking,
+    // but Phase 2 detects null as non-object type error
+    const errors = validateConfig({ verify: null });
+    assert.equal(errors.length, 1);
+    assert.equal(errors[0]!.path, 'verify');
+    assert.ok(errors[0]!.message.includes('expected object'));
+  });
+
+  it('skips undefined verify section without errors', () => {
+    const errors = validateConfig({});
+    const verifyErrors = errors.filter((e) => e.path.startsWith('verify'));
+    assert.equal(verifyErrors.length, 0);
+  });
+});
+
+describe('isPositiveInteger', () => {
+  it('returns true for positive integers', () => {
+    assert.equal(isPositiveInteger(1), true);
+    assert.equal(isPositiveInteger(14), true);
+    assert.equal(isPositiveInteger(100), true);
+  });
+
+  it('returns false for zero', () => {
+    assert.equal(isPositiveInteger(0), false);
+  });
+
+  it('returns false for negative numbers', () => {
+    assert.equal(isPositiveInteger(-1), false);
+    assert.equal(isPositiveInteger(-14), false);
+  });
+
+  it('returns false for non-integer numbers', () => {
+    assert.equal(isPositiveInteger(3.5), false);
+    assert.equal(isPositiveInteger(0.1), false);
+  });
+
+  it('returns false for non-number values', () => {
+    assert.equal(isPositiveInteger('7'), false);
+    assert.equal(isPositiveInteger(null), false);
+    assert.equal(isPositiveInteger(undefined), false);
+    assert.equal(isPositiveInteger(NaN), false);
+    assert.equal(isPositiveInteger(Infinity), false);
   });
 });
 
