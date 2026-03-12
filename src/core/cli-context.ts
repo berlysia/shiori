@@ -141,16 +141,27 @@ export function resolveScanPatterns(
 /**
  * Resolve the expiring threshold from CLI flag or config.
  *
+ * Validates that the CLI value is a finite positive integer.
+ * Falls back to `config.verify.expiringThresholdDays` when no flag is given.
+ *
  * @param thresholdArg - Value of the --expiring-threshold CLI flag
  * @param config - Resolved configuration
+ * @throws {Error} When the CLI value is not a valid positive integer
  */
 export function resolveExpiringThreshold(
   thresholdArg: string | undefined,
   config: ResolvedConfig,
 ): number {
-  return thresholdArg
-    ? Number(thresholdArg)
-    : config.verify.expiringThresholdDays;
+  if (thresholdArg === undefined) {
+    return config.verify.expiringThresholdDays;
+  }
+  const parsed = Number.parseInt(thresholdArg, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    throw new Error(
+      `Invalid --expiring-threshold value: ${JSON.stringify(thresholdArg)}. Must be a positive integer.`,
+    );
+  }
+  return parsed;
 }
 
 /**

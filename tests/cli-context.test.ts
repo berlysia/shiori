@@ -188,4 +188,41 @@ describe('resolveExpiringThreshold', () => {
     const config = makeConfig({ verify: { expiringThresholdDays: 7 } });
     assert.equal(resolveExpiringThreshold(undefined, config), 7);
   });
+
+  it('throws on non-numeric input', () => {
+    const config = makeConfig();
+    assert.throws(
+      () => resolveExpiringThreshold('abc', config),
+      /Invalid --expiring-threshold value.*"abc"/,
+    );
+  });
+
+  it('throws on negative value', () => {
+    const config = makeConfig();
+    assert.throws(
+      () => resolveExpiringThreshold('-5', config),
+      /Invalid --expiring-threshold value.*"-5"/,
+    );
+  });
+
+  it('throws on zero', () => {
+    const config = makeConfig();
+    assert.throws(
+      () => resolveExpiringThreshold('0', config),
+      /Invalid --expiring-threshold value.*"0"/,
+    );
+  });
+
+  it('throws on empty string', () => {
+    const config = makeConfig();
+    assert.throws(
+      () => resolveExpiringThreshold('', config),
+      /Invalid --expiring-threshold value/,
+    );
+  });
+
+  it('truncates floating-point to integer', () => {
+    const config = makeConfig();
+    assert.equal(resolveExpiringThreshold('7.9', config), 7);
+  });
 });

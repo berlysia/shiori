@@ -18,6 +18,7 @@ import {
   DEFAULT_SCAN_IGNORE,
 } from '../core/scan-defaults.ts';
 import { writeOutput } from '../core/cli-output.ts';
+import { resolveExpiringThreshold } from '../core/cli-context.ts';
 import { loadScanResultFromFile } from '../core/scan-result-loader.ts';
 import { computeDelta } from './delta.ts';
 import { enrichWithProvenance } from '../core/provenance.ts';
@@ -188,9 +189,10 @@ export const reportCommand = define({
     );
 
     // Generate report
-    const expiringThresholdDays = ctx.values.expiringThreshold
-      ? Number(ctx.values.expiringThreshold)
-      : config.verify.expiringThresholdDays;
+    const expiringThresholdDays = resolveExpiringThreshold(
+      ctx.values.expiringThreshold,
+      config,
+    );
 
     const result = report({
       scanResult,

@@ -15,6 +15,7 @@ import {
   DEFAULT_SCAN_IGNORE,
 } from '../core/scan-defaults.ts';
 import { writeOutput } from '../core/cli-output.ts';
+import { resolveExpiringThreshold } from '../core/cli-context.ts';
 
 const validateTriageFormat = createFormatValidator<TriageFormat>(
   ['json', 'markdown'] as const,
@@ -161,9 +162,10 @@ export const triageCommand = define({
     );
 
     // Triage
-    const expiringThresholdDays = ctx.values.expiringThreshold
-      ? Number(ctx.values.expiringThreshold)
-      : config.verify.expiringThresholdDays;
+    const expiringThresholdDays = resolveExpiringThreshold(
+      ctx.values.expiringThreshold,
+      config,
+    );
 
     const result = triage({
       scanResult,
