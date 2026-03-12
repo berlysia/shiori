@@ -104,6 +104,34 @@
       }
     },
     {
+      "label": "shiori: Watch Diagnostic (real-time)",
+      "type": "shell",
+      "command": "pnpm shiori watch --format diagnostic",
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "shiori-watch",
+        "fileLocation": ["relative", "${workspaceFolder}"],
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^\\[.*\\] refreshed \\(",
+          "endsPattern": "^\\[.*\\] refreshed \\("
+        },
+        "pattern": {
+          "regexp": "^(.+):(\\d+):(\\d+):\\s+(error|warning):\\s+(.+)\\s+\\[(.+)\\]$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5,
+          "code": 6
+        }
+      },
+      "presentation": {
+        "reveal": "never",
+        "panel": "shared"
+      }
+    },
+    {
       "label": "shiori: Live Dashboard",
       "type": "shell",
       "command": "pnpm shiori watch --dashboard --open",

@@ -244,7 +244,7 @@ CI パイプラインやカスタムスクリプトから利用する場合に�
 
 ### ファイル保存時に自動 verify
 
-VS Code の `runOn` 機能を使って、保存のたびに verify を実行できます。ただし大規模プロジェクトでは遅延が生じる場合があるため、`shiori watch --dashboard` の方が推奨です。
+VS Code の `runOn` 機能を使って、保存のたびに verify を実行できます。ただし保存のたびにフルスキャンが走るため、大規模プロジェクトでは遅延が生じます。リアルタイムフィードバックが必要な場合は、次の「watch --format diagnostic」を推奨します。
 
 ```json
 {
@@ -272,6 +272,59 @@ VS Code の `runOn` 機能を使って、保存のたびに verify を実行で�
   }
 }
 ```
+
+### watch --format diagnostic によるリアルタイムフィードバック
+
+`shiori watch --format diagnostic` はファイル変更を検知するたびにスキャン・verify を再実行し、GCC 互換形式で diagnostic 行を stdout に出力します。VS Code のバックグラウンドタスクと組み合わせることで、保存するだけで Problems パネルにガバナンス違反がリアルタイム表示されます。
+
+```json
+{
+  "label": "shiori: Watch Diagnostic (real-time)",
+  "type": "shell",
+  "command": "pnpm shiori watch --format diagnostic",
+  "isBackground": true,
+  "problemMatcher": {
+    "owner": "shiori-watch",
+    "fileLocation": ["relative", "${workspaceFolder}"],
+    "background": {
+      "activeOnStart": true,
+      "beginsPattern": "^\\[.*\\] refreshed \\(",
+      "endsPattern": "^\\[.*\\] refreshed \\("
+    },
+    "pattern": {
+      "regexp": "^(.+):(\\d+):(\\d+):\\s+(error|warning):\\s+(.+)\\s+\\[(.+)\\]$",
+      "file": 1,
+      "line": 2,
+      "column": 3,
+      "severity": 4,
+      "message": 5,
+      "code": 6
+    }
+  },
+  "presentation": {
+    "reveal": "never",
+    "panel": "shared"
+  }
+}
+```
+
+**動作フロー**:
+
+1. タスク起動 → `watch` がファイル監視を開始
+2. ファイル保存 → デバウンス（250ms）後にスキャン＋verify 再実行
+3. stderr に `[timestamp] refreshed (filename)` を出力（`beginsPattern` がマッチ）
+4. stdout に diagnostic 行を出力（`pattern` がマッチ → Problems パネルに反映）
+5. 次のリフレッシュで前回の problems がクリアされ、最新の結果に更新
+
+**`runOn` との違い**:
+
+| 項目               | `runOn: folderOpen` | `watch --format diagnostic`        |
+| ------------------ | ------------------- | ---------------------------------- |
+| トリガー           | 保存イベント        | ファイルシステム変更               |
+| 実行方式           | 毎回プロセス起動    | 常駐プロセス                       |
+| デバウンス         | なし                | 250ms（設定可能）                  |
+| 大規模プロジェクト | 遅延あり            | 差分検知で高速                     |
+| dashboard との併用 | 可能                | 排他（`--dashboard` とは同時不可） |
 
 ## ガバナンス成熟度モデルでの位置づけ
 
