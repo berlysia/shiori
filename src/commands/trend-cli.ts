@@ -5,11 +5,13 @@ import { computeTrend, formatTrend } from './trend.ts';
 import type { ReportResult, TrendFormat } from '../core/types.ts';
 import { createFormatValidator } from '../core/cli-validation.ts';
 import { writeOutput } from '../core/cli-output.ts';
+import { trendArrow } from '../core/emoji.ts';
 
 const validateTrendFormat = createFormatValidator<TrendFormat>([
   'json',
   'markdown',
   'csv',
+  'spark',
 ] as const);
 
 export const trendCommand = define({
@@ -27,6 +29,9 @@ export const trendCommand = define({
 
   # Output as CSV for spreadsheet import
   shiori trend --history ./reports/ --format csv -o trend.csv
+
+  # Compact sparkline for terminal dashboards
+  shiori trend --history ./reports/ --format spark
 
   # CI recipe: save report, then compare trend
   shiori report -f json -o ./reports/$(date +%Y%m%dT%H%M%S).json
@@ -49,7 +54,7 @@ export const trendCommand = define({
     format: {
       type: 'string',
       short: 'f',
-      description: 'Output format: json, markdown, csv (default: json)',
+      description: 'Output format: json, markdown, csv, spark (default: json)',
       default: 'json',
     },
     output: {
@@ -117,11 +122,14 @@ export const trendCommand = define({
         const content = await readFile(filePath, 'utf-8');
         const parsed = JSON.parse(content) as Record<string, unknown>;
 
-        // Validate it looks like a ReportResult (has timestamp and health.score)
+        // Validate it looks like a ReportResult (has timestamp, health.score, and totals.issues)
         if (
           typeof parsed.timestamp === 'string' &&
           parsed.health &&
-          typeof (parsed.health as Record<string, unknown>).score === 'number'
+          typeof (parsed.health as Record<string, unknown>).score ===
+            'number' &&
+          parsed.totals &&
+          typeof (parsed.totals as Record<string, unknown>).issues === 'number'
         ) {
           // shiori: DEV-002 reason="runtime JSON shape validated above but static type requires assertion"
           reports.push(parsed as unknown as ReportResult);
@@ -161,12 +169,7 @@ export const trendCommand = define({
 
     // Log summary to stderr
     const { summary } = result;
-    const dirArrow =
-      summary.direction === 'improving'
-        ? '↑'
-        : summary.direction === 'declining'
-          ? '↓'
-          : '→';
+    const dirArrow = trendArrow(summary.direction);
     console.error(
       `Trend: ${summary.latestScore}/100 ${dirArrow} (${summary.direction}, ${summary.scoreChange >= 0 ? '+' : ''}${summary.scoreChange} over ${summary.count} points)`,
     );

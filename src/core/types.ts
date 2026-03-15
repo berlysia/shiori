@@ -281,7 +281,7 @@ export interface ReportResult {
 export type ReportFormat = 'json' | 'markdown' | 'badge' | 'html';
 
 /** Output format for trend command */
-export type TrendFormat = 'json' | 'markdown' | 'csv';
+export type TrendFormat = 'json' | 'markdown' | 'csv' | 'spark';
 
 // ── CI template types ────────────────────────────────────────
 

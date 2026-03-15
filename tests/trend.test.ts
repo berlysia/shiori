@@ -7,6 +7,7 @@ import {
   formatTrend,
   formatTrendAsMarkdown,
   formatTrendAsCsv,
+  formatTrendAsSpark,
 } from '../src/commands/trend.ts';
 
 function makeReportResult(overrides: {
@@ -407,5 +408,93 @@ describe('formatTrendAsCsv', () => {
     const lines = csv.split('\n');
 
     assert.equal(lines.length, 1); // header only
+  });
+});
+
+describe('formatTrendAsSpark', () => {
+  it('handles empty result', () => {
+    const result = computeTrend([]);
+    const spark = formatTrendAsSpark(result);
+
+    assert.equal(spark, 'No data points available.');
+  });
+
+  it('renders single data point as middle block', () => {
+    const result = computeTrend([
+      makeReportResult({ timestamp: '2026-01-01T00:00:00.000Z', score: 80 }),
+    ]);
+    const spark = formatTrendAsSpark(result);
+
+    // Single point → min === max → middle block (▆)
+    assert.ok(spark.startsWith('▆'));
+    assert.ok(spark.includes('80/100'));
+    assert.ok(spark.includes('stable'));
+    assert.ok(spark.includes('1 pts'));
+  });
+
+  it('renders improving trend with ascending blocks', () => {
+    const result = computeTrend([
+      makeReportResult({ timestamp: '2026-01-01T00:00:00.000Z', score: 0 }),
+      makeReportResult({ timestamp: '2026-02-01T00:00:00.000Z', score: 50 }),
+      makeReportResult({ timestamp: '2026-03-01T00:00:00.000Z', score: 100 }),
+    ]);
+    const spark = formatTrendAsSpark(result);
+
+    // First char should be lowest block, last char should be highest block
+    assert.ok(spark.startsWith('▁'));
+    assert.ok(spark.includes('📈'));
+    assert.ok(spark.includes('improving'));
+    assert.ok(spark.includes('+100'));
+  });
+
+  it('renders declining trend with descending blocks', () => {
+    const result = computeTrend([
+      makeReportResult({ timestamp: '2026-01-01T00:00:00.000Z', score: 100 }),
+      makeReportResult({ timestamp: '2026-02-01T00:00:00.000Z', score: 50 }),
+      makeReportResult({ timestamp: '2026-03-01T00:00:00.000Z', score: 0 }),
+    ]);
+    const spark = formatTrendAsSpark(result);
+
+    // First char should be highest block, last char should be lowest block
+    assert.ok(spark.startsWith('█'));
+    assert.ok(spark.includes('📉'));
+    assert.ok(spark.includes('declining'));
+    assert.ok(spark.includes('-100'));
+  });
+
+  it('renders flat line with identical blocks', () => {
+    const result = computeTrend([
+      makeReportResult({ timestamp: '2026-01-01T00:00:00.000Z', score: 75 }),
+      makeReportResult({ timestamp: '2026-02-01T00:00:00.000Z', score: 75 }),
+      makeReportResult({ timestamp: '2026-03-01T00:00:00.000Z', score: 75 }),
+    ]);
+    const spark = formatTrendAsSpark(result);
+
+    // All blocks should be the same (middle block ▆)
+    assert.ok(spark.startsWith('▆▆▆'));
+    assert.ok(spark.includes('stable'));
+  });
+
+  it('includes score change with sign and point count', () => {
+    const result = computeTrend([
+      makeReportResult({ timestamp: '2026-01-01T00:00:00.000Z', score: 60 }),
+      makeReportResult({ timestamp: '2026-02-01T00:00:00.000Z', score: 85 }),
+    ]);
+    const spark = formatTrendAsSpark(result);
+
+    assert.ok(spark.includes('85/100'));
+    assert.ok(spark.includes('+25'));
+    assert.ok(spark.includes('2 pts'));
+  });
+
+  it('is routed by formatTrend with spark format', () => {
+    const result = computeTrend([
+      makeReportResult({ timestamp: '2026-01-01T00:00:00.000Z', score: 70 }),
+      makeReportResult({ timestamp: '2026-02-01T00:00:00.000Z', score: 85 }),
+    ]);
+    const viaSpark = formatTrendAsSpark(result);
+    const viaRouter = formatTrend(result, 'spark');
+
+    assert.equal(viaRouter, viaSpark);
   });
 });

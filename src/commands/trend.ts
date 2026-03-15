@@ -148,6 +148,50 @@ export function formatTrendAsMarkdown(result: TrendResult): string {
 }
 
 /**
+ * Unicode block characters for sparkline rendering (8 levels, ▁ to █).
+ * Each character represents a proportional height within the score range.
+ */
+const SPARK_BLOCKS = ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'] as const;
+
+/**
+ * Map a score to a sparkline block character.
+ * Linearly maps the score within [min, max] to one of 8 block levels.
+ * When min === max (flat line), returns the middle block (▅).
+ */
+function scoreToBlock(score: number, min: number, max: number): string {
+  if (min === max) return SPARK_BLOCKS[5]!;
+  const ratio = (score - min) / (max - min);
+  // Clamp to [0, 7] and pick the corresponding block
+  const index = Math.min(7, Math.max(0, Math.round(ratio * 7)));
+  return SPARK_BLOCKS[index]!;
+}
+
+/**
+ * Format TrendResult as a compact Unicode sparkline for terminal display.
+ *
+ * Output format (single-line when possible):
+ *   ▁▃▅▇█▆▄  85/100 📈 improving (+15, 7 pts)
+ *
+ * Uses only Unicode block characters — no ANSI escape codes, no color.
+ * Fixed-width sparkline (one char per data point). No terminal width detection.
+ */
+export function formatTrendAsSpark(result: TrendResult): string {
+  if (result.points.length === 0) {
+    return 'No data points available.';
+  }
+
+  const { summary } = result;
+  const spark = result.points
+    .map((p) => scoreToBlock(p.score, summary.minScore, summary.maxScore))
+    .join('');
+
+  const dirEmoji = trendEmoji(summary.direction);
+  const sign = summary.scoreChange >= 0 ? '+' : '';
+
+  return `${spark}  ${summary.latestScore}/100 ${dirEmoji} ${summary.direction} (${sign}${summary.scoreChange}, ${summary.count} pts)`;
+}
+
+/**
  * Format TrendResult as CSV.
  */
 export function formatTrendAsCsv(result: TrendResult): string {
@@ -172,6 +216,8 @@ export function formatTrend(result: TrendResult, format: TrendFormat): string {
       return formatTrendAsMarkdown(result);
     case 'csv':
       return formatTrendAsCsv(result);
+    case 'spark':
+      return formatTrendAsSpark(result);
     default:
       return JSON.stringify(result, null, 2);
   }
