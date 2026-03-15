@@ -7,6 +7,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-03-16
+
+### Added
+
+#### New Commands (1)
+
+- `shiori annotate` — Add shiori annotations to existing source lines by ref, file, and line number, with `--format json` for programmatic IDE integration and line-length warnings
+
+#### GitHub Issues Built-in Ref-Status Provider (EP-0068)
+
+- Zero-configuration dead reference detection when `GITHUB_TOKEN` is available — `check` and `report` commands automatically detect closed GitHub Issues and surface `ref-status-closed` warnings
+- Ref formats: `GH-123` (default repository) and `owner/repo#123` (explicit repository)
+- Provider selection priority: user-specified `--ref-status-command` > `GITHUB_TOKEN` auto-detection > graceful skip
+- Pluggable provider architecture (`src/core/ref-status-providers/`) with `RefStatusProvider` interface, `CommandRefStatusProvider` (existing), and `GitHubIssuesRefStatusProvider` (new)
+
+#### IDE-First Governance Loop
+
+- `shiori init --vscode` — Auto-generate VS Code `tasks.json` with `problemMatcher` for `check` and `watch --format diagnostic` tasks, feeding governance issues into the Problems panel
+- `shiori watch --format diagnostic` — GCC-compatible diagnostic output format for real-time IDE integration
+- `--format diagnostic` support in `check` and `verify` commands — `file:line:col: severity: message` format for editor problem matchers
+- VS Code annotate task recipe (`docs/recipes/vscode-annotate-task.md`) for annotation insertion workflows
+
+#### Scan Enhancements
+
+- Governance Report Card displayed after `scan` in TTY mode — immediate health score, annotation counts, and actionable next steps
+- `scan.ignore` config now merges with built-in defaults (append mode) instead of replacing them (EP-0051)
+
+#### Trend Enhancements
+
+- `trend --format spark` — Unicode sparkline rendering for inline terminal trend visualization (zero dependencies)
+- Multi-series sparkline display (score, annotations, expired, expiring-soon) with fixed-width character output
+
+#### Output Formats
+
+- `--format diagnostic` — GCC-compatible diagnostic text (`file:line:col: severity: message`) for IDE integration
+- `--format spark` — Unicode sparkline for `trend` command
+
+#### Browser Playground
+
+- `shiori` browser bundle (`playground/`) — client-side scan and verify powered by esbuild, deployable as static HTML
+
+#### Recipes & Documentation
+
+- VS Code tasks recipe with problemMatcher patterns (`docs/recipes/vscode-tasks.json.example`)
+- VS Code annotate task recipe (`docs/recipes/vscode-annotate-task.md`)
+- SARIF Code Scanning recipe (`docs/recipes/code-scanning.md`)
+- Renovate triage recipe (`docs/recipes/renovate-triage.md`)
+
+#### CI Security
+
+- zizmor GitHub Actions security audit workflow integrated into CI
+
+### Changed
+
+- Version string centralized to `src/core/version.ts` (eliminates hardcoded version scattered across CLI commands)
+- Config validation strengthened with Phase 2 value-type checks (string/number/boolean/array type enforcement)
+- `--expiring-threshold` validation hardened in `cli-context.ts` (rejects non-positive and non-numeric values)
+- `watch-cli.ts` security: command-injection-safe path handling for `--open` flag
+- Ref-status provider selection extracted from CLI layer to `src/core/ref-status-providers/select-provider.ts`
+
+### Fixed
+
+- `--expiring-threshold` accepted invalid values (non-positive numbers, non-numeric strings) without error
+- Config loader accepted values with wrong types silently (e.g., string where number expected)
+- `init --ci sarif` template referenced incorrect artifact path
+
 ## [0.1.0] - 2026-03-11
 
 ### Added

@@ -63,6 +63,8 @@ That's it. Three commands to go from zero to CI-enforced annotation governance.
 > shiori check                          # Verify everything is tracked
 > ```
 
+> **Dead reference detection** — When `GITHUB_TOKEN` is available (e.g., in GitHub Actions), shiori automatically detects closed GitHub Issues referenced by annotations and surfaces `ref-status-closed` warnings. No extra configuration needed — just use `GH-123` or `owner/repo#123` as your tracking ref.
+
 ## Your Governance Journey
 
 shiori supports three levels of governance maturity — start simple, grow as needed:
@@ -415,6 +417,8 @@ Displays the full README documentation in the terminal.
 ## CI Integration
 
 > **Quick setup:** `shiori init --ci basic` generates a ready-to-use workflow file. See [Quick Start](#quick-start) for the fastest path.
+
+> **GitHub Issues dead reference detection:** In GitHub Actions, `GITHUB_TOKEN` is automatically available. shiori detects it and checks whether referenced GitHub Issues (e.g., `GH-123`) are still open — no `--ref-status-command` configuration required.
 
 ### GitHub Actions — Basic
 
