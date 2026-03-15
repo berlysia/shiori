@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-shiori is an annotation tracking and governance CLI tool. It recovers structured annotations (lint violations hidden by `disable` comments) from source code, manages them in a JSON registry, and verifies them in CI. Early development stage (0.0.1), no external users yet.
+shiori is an annotation tracking and governance CLI tool. It recovers structured annotations (lint violations hidden by `disable` comments) from source code, manages them in a JSON registry, and verifies them in CI. Current version: 0.1.1.
 
 ## Commands
 

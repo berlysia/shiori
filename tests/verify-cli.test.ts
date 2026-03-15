@@ -1,6 +1,7 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
+import { writeFile, chmod } from 'node:fs/promises';
 import {
   runCli,
   createFixtureDir,
@@ -244,5 +245,156 @@ describe('verify-cli: argument validation and error paths', () => {
       assert.ok(result.summary.errors > 0);
       assert.ok(result.issues.some((i) => i.type === 'missing-in-registry'));
     });
+  });
+});
+
+describe('verify-cli: --ref-status-command integration', () => {
+  let baseDir: string;
+  let cleanup: () => Promise<void>;
+
+  before(async () => {
+    ({ baseDir, cleanup } = await createTempBase('shiori-verify-refstatus-'));
+  });
+
+  after(async () => {
+    await cleanup();
+  });
+
+  /**
+   * Create a shell script that reads refs from stdin and outputs JSONL
+   * marking all refs as the given status.
+   */
+  async function createRefStatusScript(
+    dir: string,
+    status: 'open' | 'closed',
+  ): Promise<string> {
+    const scriptPath = join(dir, 'ref-status-mock.sh');
+    const script = `#!/bin/sh
+while IFS= read -r ref; do
+  [ -z "$ref" ] && continue
+  printf '{"ref":"%s","status":"${status}"}\\n' "$ref"
+done
+`;
+    await writeFile(scriptPath, script, 'utf-8');
+    await chmod(scriptPath, 0o755);
+    return scriptPath;
+  }
+
+  it('detects ref-status-closed when command reports closed refs', async () => {
+    const dir = await createFixtureDir(baseDir, 'refstatus-closed', {
+      scanResult: {
+        annotations: [
+          {
+            ref: 'VER-001',
+            rule: 'no-console',
+            tagged: true,
+            ignored: false,
+            location: { file: 'src/sample.ts', line: 1 },
+          },
+        ],
+        candidates: [],
+        filesScanned: 1,
+      },
+      registryEntries: {
+        'VER-001': { reason: 'test annotation', target: 'all' },
+      },
+    });
+    const scriptPath = await createRefStatusScript(dir, 'closed');
+    const scanPath = join(dir, '.config', 'shiori', 'scan-result.json');
+    const { exitCode, stdout, stderr } = await runCli([
+      'verify',
+      '--cwd',
+      dir,
+      '--scan',
+      scanPath,
+      '--ref-status-command',
+      scriptPath,
+      '--fail-on',
+      'ref-status-closed',
+    ]);
+
+    assert.equal(exitCode, 1);
+    assert.ok(stderr.includes('Ref status'));
+    assert.ok(stderr.includes('1 closed'));
+    const result = JSON.parse(stdout) as {
+      issues: Array<{ type: string; ref: string }>;
+    };
+    assert.ok(result.issues.some((i) => i.type === 'ref-status-closed'));
+  });
+
+  it('does not report ref-status-closed when command reports open refs', async () => {
+    const dir = await createFixtureDir(baseDir, 'refstatus-open', {
+      scanResult: {
+        annotations: [
+          {
+            ref: 'VER-001',
+            rule: 'no-console',
+            tagged: true,
+            ignored: false,
+            location: { file: 'src/sample.ts', line: 1 },
+          },
+        ],
+        candidates: [],
+        filesScanned: 1,
+      },
+      registryEntries: {
+        'VER-001': { reason: 'test annotation', target: 'all' },
+      },
+    });
+    const scriptPath = await createRefStatusScript(dir, 'open');
+    const scanPath = join(dir, '.config', 'shiori', 'scan-result.json');
+    const { exitCode, stdout, stderr } = await runCli([
+      'verify',
+      '--cwd',
+      dir,
+      '--scan',
+      scanPath,
+      '--ref-status-command',
+      scriptPath,
+    ]);
+
+    assert.equal(exitCode, 0);
+    assert.ok(stderr.includes('Ref status'));
+    assert.ok(stderr.includes('0 closed'));
+    const result = JSON.parse(stdout) as {
+      issues: Array<{ type: string }>;
+    };
+    assert.ok(!result.issues.some((i) => i.type === 'ref-status-closed'));
+  });
+
+  it('gracefully degrades when ref-status command fails', async () => {
+    const dir = await createFixtureDir(baseDir, 'refstatus-fail', {
+      scanResult: {
+        annotations: [
+          {
+            ref: 'VER-001',
+            rule: 'no-console',
+            tagged: true,
+            ignored: false,
+            location: { file: 'src/sample.ts', line: 1 },
+          },
+        ],
+        candidates: [],
+        filesScanned: 1,
+      },
+      registryEntries: {
+        'VER-001': { reason: 'test annotation', target: 'all' },
+      },
+    });
+    // Use a command that will fail (non-existent)
+    const scanPath = join(dir, '.config', 'shiori', 'scan-result.json');
+    const { exitCode, stderr } = await runCli([
+      'verify',
+      '--cwd',
+      dir,
+      '--scan',
+      scanPath,
+      '--ref-status-command',
+      '/nonexistent/command',
+    ]);
+
+    // Should still complete verify (graceful degradation), exit 0 since no fail-on errors
+    assert.equal(exitCode, 0);
+    assert.ok(stderr.includes('Warning: ref-status provider'));
   });
 });
