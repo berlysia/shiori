@@ -1,10 +1,17 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { ShioriAnnotation, ShioriCandidate } from '../src/core/types.ts';
+import type {
+  ShioriAnnotation,
+  ShioriCandidate,
+  RegistryEntry,
+  Registry,
+} from '../src/core/types.ts';
 import {
   formatScanResultForDisplay,
+  formatGovernanceReportCard,
   type ScanResult,
 } from '../src/commands/scan.ts';
+import { report } from '../src/commands/report.ts';
 
 function makeAnnotation(
   overrides: Partial<ShioriAnnotation> = {},
@@ -180,5 +187,161 @@ describe('formatScanResultForDisplay', () => {
     assert.ok(output.includes('src/api.ts:22'));
     assert.ok(output.includes('todo'));
     assert.ok(output.includes('Fix this later'));
+  });
+});
+
+function makeRegistryEntry(
+  overrides: Partial<RegistryEntry> = {},
+): RegistryEntry {
+  return {
+    reason: 'test reason',
+    target: 'test.ts',
+    expires: undefined,
+    ticket: undefined,
+    owner: undefined,
+    notes: undefined,
+    kind: undefined,
+    ...overrides,
+  };
+}
+
+describe('formatGovernanceReportCard', () => {
+  it('shows health score and tracking rate for healthy codebase', () => {
+    const scanResult = makeScanResult({
+      annotations: [makeAnnotation({ ref: 'TEST-001' })],
+      candidates: [],
+      filesScanned: 10,
+    });
+    const registry: Registry = {
+      'TEST-001': makeRegistryEntry(),
+    };
+    const reportResult = report({
+      scanResult,
+      registry,
+      failOn: [],
+      warnOn: [],
+    });
+
+    const output = formatGovernanceReportCard(scanResult, reportResult);
+
+    assert.ok(output.includes('Governance Report Card'));
+    assert.ok(output.includes('100/100'));
+    assert.ok(output.includes('healthy'));
+    assert.ok(output.includes('Tracked: 1/1 (100%)'));
+    assert.ok(output.includes('Candidates: 0'));
+    // No issues, no candidates, but has annotations → suggest health
+    assert.ok(output.includes('shiori health'));
+  });
+
+  it('shows tracking rate with candidates', () => {
+    const scanResult = makeScanResult({
+      annotations: [makeAnnotation({ ref: 'TEST-001' })],
+      candidates: [
+        makeCandidate(),
+        makeCandidate({ location: { file: 'src/b.ts', line: 1 } }),
+      ],
+      filesScanned: 10,
+    });
+    const registry: Registry = {
+      'TEST-001': makeRegistryEntry(),
+    };
+    const reportResult = report({
+      scanResult,
+      registry,
+      failOn: [],
+      warnOn: [],
+    });
+
+    const output = formatGovernanceReportCard(scanResult, reportResult);
+
+    // 1 tracked / 3 total = 33%
+    assert.ok(output.includes('Tracked: 1/3 (33%)'));
+    assert.ok(output.includes('Candidates: 2'));
+    // Candidates exist → suggest adopt
+    assert.ok(output.includes('shiori adopt'));
+  });
+
+  it('shows issues and suggests verify', () => {
+    const scanResult = makeScanResult({
+      annotations: [
+        makeAnnotation({ ref: 'MISSING-001' }),
+        makeAnnotation({ ref: 'MISSING-002' }),
+      ],
+      candidates: [],
+      filesScanned: 10,
+    });
+    const reportResult = report({
+      scanResult,
+      registry: {},
+      failOn: ['missing-in-registry'],
+      warnOn: [],
+    });
+
+    const output = formatGovernanceReportCard(scanResult, reportResult);
+
+    assert.ok(output.includes('Issues:'));
+    assert.ok(output.includes('2 errors'));
+    assert.ok(output.includes('shiori verify'));
+  });
+
+  it('shows message when no annotations or candidates found', () => {
+    const scanResult = makeScanResult({
+      annotations: [],
+      candidates: [],
+      filesScanned: 5,
+    });
+    const reportResult = report({
+      scanResult,
+      registry: {},
+      failOn: [],
+      warnOn: [],
+    });
+
+    const output = formatGovernanceReportCard(scanResult, reportResult);
+
+    assert.ok(output.includes('No annotations or candidates found'));
+  });
+
+  it('does not show adopt when no candidates', () => {
+    const scanResult = makeScanResult({
+      annotations: [makeAnnotation({ ref: 'TEST-001' })],
+      candidates: [],
+      filesScanned: 10,
+    });
+    const registry: Registry = {
+      'TEST-001': makeRegistryEntry(),
+    };
+    const reportResult = report({
+      scanResult,
+      registry,
+      failOn: [],
+      warnOn: [],
+    });
+
+    const output = formatGovernanceReportCard(scanResult, reportResult);
+
+    assert.ok(!output.includes('shiori adopt'));
+  });
+
+  it('shows border lines', () => {
+    const scanResult = makeScanResult({
+      annotations: [makeAnnotation({ ref: 'TEST-001' })],
+      candidates: [],
+      filesScanned: 10,
+    });
+    const registry: Registry = {
+      'TEST-001': makeRegistryEntry(),
+    };
+    const reportResult = report({
+      scanResult,
+      registry,
+      failOn: [],
+      warnOn: [],
+    });
+
+    const output = formatGovernanceReportCard(scanResult, reportResult);
+
+    // Has header and footer borders
+    assert.ok(output.includes('──'));
   });
 });

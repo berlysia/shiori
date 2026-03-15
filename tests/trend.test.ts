@@ -8,6 +8,8 @@ import {
   formatTrendAsMarkdown,
   formatTrendAsCsv,
   formatTrendAsSpark,
+  valueToBlock,
+  buildSparkline,
 } from '../src/commands/trend.ts';
 
 function makeReportResult(overrides: {
@@ -411,6 +413,44 @@ describe('formatTrendAsCsv', () => {
   });
 });
 
+describe('valueToBlock', () => {
+  it('returns middle block when min === max', () => {
+    assert.equal(valueToBlock(50, 50, 50), '▆');
+  });
+
+  it('returns lowest block for min value', () => {
+    assert.equal(valueToBlock(0, 0, 100), '▁');
+  });
+
+  it('returns highest block for max value', () => {
+    assert.equal(valueToBlock(100, 0, 100), '█');
+  });
+
+  it('returns middle block for midpoint', () => {
+    const block = valueToBlock(50, 0, 100);
+    assert.ok(['▃', '▄', '▅'].includes(block));
+  });
+});
+
+describe('buildSparkline', () => {
+  it('returns empty string for empty array', () => {
+    assert.equal(buildSparkline([]), '');
+  });
+
+  it('builds sparkline from values', () => {
+    const spark = buildSparkline([0, 50, 100]);
+    assert.equal(spark.length, 3);
+    // First char should be lowest, last should be highest
+    assert.equal(spark[0], '▁');
+    assert.equal(spark[2], '█');
+  });
+
+  it('handles identical values', () => {
+    const spark = buildSparkline([75, 75, 75]);
+    assert.equal(spark, '▆▆▆');
+  });
+});
+
 describe('formatTrendAsSpark', () => {
   it('handles empty result', () => {
     const result = computeTrend([]);
@@ -419,32 +459,46 @@ describe('formatTrendAsSpark', () => {
     assert.equal(spark, 'No data points available.');
   });
 
-  it('renders single data point as middle block', () => {
+  it('renders three series lines', () => {
     const result = computeTrend([
       makeReportResult({ timestamp: '2026-01-01T00:00:00.000Z', score: 80 }),
     ]);
     const spark = formatTrendAsSpark(result);
+    const lines = spark.split('\n');
 
-    // Single point → min === max → middle block (▆)
-    assert.ok(spark.startsWith('▆'));
-    assert.ok(spark.includes('80/100'));
-    assert.ok(spark.includes('stable'));
-    assert.ok(spark.includes('1 pts'));
+    assert.equal(lines.length, 3);
+    assert.ok(lines[0]!.startsWith('Score:'));
+    assert.ok(lines[1]!.startsWith('Issues:'));
+    assert.ok(lines[2]!.startsWith('Untracked:'));
   });
 
-  it('renders improving trend with ascending blocks', () => {
+  it('renders single data point as middle block in score line', () => {
+    const result = computeTrend([
+      makeReportResult({ timestamp: '2026-01-01T00:00:00.000Z', score: 80 }),
+    ]);
+    const spark = formatTrendAsSpark(result);
+    const scoreLine = spark.split('\n')[0]!;
+
+    // Single point → min === max → middle block (▆)
+    assert.ok(scoreLine.includes('▆'));
+    assert.ok(scoreLine.includes('80/100'));
+    assert.ok(scoreLine.includes('stable'));
+    assert.ok(scoreLine.includes('1 pts'));
+  });
+
+  it('renders improving trend with ascending blocks in score line', () => {
     const result = computeTrend([
       makeReportResult({ timestamp: '2026-01-01T00:00:00.000Z', score: 0 }),
       makeReportResult({ timestamp: '2026-02-01T00:00:00.000Z', score: 50 }),
       makeReportResult({ timestamp: '2026-03-01T00:00:00.000Z', score: 100 }),
     ]);
     const spark = formatTrendAsSpark(result);
+    const scoreLine = spark.split('\n')[0]!;
 
-    // First char should be lowest block, last char should be highest block
-    assert.ok(spark.startsWith('▁'));
-    assert.ok(spark.includes('📈'));
-    assert.ok(spark.includes('improving'));
-    assert.ok(spark.includes('+100'));
+    assert.ok(scoreLine.includes('▁'));
+    assert.ok(scoreLine.includes('📈'));
+    assert.ok(scoreLine.includes('improving'));
+    assert.ok(scoreLine.includes('+100'));
   });
 
   it('renders declining trend with descending blocks', () => {
@@ -454,12 +508,12 @@ describe('formatTrendAsSpark', () => {
       makeReportResult({ timestamp: '2026-03-01T00:00:00.000Z', score: 0 }),
     ]);
     const spark = formatTrendAsSpark(result);
+    const scoreLine = spark.split('\n')[0]!;
 
-    // First char should be highest block, last char should be lowest block
-    assert.ok(spark.startsWith('█'));
-    assert.ok(spark.includes('📉'));
-    assert.ok(spark.includes('declining'));
-    assert.ok(spark.includes('-100'));
+    assert.ok(scoreLine.includes('█'));
+    assert.ok(scoreLine.includes('📉'));
+    assert.ok(scoreLine.includes('declining'));
+    assert.ok(scoreLine.includes('-100'));
   });
 
   it('renders flat line with identical blocks', () => {
@@ -469,10 +523,10 @@ describe('formatTrendAsSpark', () => {
       makeReportResult({ timestamp: '2026-03-01T00:00:00.000Z', score: 75 }),
     ]);
     const spark = formatTrendAsSpark(result);
+    const scoreLine = spark.split('\n')[0]!;
 
-    // All blocks should be the same (middle block ▆)
-    assert.ok(spark.startsWith('▆▆▆'));
-    assert.ok(spark.includes('stable'));
+    assert.ok(scoreLine.includes('▆▆▆'));
+    assert.ok(scoreLine.includes('stable'));
   });
 
   it('includes score change with sign and point count', () => {
@@ -485,6 +539,66 @@ describe('formatTrendAsSpark', () => {
     assert.ok(spark.includes('85/100'));
     assert.ok(spark.includes('+25'));
     assert.ok(spark.includes('2 pts'));
+  });
+
+  it('shows issue count in issues line', () => {
+    const result = computeTrend([
+      makeReportResult({
+        timestamp: '2026-01-01T00:00:00.000Z',
+        score: 70,
+        issues: 5,
+      }),
+      makeReportResult({
+        timestamp: '2026-02-01T00:00:00.000Z',
+        score: 85,
+        issues: 2,
+      }),
+    ]);
+    const spark = formatTrendAsSpark(result);
+    const issuesLine = spark.split('\n')[1]!;
+
+    assert.ok(issuesLine.startsWith('Issues:'));
+    // Latest issue count
+    assert.ok(issuesLine.includes('2'));
+  });
+
+  it('shows untracked ratio in untracked line', () => {
+    const result = computeTrend([
+      makeReportResult({
+        timestamp: '2026-01-01T00:00:00.000Z',
+        score: 70,
+        annotations: 8,
+        candidates: 2,
+      }),
+      makeReportResult({
+        timestamp: '2026-02-01T00:00:00.000Z',
+        score: 85,
+        annotations: 10,
+        candidates: 0,
+      }),
+    ]);
+    const spark = formatTrendAsSpark(result);
+    const untrackedLine = spark.split('\n')[2]!;
+
+    assert.ok(untrackedLine.startsWith('Untracked:'));
+    // Latest untracked = 0/(10+0) = 0%
+    assert.ok(untrackedLine.includes('0%'));
+  });
+
+  it('computes untracked ratio correctly with candidates', () => {
+    const result = computeTrend([
+      makeReportResult({
+        timestamp: '2026-01-01T00:00:00.000Z',
+        score: 70,
+        annotations: 6,
+        candidates: 4,
+      }),
+    ]);
+    const spark = formatTrendAsSpark(result);
+    const untrackedLine = spark.split('\n')[2]!;
+
+    // 4/(6+4) = 40%
+    assert.ok(untrackedLine.includes('40%'));
   });
 
   it('is routed by formatTrend with spark format', () => {

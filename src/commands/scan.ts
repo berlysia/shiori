@@ -5,7 +5,9 @@ import type {
   ShioriAnnotation,
   ShioriCandidate,
   ScanResult,
+  ReportResult,
 } from '../core/types.ts';
+import { healthEmoji } from '../core/emoji.ts';
 import type {
   AnnotationProvider,
   ProviderScanOptions,
@@ -135,4 +137,74 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
     candidates: sortCandidates(allCandidates),
     filesScanned: files.length,
   };
+}
+
+/**
+ * Format a Governance Report Card for TTY display after scan.
+ *
+ * Reuses ReportResult from report() to show tracking rate, candidate count,
+ * health score, and recommended next actions. Designed for scan-cli TTY mode
+ * to guide new users toward governance adoption.
+ */
+export function formatGovernanceReportCard(
+  scanResult: ScanResult,
+  reportResult: ReportResult,
+): string {
+  const lines: string[] = [];
+  const { annotations, candidates } = scanResult;
+  const total = annotations.length + candidates.length;
+
+  lines.push('');
+  lines.push('── Governance Report Card ──────────────────');
+
+  // Health score
+  const emoji = healthEmoji(reportResult.health.level);
+  lines.push(
+    `${emoji} Health: ${reportResult.health.score}/100 (${reportResult.health.level})`,
+  );
+
+  // Tracking rate
+  if (total > 0) {
+    const trackedRate = ((annotations.length / total) * 100).toFixed(0);
+    lines.push(
+      `Tracked: ${annotations.length}/${total} (${trackedRate}%)   Candidates: ${candidates.length}`,
+    );
+  } else {
+    lines.push('No annotations or candidates found.');
+  }
+
+  // Issue summary (if any)
+  if (reportResult.totals.issues > 0) {
+    lines.push(
+      `Issues: ${reportResult.totals.issues} (${reportResult.totals.errors} errors, ${reportResult.totals.warnings} warnings)`,
+    );
+  }
+
+  // Recommended next actions
+  const actions: string[] = [];
+  if (candidates.length > 0) {
+    actions.push('shiori adopt     # Track untracked lint disables');
+  }
+  if (reportResult.totals.issues > 0) {
+    actions.push('shiori verify    # Check registry consistency');
+  }
+  if (
+    reportResult.totals.issues === 0 &&
+    candidates.length === 0 &&
+    annotations.length > 0
+  ) {
+    actions.push('shiori health    # View detailed governance health');
+  }
+
+  if (actions.length > 0) {
+    lines.push('');
+    lines.push('Next steps:');
+    for (const action of actions) {
+      lines.push(`  $ ${action}`);
+    }
+  }
+
+  lines.push('────────────────────────────────────────────');
+
+  return lines.join('\n');
 }

@@ -154,23 +154,36 @@ export function formatTrendAsMarkdown(result: TrendResult): string {
 const SPARK_BLOCKS = ['▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'] as const;
 
 /**
- * Map a score to a sparkline block character.
- * Linearly maps the score within [min, max] to one of 8 block levels.
- * When min === max (flat line), returns the middle block (▅).
+ * Map a numeric value to a sparkline block character.
+ * Linearly maps the value within [min, max] to one of 8 block levels.
+ * When min === max (flat line), returns the middle block (▆).
  */
-function scoreToBlock(score: number, min: number, max: number): string {
+export function valueToBlock(value: number, min: number, max: number): string {
   if (min === max) return SPARK_BLOCKS[5]!;
-  const ratio = (score - min) / (max - min);
+  const ratio = (value - min) / (max - min);
   // Clamp to [0, 7] and pick the corresponding block
   const index = Math.min(7, Math.max(0, Math.round(ratio * 7)));
   return SPARK_BLOCKS[index]!;
 }
 
 /**
- * Format TrendResult as a compact Unicode sparkline for terminal display.
+ * Build a sparkline string from an array of numeric values.
+ * Computes min/max from the values and maps each to a block character.
+ */
+export function buildSparkline(values: number[]): string {
+  if (values.length === 0) return '';
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  return values.map((v) => valueToBlock(v, min, max)).join('');
+}
+
+/**
+ * Format TrendResult as a multi-series Unicode sparkline for terminal display.
  *
- * Output format (single-line when possible):
- *   ▁▃▅▇█▆▄  85/100 📈 improving (+15, 7 pts)
+ * Renders three series (one per line):
+ *   Score:   ▁▃▅▇█▆▄  85/100 📈 improving (+15, 7 pts)
+ *   Issues:  █▆▄▃▁▁▁  2
+ *   Untracked: ▇▅▃▂▁▁▁  8%
  *
  * Uses only Unicode block characters — no ANSI escape codes, no color.
  * Fixed-width sparkline (one char per data point). No terminal width detection.
@@ -180,15 +193,32 @@ export function formatTrendAsSpark(result: TrendResult): string {
     return 'No data points available.';
   }
 
-  const { summary } = result;
-  const spark = result.points
-    .map((p) => scoreToBlock(p.score, summary.minScore, summary.maxScore))
-    .join('');
+  const { summary, points } = result;
 
+  // Series 1: Health score (existing behavior)
+  const scoreSpark = points
+    .map((p) => valueToBlock(p.score, summary.minScore, summary.maxScore))
+    .join('');
   const dirEmoji = trendEmoji(summary.direction);
   const sign = summary.scoreChange >= 0 ? '+' : '';
+  const scoreLine = `Score:     ${scoreSpark}  ${summary.latestScore}/100 ${dirEmoji} ${summary.direction} (${sign}${summary.scoreChange}, ${summary.count} pts)`;
 
-  return `${spark}  ${summary.latestScore}/100 ${dirEmoji} ${summary.direction} (${sign}${summary.scoreChange}, ${summary.count} pts)`;
+  // Series 2: Issue count
+  const issueValues = points.map((p) => p.issues);
+  const issueSpark = buildSparkline(issueValues);
+  const latestIssues = points[points.length - 1]!.issues;
+  const issueLine = `Issues:    ${issueSpark}  ${latestIssues}`;
+
+  // Series 3: Untracked ratio (candidates / (annotations + candidates))
+  const untrackedValues = points.map((p) => {
+    const total = p.annotations + p.candidates;
+    return total > 0 ? (p.candidates / total) * 100 : 0;
+  });
+  const untrackedSpark = buildSparkline(untrackedValues);
+  const latestUntracked = untrackedValues[untrackedValues.length - 1]!;
+  const untrackedLine = `Untracked: ${untrackedSpark}  ${latestUntracked.toFixed(0)}%`;
+
+  return [scoreLine, issueLine, untrackedLine].join('\n');
 }
 
 /**

@@ -1,7 +1,12 @@
 import { define } from 'gunshi';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
-import { scan, formatScanResultForDisplay } from './scan.ts';
+import {
+  scan,
+  formatScanResultForDisplay,
+  formatGovernanceReportCard,
+} from './scan.ts';
+import { report } from './report.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
 import { loadConfig } from '../core/config.ts';
 import { validateProvider } from '../core/cli-validation.ts';
@@ -10,6 +15,7 @@ import {
   DEFAULT_SCAN_PATTERNS,
   DEFAULT_SCAN_IGNORE,
 } from '../core/scan-defaults.ts';
+import { loadConfigAndRegistry } from '../core/registry-loader.ts';
 
 export const scanCommand = define({
   name: 'scan',
@@ -59,6 +65,11 @@ export const scanCommand = define({
       type: 'string',
       description: 'Annotation provider. Default: "comment"',
       default: 'comment',
+    },
+    noSummary: {
+      type: 'boolean',
+      toKebab: true,
+      description: 'Suppress the Governance Report Card summary in TTY mode',
     },
   },
   run: async (ctx) => {
@@ -124,6 +135,28 @@ export const scanCommand = define({
       await mkdir(dirname(outputPath), { recursive: true });
       await writeFile(outputPath, json + '\n', 'utf-8');
       console.log(formatScanResultForDisplay(result, config.paths.scanResult));
+
+      // Governance Report Card (TTY only, suppressible with --no-summary)
+      if (!ctx.values.noSummary) {
+        try {
+          const regResult = await loadConfigAndRegistry({
+            cwd,
+            configDir: ctx.values.config,
+          });
+          const reportResult = report({
+            scanResult: result,
+            registry: regResult.registry,
+            failOn: [],
+            warnOn: [],
+            duplicates: regResult.duplicates,
+            refPatterns: regResult.config.refPatterns,
+            refOrigins: regResult.refOrigins,
+          });
+          console.log(formatGovernanceReportCard(result, reportResult));
+        } catch {
+          // Registry unavailable (e.g. not initialized) — skip report card silently
+        }
+      }
     } else {
       // Pipe/redirect: stdout JSON + stderr stats
       console.log(json);
