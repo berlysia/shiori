@@ -13,6 +13,8 @@ const baseInput: NextStepsInput = {
   hasCi: false,
   ciOnly: false,
   hasStarter: false,
+  hasVscode: false,
+  vscodeOnly: false,
 };
 
 describe('computeNextSteps', () => {
@@ -114,6 +116,66 @@ describe('computeNextSteps', () => {
       result.steps[0]?.message.includes('.github/workflows/shiori.yml'),
     );
     assert.ok(result.steps[1]?.message.includes('Commit and push'));
+  });
+
+  it('returns minimal steps for vscode-only mode', () => {
+    const result = computeNextSteps({
+      ...baseInput,
+      vscodeOnly: true,
+      hasVscode: true,
+    });
+
+    assert.equal(result.steps.length, 1);
+    assert.ok(result.steps[0]?.message.includes('Tasks: Run Task'));
+    assert.ok(result.steps[0]?.message.includes('Problems panel'));
+    // Should NOT include project-init guidance
+    assert.ok(!result.steps.some((s) => s.command === 'shiori check'));
+    assert.ok(
+      !result.steps.some((s) => s.command === 'shiori init --ci basic'),
+    );
+  });
+
+  it('shows VS Code guidance when hasVscode is true in full init', () => {
+    const result = computeNextSteps({
+      ...baseInput,
+      hasVscode: true,
+    });
+
+    assert.ok(
+      result.steps.some((s) => s.message.includes('Tasks: Run Task')),
+      'Expected VS Code usage guidance',
+    );
+    // Should NOT suggest init --vscode
+    assert.ok(
+      !result.steps.some((s) => s.command === 'shiori init --vscode'),
+      'Should not suggest --vscode when already used',
+    );
+  });
+
+  it('suggests --vscode when hasVscode is false', () => {
+    const result = computeNextSteps(baseInput);
+
+    assert.ok(
+      result.steps.some((s) => s.command === 'shiori init --vscode'),
+      'Expected --vscode suggestion',
+    );
+  });
+
+  it('includes VS Code guidance in ci-only mode when hasVscode is true', () => {
+    const result = computeNextSteps({
+      ...baseInput,
+      ciOnly: true,
+      hasCi: true,
+      ciPath: '.github/workflows/shiori.yml',
+      hasVscode: true,
+    });
+
+    assert.equal(result.steps.length, 3);
+    assert.ok(
+      result.steps[0]?.message.includes('.github/workflows/shiori.yml'),
+    );
+    assert.ok(result.steps[1]?.message.includes('Commit and push'));
+    assert.ok(result.steps[2]?.message.includes('Tasks: Run Task'));
   });
 
   it('includes docs hint for starter with no candidates', () => {

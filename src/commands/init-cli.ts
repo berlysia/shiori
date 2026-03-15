@@ -9,6 +9,7 @@ import {
   stepRegistry,
   stepGitignore,
   stepCi,
+  stepVscode,
   stepSummary,
   PathBoundaryError,
   CI_TEMPLATE_KINDS,
@@ -40,7 +41,13 @@ export const initCommand = define({
   shiori init --ci delta-pr-comment
 
   # CI-only mode (skip project init, just generate workflow)
-  shiori init --ci sarif --ci-only`,
+  shiori init --ci sarif --ci-only
+
+  # Generate VS Code tasks.json for Problems panel integration
+  shiori init --vscode
+
+  # VS Code config only (skip project init)
+  shiori init --vscode --vscode-only`,
   rendering: { header: null },
   args: {
     patterns: {
@@ -85,6 +92,17 @@ export const initCommand = define({
       description:
         'Skip project initialization, only generate CI workflow file. Requires --ci.',
     },
+    vscode: {
+      type: 'boolean',
+      description:
+        'Generate VS Code tasks.json for Problems panel integration.',
+    },
+    vscodeOnly: {
+      type: 'boolean',
+      toKebab: true,
+      description:
+        'Skip project initialization, only generate VS Code config. Requires --vscode.',
+    },
   },
   run: async (ctx) => {
     const cwd = ctx.values.cwd ?? process.cwd();
@@ -114,13 +132,22 @@ export const initCommand = define({
       return;
     }
 
+    // --vscode-only requires --vscode
+    if (ctx.values.vscodeOnly && !ctx.values.vscode) {
+      console.error('Error: --vscode-only requires --vscode');
+      process.exitCode = 1;
+      return;
+    }
+
     const steps: string[] = [];
     let annotationCount = 0;
     let candidateCount = 0;
     let registryEntryCount = 0;
 
-    // Project initialization steps (skipped with --ci-only)
-    if (!ctx.values.ciOnly) {
+    const skipProjectInit = ctx.values.ciOnly || ctx.values.vscodeOnly;
+
+    // Project initialization steps (skipped with --ci-only or --vscode-only)
+    if (!skipProjectInit) {
       let initCtx;
       try {
         initCtx = await createInitContext({
@@ -174,6 +201,20 @@ export const initCommand = define({
       }
     }
 
+    // VS Code tasks.json step
+    if (ctx.values.vscode || ctx.values.vscodeOnly) {
+      try {
+        await stepVscode(cwd, steps);
+      } catch (err) {
+        if (err instanceof PathBoundaryError) {
+          console.error(`Error: ${err.message}`);
+          process.exitCode = 1;
+          return;
+        }
+        throw err;
+      }
+    }
+
     // Summary
     stepSummary(steps, {
       ciOnly: ctx.values.ciOnly ?? false,
@@ -182,6 +223,8 @@ export const initCommand = define({
       candidateCount,
       registryEntryCount,
       hasStarter: starterKind !== undefined,
+      hasVscode: ctx.values.vscode === true || ctx.values.vscodeOnly === true,
+      vscodeOnly: ctx.values.vscodeOnly ?? false,
       registryPath: ctx.values.registry,
     });
   },

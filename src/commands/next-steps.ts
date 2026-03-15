@@ -20,6 +20,10 @@ export interface NextStepsInput {
   ciPath?: string;
   /** Whether --starter was used */
   hasStarter: boolean;
+  /** Whether --vscode was used */
+  hasVscode: boolean;
+  /** Whether --vscode-only was used (skip project init) */
+  vscodeOnly: boolean;
   /** Registry file path for display in guidance (default: .config/shiori/registry.json) */
   registryPath?: string;
 }
@@ -50,6 +54,16 @@ export function computeNextSteps(input: NextStepsInput): NextStepsResult {
   const steps: NextStep[] = [];
   let stepNum = 1;
 
+  if (input.vscodeOnly) {
+    // VS Code-only mode: minimal guidance
+    steps.push({
+      step: stepNum++,
+      message:
+        'In VS Code: Cmd+Shift+P → "Tasks: Run Task" → "shiori: Check (diagnostic)" to see issues in the Problems panel',
+    });
+    return { steps };
+  }
+
   if (input.ciOnly) {
     // CI-only mode: minimal guidance
     if (input.ciPath) {
@@ -62,6 +76,14 @@ export function computeNextSteps(input: NextStepsInput): NextStepsResult {
       step: stepNum++,
       message: 'Commit and push to enable CI',
     });
+    // Include VS Code guidance if --vscode was also used
+    if (input.hasVscode) {
+      steps.push({
+        step: stepNum++,
+        message:
+          'In VS Code: Cmd+Shift+P → "Tasks: Run Task" → "shiori: Check (diagnostic)" to see issues in the Problems panel',
+      });
+    }
     return { steps };
   }
 
@@ -117,6 +139,21 @@ export function computeNextSteps(input: NextStepsInput): NextStepsResult {
       step: stepNum++,
       message: 'Add governance check to CI:',
       command: 'shiori init --ci basic',
+    });
+  }
+
+  // VS Code guidance
+  if (input.hasVscode) {
+    steps.push({
+      step: stepNum++,
+      message:
+        'In VS Code: Cmd+Shift+P → "Tasks: Run Task" → "shiori: Check (diagnostic)" to see issues in the Problems panel',
+    });
+  } else {
+    steps.push({
+      step: stepNum++,
+      message: 'Add VS Code Problems panel integration:',
+      command: 'shiori init --vscode',
     });
   }
 

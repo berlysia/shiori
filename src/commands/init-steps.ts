@@ -32,6 +32,10 @@ import {
   generateCiWorkflow,
   type CiTemplateKind,
 } from './init-ci-templates.ts';
+import {
+  VSCODE_CONFIG_PATH,
+  generateVscodeConfig,
+} from './init-vscode-templates.ts';
 import type { ScanResult } from '../core/types.ts';
 import { computeNextSteps, formatNextSteps } from './next-steps.ts';
 import {
@@ -123,6 +127,7 @@ export { CI_TEMPLATE_KINDS, CI_TEMPLATE_LABELS, CI_TEMPLATE_PATHS };
 export type { CiTemplateKind };
 export { STARTER_KINDS, STARTER_LABELS };
 export type { StarterKind };
+export { VSCODE_CONFIG_PATH };
 
 /** Validate --ci flag value. Returns error message or undefined. */
 export function validateCiKind(ciKind: string | undefined): string | undefined {
@@ -380,6 +385,23 @@ export async function stepCi(
   }
 }
 
+/** Step 5b: Generate VS Code tasks.json (if --vscode is specified) */
+export async function stepVscode(cwd: string, steps: string[]): Promise<void> {
+  const configPath = resolve(cwd, VSCODE_CONFIG_PATH);
+  await assertWithinCwd(configPath, cwd);
+
+  if (await fileExists(configPath)) {
+    steps.push(
+      `vscode: ${VSCODE_CONFIG_PATH} already exists, skipped. See docs/recipes/vscode-tasks.json.example for the full-featured reference.`,
+    );
+  } else {
+    const content = generateVscodeConfig();
+    await mkdir(dirname(configPath), { recursive: true });
+    await writeFile(configPath, content, 'utf-8');
+    steps.push(`vscode: created ${VSCODE_CONFIG_PATH}`);
+  }
+}
+
 export interface StepSummaryOptions {
   ciOnly: boolean;
   ciKind?: CiTemplateKind;
@@ -391,6 +413,10 @@ export interface StepSummaryOptions {
   registryEntryCount: number;
   /** Whether --starter was used */
   hasStarter: boolean;
+  /** Whether --vscode was used */
+  hasVscode: boolean;
+  /** Whether --vscode-only was used */
+  vscodeOnly: boolean;
   /** Registry file path for display in next-steps guidance */
   registryPath?: string;
 }
@@ -411,6 +437,8 @@ export function stepSummary(steps: string[], opts: StepSummaryOptions): void {
     ciOnly: opts.ciOnly,
     ciPath: opts.ciKind ? CI_TEMPLATE_PATHS[opts.ciKind] : undefined,
     hasStarter: opts.hasStarter,
+    hasVscode: opts.hasVscode,
+    vscodeOnly: opts.vscodeOnly,
     registryPath: opts.registryPath,
   });
 
