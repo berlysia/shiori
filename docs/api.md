@@ -233,6 +233,53 @@ interface RefPatternMatch {
 
 ---
 
+### `@berlysia/shiori/core/ref-status-providers` — Ref Status Provider Interface
+
+Interface for implementing custom ref status providers that check the open/closed state of tracking references (e.g., issue trackers, project management tools).
+
+```typescript
+import type { RefStatusProvider } from '@berlysia/shiori/core/ref-status-providers';
+```
+
+#### `RefStatusProvider`
+
+Abstraction for ref status resolution. Implement this interface to create a custom provider, then connect it via `--ref-status-command`.
+
+```typescript
+interface RefStatusProvider {
+  /** Provider name for logging and diagnostics */
+  readonly name: string;
+
+  /**
+   * Resolve statuses for the given refs.
+   * Implementations should gracefully handle unknown refs by returning
+   * status 'unknown' or omitting them from results.
+   */
+  resolve(refs: string[]): Promise<RefStatusEntry[]>;
+}
+```
+
+`RefStatusEntry` is defined in the core types (`@berlysia/shiori`):
+
+```typescript
+interface RefStatusEntry {
+  ref: string;
+  status: 'open' | 'closed' | 'unknown';
+}
+```
+
+**Usage — External command provider:**
+
+External providers connect via `--ref-status-command`, receiving refs on stdin (newline-delimited) and returning JSONL on stdout:
+
+```bash
+shiori verify --ref-status-command ./my-jira-checker
+```
+
+See [ADR 025](./decisions/025-ref-status-provider-registry.md) for the provider selection priority chain and extensibility design.
+
+---
+
 ### `@berlysia/shiori/commands/show` — Ref Lookup
 
 Pure function to look up information about a specific ref.

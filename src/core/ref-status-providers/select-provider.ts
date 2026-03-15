@@ -15,20 +15,30 @@ export interface SelectProviderOptions {
 /**
  * Select the appropriate ref status provider based on available configuration.
  *
- * Priority (Architect's design decision):
- * 1. User-specified --ref-status-command (explicit > implicit)
- * 2. GITHUB_TOKEN auto-detection (implicit when available)
- * 3. No provider (graceful fallback — ref status checking is skipped)
+ * Priority chain (ADR 025):
+ *   1. Explicit  — User-specified --ref-status-command (always wins)
+ *   2. Auto-detect — Environment variable based (GITHUB_TOKEN, future providers)
+ *   3. None — Graceful fallback (ref status checking is skipped)
+ *
+ * The "Explicit > Implicit > None" principle ensures user intent always
+ * overrides auto-detection. External providers connect via step 1
+ * (--ref-status-command) using the JSONL stdin/stdout protocol.
+ *
+ * Extension point (EP-0070 Step 2): Additional env-var based providers
+ * can be inserted between steps 2 and 3. The candidate naming convention
+ * is SHIORI_REFSTATUS_<PROVIDER>_<KEY> (not yet finalized).
  */
 export function selectRefStatusProvider(
   options: SelectProviderOptions,
 ): RefStatusProvider | undefined {
-  // 1. User-specified command takes absolute priority
+  // 1. Explicit: user-specified command takes absolute priority
   if (options.refStatusCommand) {
     return new CommandRefStatusProvider(options.refStatusCommand);
   }
 
-  // 2. GitHub token auto-detection
+  // 2. Auto-detect: environment variable based providers
+  // Currently: GITHUB_TOKEN → GitHubIssuesRefStatusProvider
+  // Future: additional env-var based providers added here (ADR 025)
   if (options.githubToken) {
     return new GitHubIssuesRefStatusProvider({
       token: options.githubToken,
@@ -36,6 +46,6 @@ export function selectRefStatusProvider(
     });
   }
 
-  // 3. No provider available
+  // 3. None: no provider available
   return undefined;
 }

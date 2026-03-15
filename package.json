@@ -40,6 +40,10 @@
     "./commands/show": {
       "types": "./dist/src/commands/show.d.ts",
       "import": "./dist/src/commands/show.js"
+    },
+    "./core/ref-status-providers": {
+      "types": "./dist/src/core/ref-status-providers/types.d.ts",
+      "import": "./dist/src/core/ref-status-providers/types.js"
     }
   },
   "publishConfig": {
