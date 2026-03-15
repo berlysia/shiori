@@ -14,9 +14,7 @@ import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
 import { writeOutput } from '../core/cli-output.ts';
 import { detectWorkspaces } from '../core/workspace.ts';
 import { scanWorkspaces, type PackageScanResult } from './scan-workspaces.ts';
-import { collectUniqueRefs } from '../core/ref-status.ts';
-import { selectRefStatusProvider } from '../core/ref-status-providers/index.ts';
-import type { RefStatus } from '../core/ref-status.ts';
+import { resolveRefStatusMap } from '../core/ref-status-providers/index.ts';
 import {
   createBaseContext,
   withRegistry,
@@ -215,33 +213,14 @@ export const checkCommand = define({
     }
 
     // Resolve ref statuses via provider (user command or auto-detected GitHub)
-    const refStatusProvider = selectRefStatusProvider({
-      refStatusCommand: ctx.values.refStatusCommand,
-      githubToken: process.env.GITHUB_TOKEN,
-      githubRepository: process.env.GITHUB_REPOSITORY,
-    });
-    let refStatuses: Map<string, RefStatus> | undefined;
-
-    if (refStatusProvider) {
-      const uniqueRefs = collectUniqueRefs(scanResult.annotations);
-      if (uniqueRefs.length > 0) {
-        try {
-          const entries = await refStatusProvider.resolve(uniqueRefs);
-          refStatuses = new Map(entries.map((e) => [e.ref, e.status]));
-          const closedCount = [...refStatuses.values()].filter(
-            (s) => s === 'closed',
-          ).length;
-          console.error(
-            `Ref status (${refStatusProvider.name}): ${refStatuses.size} ref(s) resolved, ${closedCount} closed`,
-          );
-        } catch (err) {
-          console.error(
-            `Warning: ref-status provider "${refStatusProvider.name}" failed: ${err instanceof Error ? err.message : String(err)}`,
-          );
-          // Continue without ref statuses — graceful degradation
-        }
-      }
-    }
+    const { refStatuses } = await resolveRefStatusMap(
+      {
+        refStatusCommand: ctx.values.refStatusCommand,
+        githubToken: process.env.GITHUB_TOKEN,
+        githubRepository: process.env.GITHUB_REPOSITORY,
+      },
+      scanResult.annotations,
+    );
 
     // Verify
     const expiringThresholdDays = resolveExpiringThreshold(

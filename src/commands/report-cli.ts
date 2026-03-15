@@ -23,8 +23,7 @@ import { loadScanResultFromFile } from '../core/scan-result-loader.ts';
 import { computeDelta } from './delta.ts';
 import { enrichWithProvenance } from '../core/provenance.ts';
 import { buildChronicle } from '../core/chronicle.ts';
-import { collectUniqueRefs } from '../core/ref-status.ts';
-import { selectRefStatusProvider } from '../core/ref-status-providers/index.ts';
+import { resolveRefStatusMap } from '../core/ref-status-providers/index.ts';
 
 const validateReportFormat = createFormatValidator<ReportFormat>([
   'json',
@@ -229,28 +228,14 @@ export const reportCommand = define({
     if (useTimeline) {
       console.error('Building annotation chronicle...');
       // Resolve ref statuses via provider (user command or auto-detected GitHub)
-      let refStatuses;
-      const refStatusProvider = selectRefStatusProvider({
-        refStatusCommand: ctx.values.refStatusCommand,
-        githubToken: process.env.GITHUB_TOKEN,
-        githubRepository: process.env.GITHUB_REPOSITORY,
-      });
-      if (refStatusProvider) {
-        try {
-          const uniqueRefs = collectUniqueRefs(enrichedAnnotations);
-          console.error(
-            `Resolving ref statuses (${refStatusProvider.name}) for ${uniqueRefs.length} ref(s)...`,
-          );
-          const entries = await refStatusProvider.resolve(uniqueRefs);
-          refStatuses = new Map(entries.map((e) => [e.ref, e.status]));
-          console.error(`Ref status: ${refStatuses.size} status(es) resolved`);
-        } catch (error) {
-          console.error(
-            `Warning: ref-status provider "${refStatusProvider.name}" failed: ${error instanceof Error ? error.message : String(error)}`,
-          );
-          // Graceful degradation: continue without ref statuses
-        }
-      }
+      const { refStatuses } = await resolveRefStatusMap(
+        {
+          refStatusCommand: ctx.values.refStatusCommand,
+          githubToken: process.env.GITHUB_TOKEN,
+          githubRepository: process.env.GITHUB_REPOSITORY,
+        },
+        enrichedAnnotations,
+      );
 
       chronicle = buildChronicle({
         annotations: enrichedAnnotations,

@@ -6,3 +6,7 @@ export {
   type GitHubIssuesProviderOptions,
 } from './github-issues-provider.ts';
 export { selectRefStatusProvider } from './select-provider.ts';
+export {
+  resolveRefStatusMap,
+  type ResolveRefStatusMapResult,
+} from './resolve.ts';
