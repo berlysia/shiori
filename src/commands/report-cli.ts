@@ -23,7 +23,8 @@ import { loadScanResultFromFile } from '../core/scan-result-loader.ts';
 import { computeDelta } from './delta.ts';
 import { enrichWithProvenance } from '../core/provenance.ts';
 import { buildChronicle } from '../core/chronicle.ts';
-import { collectUniqueRefs, resolveRefStatuses } from '../core/ref-status.ts';
+import { collectUniqueRefs } from '../core/ref-status.ts';
+import { selectRefStatusProvider } from '../core/ref-status-providers/index.ts';
 
 const validateReportFormat = createFormatValidator<ReportFormat>([
   'json',
@@ -227,20 +228,25 @@ export const reportCommand = define({
     let chronicle;
     if (useTimeline) {
       console.error('Building annotation chronicle...');
-      // Resolve external ref statuses if --ref-status-command is provided
+      // Resolve ref statuses via provider (user command or auto-detected GitHub)
       let refStatuses;
-      const refStatusCommand = ctx.values.refStatusCommand;
-      if (refStatusCommand) {
+      const refStatusProvider = selectRefStatusProvider({
+        refStatusCommand: ctx.values.refStatusCommand,
+        githubToken: process.env.GITHUB_TOKEN,
+        githubRepository: process.env.GITHUB_REPOSITORY,
+      });
+      if (refStatusProvider) {
         try {
           const uniqueRefs = collectUniqueRefs(enrichedAnnotations);
           console.error(
-            `Resolving ref statuses for ${uniqueRefs.length} ref(s)...`,
+            `Resolving ref statuses (${refStatusProvider.name}) for ${uniqueRefs.length} ref(s)...`,
           );
-          refStatuses = await resolveRefStatuses(refStatusCommand, uniqueRefs);
+          const entries = await refStatusProvider.resolve(uniqueRefs);
+          refStatuses = new Map(entries.map((e) => [e.ref, e.status]));
           console.error(`Ref status: ${refStatuses.size} status(es) resolved`);
         } catch (error) {
           console.error(
-            `Warning: ref-status-command failed: ${error instanceof Error ? error.message : String(error)}`,
+            `Warning: ref-status provider "${refStatusProvider.name}" failed: ${error instanceof Error ? error.message : String(error)}`,
           );
           // Graceful degradation: continue without ref statuses
         }

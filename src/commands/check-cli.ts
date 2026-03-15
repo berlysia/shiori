@@ -14,7 +14,9 @@ import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
 import { writeOutput } from '../core/cli-output.ts';
 import { detectWorkspaces } from '../core/workspace.ts';
 import { scanWorkspaces, type PackageScanResult } from './scan-workspaces.ts';
-import { collectUniqueRefs, resolveRefStatuses } from '../core/ref-status.ts';
+import { collectUniqueRefs } from '../core/ref-status.ts';
+import { selectRefStatusProvider } from '../core/ref-status-providers/index.ts';
+import type { RefStatus } from '../core/ref-status.ts';
 import {
   createBaseContext,
   withRegistry,
@@ -212,26 +214,29 @@ export const checkCommand = define({
       console.error(`Scan result saved to ${regCtx.config.paths.scanResult}`);
     }
 
-    // Resolve ref statuses via external command (if provided)
-    const refStatusCommand = ctx.values.refStatusCommand;
-    let refStatuses:
-      | Map<string, import('../core/ref-status.ts').RefStatus>
-      | undefined;
+    // Resolve ref statuses via provider (user command or auto-detected GitHub)
+    const refStatusProvider = selectRefStatusProvider({
+      refStatusCommand: ctx.values.refStatusCommand,
+      githubToken: process.env.GITHUB_TOKEN,
+      githubRepository: process.env.GITHUB_REPOSITORY,
+    });
+    let refStatuses: Map<string, RefStatus> | undefined;
 
-    if (refStatusCommand) {
+    if (refStatusProvider) {
       const uniqueRefs = collectUniqueRefs(scanResult.annotations);
       if (uniqueRefs.length > 0) {
         try {
-          refStatuses = await resolveRefStatuses(refStatusCommand, uniqueRefs);
+          const entries = await refStatusProvider.resolve(uniqueRefs);
+          refStatuses = new Map(entries.map((e) => [e.ref, e.status]));
           const closedCount = [...refStatuses.values()].filter(
             (s) => s === 'closed',
           ).length;
           console.error(
-            `Ref status: ${uniqueRefs.length} ref(s) queried, ${closedCount} closed`,
+            `Ref status (${refStatusProvider.name}): ${refStatuses.size} ref(s) resolved, ${closedCount} closed`,
           );
         } catch (err) {
           console.error(
-            `Warning: ref-status-command failed: ${err instanceof Error ? err.message : String(err)}`,
+            `Warning: ref-status provider "${refStatusProvider.name}" failed: ${err instanceof Error ? err.message : String(err)}`,
           );
           // Continue without ref statuses — graceful degradation
         }
