@@ -91,6 +91,72 @@ describe('removeAnnotation', () => {
     const result = removeAnnotation(line, 'ADR:0007');
     assert.equal(result, null);
   });
+
+  // ── Quoted value support (AC-7) ──────────────────────────────
+
+  it('Case 1: removes annotation with double-quoted reason', () => {
+    const line =
+      '// eslint-disable-next-line no-console -- shiori: SUP-1234 reason="legacy code issue"';
+    const result = removeAnnotation(line, 'SUP-1234');
+    assert.equal(result, '// eslint-disable-next-line no-console');
+  });
+
+  it('Case 1: removes annotation with single-quoted reason', () => {
+    const line =
+      "// eslint-disable-next-line no-console -- shiori: SUP-1234 reason='single quoted'";
+    const result = removeAnnotation(line, 'SUP-1234');
+    assert.equal(result, '// eslint-disable-next-line no-console');
+  });
+
+  it('Case 1: removes annotation with mixed quoted and unquoted fields', () => {
+    const line =
+      '// eslint-disable-next-line no-console -- shiori: SUP-1234 expires=2026-06 reason="temporary fix"';
+    const result = removeAnnotation(line, 'SUP-1234');
+    assert.equal(result, '// eslint-disable-next-line no-console');
+  });
+
+  it('Case 2: standalone line comment with quoted reason returns null', () => {
+    const line = '// shiori: SUP-1234 reason="legacy code issue"';
+    const result = removeAnnotation(line, 'SUP-1234');
+    assert.equal(result, null);
+  });
+
+  it('Case 3: block comment with quoted reason returns null', () => {
+    const line = '/* shiori: SUP-1234 reason="legacy code issue" */';
+    const result = removeAnnotation(line, 'SUP-1234');
+    assert.equal(result, null);
+  });
+
+  it('Case 3: block comment removes shiori with quoted reason, keeps other content', () => {
+    const line =
+      '/* eslint-disable no-console -- shiori: SUP-1234 reason="temporary fix" */';
+    const result = removeAnnotation(line, 'SUP-1234');
+    assert.equal(result, '/* eslint-disable no-console */');
+  });
+
+  // ── Ref substring collision prevention ────────────────────────
+
+  it('does not match when ref is a prefix of actual ref (SUP-1 vs SUP-12)', () => {
+    const line = '// shiori: SUP-12 reason=test';
+    const result = removeAnnotation(line, 'SUP-1');
+    assert.equal(result, line); // unchanged — SUP-1 should NOT match SUP-12
+  });
+
+  it('does not match when ref is a prefix of actual ref in separator form', () => {
+    const line =
+      '// eslint-disable-next-line no-console -- shiori: SUP-12 reason=test';
+    const result = removeAnnotation(line, 'SUP-1');
+    assert.equal(result, line); // unchanged
+  });
+
+  it('matches exact ref even when similar refs exist nearby', () => {
+    const line =
+      '// eslint-disable-next-line no-console -- shiori: SUP-1 shiori: SUP-12';
+    const result = removeAnnotation(line, 'SUP-1');
+    assert.notEqual(result, null);
+    assert.ok(!result!.includes('SUP-1 ')); // SUP-1 removed
+    assert.ok(result!.includes('SUP-12')); // SUP-12 kept
+  });
 });
 
 // ── planResolve ──────────────────────────────────────────────
@@ -323,6 +389,29 @@ describe('planResolve', () => {
 
     assert.equal(result.actions.length, 0);
     assert.deepEqual(result.registryRemovals, ['SUP-1234']);
+  });
+
+  it('skips when ref is a prefix of actual ref in line (SUP-1 vs SUP-12)', () => {
+    const fileContent =
+      '// eslint-disable-next-line no-console -- shiori: SUP-12\nconsole.log("hi");';
+    const annotations = [
+      makeAnnotation({
+        ref: 'SUP-1',
+        rule: 'no-console',
+        location: { file: 'src/foo.ts', line: 1 },
+      }),
+    ];
+
+    const result = planResolve({
+      ref: 'SUP-1',
+      annotations,
+      registry: {},
+      fileContents: new Map([['src/foo.ts', fileContent]]),
+    });
+
+    assert.equal(result.actions.length, 0);
+    assert.equal(result.skipped.length, 1);
+    assert.ok(result.skipped[0]!.reason.includes('does not match'));
   });
 });
 

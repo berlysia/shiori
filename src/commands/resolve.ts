@@ -72,10 +72,11 @@ export interface ResolveOptions {
  */
 export function removeAnnotation(line: string, ref: string): string | null {
   const escapedRef = escapeRegex(ref);
+  // Shared sub-pattern: ref with word boundary + optional key=value pairs (quoted or unquoted)
+  const refAndFields = `${escapedRef}(?=\\s|$)(?:\\s+[a-z]+=(?:"[^"]*"|'[^']*'|\\S+))*`;
+
   // Match annotation prefix (with optional space) then the ref, then optional key=value pairs
-  const shioriPattern = new RegExp(
-    `\\s*shiori:\\s*${escapedRef}(?:\\s+[a-z]+=\\S+)*`,
-  );
+  const shioriPattern = new RegExp(`\\s*shiori:\\s*${refAndFields}`);
 
   if (!shioriPattern.test(line)) {
     // ref not found in line — return as-is
@@ -84,7 +85,7 @@ export function removeAnnotation(line: string, ref: string): string | null {
 
   // Detect standalone annotation line comment (entire comment is just the annotation)
   const standaloneLineComment = new RegExp(
-    `^(\\s*)\\/\\/\\s*shiori:\\s*${escapedRef}(?:\\s+[a-z]+=\\S+)*\\s*$`,
+    `^(\\s*)\\/\\/\\s*shiori:\\s*${refAndFields}\\s*$`,
   );
   if (standaloneLineComment.test(line)) {
     return null; // Delete entire line
@@ -92,7 +93,7 @@ export function removeAnnotation(line: string, ref: string): string | null {
 
   // Detect standalone block comment annotation (entire comment is just the annotation)
   const standaloneBlockComment = new RegExp(
-    `^(\\s*)\\/\\*\\s*shiori:\\s*${escapedRef}(?:\\s+[a-z]+=\\S+)*\\s*\\*\\/\\s*$`,
+    `^(\\s*)\\/\\*\\s*shiori:\\s*${refAndFields}\\s*\\*\\/\\s*$`,
   );
   if (standaloneBlockComment.test(line)) {
     return null; // Delete entire line
@@ -101,7 +102,7 @@ export function removeAnnotation(line: string, ref: string): string | null {
   // Check if the separator `--` leads directly to the shiori annotation
   // and there's nothing else after it (Case 1: remove `--` and everything after)
   const separatorOnlyShiori = new RegExp(
-    `\\s+--\\s+shiori:\\s*${escapedRef}(?:\\s+[a-z]+=\\S+)*\\s*$`,
+    `\\s+--\\s+shiori:\\s*${refAndFields}\\s*$`,
   );
   if (separatorOnlyShiori.test(line)) {
     return line.replace(separatorOnlyShiori, '').trimEnd();
@@ -109,7 +110,7 @@ export function removeAnnotation(line: string, ref: string): string | null {
 
   // Check for separator with shiori annotation plus trailing `*/` (block comment)
   const separatorShioriBlock = new RegExp(
-    `\\s+--\\s+shiori:\\s*${escapedRef}(?:\\s+[a-z]+=\\S+)*\\s*(\\*\\/)\\s*$`,
+    `\\s+--\\s+shiori:\\s*${refAndFields}\\s*(\\*\\/)\\s*$`,
   );
   const blockMatch = line.match(separatorShioriBlock);
   if (blockMatch) {
@@ -171,7 +172,9 @@ export function planResolve(options: ResolveOptions): ResolveResult {
     const originalLine = lines[lineIndex]!;
 
     // Stale scan-result guard: verify the line actually contains the target annotation
-    if (!originalLine.includes('shiori:') || !originalLine.includes(ref)) {
+    // Use regex with word boundary to avoid substring false-positives (e.g. SUP-1 matching SUP-12)
+    const refPattern = new RegExp(`shiori:\\s*${escapeRegex(ref)}(?=\\s|$)`);
+    if (!refPattern.test(originalLine)) {
       skipped.push({
         file,
         line,
