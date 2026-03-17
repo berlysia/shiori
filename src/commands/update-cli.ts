@@ -1,10 +1,8 @@
 import { define } from 'gunshi';
-import { resolve, dirname } from 'node:path';
-import { saveRegistry } from '../core/registry.ts';
 import { loadConfigAndRegistry } from '../core/registry-loader.ts';
 import { loadScanResult } from '../core/scan-result-loader.ts';
-import { initRegistry, routeRegistryByPattern } from './registry-generator.ts';
-import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
+import { initRegistry } from './registry-generator.ts';
+import { saveRegistryRouted } from '../core/cli-context.ts';
 
 export const updateCommand = define({
   name: 'update',
@@ -89,48 +87,15 @@ export const updateCommand = define({
       return;
     }
 
-    // Validate all registry write targets are within cwd before any I/O
-    try {
-      await assertWithinCwd(registryPath, cwd);
-      if (config.refPatterns) {
-        const basePath = dirname(resolve(registryPath));
-        for (const pattern of config.refPatterns) {
-          if (pattern.registryFile) {
-            await assertWithinCwd(resolve(basePath, pattern.registryFile), cwd);
-          }
-        }
-      }
-    } catch (err) {
-      if (err instanceof PathBoundaryError) {
-        console.error(`Error: ${err.message}`);
-        process.exitCode = 1;
-        return;
-      }
-      throw err;
-    }
-
-    // Route entries by pattern if refPatterns are configured (all paths validated above)
-    if (config.refPatterns) {
-      const routed = routeRegistryByPattern(registry, config.refPatterns);
-      const basePath = dirname(resolve(registryPath));
-
-      for (const [target, entries] of routed) {
-        if (target === null) {
-          await saveRegistry(registryPath, entries);
-          console.error(
-            `Updated default registry (${Object.keys(entries).length} entries) at ${registryPath}`,
-          );
-        } else {
-          const targetPath = resolve(basePath, target);
-          await saveRegistry(targetPath, entries);
-          console.error(
-            `Updated pattern registry (${Object.keys(entries).length} entries) at ${targetPath}`,
-          );
-        }
-      }
-    } else {
-      await saveRegistry(registryPath, registry);
-    }
+    // Save registry (with path boundary validation and routing)
+    const saved = await saveRegistryRouted({
+      registry,
+      registryPath,
+      cwd,
+      refPatterns: config.refPatterns,
+      label: 'Updated',
+    });
+    if (!saved) return;
 
     if (newRefs.length === 0) {
       console.error('Registry is up to date (no new refs)');

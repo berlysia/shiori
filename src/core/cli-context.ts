@@ -203,8 +203,10 @@ export async function saveRegistryRouted(options: {
   cwd: string;
   refPatterns: RefPatternConfig[] | undefined;
   label?: string;
+  /** When true, suppress per-file log messages (useful in watch/daemon contexts) */
+  quiet?: boolean;
 }): Promise<boolean> {
-  const { registry, registryPath, cwd, refPatterns, label } = options;
+  const { registry, registryPath, cwd, refPatterns, label, quiet } = options;
 
   // Validate all write targets before any I/O
   try {
@@ -234,15 +236,19 @@ export async function saveRegistryRouted(options: {
     for (const [target, entries] of routed) {
       if (target === null) {
         await saveRegistry(registryPath, entries);
-        console.error(
-          `${label ?? 'Updated'} default registry (${Object.keys(entries).length} entries) at ${registryPath}`,
-        );
+        if (!quiet) {
+          console.error(
+            `${label ?? 'Updated'} default registry (${Object.keys(entries).length} entries) at ${registryPath}`,
+          );
+        }
       } else {
         const targetPath = resolve(basePath, target);
         await saveRegistry(targetPath, entries);
-        console.error(
-          `${label ?? 'Updated'} pattern registry (${Object.keys(entries).length} entries) at ${targetPath}`,
-        );
+        if (!quiet) {
+          console.error(
+            `${label ?? 'Updated'} pattern registry (${Object.keys(entries).length} entries) at ${targetPath}`,
+          );
+        }
       }
     }
   } else {

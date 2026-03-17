@@ -5,10 +5,11 @@ import { dirname, relative, resolve, sep } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { loadConfig, resolveRegistryPath } from '../core/config.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
-import { loadMultiRegistry, saveRegistry } from '../core/registry.ts';
+import { loadMultiRegistry } from '../core/registry.ts';
 import { scan } from './scan.ts';
 import { watchReport } from './watch.ts';
-import { initRegistry, routeRegistryByPattern } from './registry-generator.ts';
+import { initRegistry } from './registry-generator.ts';
+import { saveRegistryRouted } from '../core/cli-context.ts';
 import {
   DEFAULT_SCAN_PATTERNS,
   DEFAULT_SCAN_IGNORE,
@@ -288,20 +289,13 @@ export const watchCommand = define({
           (ref) => !(ref in existingRegistry),
         );
 
-        if (config.refPatterns) {
-          const routed = routeRegistryByPattern(merged, config.refPatterns);
-          const basePath = dirname(resolve(registryPath));
-
-          for (const [target, entries] of routed) {
-            if (target === null) {
-              await saveRegistry(registryPath, entries);
-            } else {
-              await saveRegistry(resolve(basePath, target), entries);
-            }
-          }
-        } else {
-          await saveRegistry(registryPath, merged);
-        }
+        await saveRegistryRouted({
+          registry: merged,
+          registryPath,
+          cwd,
+          refPatterns: config.refPatterns,
+          quiet: true,
+        });
 
         if (newRefs.length > 0) {
           console.error(

@@ -1,9 +1,6 @@
 import { define } from 'gunshi';
 import { readFile, writeFile, stat } from 'node:fs/promises';
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
-import { dirname, resolve } from 'node:path';
-import { saveRegistry } from '../core/registry.ts';
+import { resolve } from 'node:path';
 import { loadConfigAndRegistry } from '../core/registry-loader.ts';
 import {
   loadScanResult,
@@ -13,7 +10,7 @@ import {
   assertAllWithinCwd,
   PathBoundaryError,
 } from '../core/path-boundary.ts';
-import { routeRegistryByPattern } from './registry-generator.ts';
+import { warnIfGitDirty, saveRegistryRouted } from '../core/cli-context.ts';
 import {
   planResolve,
   applyResolveToFile,
@@ -21,23 +18,6 @@ import {
   formatResolvePreview,
   checkScanFreshness,
 } from './resolve.ts';
-
-const execFileAsync = promisify(execFile);
-
-/**
- * Check if git working tree has uncommitted changes.
- * Returns true if dirty, false if clean, undefined if not a git repo.
- */
-async function isGitDirty(cwd: string): Promise<boolean | undefined> {
-  try {
-    const { stdout } = await execFileAsync('git', ['status', '--porcelain'], {
-      cwd,
-    });
-    return stdout.trim().length > 0;
-  } catch {
-    return undefined;
-  }
-}
 
 export const resolveCommand = define({
   name: 'resolve',
@@ -206,33 +186,15 @@ export const resolveCommand = define({
     }
 
     // Check git status
-    const gitDirty = await isGitDirty(cwd);
-    if (gitDirty === true) {
-      console.error(
-        'Warning: Git working tree has uncommitted changes. Consider committing first.',
-      );
-    }
+    await warnIfGitDirty(cwd);
 
-    // Validate all write targets are within cwd
+    // Validate source file write targets are within cwd
+    // (Registry path validation is handled by saveRegistryRouted)
     const byFile = groupResolveActionsByFile(result.actions);
     const sourceFiles = [...byFile.keys()].map((file) => resolve(cwd, file));
 
-    const registryTargets: string[] = [registryPath];
-    if (config.refPatterns) {
-      const routedForValidation = routeRegistryByPattern(
-        registry,
-        config.refPatterns,
-      );
-      const basePath = dirname(resolve(registryPath));
-      for (const [target] of routedForValidation) {
-        if (target !== null) {
-          registryTargets.push(resolve(basePath, target));
-        }
-      }
-    }
-
     try {
-      await assertAllWithinCwd([...sourceFiles, ...registryTargets], cwd);
+      await assertAllWithinCwd(sourceFiles, cwd);
     } catch (err) {
       if (err instanceof PathBoundaryError) {
         console.error(`Error: ${err.message}`);
@@ -262,24 +224,14 @@ export const resolveCommand = define({
       delete updatedRegistry[removal];
     }
 
-    if (config.refPatterns) {
-      const routed = routeRegistryByPattern(
-        updatedRegistry,
-        config.refPatterns,
-      );
-      const basePath = dirname(resolve(registryPath));
-
-      for (const [target, entries] of routed) {
-        if (target === null) {
-          await saveRegistry(registryPath, entries);
-        } else {
-          const targetPath = resolve(basePath, target);
-          await saveRegistry(targetPath, entries);
-        }
-      }
-    } else {
-      await saveRegistry(registryPath, updatedRegistry);
-    }
+    const saved = await saveRegistryRouted({
+      registry: updatedRegistry,
+      registryPath,
+      cwd,
+      refPatterns: config.refPatterns,
+      label: 'Resolved',
+    });
+    if (!saved) return;
 
     // Report
     console.error(`Resolved ref "${ref}"`);

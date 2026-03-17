@@ -1,13 +1,13 @@
 import { define } from 'gunshi';
 import { readFile, writeFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
-import { saveRegistry } from '../core/registry.ts';
+import { resolve } from 'node:path';
 import { loadConfigAndRegistry } from '../core/registry-loader.ts';
 import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
+import { saveRegistryRouted } from '../core/cli-context.ts';
 import { createFormatValidator } from '../core/cli-validation.ts';
 import { writeOutput } from '../core/cli-output.ts';
 import type { AnnotateFormat } from '../core/types.ts';
-import { routeRegistryByPattern, isValidRef } from './registry-generator.ts';
+import { isValidRef } from './registry-generator.ts';
 import {
   planAnnotation,
   formatAnnotatePreview,
@@ -255,21 +255,14 @@ export const annotateCommand = define({
       [ref]: result.registryEntry,
     };
 
-    if (config.refPatterns) {
-      const routed = routeRegistryByPattern(mergedRegistry, config.refPatterns);
-      const basePath = dirname(resolve(registryPath));
-
-      for (const [target, entries] of routed) {
-        if (target === null) {
-          await saveRegistry(registryPath, entries);
-        } else {
-          const targetPath = resolve(basePath, target);
-          await saveRegistry(targetPath, entries);
-        }
-      }
-    } else {
-      await saveRegistry(registryPath, mergedRegistry);
-    }
+    const saved = await saveRegistryRouted({
+      registry: mergedRegistry,
+      registryPath,
+      cwd,
+      refPatterns: config.refPatterns,
+      label: 'Annotated',
+    });
+    if (!saved) return;
 
     // Output result (both text and json formats respect --output)
     const output =
