@@ -12,10 +12,16 @@ import {
 } from '../core/path-boundary.ts';
 import { warnIfGitDirty, saveRegistryRouted } from '../core/cli-context.ts';
 import {
+  selectRefStatusProvider,
+  resolveRefStatusMap,
+} from '../core/ref-status-providers/index.ts';
+import {
   planResolve,
+  planBulkResolve,
   applyResolveToFile,
   groupResolveActionsByFile,
   formatResolvePreview,
+  formatBulkResolvePreview,
   checkScanFreshness,
 } from './resolve.ts';
 
@@ -30,13 +36,29 @@ export const resolveCommand = define({
   shiori scan && shiori resolve --ref SUP-1234 --apply
 
   # Also remove lint disable directive
-  shiori scan && shiori resolve --ref SUP-1234 --apply --remove-directive`,
+  shiori scan && shiori resolve --ref SUP-1234 --apply --remove-directive
+
+  # Auto-detect closed refs and preview resolve plan
+  shiori scan && shiori resolve --closed
+
+  # Apply closed ref resolve (with confirmation skip for CI)
+  shiori scan && shiori resolve --closed --apply --yes`,
   rendering: { header: null },
   args: {
     ref: {
       type: 'string',
-      required: true,
       description: 'The ref to resolve (e.g. "SUP-1234", "ADR:0007")',
+    },
+    closed: {
+      type: 'boolean',
+      description:
+        'Auto-detect closed refs via ref-status provider and resolve them',
+    },
+    yes: {
+      type: 'boolean',
+      short: 'y',
+      description:
+        'Skip confirmation prompt when used with --closed --apply (for CI/scripting)',
     },
     scan: {
       type: 'string',
@@ -77,6 +99,12 @@ export const resolveCommand = define({
       description:
         'Path to config directory (YAML/JSON auto-detected). Default: <cwd>/.config/shiori',
     },
+    refStatusCommand: {
+      type: 'string',
+      toKebab: true,
+      description:
+        'External command to check ref statuses. Receives refs on stdin (newline-delimited), returns JSONL with {ref, status} on stdout. Note: command path must not contain spaces',
+    },
   },
   run: async (ctx) => {
     const cwd = ctx.values.cwd ?? process.cwd();
@@ -84,12 +112,33 @@ export const resolveCommand = define({
     const removeDirective = ctx.values['remove-directive'] ?? false;
     const force = ctx.values.force ?? false;
     const ref = ctx.values.ref;
+    const closed = ctx.values.closed ?? false;
+    const yes = ctx.values.yes ?? false;
 
-    if (!ref) {
-      console.error('Error: --ref is required.');
+    // ── Argument validation ──────────────────────────────────
+
+    if (ref && closed) {
+      console.error('Error: --ref and --closed are mutually exclusive.');
+      console.error(
+        'Use --ref to resolve a single ref, or --closed to auto-detect closed refs.',
+      );
       process.exitCode = 1;
       return;
     }
+
+    if (!ref && !closed) {
+      console.error('Error: either --ref <ref> or --closed is required.');
+      process.exitCode = 1;
+      return;
+    }
+
+    if (yes && !(apply && closed)) {
+      console.error('Error: --yes is only valid with --closed --apply.');
+      process.exitCode = 1;
+      return;
+    }
+
+    // ── Common setup ─────────────────────────────────────────
 
     const { config, registry, registryPath } = await loadConfigAndRegistry({
       cwd,
@@ -97,13 +146,210 @@ export const resolveCommand = define({
       registryPath: ctx.values.registry,
     });
 
-    // Load scan result
     const scanResultOptions = {
       explicitPath: ctx.values.scan,
       config,
       cwd,
     };
     const scanResult = await loadScanResult(scanResultOptions);
+
+    // ── --closed mode ────────────────────────────────────────
+
+    if (closed) {
+      // Reviewer 🔴: pre-check provider existence before resolveRefStatusMap()
+      // resolveRefStatusMap returns undefined for both "no provider" and "no refs",
+      // so --closed needs to distinguish provider-missing from other cases.
+      const provider = selectRefStatusProvider({
+        refStatusCommand: ctx.values.refStatusCommand,
+        githubToken: process.env.GITHUB_TOKEN,
+        githubRepository: process.env.GITHUB_REPOSITORY,
+      });
+      if (!provider) {
+        console.error('Error: --closed requires a ref-status provider.');
+        console.error(
+          'Set GITHUB_TOKEN environment variable or use --ref-status-command.',
+        );
+        process.exitCode = 1;
+        return;
+      }
+
+      // Resolve ref statuses
+      const { refStatuses } = await resolveRefStatusMap(
+        {
+          refStatusCommand: ctx.values.refStatusCommand,
+          githubToken: process.env.GITHUB_TOKEN,
+          githubRepository: process.env.GITHUB_REPOSITORY,
+        },
+        scanResult.annotations,
+      );
+
+      if (!refStatuses) {
+        // Provider exists but resolution failed (error already logged by resolveRefStatusMap)
+        console.error('Could not resolve ref statuses. Aborting.');
+        process.exitCode = 1;
+        return;
+      }
+
+      // Extract closed refs
+      const closedRefs = [...refStatuses.entries()]
+        .filter(([, status]) => status === 'closed')
+        .map(([refKey]) => refKey);
+
+      if (closedRefs.length === 0) {
+        console.error('No closed refs found. Nothing to resolve.');
+        return;
+      }
+
+      console.error(
+        `Found ${closedRefs.length} closed ref(s): ${closedRefs.join(', ')}`,
+      );
+
+      // Pre-load file contents for all annotations matching closed refs
+      const closedRefSet = new Set(closedRefs);
+      const matchingAnnotations = scanResult.annotations.filter((a) =>
+        closedRefSet.has(a.ref),
+      );
+      const fileContents = new Map<string, string>();
+      const uniqueFiles = [
+        ...new Set(matchingAnnotations.map((a) => a.location.file)),
+      ];
+      for (const file of uniqueFiles) {
+        const filePath = resolve(cwd, file);
+        try {
+          const content = await readFile(filePath, 'utf-8');
+          fileContents.set(file, content);
+        } catch {
+          console.error(`Warning: Could not read file ${filePath}, skipping.`);
+        }
+      }
+
+      // Plan bulk resolve
+      const bulkResult = planBulkResolve(closedRefs, {
+        annotations: scanResult.annotations,
+        registry,
+        fileContents,
+        removeDirective,
+      });
+
+      if (!apply) {
+        // Dry-run: show preview
+        console.log(formatBulkResolvePreview(bulkResult));
+        return;
+      }
+
+      // Apply mode
+      if (
+        bulkResult.allActions.length === 0 &&
+        bulkResult.allRegistryRemovals.length === 0
+      ) {
+        console.error('No actions to apply for closed refs.');
+        return;
+      }
+
+      // Confirmation: --apply --closed without --yes shows summary and exits
+      if (!yes) {
+        console.log(formatBulkResolvePreview(bulkResult));
+        console.error('');
+        console.error('Add --yes to confirm and apply changes.');
+        return;
+      }
+
+      // Check git status
+      await warnIfGitDirty(cwd);
+
+      // Validate path boundaries
+      const byFile = groupResolveActionsByFile(bulkResult.allActions);
+      const sourceFiles = [...byFile.keys()].map((file) => resolve(cwd, file));
+      try {
+        await assertAllWithinCwd(sourceFiles, cwd);
+      } catch (err) {
+        if (err instanceof PathBoundaryError) {
+          console.error(`Error: ${err.message}`);
+          process.exitCode = 1;
+          return;
+        }
+        throw err;
+      }
+
+      // Apply file modifications (using merged allActions to avoid line offset issues)
+      let totalModified = 0;
+      const allWarnings: string[] = [];
+
+      for (const [file, actions] of byFile) {
+        const filePath = resolve(cwd, file);
+        const content =
+          fileContents.get(file) ?? (await readFile(filePath, 'utf-8'));
+        const editResult = applyResolveToFile(content, actions);
+        await writeFile(filePath, editResult.content, 'utf-8');
+        totalModified += editResult.modifiedLines;
+        allWarnings.push(...editResult.warnings);
+      }
+
+      // Update registry
+      const updatedRegistry = { ...registry };
+      for (const removal of bulkResult.allRegistryRemovals) {
+        delete updatedRegistry[removal];
+      }
+
+      const saved = await saveRegistryRouted({
+        registry: updatedRegistry,
+        registryPath,
+        cwd,
+        refPatterns: config.refPatterns,
+        label: 'Resolved (--closed)',
+      });
+      if (!saved) return;
+
+      // Report summary
+      console.error(
+        `Resolved ${closedRefs.length} closed ref(s): ${closedRefs.join(', ')}`,
+      );
+      if (totalModified > 0) {
+        console.error(
+          `Modified ${totalModified} line(s) across ${bulkResult.totalFilesAffected} file(s)`,
+        );
+      }
+      if (bulkResult.allRegistryRemovals.length > 0) {
+        console.error(
+          `Removed ${bulkResult.allRegistryRemovals.length} registry entry/entries`,
+        );
+      }
+
+      if (bulkResult.allSkipped.length > 0) {
+        console.error('');
+        console.error(
+          `Skipped ${bulkResult.allSkipped.length} annotation(s) (stale scan result):`,
+        );
+        for (const s of bulkResult.allSkipped) {
+          console.error(`  ${s.file}:${s.line}: ${s.reason}`);
+        }
+        console.error(
+          'Run "shiori scan" to refresh scan results before resolving.',
+        );
+      }
+
+      if (allWarnings.length > 0) {
+        console.error('');
+        console.error('Warnings:');
+        for (const w of allWarnings) {
+          console.error(`  ${w}`);
+        }
+      }
+
+      console.error('');
+      console.error(
+        'Run "shiori check" to verify remaining annotations are valid.',
+      );
+      return;
+    }
+
+    // ── Single ref mode (original --ref behavior) ────────────
+
+    if (!ref) {
+      console.error('Error: --ref is required in single-ref mode.');
+      process.exitCode = 1;
+      return;
+    }
 
     // Pre-load file contents for matching annotations
     const matchingAnnotations = scanResult.annotations.filter(

@@ -7,6 +7,8 @@ import {
   applyResolveToFile,
   formatResolvePreview,
   checkScanFreshness,
+  planBulkResolve,
+  formatBulkResolvePreview,
 } from '../src/commands/resolve.ts';
 
 // ── removeAnnotation ─────────────────────────────────────────
@@ -694,5 +696,325 @@ describe('checkScanFreshness', () => {
     const result = checkScanFreshness(scanMtime, sourceFiles);
     assert.equal(result.fresh, true);
     assert.equal(result.staleFiles.length, 0);
+  });
+});
+
+// ── planBulkResolve ─────────────────────────────────────────
+
+describe('planBulkResolve', () => {
+  it('resolves multiple refs across files', () => {
+    const fileA =
+      '// eslint-disable-next-line no-console -- shiori: SUP-1234\nconsole.log("a");';
+    const fileB =
+      'code\n// eslint-disable-next-line no-eval -- shiori: SUP-5678\neval("x");';
+    const annotations = [
+      makeAnnotation({
+        ref: 'SUP-1234',
+        rule: 'no-console',
+        location: { file: 'src/a.ts', line: 1 },
+      }),
+      makeAnnotation({
+        ref: 'SUP-5678',
+        rule: 'no-eval',
+        location: { file: 'src/b.ts', line: 2 },
+      }),
+    ];
+    const registry: Registry = {
+      'SUP-1234': {
+        reason: 'test',
+        target: 'src/a.ts',
+        expires: undefined,
+        ticket: undefined,
+        owner: undefined,
+        notes: undefined,
+        kind: undefined,
+      },
+      'SUP-5678': {
+        reason: 'eval workaround',
+        target: 'src/b.ts',
+        expires: undefined,
+        ticket: undefined,
+        owner: undefined,
+        notes: undefined,
+        kind: undefined,
+      },
+    };
+
+    const result = planBulkResolve(['SUP-1234', 'SUP-5678'], {
+      annotations,
+      registry,
+      fileContents: new Map([
+        ['src/a.ts', fileA],
+        ['src/b.ts', fileB],
+      ]),
+    });
+
+    assert.equal(result.perRef.length, 2);
+    assert.equal(result.allActions.length, 2);
+    assert.equal(result.totalFilesAffected, 2);
+    assert.deepEqual(result.allRegistryRemovals.sort(), [
+      'SUP-1234',
+      'SUP-5678',
+    ]);
+  });
+
+  it('merges actions from multiple refs in the same file', () => {
+    // Two different refs annotated on different lines of the same file
+    const fileContent =
+      '// eslint-disable-next-line no-console -- shiori: SUP-1234\nconsole.log("a");\n// eslint-disable-next-line no-eval -- shiori: SUP-5678\neval("x");';
+    const annotations = [
+      makeAnnotation({
+        ref: 'SUP-1234',
+        rule: 'no-console',
+        location: { file: 'src/shared.ts', line: 1 },
+      }),
+      makeAnnotation({
+        ref: 'SUP-5678',
+        rule: 'no-eval',
+        location: { file: 'src/shared.ts', line: 3 },
+      }),
+    ];
+
+    const result = planBulkResolve(['SUP-1234', 'SUP-5678'], {
+      annotations,
+      registry: {},
+      fileContents: new Map([['src/shared.ts', fileContent]]),
+    });
+
+    assert.equal(result.allActions.length, 2);
+    assert.equal(result.totalFilesAffected, 1);
+    // Both actions target the same file
+    assert.equal(result.allActions[0]!.file, 'src/shared.ts');
+    assert.equal(result.allActions[1]!.file, 'src/shared.ts');
+  });
+
+  it('deduplicates registry removals across refs', () => {
+    // Edge case: same ref appears in multiple "refs" list (shouldn't happen but be safe)
+    const registry: Registry = {
+      'SUP-1234': {
+        reason: 'test',
+        target: 'src/foo.ts',
+        expires: undefined,
+        ticket: undefined,
+        owner: undefined,
+        notes: undefined,
+        kind: undefined,
+      },
+    };
+
+    const result = planBulkResolve(['SUP-1234', 'SUP-1234'], {
+      annotations: [],
+      registry,
+      fileContents: new Map(),
+    });
+
+    // Registry removals should be deduplicated
+    assert.deepEqual(result.allRegistryRemovals, ['SUP-1234']);
+  });
+
+  it('returns empty result for no refs', () => {
+    const result = planBulkResolve([], {
+      annotations: [],
+      registry: {},
+      fileContents: new Map(),
+    });
+
+    assert.equal(result.perRef.length, 0);
+    assert.equal(result.allActions.length, 0);
+    assert.equal(result.allRegistryRemovals.length, 0);
+    assert.equal(result.totalFilesAffected, 0);
+    assert.equal(result.allSkipped.length, 0);
+  });
+
+  it('aggregates skipped annotations across refs', () => {
+    const fileContent = 'const x = 42;'; // No shiori annotations
+    const annotations = [
+      makeAnnotation({
+        ref: 'SUP-1234',
+        location: { file: 'src/foo.ts', line: 1 },
+      }),
+      makeAnnotation({
+        ref: 'SUP-5678',
+        location: { file: 'src/foo.ts', line: 1 },
+      }),
+    ];
+
+    const result = planBulkResolve(['SUP-1234', 'SUP-5678'], {
+      annotations,
+      registry: {},
+      fileContents: new Map([['src/foo.ts', fileContent]]),
+    });
+
+    assert.equal(result.allActions.length, 0);
+    assert.equal(result.allSkipped.length, 2);
+  });
+
+  it('allActions can be safely applied via applyResolveToFile for same-file multi-ref', () => {
+    // Reviewer's blocking concern: line offset issues when multiple refs in same file
+    // allActions + groupResolveActionsByFile + applyResolveToFile (desc sort) handles this
+    const fileContent = [
+      '// eslint-disable-next-line no-console -- shiori: SUP-1234',
+      'console.log("a");',
+      '// eslint-disable-next-line no-eval -- shiori: SUP-5678',
+      'eval("x");',
+    ].join('\n');
+    const annotations = [
+      makeAnnotation({
+        ref: 'SUP-1234',
+        rule: 'no-console',
+        location: { file: 'src/shared.ts', line: 1 },
+      }),
+      makeAnnotation({
+        ref: 'SUP-5678',
+        rule: 'no-eval',
+        location: { file: 'src/shared.ts', line: 3 },
+      }),
+    ];
+
+    const bulkResult = planBulkResolve(['SUP-1234', 'SUP-5678'], {
+      annotations,
+      registry: {},
+      fileContents: new Map([['src/shared.ts', fileContent]]),
+      removeDirective: true,
+    });
+
+    // Apply the merged allActions to the file
+    const editResult = applyResolveToFile(fileContent, bulkResult.allActions);
+
+    // Both lint disable lines should be removed, code lines preserved
+    const expectedContent = ['console.log("a");', 'eval("x");'].join('\n');
+    assert.equal(editResult.content, expectedContent);
+    assert.equal(editResult.modifiedLines, 2);
+    assert.equal(editResult.warnings.length, 0);
+  });
+});
+
+// ── formatBulkResolvePreview ─────────────────────────────────
+
+describe('formatBulkResolvePreview', () => {
+  it('shows "no closed refs" for empty result', () => {
+    const output = formatBulkResolvePreview({
+      perRef: [],
+      allActions: [],
+      allRegistryRemovals: [],
+      totalFilesAffected: 0,
+      allSkipped: [],
+    });
+    assert.ok(
+      output.includes(
+        'No closed refs with annotations or registry entries found.',
+      ),
+    );
+  });
+
+  it('shows per-ref summary and aggregated changes', () => {
+    const output = formatBulkResolvePreview({
+      perRef: [
+        {
+          ref: 'SUP-1234',
+          result: {
+            actions: [
+              {
+                ref: 'SUP-1234',
+                file: 'src/a.ts',
+                line: 1,
+                type: 'remove-annotation',
+                originalLine:
+                  '// eslint-disable-next-line no-console -- shiori: SUP-1234',
+                modifiedLine: '// eslint-disable-next-line no-console',
+              },
+            ],
+            registryRemovals: ['SUP-1234'],
+            filesAffected: 1,
+            skipped: [],
+          },
+        },
+        {
+          ref: 'SUP-5678',
+          result: {
+            actions: [
+              {
+                ref: 'SUP-5678',
+                file: 'src/b.ts',
+                line: 5,
+                type: 'remove-line',
+                originalLine: '// shiori: SUP-5678',
+                modifiedLine: null,
+              },
+            ],
+            registryRemovals: ['SUP-5678'],
+            filesAffected: 1,
+            skipped: [],
+          },
+        },
+      ],
+      allActions: [
+        {
+          ref: 'SUP-1234',
+          file: 'src/a.ts',
+          line: 1,
+          type: 'remove-annotation',
+          originalLine:
+            '// eslint-disable-next-line no-console -- shiori: SUP-1234',
+          modifiedLine: '// eslint-disable-next-line no-console',
+        },
+        {
+          ref: 'SUP-5678',
+          file: 'src/b.ts',
+          line: 5,
+          type: 'remove-line',
+          originalLine: '// shiori: SUP-5678',
+          modifiedLine: null,
+        },
+      ],
+      allRegistryRemovals: ['SUP-1234', 'SUP-5678'],
+      totalFilesAffected: 2,
+      allSkipped: [],
+    });
+
+    assert.ok(output.includes('Found 2 closed ref(s) to resolve:'));
+    assert.ok(output.includes('SUP-1234: 1 source change(s)'));
+    assert.ok(output.includes('SUP-5678: 1 source change(s)'));
+    assert.ok(output.includes('Source changes (2 file(s), 2 action(s))'));
+    assert.ok(output.includes('[SUP-1234] remove shiori annotation'));
+    assert.ok(output.includes('[SUP-5678] remove entire line'));
+    assert.ok(output.includes('Remove entry "SUP-1234"'));
+    assert.ok(output.includes('Remove entry "SUP-5678"'));
+    assert.ok(output.includes('Run with --apply to execute'));
+  });
+
+  it('shows skipped annotations', () => {
+    const output = formatBulkResolvePreview({
+      perRef: [
+        {
+          ref: 'SUP-1234',
+          result: {
+            actions: [],
+            registryRemovals: ['SUP-1234'],
+            filesAffected: 0,
+            skipped: [
+              {
+                file: 'src/foo.ts',
+                line: 10,
+                reason: 'line content does not match scan result',
+              },
+            ],
+          },
+        },
+      ],
+      allActions: [],
+      allRegistryRemovals: ['SUP-1234'],
+      totalFilesAffected: 0,
+      allSkipped: [
+        {
+          file: 'src/foo.ts',
+          line: 10,
+          reason: 'line content does not match scan result',
+        },
+      ],
+    });
+
+    assert.ok(output.includes('Skipped 1 annotation(s)'));
+    assert.ok(output.includes('src/foo.ts:10'));
   });
 });

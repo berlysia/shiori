@@ -350,6 +350,162 @@ export function formatResolvePreview(
   return lines.join('\n');
 }
 
+// ── Bulk resolve (--closed mode) ─────────────────────────────
+
+/** Per-ref result in bulk resolve */
+export interface BulkResolveRefEntry {
+  /** The ref that was resolved */
+  ref: string;
+  /** Resolve result for this ref */
+  result: ResolveResult;
+}
+
+/** Aggregated result of bulk resolve for multiple refs */
+export interface BulkResolveResult {
+  /** Per-ref results for preview */
+  perRef: BulkResolveRefEntry[];
+  /** All actions merged across refs — use this for apply to avoid line offset issues */
+  allActions: ResolveAction[];
+  /** All registry removals (deduplicated) */
+  allRegistryRemovals: string[];
+  /** Total unique files affected */
+  totalFilesAffected: number;
+  /** All skipped annotations */
+  allSkipped: SkippedAnnotation[];
+}
+
+/**
+ * Plan bulk resolve for multiple refs (pure logic, no I/O).
+ *
+ * Calls `planResolve()` for each ref and merges results.
+ * `allActions` is the single merged list — apply it via
+ * `groupResolveActionsByFile()` + `applyResolveToFile()` to avoid
+ * line offset issues when multiple refs share the same file.
+ */
+export function planBulkResolve(
+  refs: string[],
+  options: Omit<ResolveOptions, 'ref'>,
+): BulkResolveResult {
+  const perRef: BulkResolveRefEntry[] = [];
+  const allActions: ResolveAction[] = [];
+  const allRegistryRemovals = new Set<string>();
+  const allFilesAffected = new Set<string>();
+  const allSkipped: SkippedAnnotation[] = [];
+
+  for (const ref of refs) {
+    const result = planResolve({ ...options, ref });
+    perRef.push({ ref, result });
+    allActions.push(...result.actions);
+    for (const r of result.registryRemovals) {
+      allRegistryRemovals.add(r);
+    }
+    for (const action of result.actions) {
+      allFilesAffected.add(action.file);
+    }
+    allSkipped.push(...result.skipped);
+  }
+
+  return {
+    perRef,
+    allActions,
+    allRegistryRemovals: [...allRegistryRemovals],
+    totalFilesAffected: allFilesAffected.size,
+    allSkipped,
+  };
+}
+
+// ── formatBulkResolvePreview ─────────────────────────────────
+
+/**
+ * Format bulk resolve result as a human-readable preview (dry-run output).
+ */
+export function formatBulkResolvePreview(result: BulkResolveResult): string {
+  const lines: string[] = [];
+
+  if (
+    result.allActions.length === 0 &&
+    result.allRegistryRemovals.length === 0
+  ) {
+    lines.push('No closed refs with annotations or registry entries found.');
+    return lines.join('\n');
+  }
+
+  lines.push(`Found ${result.perRef.length} closed ref(s) to resolve:`);
+  lines.push('');
+
+  // Per-ref summary
+  for (const entry of result.perRef) {
+    const { ref, result: r } = entry;
+    const actionCount = r.actions.length;
+    const registryCount = r.registryRemovals.length;
+    if (actionCount === 0 && registryCount === 0) continue;
+
+    const parts: string[] = [];
+    if (actionCount > 0) {
+      parts.push(
+        `${actionCount} source change(s) in ${r.filesAffected} file(s)`,
+      );
+    }
+    if (registryCount > 0) {
+      parts.push(`${registryCount} registry removal(s)`);
+    }
+    lines.push(`  ${ref}: ${parts.join(', ')}`);
+  }
+
+  // Aggregated source changes detail
+  if (result.allActions.length > 0) {
+    lines.push('');
+    lines.push(
+      `Source changes (${result.totalFilesAffected} file(s), ${result.allActions.length} action(s)):`,
+    );
+
+    const byFile = groupResolveActionsByFile(result.allActions);
+    for (const [file, fileActions] of byFile) {
+      for (const action of fileActions) {
+        if (action.type === 'remove-line') {
+          lines.push(
+            `  ${file}:${action.line}: [${action.ref}] remove entire line`,
+          );
+          lines.push(`    - ${action.originalLine.trim()}`);
+        } else {
+          lines.push(
+            `  ${file}:${action.line}: [${action.ref}] remove shiori annotation`,
+          );
+          lines.push(`    - ${action.originalLine.trim()}`);
+          lines.push(`    + ${action.modifiedLine?.trim() ?? ''}`);
+        }
+      }
+    }
+  }
+
+  // Registry removals
+  if (result.allRegistryRemovals.length > 0) {
+    lines.push('');
+    lines.push('Registry:');
+    for (const removal of result.allRegistryRemovals) {
+      lines.push(`  Remove entry "${removal}"`);
+    }
+  }
+
+  // Skipped
+  if (result.allSkipped.length > 0) {
+    lines.push('');
+    lines.push(
+      `Skipped ${result.allSkipped.length} annotation(s) (stale scan result):`,
+    );
+    for (const s of result.allSkipped) {
+      lines.push(`  ${s.file}:${s.line}: ${s.reason}`);
+    }
+    lines.push('');
+    lines.push('Run "shiori scan" to refresh scan results before resolving.');
+  }
+
+  lines.push('');
+  lines.push('Run with --apply to execute.');
+
+  return lines.join('\n');
+}
+
 // ── Scan result freshness check ─────────────────────────────
 
 /** Result of scan-result freshness check for resolve */
