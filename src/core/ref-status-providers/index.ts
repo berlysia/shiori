@@ -9,4 +9,5 @@ export { selectRefStatusProvider } from './select-provider.ts';
 export {
   resolveRefStatusMap,
   type ResolveRefStatusMapResult,
+  type ResolveRefStatusMapOptions,
 } from './resolve.ts';

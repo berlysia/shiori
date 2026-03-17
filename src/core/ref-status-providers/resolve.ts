@@ -4,6 +4,7 @@ import {
   selectRefStatusProvider,
   type SelectProviderOptions,
 } from './select-provider.ts';
+import type { RefStatusProvider } from './types.ts';
 
 /**
  * Result of ref-status resolution.
@@ -13,11 +14,22 @@ export interface ResolveRefStatusMapResult {
   refStatuses: Map<string, RefStatus> | undefined;
 }
 
+/** Options for resolveRefStatusMap — extends SelectProviderOptions with optional pre-selected provider */
+export interface ResolveRefStatusMapOptions extends SelectProviderOptions {
+  /**
+   * Pre-selected provider instance to reuse.
+   * When provided, skips selectRefStatusProvider() to avoid double-instantiation.
+   * Callers that already called selectRefStatusProvider() for pre-checks
+   * (e.g. resolve --closed) should pass the result here.
+   */
+  provider?: RefStatusProvider;
+}
+
 /**
  * Resolve ref statuses for annotations via the configured provider.
  *
  * Encapsulates the shared pattern across CLI commands:
- * 1. Select provider from options/env
+ * 1. Select provider from options/env (or reuse pre-selected provider)
  * 2. Collect unique refs from annotations
  * 3. Resolve via provider with graceful degradation
  * 4. Return Map<ref, RefStatus>
@@ -26,10 +38,10 @@ export interface ResolveRefStatusMapResult {
  * changes stay contained within the ref-status-providers module.
  */
 export async function resolveRefStatusMap(
-  options: SelectProviderOptions,
+  options: ResolveRefStatusMapOptions,
   annotations: { ref: string }[],
 ): Promise<ResolveRefStatusMapResult> {
-  const provider = selectRefStatusProvider(options);
+  const provider = options.provider ?? selectRefStatusProvider(options);
   if (!provider) {
     return { refStatuses: undefined };
   }

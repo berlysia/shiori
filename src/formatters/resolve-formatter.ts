@@ -1,0 +1,116 @@
+import type { BulkResolveResult } from '../commands/resolve.ts';
+
+/** Output format for resolve --closed */
+export type ResolveOutputFormat = 'text' | 'json';
+
+/** JSON output schema for resolve --closed (EP-0075) */
+export interface ResolveJsonOutput {
+  meta: {
+    /** Command that produced this output */
+    command: 'resolve';
+    /** Resolve mode: "closed" (bulk auto-detect) */
+    mode: 'closed';
+    /** Whether --apply was used */
+    applied: boolean;
+    /** ISO 8601 timestamp */
+    timestamp: string;
+    /** shiori CLI version */
+    version: string;
+  };
+  data: {
+    /** Per-ref summary (deduplicated from perRef) */
+    refs: ResolveJsonRefSummary[];
+    /** Aggregated totals */
+    summary: {
+      totalRefs: number;
+      totalActions: number;
+      totalFilesAffected: number;
+      totalRegistryRemovals: number;
+      totalSkipped: number;
+    };
+  };
+}
+
+/** Per-ref summary in JSON output */
+export interface ResolveJsonRefSummary {
+  ref: string;
+  actions: number;
+  filesAffected: number;
+  registryRemoval: boolean;
+  skipped: number;
+}
+
+/** Options for formatResolveOutput */
+export interface FormatResolveOutputOptions {
+  format: ResolveOutputFormat;
+  bulkResult: BulkResolveResult;
+  applied: boolean;
+  /** Human-readable text (pre-formatted by formatBulkResolvePreview) */
+  textOutput: string;
+}
+
+/**
+ * Format resolve --closed output in the requested format.
+ *
+ * - `text`: Returns the pre-formatted human-readable preview
+ * - `json`: Returns structured JSON with meta + data envelope (EP-0075)
+ */
+export function formatResolveOutput(
+  options: FormatResolveOutputOptions,
+): string {
+  const { format, bulkResult, applied, textOutput } = options;
+
+  switch (format) {
+    case 'json':
+      return formatResolveAsJson(bulkResult, applied);
+    default:
+      return textOutput;
+  }
+}
+
+function formatResolveAsJson(
+  bulkResult: BulkResolveResult,
+  applied: boolean,
+): string {
+  const output: ResolveJsonOutput = {
+    meta: {
+      command: 'resolve',
+      mode: 'closed',
+      applied,
+      timestamp: new Date().toISOString(),
+      version: getVersion(),
+    },
+    data: {
+      refs: bulkResult.perRef.map((entry) => ({
+        ref: entry.ref,
+        actions: entry.result.actions.length,
+        filesAffected: entry.result.filesAffected,
+        registryRemoval: entry.result.registryRemovals.length > 0,
+        skipped: entry.result.skipped.length,
+      })),
+      summary: {
+        totalRefs: bulkResult.perRef.length,
+        totalActions: bulkResult.allActions.length,
+        totalFilesAffected: bulkResult.totalFilesAffected,
+        totalRegistryRemovals: bulkResult.allRegistryRemovals.length,
+        totalSkipped: bulkResult.allSkipped.length,
+      },
+    },
+  };
+
+  return JSON.stringify(output, null, 2);
+}
+
+/**
+ * Get shiori version from package.json at build time.
+ * Falls back to 'unknown' if not available.
+ */
+function getVersion(): string {
+  try {
+    // Use dynamic import to avoid bundling issues; version is informational only
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return '0.1.1'; // Hardcoded for now; will be replaced by build-time injection
+  } catch {
+    return 'unknown';
+  }
+}

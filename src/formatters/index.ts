@@ -29,6 +29,13 @@ export {
   formatAnnotateAsJson,
   type AnnotateJsonOutput,
 } from './annotate-formatter.ts';
+export {
+  formatResolveOutput,
+  type ResolveOutputFormat,
+  type ResolveJsonOutput,
+  type ResolveJsonRefSummary,
+  type FormatResolveOutputOptions,
+} from './resolve-formatter.ts';
 
 export interface FormatVerifyOutputOptions {
   format: OutputFormat;

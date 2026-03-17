@@ -1,11 +1,8 @@
 import { define } from 'gunshi';
-import { readFile, writeFile, stat } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { loadConfigAndRegistry } from '../core/registry-loader.ts';
-import {
-  loadScanResult,
-  resolveScanResultPath,
-} from '../core/scan-result-loader.ts';
+import { loadScanResult } from '../core/scan-result-loader.ts';
 import {
   assertAllWithinCwd,
   PathBoundaryError,
@@ -15,6 +12,13 @@ import {
   selectRefStatusProvider,
   resolveRefStatusMap,
 } from '../core/ref-status-providers/index.ts';
+import { createFormatValidator } from '../core/cli-validation.ts';
+import { writeOutput } from '../core/cli-output.ts';
+import { performScanFreshnessCheck } from '../core/scan-freshness.ts';
+import {
+  formatResolveOutput,
+  type ResolveOutputFormat,
+} from '../formatters/resolve-formatter.ts';
 import {
   planResolve,
   planBulkResolve,
@@ -22,8 +26,12 @@ import {
   groupResolveActionsByFile,
   formatResolvePreview,
   formatBulkResolvePreview,
-  checkScanFreshness,
 } from './resolve.ts';
+
+const validateResolveFormat = createFormatValidator<ResolveOutputFormat>(
+  ['text', 'json'] as const,
+  'text',
+);
 
 export const resolveCommand = define({
   name: 'resolve',
@@ -42,7 +50,10 @@ export const resolveCommand = define({
   shiori scan && shiori resolve --closed
 
   # Apply closed ref resolve (with confirmation skip for CI)
-  shiori scan && shiori resolve --closed --apply --yes`,
+  shiori scan && shiori resolve --closed --apply --yes
+
+  # JSON output for automation (e.g. Webhook Daemon)
+  shiori scan && shiori resolve --closed --format json`,
   rendering: { header: null },
   args: {
     ref: {
@@ -99,6 +110,17 @@ export const resolveCommand = define({
       description:
         'Path to config directory (YAML/JSON auto-detected). Default: <cwd>/.config/shiori',
     },
+    format: {
+      type: 'string',
+      short: 'F',
+      description:
+        'Output format for --closed dry-run: "text" (human-readable, default), "json" (structured for automation)',
+    },
+    output: {
+      type: 'string',
+      short: 'o',
+      description: 'Output file path. If omitted, writes to stdout',
+    },
     refStatusCommand: {
       type: 'string',
       toKebab: true,
@@ -138,6 +160,16 @@ export const resolveCommand = define({
       return;
     }
 
+    // Validate --format (only meaningful for --closed dry-run)
+    const format = validateResolveFormat(ctx.values.format);
+    if (format === null) return;
+
+    if (format !== 'text' && !closed) {
+      console.error('Error: --format is only supported with --closed.');
+      process.exitCode = 1;
+      return;
+    }
+
     // ── Common setup ─────────────────────────────────────────
 
     const { config, registry, registryPath } = await loadConfigAndRegistry({
@@ -173,9 +205,10 @@ export const resolveCommand = define({
         return;
       }
 
-      // Resolve ref statuses
+      // Resolve ref statuses (pass pre-selected provider to avoid double-instantiation)
       const { refStatuses } = await resolveRefStatusMap(
         {
+          provider,
           refStatusCommand: ctx.values.refStatusCommand,
           githubToken: process.env.GITHUB_TOKEN,
           githubRepository: process.env.GITHUB_REPOSITORY,
@@ -223,6 +256,29 @@ export const resolveCommand = define({
         }
       }
 
+      // Scan-result freshness check (shared with single-ref mode)
+      if (!force) {
+        const { checked, freshness } = await performScanFreshnessCheck(
+          scanResultOptions,
+          uniqueFiles,
+          cwd,
+        );
+        if (checked && !freshness.fresh) {
+          console.error(
+            'Error: Source files have been modified since the last scan:',
+          );
+          for (const f of freshness.staleFiles) {
+            console.error(`  ${f}`);
+          }
+          console.error('');
+          console.error(
+            'Run "shiori scan" to refresh, or use --force to skip this check.',
+          );
+          process.exitCode = 1;
+          return;
+        }
+      }
+
       // Plan bulk resolve
       const bulkResult = planBulkResolve(closedRefs, {
         annotations: scanResult.annotations,
@@ -232,8 +288,20 @@ export const resolveCommand = define({
       });
 
       if (!apply) {
-        // Dry-run: show preview
-        console.log(formatBulkResolvePreview(bulkResult));
+        // Dry-run: show preview in requested format
+        const textPreview = formatBulkResolvePreview(bulkResult);
+        const output = formatResolveOutput({
+          format,
+          bulkResult,
+          applied: false,
+          textOutput: textPreview,
+        });
+        const written = await writeOutput(output, {
+          outputPath: ctx.values.output,
+          cwd,
+          label: 'Resolve preview',
+        });
+        if (!written) return;
         return;
       }
 
@@ -248,9 +316,23 @@ export const resolveCommand = define({
 
       // Confirmation: --apply --closed without --yes shows summary and exits
       if (!yes) {
-        console.log(formatBulkResolvePreview(bulkResult));
-        console.error('');
-        console.error('Add --yes to confirm and apply changes.');
+        const textPreview = formatBulkResolvePreview(bulkResult);
+        const output = formatResolveOutput({
+          format,
+          bulkResult,
+          applied: false,
+          textOutput: textPreview,
+        });
+        const written = await writeOutput(output, {
+          outputPath: ctx.values.output,
+          cwd,
+          label: 'Resolve preview',
+        });
+        if (!written) return;
+        if (format === 'text') {
+          console.error('');
+          console.error('Add --yes to confirm and apply changes.');
+        }
         return;
       }
 
@@ -300,7 +382,7 @@ export const resolveCommand = define({
       });
       if (!saved) return;
 
-      // Report summary
+      // Report summary to stderr (always, regardless of format)
       console.error(
         `Resolved ${closedRefs.length} closed ref(s): ${closedRefs.join(', ')}`,
       );
@@ -340,6 +422,22 @@ export const resolveCommand = define({
       console.error(
         'Run "shiori check" to verify remaining annotations are valid.',
       );
+
+      // JSON output after apply (for automation/webhook consumption)
+      if (format === 'json') {
+        const output = formatResolveOutput({
+          format,
+          bulkResult,
+          applied: true,
+          textOutput: '',
+        });
+        const written = await writeOutput(output, {
+          outputPath: ctx.values.output,
+          cwd,
+          label: 'Resolve result',
+        });
+        if (!written) return;
+      }
       return;
     }
 
@@ -371,42 +469,25 @@ export const resolveCommand = define({
     }
 
     // Scan-result freshness check: compare mtime of scan-result vs source files
-    if (!force && uniqueFiles.length > 0) {
-      const scanResultPath = await resolveScanResultPath(scanResultOptions);
-      if (scanResultPath) {
-        try {
-          const scanStat = await stat(scanResultPath);
-          const sourceFileMtimes = new Map<string, number>();
-          for (const file of uniqueFiles) {
-            try {
-              const fileStat = await stat(resolve(cwd, file));
-              sourceFileMtimes.set(file, fileStat.mtimeMs);
-            } catch {
-              // File stat failed — skip (already warned above)
-            }
-          }
-
-          const freshness = checkScanFreshness(
-            scanStat.mtimeMs,
-            sourceFileMtimes,
-          );
-          if (!freshness.fresh) {
-            console.error(
-              'Error: Source files have been modified since the last scan:',
-            );
-            for (const f of freshness.staleFiles) {
-              console.error(`  ${f}`);
-            }
-            console.error('');
-            console.error(
-              'Run "shiori scan" to refresh, or use --force to skip this check.',
-            );
-            process.exitCode = 1;
-            return;
-          }
-        } catch {
-          // Could not stat scan result file — proceed without freshness check
+    if (!force) {
+      const { checked, freshness } = await performScanFreshnessCheck(
+        scanResultOptions,
+        uniqueFiles,
+        cwd,
+      );
+      if (checked && !freshness.fresh) {
+        console.error(
+          'Error: Source files have been modified since the last scan:',
+        );
+        for (const f of freshness.staleFiles) {
+          console.error(`  ${f}`);
         }
+        console.error('');
+        console.error(
+          'Run "shiori scan" to refresh, or use --force to skip this check.',
+        );
+        process.exitCode = 1;
+        return;
       }
     }
 
