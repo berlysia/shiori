@@ -48,6 +48,42 @@ describe('buildAnnotationString', () => {
       'SUP-1234 expires=2026-06 reason="temporary fix"',
     );
   });
+
+  it('escapes double quotes in reason', () => {
+    assert.equal(
+      buildAnnotationString('SUP-1234', { reason: 'say "hello"' }),
+      'SUP-1234 reason="say \\"hello\\""',
+    );
+  });
+
+  it('escapes backslashes in reason without spaces (no quoting needed)', () => {
+    // No spaces or quotes → no quoting applied, backslashes pass through
+    assert.equal(
+      buildAnnotationString('SUP-1234', { reason: 'path\\to\\file' }),
+      'SUP-1234 reason=path\\to\\file',
+    );
+  });
+
+  it('escapes backslashes in reason with spaces (quoting applied)', () => {
+    assert.equal(
+      buildAnnotationString('SUP-1234', { reason: 'path \\to\\ file' }),
+      'SUP-1234 reason="path \\\\to\\\\ file"',
+    );
+  });
+
+  it('escapes both backslashes and quotes in reason', () => {
+    assert.equal(
+      buildAnnotationString('SUP-1234', { reason: 'a \\"b\\" c' }),
+      'SUP-1234 reason="a \\\\\\"b\\\\\\" c"',
+    );
+  });
+
+  it('quotes reason containing only quotes (no spaces)', () => {
+    assert.equal(
+      buildAnnotationString('SUP-1234', { reason: '"quoted"' }),
+      'SUP-1234 reason="\\"quoted\\""',
+    );
+  });
 });
 
 describe('lineHasComment', () => {

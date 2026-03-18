@@ -8,7 +8,7 @@ import { recordJournalEvent } from '../core/journal.ts';
 import { createFormatValidator } from '../core/cli-validation.ts';
 import { writeOutput } from '../core/cli-output.ts';
 import type { AnnotateFormat } from '../core/types.ts';
-import { isValidRef } from './registry-generator.ts';
+import { isValidRef } from '../core/ref-validation.ts';
 import {
   planAnnotation,
   formatAnnotatePreview,

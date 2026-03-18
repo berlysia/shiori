@@ -170,4 +170,37 @@ describe('parseShioriFields', () => {
       assert.match(result.errors[0]!, /unexpected bare token.*some extra/);
     });
   });
+
+  describe('backslash escapes in quoted values', () => {
+    it('handles escaped double quotes inside double-quoted value', () => {
+      const result = parseShioriFields('SUP-1234 reason="say \\"hello\\""');
+      assert.equal(result.ref, 'SUP-1234');
+      assert.equal(result.reason, 'say "hello"');
+      assert.deepEqual(result.errors, []);
+    });
+
+    it('handles escaped backslash inside quoted value', () => {
+      const result = parseShioriFields('SUP-1234 reason="path\\\\to\\\\file"');
+      assert.equal(result.ref, 'SUP-1234');
+      assert.equal(result.reason, 'path\\to\\file');
+      assert.deepEqual(result.errors, []);
+    });
+
+    it('handles escaped single quote inside single-quoted value', () => {
+      const result = parseShioriFields("SUP-1234 reason='it\\'s fine'");
+      assert.equal(result.ref, 'SUP-1234');
+      assert.equal(result.reason, "it's fine");
+      assert.deepEqual(result.errors, []);
+    });
+
+    it('handles trailing backslash at end of quoted value as unterminated', () => {
+      // Trailing backslash: i+1 is out of range, so backslash is not an escape
+      // sequence but a literal char; then the loop ends without finding close quote
+      const result = parseShioriFields('SUP-1234 reason="trailing\\');
+      assert.equal(result.ref, 'SUP-1234');
+      assert.equal(result.reason, 'trailing\\');
+      assert.equal(result.errors.length, 1);
+      assert.match(result.errors[0]!, /unterminated quote.*reason/);
+    });
+  });
 });

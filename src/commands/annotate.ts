@@ -36,9 +36,11 @@ export function buildAnnotationString(
   const parts = [ref];
   if (fields?.expires) parts.push(`expires=${fields.expires}`);
   if (fields?.reason) {
-    const value = fields.reason.includes(' ')
-      ? `"${fields.reason}"`
-      : fields.reason;
+    const escaped = fields.reason.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    const value =
+      fields.reason.includes(' ') || fields.reason.includes('"')
+        ? `"${escaped}"`
+        : fields.reason;
     parts.push(`reason=${value}`);
   }
   return parts.join(' ');

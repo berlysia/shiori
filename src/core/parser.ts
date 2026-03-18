@@ -92,18 +92,29 @@ export function parseShioriFields(input: string): ParsedShioriFields {
       i < remainder.length &&
       (remainder[i] === '"' || remainder[i] === "'")
     ) {
-      // Quoted value
+      // Quoted value (supports backslash escapes: \" \\ \' )
       const quote = remainder[i]!;
       i++;
-      const closeIdx = remainder.indexOf(quote, i);
-      if (closeIdx === -1) {
-        // Unterminated quote: take rest as value
-        errors.push(`unterminated quote for key '${key}'`);
-        fields[key] = remainder.slice(i);
-        break;
+      let value = '';
+      let closed = false;
+      while (i < remainder.length) {
+        if (remainder[i] === '\\' && i + 1 < remainder.length) {
+          // Escaped character: consume backslash + next char
+          value += remainder[i + 1];
+          i += 2;
+        } else if (remainder[i] === quote) {
+          closed = true;
+          i++;
+          break;
+        } else {
+          value += remainder[i];
+          i++;
+        }
       }
-      fields[key] = remainder.slice(i, closeIdx);
-      i = closeIdx + 1;
+      if (!closed) {
+        errors.push(`unterminated quote for key '${key}'`);
+      }
+      fields[key] = value;
     } else {
       // Unquoted value: read until whitespace
       const start = i;

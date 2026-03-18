@@ -9,7 +9,7 @@ import {
 } from '../core/path-boundary.ts';
 import { warnIfGitDirty, saveRegistryRouted } from '../core/cli-context.ts';
 import { recordJournalEvent } from '../core/journal.ts';
-import { isValidRef } from './registry-generator.ts';
+import { isValidRef } from '../core/ref-validation.ts';
 import { applyMigrateToFile, groupActionsByFile } from './migrate.ts';
 import { planAdoption, formatAdoptPreview } from './adopt.ts';
 
