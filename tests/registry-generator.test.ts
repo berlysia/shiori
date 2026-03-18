@@ -2,8 +2,8 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Registry, ShioriAnnotation } from '../src/core/types.ts';
 import type { RefPatternConfig } from '../src/core/ref-pattern.ts';
+import { isValidRef } from '../src/core/ref-validation.ts';
 import {
-  isValidRef,
   initRegistry,
   routeRegistryByPattern,
 } from '../src/commands/registry-generator.ts';

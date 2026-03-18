@@ -8,8 +8,8 @@ import { PathBoundaryError } from '../src/core/path-boundary.ts';
 import {
   routeRegistryByPattern,
   initRegistry,
-  isValidRef,
 } from '../src/commands/registry-generator.ts';
+import { isValidRef } from '../src/core/ref-validation.ts';
 import type { Registry, ShioriAnnotation } from '../src/core/types.ts';
 
 describe('loadMultiRegistry', () => {

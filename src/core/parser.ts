@@ -74,11 +74,17 @@ export function parseShioriFields(input: string): ParsedShioriFields {
       ) {
         const quote = remainder[i]!;
         i++;
-        const closeIdx = remainder.indexOf(quote, i);
-        if (closeIdx === -1) {
-          break;
+        // NOTE: mirrors quoted-value escape logic at L93–112 (normal value parsing)
+        while (i < remainder.length) {
+          if (remainder[i] === '\\' && i + 1 < remainder.length) {
+            i += 2;
+          } else if (remainder[i] === quote) {
+            i++;
+            break;
+          } else {
+            i++;
+          }
         }
-        i = closeIdx + 1;
       } else {
         while (i < remainder.length && remainder[i] !== ' ') i++;
       }

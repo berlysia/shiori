@@ -20,6 +20,9 @@ export { parseShioriFields } from './parser.ts';
 export { loadConfig, resolveConfig } from './config.ts';
 export type { ShioriConfig, ResolvedConfig } from './config.ts';
 
+// ── Ref Validation ──────────────────────────────────────────
+export { isValidRef, REF_PATTERN } from './ref-validation.ts';
+
 // ── Types ───────────────────────────────────────────────────
 export type {
   ShioriAnnotation,

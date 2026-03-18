@@ -163,6 +163,32 @@ describe('parseShioriFields', () => {
       assert.match(result.errors[1]!, /unexpected bare token.*ignore/);
     });
 
+    it('skips ref= with escaped quotes in double-quoted value', () => {
+      const result = parseShioriFields('ref="escaped\\"quote" expires=2026-06');
+      assert.equal(result.ref, '');
+      assert.equal(result.errors.length, 1);
+      assert.match(result.errors[0]!, /ref.*not a valid key/);
+      assert.equal(result.expires, '2026-06');
+    });
+
+    it('skips ref= with escaped backslashes in quoted value', () => {
+      const result = parseShioriFields(
+        'ref="path\\\\to\\\\file" expires=2026-06',
+      );
+      assert.equal(result.ref, '');
+      assert.equal(result.errors.length, 1);
+      assert.match(result.errors[0]!, /ref.*not a valid key/);
+      assert.equal(result.expires, '2026-06');
+    });
+
+    it('skips ref= with single-quoted value containing escapes', () => {
+      const result = parseShioriFields("ref='it\\'s ok' reason=\"done\"");
+      assert.equal(result.ref, '');
+      assert.equal(result.errors.length, 1);
+      assert.match(result.errors[0]!, /ref.*not a valid key/);
+      assert.equal(result.reason, 'done');
+    });
+
     it('detects unexpected bare token with multiple words after key=value', () => {
       const result = parseShioriFields('SUP-1234 kind=waive some extra');
       assert.equal(result.ref, 'SUP-1234');

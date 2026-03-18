@@ -1,8 +1,6 @@
 import type { Registry, ShioriAnnotation } from '../core/types.ts';
 import { isValidRef } from '../core/ref-validation.ts';
 
-// Re-export for backward compatibility
-export { REF_PATTERN, isValidRef } from '../core/ref-validation.ts';
 export { routeRegistryByPattern } from '../core/registry-router.ts';
 
 export interface InitRegistryOptions {
