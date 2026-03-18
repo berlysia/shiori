@@ -92,13 +92,52 @@ describe('API contract: package.json exports ↔ docs/api.md', () => {
   });
 });
 
-describe('API contract: @berlysia/shiori (core types)', () => {
+describe('API contract: @berlysia/shiori (core barrel)', () => {
   it('exports all public types and interfaces', async () => {
     const mod = await import('../src/core/types.ts');
 
     // types.ts exports are type-only except for the module itself
     // Verify the module is importable and has expected shape
     assert.equal(typeof mod, 'object');
+  });
+
+  it('exports loadConfig function', async () => {
+    const mod = await import('../src/core/index.ts');
+    assert.equal(typeof mod.loadConfig, 'function');
+  });
+
+  it('exports resolveConfig function', async () => {
+    const mod = await import('../src/core/index.ts');
+    assert.equal(typeof mod.resolveConfig, 'function');
+  });
+
+  it('exports loadRegistry function', async () => {
+    const mod = await import('../src/core/index.ts');
+    assert.equal(typeof mod.loadRegistry, 'function');
+  });
+
+  it('exports parseShioriFields function', async () => {
+    const mod = await import('../src/core/index.ts');
+    assert.equal(typeof mod.parseShioriFields, 'function');
+  });
+
+  it('resolveConfig returns expected shape with defaults', async () => {
+    const { resolveConfig } = await import('../src/core/index.ts');
+    const config = resolveConfig({});
+    assert.equal(typeof config.candidatePatterns, 'object');
+    assert.equal(config.refPatterns, undefined);
+    assert.equal(typeof config.paths, 'object');
+    assert.equal(typeof config.verify, 'object');
+    assert.equal(typeof config.verify.expiringThresholdDays, 'number');
+  });
+
+  it('resolveConfig passes through refPatterns', async () => {
+    const { resolveConfig } = await import('../src/core/index.ts');
+    const patterns = [
+      { match: 'JIRA-{id}', urlTemplate: 'https://jira.example.com/{id}' },
+    ];
+    const config = resolveConfig({ refPatterns: patterns });
+    assert.deepEqual(config.refPatterns, patterns);
   });
 });
 

@@ -242,6 +242,36 @@ export interface BreakdownEntry {
   count: number;
 }
 
+/** Per-file annotation density entry for heatmap visualization */
+export interface FileBreakdownEntry {
+  /** File path (relative to project root) */
+  path: string;
+  /** Total annotation count in this file */
+  annotationCount: number;
+  /** Annotations whose ref has expired in registry */
+  expiredCount: number;
+  /** Annotations whose ref is expiring soon in registry */
+  expiringCount: number;
+  /** Annotations without expiry issues (includes no-expiry refs) */
+  healthyCount: number;
+}
+
+/** Per-directory aggregated annotation density */
+export interface DirectoryBreakdownEntry {
+  /** Directory path */
+  directory: string;
+  /** Total annotation count across files in this directory */
+  annotationCount: number;
+  /** Count of files with annotations */
+  fileCount: number;
+  /** Expired count across files */
+  expiredCount: number;
+  /** Expiring count across files */
+  expiringCount: number;
+  /** Healthy count across files */
+  healthyCount: number;
+}
+
 /** Report output */
 export interface ReportResult {
   /** ISO timestamp when report was generated */
@@ -275,6 +305,10 @@ export interface ReportResult {
   byOwner: BreakdownEntry[];
   /** Underlying verify result (for downstream consumers) */
   verifyResult: VerifyResult;
+  /** Per-file annotation density breakdown (EP-0086, optional for backward compat) */
+  byFile?: FileBreakdownEntry[];
+  /** Per-directory annotation density breakdown (EP-0086, optional for backward compat) */
+  byDirectory?: DirectoryBreakdownEntry[];
 }
 
 /** Report output format */

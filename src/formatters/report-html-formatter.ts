@@ -12,6 +12,8 @@ import type {
   ChronicleEntry,
   ChronicleEvent,
   ChronicleEventType,
+  FileBreakdownEntry,
+  DirectoryBreakdownEntry,
 } from '../core/types.ts';
 
 /**
@@ -257,6 +259,77 @@ function renderStyles(healthColorValue: string): string {
     background: rgba(148,163,184,0.15);
     color: var(--text-muted);
   }
+  .heatmap-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+  .heatmap-card {
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    border-left: 4px solid var(--border);
+  }
+  .heatmap-card.status-expired { border-left-color: #ef4444; }
+  .heatmap-card.status-expiring { border-left-color: #eab308; }
+  .heatmap-card.status-healthy { border-left-color: #22c55e; }
+  .heatmap-path {
+    font-family: monospace;
+    font-size: 0.85rem;
+    word-break: break-all;
+    margin-bottom: 0.35rem;
+  }
+  .heatmap-bar-container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+  }
+  .heatmap-bar {
+    flex: 1;
+    height: 8px;
+    border-radius: 4px;
+    background: var(--surface-alt);
+    overflow: hidden;
+    display: flex;
+  }
+  .heatmap-bar-expired { background: #ef4444; }
+  .heatmap-bar-expiring { background: #eab308; }
+  .heatmap-bar-healthy { background: #22c55e; }
+  .heatmap-count {
+    font-size: 0.85rem;
+    font-weight: 600;
+    min-width: 2ch;
+    text-align: right;
+  }
+  .heatmap-status {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+  .heatmap-dir-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--surface);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-top: 1rem;
+  }
+  .heatmap-dir-table th, .heatmap-dir-table td {
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.85rem;
+  }
+  .heatmap-dir-table th {
+    background: var(--surface-alt);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+  }
+  .heatmap-dir-table tr:last-child td { border-bottom: none; }
+  .heatmap-dir-table td.dir-path { font-family: monospace; }
 </style>`;
 }
 
@@ -556,6 +629,99 @@ function renderChronicleSection(chronicle: ChronicleResult): string {
 }
 
 /**
+ * Determine heatmap card status class based on expiry counts.
+ * Priority: expired > expiring > healthy.
+ */
+function fileStatusClass(entry: FileBreakdownEntry): string {
+  if (entry.expiredCount > 0) return 'status-expired';
+  if (entry.expiringCount > 0) return 'status-expiring';
+  return 'status-healthy';
+}
+
+/**
+ * Render a single file card for the heatmap grid.
+ */
+function renderHeatmapCard(entry: FileBreakdownEntry): string {
+  const statusClass = fileStatusClass(entry);
+  const total = entry.annotationCount;
+
+  // Bar segments as percentage of total for this file
+  const expiredPct = total > 0 ? (entry.expiredCount / total) * 100 : 0;
+  const expiringPct = total > 0 ? (entry.expiringCount / total) * 100 : 0;
+  const healthyPct = total > 0 ? (entry.healthyCount / total) * 100 : 0;
+
+  // Build bar segments
+  const barSegments: string[] = [];
+  if (expiredPct > 0)
+    barSegments.push(
+      `<div class="heatmap-bar-expired" style="width:${expiredPct.toFixed(1)}%"></div>`,
+    );
+  if (expiringPct > 0)
+    barSegments.push(
+      `<div class="heatmap-bar-expiring" style="width:${expiringPct.toFixed(1)}%"></div>`,
+    );
+  if (healthyPct > 0)
+    barSegments.push(
+      `<div class="heatmap-bar-healthy" style="width:${healthyPct.toFixed(1)}%"></div>`,
+    );
+
+  // Status line (only if there are expired or expiring)
+  const statusParts: string[] = [];
+  if (entry.expiredCount > 0) statusParts.push(`${entry.expiredCount} expired`);
+  if (entry.expiringCount > 0)
+    statusParts.push(`${entry.expiringCount} expiring`);
+  const statusLine =
+    statusParts.length > 0
+      ? `\n    <div class="heatmap-status">${statusParts.join(' \u00B7 ')}</div>`
+      : '';
+
+  return `  <div class="heatmap-card ${statusClass}">
+    <div class="heatmap-path">${escapeHtml(entry.path)}</div>
+    <div class="heatmap-bar-container">
+      <div class="heatmap-bar">${barSegments.join('')}</div>
+      <span class="heatmap-count">${total}</span>
+    </div>${statusLine}
+  </div>`;
+}
+
+/**
+ * Render the heatmap section with file cards and directory summary table.
+ */
+function renderHeatmapSection(
+  byFile: FileBreakdownEntry[],
+  byDirectory: DirectoryBreakdownEntry[],
+): string {
+  if (byFile.length === 0) return '';
+
+  const cards = byFile.map((entry) => renderHeatmapCard(entry)).join('\n');
+
+  // Directory summary table
+  let dirTable = '';
+  if (byDirectory.length > 0) {
+    const dirRows = byDirectory
+      .map(
+        (d) =>
+          `    <tr><td class="dir-path">${escapeHtml(d.directory)}</td><td>${d.fileCount}</td><td>${d.annotationCount}</td><td>${d.expiredCount}</td><td>${d.expiringCount}</td></tr>`,
+      )
+      .join('\n');
+    dirTable = `
+  <table class="heatmap-dir-table">
+    <thead><tr><th>Directory</th><th>Files</th><th>Annotations</th><th>Expired</th><th>Expiring</th></tr></thead>
+    <tbody>
+${dirRows}
+    </tbody>
+  </table>`;
+  }
+
+  return `<div class="section">
+  <h2>Annotation Heatmap</h2>
+  <div class="heatmap-grid">
+${cards}
+  </div>${dirTable}
+</div>`;
+}
+
+/**
  * Render the interactive script (collapsible sections toggle).
  */
 function renderScript(): string {
@@ -564,7 +730,7 @@ function renderScript(): string {
     h2.style.cursor = 'pointer';
     h2.addEventListener('click', function() {
       var section = h2.parentElement;
-      var content = section.querySelectorAll('table, ul');
+      var content = section.querySelectorAll('table, ul, .heatmap-grid');
       content.forEach(function(el) {
         el.style.display = el.style.display === 'none' ? '' : 'none';
       });
@@ -610,11 +776,16 @@ export function formatReportAsHtml(
   const chronicleSection = options?.chronicle
     ? renderChronicleSection(options.chronicle)
     : '';
+  const heatmapSection =
+    result.byFile && result.byDirectory
+      ? renderHeatmapSection(result.byFile, result.byDirectory)
+      : '';
 
   const sections = [
     renderHealthSection(result),
     deltaSection,
     renderOverviewTable(result),
+    heatmapSection,
     renderInsights(result.insights),
     renderIssueBreakdown(result.byType),
     renderBreakdownTable('Annotations by Rule', 'Rule', result.byRule),

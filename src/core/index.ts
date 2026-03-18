@@ -16,13 +16,22 @@ export type {
 // ── Parser ──────────────────────────────────────────────────
 export { parseShioriFields } from './parser.ts';
 
+// ── Config ──────────────────────────────────────────────────
+export { loadConfig, resolveConfig } from './config.ts';
+export type { ShioriConfig, ResolvedConfig } from './config.ts';
+
 // ── Types ───────────────────────────────────────────────────
 export type {
   ShioriAnnotation,
+  ShioriCandidate,
+  ScanResult,
   Registry,
   RegistryEntry,
   VerifyIssue,
   VerifyIssueType,
   VerifyResult,
+  IssueSeverity,
   HealthLevel,
+  FileBreakdownEntry,
+  DirectoryBreakdownEntry,
 } from './types.ts';

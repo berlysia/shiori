@@ -12,11 +12,12 @@ pnpm add @berlysia/shiori
 
 ## Exports
 
-### `@berlysia/shiori` — Core Types
+### `@berlysia/shiori` — Core Types & Config
 
-All shared type definitions used across the codebase.
+Shared type definitions, config loading, and registry loading.
 
 ```typescript
+import { loadConfig, resolveConfig, loadRegistry } from '@berlysia/shiori';
 import type {
   ShioriAnnotation,
   ShioriCandidate,
@@ -27,6 +28,10 @@ import type {
   VerifyIssue,
   VerifyIssueType,
   IssueSeverity,
+  ShioriConfig,
+  ResolvedConfig,
+  RegistryLoadResult,
+  RegistryValidationError,
 } from '@berlysia/shiori';
 ```
 
@@ -147,6 +152,88 @@ type VerifyIssueType =
   | 'ref-status-closed';
 
 type IssueSeverity = 'error' | 'warning';
+```
+
+#### `loadConfig(cwd, configDir?)`
+
+Load shiori configuration from the project directory. Searches for `config.yaml` → `config.yml` → `config.json` inside `.config/shiori/` (or the specified `configDir`). Returns default config if no file exists.
+
+```typescript
+async function loadConfig(
+  cwd: string,
+  configDir?: string,
+): Promise<ResolvedConfig>;
+```
+
+**Example:**
+
+```typescript
+import { loadConfig } from '@berlysia/shiori';
+
+const config = await loadConfig(workspaceRoot);
+// config.refPatterns → RefPatternConfig[] | undefined
+// config.paths.registry → string | undefined
+// config.paths.scanResult → string
+```
+
+#### `resolveConfig(raw)`
+
+Merge partial config with defaults. Useful when config is already loaded or constructed programmatically.
+
+```typescript
+function resolveConfig(raw: ShioriConfig): ResolvedConfig;
+```
+
+#### `loadRegistry(filePath)`
+
+Load and validate a registry file (JSON or YAML, auto-detected by extension).
+
+```typescript
+async function loadRegistry(filePath: string): Promise<RegistryLoadResult>;
+```
+
+**Example:**
+
+```typescript
+import { loadRegistry } from '@berlysia/shiori';
+
+const { registry, errors } = await loadRegistry('.config/shiori/registry.json');
+```
+
+#### Config Types
+
+```typescript
+interface ShioriConfig {
+  /** Candidate detection pattern overrides */
+  candidates?: Partial<CandidatePatternConfig>;
+  /** Pattern-based ref resolution (ADR 012) */
+  refPatterns?: RefPatternConfig[];
+  /** Default scan options */
+  scan?: { patterns?: string[]; ignore?: string[] };
+  /** Default file paths */
+  paths?: { scanResult?: string; registry?: string };
+  /** Verify command options */
+  verify?: { expiringThresholdDays?: number };
+}
+
+interface ResolvedConfig {
+  candidatePatterns: ResolvedCandidatePatterns;
+  refPatterns: RefPatternConfig[] | undefined;
+  scanPatterns: string[] | undefined;
+  scanIgnore: string[] | undefined;
+  paths: { scanResult: string; registry: string | undefined };
+  verify: { expiringThresholdDays: number };
+}
+
+interface RegistryLoadResult {
+  registry: Registry;
+  errors: RegistryValidationError[];
+}
+
+interface RegistryValidationError {
+  id: string;
+  message: string;
+}
 ```
 
 ---
@@ -351,29 +438,40 @@ interface ShowResult {
 For a VSCode extension that needs to read shiori annotations:
 
 ```typescript
-import type { ShioriAnnotation, Registry } from '@berlysia/shiori';
+import type { ScanResult } from '@berlysia/shiori';
+import { loadConfig, loadRegistry } from '@berlysia/shiori';
 import { show, isFound } from '@berlysia/shiori/commands/show';
 import { resolveRefUrl } from '@berlysia/shiori/core/ref-pattern';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 
-// Load data from scan result and registry files (via fs)
-const scanResult = JSON.parse(
-  await readFile('.config/shiori/scan-result.json', 'utf-8'),
+// Load config to get refPatterns and registry path
+const config = await loadConfig(workspaceRoot);
+const registryPath = resolve(
+  workspaceRoot,
+  config.paths.registry ?? '.config/shiori/registry.json',
 );
-const registry = JSON.parse(
-  await readFile('.config/shiori/registry.json', 'utf-8'),
+const { registry } = await loadRegistry(registryPath);
+
+// Load scan result
+const scanResult: ScanResult = JSON.parse(
+  await readFile(resolve(workspaceRoot, config.paths.scanResult), 'utf-8'),
 );
 
-// Look up a ref under cursor
+// Look up a ref under cursor (HoverProvider)
 const result = show({
   ref: 'SUP-1234',
   registry,
   annotations: scanResult.annotations,
-  refPatterns: undefined, // or load from config
+  refPatterns: config.refPatterns,
 });
 
 if (isFound(result)) {
   // Show hover information, navigate to source, open URL
 }
+
+// Resolve ref to external URL (DocumentLinkProvider)
+const url = resolveRefUrl('SUP-1234', config.refPatterns);
 ```
 
 ### CI Integration
@@ -395,6 +493,6 @@ if (expired.length > 0) {
 
 ## Error Handling
 
-All exported functions are pure (no I/O, no exceptions). File loading and validation should be handled by the caller. The CLI commands (`shiori scan`, `shiori verify`, etc.) handle all I/O and error reporting.
+Pure functions (`show`, `isFound`, `resolveRefUrl`, `matchRefPattern`, `resolveConfig`) do not throw. I/O functions (`loadConfig`, `loadRegistry`) throw on file read errors; `loadRegistry` also returns validation errors in the `errors` array while still providing a best-effort registry.
 
-Registry and scan result files can be loaded as plain JSON with standard `JSON.parse()`. See `RegistryEntry` for the expected shape of registry entries — validation is the caller's responsibility when using the programmatic API.
+Registry and scan result files can be loaded as plain JSON with standard `JSON.parse()`. See `RegistryEntry` for the expected shape of registry entries — validation is the caller's responsibility when using the programmatic API directly.

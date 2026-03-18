@@ -731,4 +731,281 @@ describe('formatReportAsHtml', () => {
       );
     });
   });
+
+  describe('heatmap section (EP-0086)', () => {
+    it('renders heatmap section when byFile is present', () => {
+      const result = makeReportResult({
+        byFile: [
+          {
+            path: 'src/core/types.ts',
+            annotationCount: 5,
+            expiredCount: 2,
+            expiringCount: 1,
+            healthyCount: 2,
+          },
+          {
+            path: 'src/commands/report.ts',
+            annotationCount: 3,
+            expiredCount: 0,
+            expiringCount: 0,
+            healthyCount: 3,
+          },
+        ],
+        byDirectory: [
+          {
+            directory: 'src/core',
+            annotationCount: 5,
+            fileCount: 1,
+            expiredCount: 2,
+            expiringCount: 1,
+            healthyCount: 2,
+          },
+          {
+            directory: 'src/commands',
+            annotationCount: 3,
+            fileCount: 1,
+            expiredCount: 0,
+            expiringCount: 0,
+            healthyCount: 3,
+          },
+        ],
+      });
+      const html = formatReportAsHtml(result);
+
+      assert.ok(html.includes('Annotation Heatmap'), 'has heatmap heading');
+      assert.ok(html.includes('heatmap-grid'), 'has heatmap grid');
+      assert.ok(html.includes('src/core/types.ts'), 'shows file path');
+      assert.ok(
+        html.includes('src/commands/report.ts'),
+        'shows second file path',
+      );
+    });
+
+    it('omits heatmap section when byFile is not present', () => {
+      const result = makeReportResult();
+      // Default makeReportResult does not include byFile/byDirectory
+      const html = formatReportAsHtml(result);
+
+      assert.equal(
+        html.match(/<h2>Annotation Heatmap<\/h2>/g),
+        null,
+        'no heatmap section without byFile',
+      );
+    });
+
+    it('renders correct status class for expired files', () => {
+      const result = makeReportResult({
+        byFile: [
+          {
+            path: 'expired.ts',
+            annotationCount: 3,
+            expiredCount: 2,
+            expiringCount: 0,
+            healthyCount: 1,
+          },
+        ],
+        byDirectory: [
+          {
+            directory: '.',
+            annotationCount: 3,
+            fileCount: 1,
+            expiredCount: 2,
+            expiringCount: 0,
+            healthyCount: 1,
+          },
+        ],
+      });
+      const html = formatReportAsHtml(result);
+
+      assert.ok(html.includes('status-expired'), 'has expired status class');
+    });
+
+    it('renders correct status class for expiring files', () => {
+      const result = makeReportResult({
+        byFile: [
+          {
+            path: 'expiring.ts',
+            annotationCount: 2,
+            expiredCount: 0,
+            expiringCount: 1,
+            healthyCount: 1,
+          },
+        ],
+        byDirectory: [
+          {
+            directory: '.',
+            annotationCount: 2,
+            fileCount: 1,
+            expiredCount: 0,
+            expiringCount: 1,
+            healthyCount: 1,
+          },
+        ],
+      });
+      const html = formatReportAsHtml(result);
+
+      assert.ok(html.includes('status-expiring'), 'has expiring status class');
+    });
+
+    it('renders correct status class for healthy files', () => {
+      const result = makeReportResult({
+        byFile: [
+          {
+            path: 'healthy.ts',
+            annotationCount: 4,
+            expiredCount: 0,
+            expiringCount: 0,
+            healthyCount: 4,
+          },
+        ],
+        byDirectory: [
+          {
+            directory: '.',
+            annotationCount: 4,
+            fileCount: 1,
+            expiredCount: 0,
+            expiringCount: 0,
+            healthyCount: 4,
+          },
+        ],
+      });
+      const html = formatReportAsHtml(result);
+
+      assert.ok(html.includes('status-healthy'), 'has healthy status class');
+    });
+
+    it('renders directory summary table', () => {
+      const result = makeReportResult({
+        byFile: [
+          {
+            path: 'src/core/a.ts',
+            annotationCount: 2,
+            expiredCount: 0,
+            expiringCount: 0,
+            healthyCount: 2,
+          },
+        ],
+        byDirectory: [
+          {
+            directory: 'src/core',
+            annotationCount: 2,
+            fileCount: 1,
+            expiredCount: 0,
+            expiringCount: 0,
+            healthyCount: 2,
+          },
+        ],
+      });
+      const html = formatReportAsHtml(result);
+
+      assert.ok(html.includes('heatmap-dir-table'), 'has directory table');
+      assert.ok(html.includes('src/core'), 'shows directory name');
+    });
+
+    it('renders heatmap between overview and insights', () => {
+      const result = makeReportResult({
+        insights: [{ level: 'info', label: 'clean', message: 'All good' }],
+        byFile: [
+          {
+            path: 'a.ts',
+            annotationCount: 1,
+            expiredCount: 0,
+            expiringCount: 0,
+            healthyCount: 1,
+          },
+        ],
+        byDirectory: [
+          {
+            directory: '.',
+            annotationCount: 1,
+            fileCount: 1,
+            expiredCount: 0,
+            expiringCount: 0,
+            healthyCount: 1,
+          },
+        ],
+      });
+      const html = formatReportAsHtml(result);
+
+      const overviewIdx = html.indexOf('Overview');
+      const heatmapIdx = html.indexOf('Annotation Heatmap');
+      const insightsIdx = html.indexOf('Insights');
+
+      assert.ok(overviewIdx < heatmapIdx, 'heatmap after overview');
+      assert.ok(heatmapIdx < insightsIdx, 'heatmap before insights');
+    });
+
+    it('includes heatmap CSS styles', () => {
+      const result = makeReportResult({
+        byFile: [
+          {
+            path: 'a.ts',
+            annotationCount: 1,
+            expiredCount: 0,
+            expiringCount: 0,
+            healthyCount: 1,
+          },
+        ],
+        byDirectory: [],
+      });
+      const html = formatReportAsHtml(result);
+
+      assert.ok(html.includes('.heatmap-grid'), 'has heatmap-grid style');
+      assert.ok(html.includes('.heatmap-card'), 'has heatmap-card style');
+      assert.ok(html.includes('.heatmap-bar'), 'has heatmap-bar style');
+    });
+
+    it('escapes HTML in file paths', () => {
+      const result = makeReportResult({
+        byFile: [
+          {
+            path: 'src/<script>.ts',
+            annotationCount: 1,
+            expiredCount: 0,
+            expiringCount: 0,
+            healthyCount: 1,
+          },
+        ],
+        byDirectory: [
+          {
+            directory: 'src',
+            annotationCount: 1,
+            fileCount: 1,
+            expiredCount: 0,
+            expiringCount: 0,
+            healthyCount: 1,
+          },
+        ],
+      });
+      const html = formatReportAsHtml(result);
+
+      assert.ok(html.includes('&lt;script&gt;'), 'escapes HTML in file paths');
+    });
+
+    it('shows status line only for expired or expiring files', () => {
+      const result = makeReportResult({
+        byFile: [
+          {
+            path: 'expired.ts',
+            annotationCount: 2,
+            expiredCount: 1,
+            expiringCount: 1,
+            healthyCount: 0,
+          },
+          {
+            path: 'healthy.ts',
+            annotationCount: 3,
+            expiredCount: 0,
+            expiringCount: 0,
+            healthyCount: 3,
+          },
+        ],
+        byDirectory: [],
+      });
+      const html = formatReportAsHtml(result);
+
+      assert.ok(html.includes('1 expired'), 'shows expired count');
+      assert.ok(html.includes('1 expiring'), 'shows expiring count');
+    });
+  });
 });

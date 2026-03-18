@@ -1,13 +1,17 @@
+import { dirname } from 'node:path/posix';
 import type {
   Registry,
   ScanResult,
   ShioriAnnotation,
   ShioriCandidate,
   VerifyIssueType,
+  VerifyResult,
   HealthLevel,
   ReportResult,
   ReportInsight,
   BreakdownEntry,
+  FileBreakdownEntry,
+  DirectoryBreakdownEntry,
 } from '../core/types.ts';
 import { verify, type VerifyOptions } from './verify.ts';
 
@@ -41,6 +45,11 @@ export function report(options: ReportOptions): ReportResult {
   const level = scoreToLevel(score);
   const summary = buildHealthSummary(level, score, verifyResult.summary.total);
 
+  // Heatmap aggregation: exclude ignored annotations (matching verify's behavior)
+  const activeAnnotations = annotations.filter((a) => !a.ignored);
+  const byFile = aggregateByFile(activeAnnotations, verifyResult);
+  const byDirectory = aggregateByDirectory(byFile);
+
   return {
     timestamp: verifyResult.timestamp,
     health: { level, score, summary },
@@ -58,6 +67,8 @@ export function report(options: ReportOptions): ReportResult {
     byKind: aggregateByKind(registry),
     byOwner: aggregateByOwner(registry),
     verifyResult,
+    byFile,
+    byDirectory,
   };
 }
 
@@ -221,6 +232,121 @@ function buildHealthSummary(
     case 'critical':
       return `Governance health: ${score}/100. ${issueCount} issue(s) require immediate action.`;
   }
+}
+
+/**
+ * Aggregate annotations by file path for heatmap visualization.
+ * Classifies each annotation as expired/expiring/healthy based on ref Sets
+ * derived from verifyResult issues. Sorted by annotationCount descending.
+ *
+ * @param annotations - Pre-filtered annotations (ignored already excluded)
+ * @param verifyResult - Verify result containing issue refs for classification
+ */
+function aggregateByFile(
+  annotations: ShioriAnnotation[],
+  verifyResult: VerifyResult,
+): FileBreakdownEntry[] {
+  // Build ref Sets from verify issues
+  const expiredRefs = new Set<string>();
+  const expiringRefs = new Set<string>();
+  for (const issue of verifyResult.issues) {
+    if (issue.type === 'expired') {
+      expiredRefs.add(issue.ref);
+    } else if (issue.type === 'expiring-soon') {
+      expiringRefs.add(issue.ref);
+    }
+  }
+
+  // Group annotations by file
+  const byFileMap = new Map<string, ShioriAnnotation[]>();
+  for (const a of annotations) {
+    const file = a.location.file;
+    const group = byFileMap.get(file);
+    if (group) {
+      group.push(a);
+    } else {
+      byFileMap.set(file, [a]);
+    }
+  }
+
+  // Build entries
+  const entries: FileBreakdownEntry[] = [];
+  for (const [path, group] of byFileMap) {
+    let expiredCount = 0;
+    let expiringCount = 0;
+    for (const a of group) {
+      if (expiredRefs.has(a.ref)) {
+        expiredCount++;
+      } else if (expiringRefs.has(a.ref)) {
+        expiringCount++;
+      }
+    }
+    const annotationCount = group.length;
+    entries.push({
+      path,
+      annotationCount,
+      expiredCount,
+      expiringCount,
+      healthyCount: annotationCount - expiredCount - expiringCount,
+    });
+  }
+
+  // Sort by annotationCount descending, then path ascending for stability
+  return entries.sort(
+    (a, b) =>
+      b.annotationCount - a.annotationCount || a.path.localeCompare(b.path),
+  );
+}
+
+/**
+ * Aggregate file-level breakdowns by directory.
+ * Uses POSIX dirname for grouping. Sorted by annotationCount descending.
+ */
+function aggregateByDirectory(
+  byFile: FileBreakdownEntry[],
+): DirectoryBreakdownEntry[] {
+  const dirMap = new Map<
+    string,
+    {
+      annotationCount: number;
+      fileCount: number;
+      expiredCount: number;
+      expiringCount: number;
+      healthyCount: number;
+    }
+  >();
+
+  for (const entry of byFile) {
+    const dir = dirname(entry.path);
+    const existing = dirMap.get(dir);
+    if (existing) {
+      existing.annotationCount += entry.annotationCount;
+      existing.fileCount += 1;
+      existing.expiredCount += entry.expiredCount;
+      existing.expiringCount += entry.expiringCount;
+      existing.healthyCount += entry.healthyCount;
+    } else {
+      dirMap.set(dir, {
+        annotationCount: entry.annotationCount,
+        fileCount: 1,
+        expiredCount: entry.expiredCount,
+        expiringCount: entry.expiringCount,
+        healthyCount: entry.healthyCount,
+      });
+    }
+  }
+
+  const entries: DirectoryBreakdownEntry[] = [];
+  for (const [directory, data] of dirMap) {
+    entries.push({ directory, ...data });
+  }
+
+  // Sort by annotationCount descending, then directory ascending for stability
+  return entries.sort(
+    (a, b) =>
+      b.annotationCount - a.annotationCount ||
+      a.directory.localeCompare(b.directory),
+  );
 }
 
 /** Aggregate annotations by rule, sorted descending by count */

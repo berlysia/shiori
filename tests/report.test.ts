@@ -416,6 +416,352 @@ describe('report', () => {
       assert.equal(result2.byType['expired'], 0);
     });
   });
+
+  describe('byFile aggregation', () => {
+    it('aggregates annotations across multiple files', () => {
+      const annotations = [
+        makeAnnotation({
+          ref: 'TEST-001',
+          location: { file: 'src/a.ts', line: 1 },
+        }),
+        makeAnnotation({
+          ref: 'TEST-002',
+          location: { file: 'src/a.ts', line: 5 },
+        }),
+        makeAnnotation({
+          ref: 'TEST-003',
+          location: { file: 'src/b.ts', line: 1 },
+        }),
+      ];
+      const registry: Registry = {
+        'TEST-001': makeRegistryEntry(),
+        'TEST-002': makeRegistryEntry(),
+        'TEST-003': makeRegistryEntry(),
+      };
+
+      const result = report({
+        scanResult: makeScanResult(annotations),
+        registry,
+        failOn: [],
+        warnOn: [],
+      });
+
+      assert.ok(result.byFile);
+      assert.equal(result.byFile.length, 2);
+      // Sorted by annotationCount descending
+      assert.equal(result.byFile[0]!.path, 'src/a.ts');
+      assert.equal(result.byFile[0]!.annotationCount, 2);
+      assert.equal(result.byFile[1]!.path, 'src/b.ts');
+      assert.equal(result.byFile[1]!.annotationCount, 1);
+    });
+
+    it('classifies expired ref annotations as expiredCount', () => {
+      const annotations = [
+        makeAnnotation({
+          ref: 'EXP-001',
+          location: { file: 'src/a.ts', line: 1 },
+        }),
+        makeAnnotation({
+          ref: 'OK-001',
+          location: { file: 'src/a.ts', line: 5 },
+        }),
+      ];
+      const registry: Registry = {
+        'EXP-001': makeRegistryEntry({ expires: '2020-01-01' }),
+        'OK-001': makeRegistryEntry(),
+      };
+
+      const result = report({
+        scanResult: makeScanResult(annotations),
+        registry,
+        failOn: [],
+        warnOn: [],
+      });
+
+      assert.ok(result.byFile);
+      const fileA = result.byFile.find((f) => f.path === 'src/a.ts');
+      assert.ok(fileA);
+      assert.equal(fileA.expiredCount, 1);
+      assert.equal(fileA.healthyCount, 1);
+    });
+
+    it('classifies expiring-soon ref annotations as expiringCount', () => {
+      // Use now injection: annotation expires in 5 days (within 14-day threshold)
+      const annotations = [
+        makeAnnotation({
+          ref: 'SOON-001',
+          location: { file: 'src/a.ts', line: 1 },
+        }),
+      ];
+      const registry: Registry = {
+        'SOON-001': makeRegistryEntry({ expires: '2026-07-05' }),
+      };
+
+      const result = report({
+        scanResult: makeScanResult(annotations),
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: new Date('2026-07-01T00:00:00Z'),
+      });
+
+      assert.ok(result.byFile);
+      const fileA = result.byFile.find((f) => f.path === 'src/a.ts');
+      assert.ok(fileA);
+      assert.equal(fileA.expiringCount, 1);
+      assert.equal(fileA.healthyCount, 0);
+    });
+
+    it('counts annotations without expiry as healthy', () => {
+      const annotations = [
+        makeAnnotation({
+          ref: 'NOEXP-001',
+          location: { file: 'src/a.ts', line: 1 },
+        }),
+      ];
+      const registry: Registry = {
+        'NOEXP-001': makeRegistryEntry({ expires: undefined }),
+      };
+
+      const result = report({
+        scanResult: makeScanResult(annotations),
+        registry,
+        failOn: [],
+        warnOn: [],
+      });
+
+      assert.ok(result.byFile);
+      assert.equal(result.byFile[0]!.healthyCount, 1);
+      assert.equal(result.byFile[0]!.expiredCount, 0);
+      assert.equal(result.byFile[0]!.expiringCount, 0);
+    });
+
+    it('attributes same ref across multiple files correctly', () => {
+      const annotations = [
+        makeAnnotation({
+          ref: 'EXP-001',
+          location: { file: 'src/a.ts', line: 1 },
+        }),
+        makeAnnotation({
+          ref: 'EXP-001',
+          location: { file: 'src/b.ts', line: 1 },
+        }),
+      ];
+      const registry: Registry = {
+        'EXP-001': makeRegistryEntry({ expires: '2020-01-01' }),
+      };
+
+      const result = report({
+        scanResult: makeScanResult(annotations),
+        registry,
+        failOn: [],
+        warnOn: [],
+      });
+
+      assert.ok(result.byFile);
+      assert.equal(result.byFile.length, 2);
+      // Both files should show the annotation as expired
+      for (const file of result.byFile) {
+        assert.equal(file.expiredCount, 1);
+        assert.equal(file.healthyCount, 0);
+      }
+    });
+
+    it('returns empty arrays when annotations is empty', () => {
+      const result = report({
+        scanResult: makeScanResult([]),
+        registry: {},
+        failOn: [],
+        warnOn: [],
+      });
+
+      assert.ok(result.byFile);
+      assert.ok(result.byDirectory);
+      assert.equal(result.byFile.length, 0);
+      assert.equal(result.byDirectory.length, 0);
+    });
+
+    it('excludes ignored annotations from aggregation', () => {
+      const annotations = [
+        makeAnnotation({
+          ref: 'TEST-001',
+          location: { file: 'src/a.ts', line: 1 },
+        }),
+        makeAnnotation({
+          ref: 'IGN-001',
+          ignored: true,
+          location: { file: 'src/a.ts', line: 5 },
+        }),
+      ];
+      const registry: Registry = {
+        'TEST-001': makeRegistryEntry(),
+        'IGN-001': makeRegistryEntry(),
+      };
+
+      const result = report({
+        scanResult: makeScanResult(annotations),
+        registry,
+        failOn: [],
+        warnOn: [],
+      });
+
+      assert.ok(result.byFile);
+      const fileA = result.byFile.find((f) => f.path === 'src/a.ts');
+      assert.ok(fileA);
+      // Only 1 annotation counted (ignored one excluded)
+      assert.equal(fileA.annotationCount, 1);
+    });
+
+    it('counts same ref multiple times in one file independently', () => {
+      const annotations = [
+        makeAnnotation({
+          ref: 'TEST-001',
+          location: { file: 'src/a.ts', line: 1 },
+        }),
+        makeAnnotation({
+          ref: 'TEST-001',
+          location: { file: 'src/a.ts', line: 10 },
+        }),
+        makeAnnotation({
+          ref: 'TEST-001',
+          location: { file: 'src/a.ts', line: 20 },
+        }),
+      ];
+      const registry: Registry = {
+        'TEST-001': makeRegistryEntry(),
+      };
+
+      const result = report({
+        scanResult: makeScanResult(annotations),
+        registry,
+        failOn: [],
+        warnOn: [],
+      });
+
+      assert.ok(result.byFile);
+      assert.equal(result.byFile[0]!.annotationCount, 3);
+      assert.equal(result.byFile[0]!.healthyCount, 3);
+    });
+
+    it('counts empty ref annotations as healthy', () => {
+      const annotations = [
+        makeAnnotation({ ref: '', location: { file: 'src/a.ts', line: 1 } }),
+      ];
+      // Empty ref won't match any registry entry — verify will flag as missing-in-registry
+      // but it won't be expired or expiring, so it's "healthy" from expiry perspective
+      const result = report({
+        scanResult: makeScanResult(annotations),
+        registry: {},
+        failOn: [],
+        warnOn: [],
+      });
+
+      assert.ok(result.byFile);
+      assert.equal(result.byFile[0]!.healthyCount, 1);
+      assert.equal(result.byFile[0]!.expiredCount, 0);
+    });
+  });
+
+  describe('byDirectory aggregation', () => {
+    it('groups files by dirname', () => {
+      const annotations = [
+        makeAnnotation({
+          ref: 'TEST-001',
+          location: { file: 'src/core/a.ts', line: 1 },
+        }),
+        makeAnnotation({
+          ref: 'TEST-002',
+          location: { file: 'src/core/b.ts', line: 1 },
+        }),
+        makeAnnotation({
+          ref: 'TEST-003',
+          location: { file: 'src/cli/c.ts', line: 1 },
+        }),
+      ];
+      const registry: Registry = {
+        'TEST-001': makeRegistryEntry(),
+        'TEST-002': makeRegistryEntry(),
+        'TEST-003': makeRegistryEntry(),
+      };
+
+      const result = report({
+        scanResult: makeScanResult(annotations),
+        registry,
+        failOn: [],
+        warnOn: [],
+      });
+
+      assert.ok(result.byDirectory);
+      assert.equal(result.byDirectory.length, 2);
+      // src/core has 2 annotations (higher count → first)
+      const coreDir = result.byDirectory.find(
+        (d) => d.directory === 'src/core',
+      );
+      assert.ok(coreDir);
+      assert.equal(coreDir.annotationCount, 2);
+      assert.equal(coreDir.fileCount, 2);
+
+      const cliDir = result.byDirectory.find((d) => d.directory === 'src/cli');
+      assert.ok(cliDir);
+      assert.equal(cliDir.annotationCount, 1);
+      assert.equal(cliDir.fileCount, 1);
+    });
+
+    it('uses "." for root-level files', () => {
+      const annotations = [
+        makeAnnotation({
+          ref: 'TEST-001',
+          location: { file: 'test.ts', line: 1 },
+        }),
+      ];
+      const registry: Registry = {
+        'TEST-001': makeRegistryEntry(),
+      };
+
+      const result = report({
+        scanResult: makeScanResult(annotations),
+        registry,
+        failOn: [],
+        warnOn: [],
+      });
+
+      assert.ok(result.byDirectory);
+      assert.equal(result.byDirectory[0]!.directory, '.');
+    });
+
+    it('sums expired/expiring counts across files in directory', () => {
+      const annotations = [
+        makeAnnotation({
+          ref: 'EXP-001',
+          location: { file: 'src/core/a.ts', line: 1 },
+        }),
+        makeAnnotation({
+          ref: 'OK-001',
+          location: { file: 'src/core/b.ts', line: 1 },
+        }),
+      ];
+      const registry: Registry = {
+        'EXP-001': makeRegistryEntry({ expires: '2020-01-01' }),
+        'OK-001': makeRegistryEntry(),
+      };
+
+      const result = report({
+        scanResult: makeScanResult(annotations),
+        registry,
+        failOn: [],
+        warnOn: [],
+      });
+
+      assert.ok(result.byDirectory);
+      const coreDir = result.byDirectory.find(
+        (d) => d.directory === 'src/core',
+      );
+      assert.ok(coreDir);
+      assert.equal(coreDir.expiredCount, 1);
+      assert.equal(coreDir.healthyCount, 1);
+      assert.equal(coreDir.annotationCount, 2);
+    });
+  });
 });
 
 describe('formatReport', () => {
