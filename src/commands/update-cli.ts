@@ -3,6 +3,7 @@ import { loadConfigAndRegistry } from '../core/registry-loader.ts';
 import { loadScanResult } from '../core/scan-result-loader.ts';
 import { initRegistry } from './registry-generator.ts';
 import { saveRegistryRouted } from '../core/cli-context.ts';
+import { recordJournalEvent } from '../core/journal.ts';
 
 export const updateCommand = define({
   name: 'update',
@@ -96,6 +97,17 @@ export const updateCommand = define({
       label: 'Updated',
     });
     if (!saved) return;
+
+    // Journal: record update operation (only when new refs were added)
+    if (newRefs.length > 0) {
+      recordJournalEvent({
+        cwd,
+        eventType: 'cli.update',
+        refs: newRefs,
+        success: true,
+        entriesAdded: newRefs.length,
+      });
+    }
 
     if (newRefs.length === 0) {
       console.error('Registry is up to date (no new refs)');

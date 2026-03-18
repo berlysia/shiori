@@ -628,6 +628,40 @@ export interface FileEditResult {
   warnings: string[];
 }
 
+// ── Journal types (EP-0081) ──────────────────────────────────
+
+/** CLI operation types that generate journal entries */
+export type CliOperationType =
+  | 'cli.resolve'
+  | 'cli.resolve.bulk'
+  | 'cli.adopt'
+  | 'cli.update'
+  | 'cli.annotate'
+  | 'cli.migrate';
+
+/**
+ * CLI journal entry for tracking registry-modifying operations.
+ *
+ * Uses `source: 'cli'` discriminant for future unification with daemon journal
+ * entries (`source: 'daemon'`, `webhook.*` event_type namespace).
+ */
+export interface CliJournalEntry {
+  /** ISO 8601 timestamp */
+  timestamp: string;
+  /** Discriminant for CLI vs daemon journal entries */
+  source: 'cli';
+  /** Operation type in `cli.*` namespace */
+  event_type: CliOperationType;
+  /** Refs affected by this operation */
+  refs: string[];
+  /** Whether the operation succeeded */
+  success: boolean;
+  /** Number of registry entries added (null on failure or N/A) */
+  entries_added: number | null;
+  /** Number of registry entries removed (null on failure or N/A) */
+  entries_removed: number | null;
+}
+
 /** Health output format */
 export type HealthFormat = 'json' | 'summary';
 

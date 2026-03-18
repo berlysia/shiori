@@ -4,6 +4,7 @@ import { resolve } from 'node:path';
 import { loadConfigAndRegistry } from '../core/registry-loader.ts';
 import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
 import { saveRegistryRouted } from '../core/cli-context.ts';
+import { recordJournalEvent } from '../core/journal.ts';
 import { createFormatValidator } from '../core/cli-validation.ts';
 import { writeOutput } from '../core/cli-output.ts';
 import type { AnnotateFormat } from '../core/types.ts';
@@ -263,6 +264,15 @@ export const annotateCommand = define({
       label: 'Annotated',
     });
     if (!saved) return;
+
+    // Journal: record annotate operation
+    recordJournalEvent({
+      cwd,
+      eventType: 'cli.annotate',
+      refs: [ref],
+      success: true,
+      entriesAdded: 1,
+    });
 
     // Output result (both text and json formats respect --output)
     const output =

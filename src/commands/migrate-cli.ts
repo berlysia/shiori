@@ -8,6 +8,7 @@ import {
   PathBoundaryError,
 } from '../core/path-boundary.ts';
 import { warnIfGitDirty, saveRegistryRouted } from '../core/cli-context.ts';
+import { recordJournalEvent } from '../core/journal.ts';
 import { isValidRef } from './registry-generator.ts';
 import {
   planMigration,
@@ -174,6 +175,16 @@ export const migrateCommand = define({
       label: 'Migrated',
     });
     if (!saved) return;
+
+    // Journal: record migrate operation
+    const migratedRefs = Object.keys(result.registry);
+    recordJournalEvent({
+      cwd,
+      eventType: 'cli.migrate',
+      refs: migratedRefs,
+      success: true,
+      entriesAdded: migratedRefs.length,
+    });
 
     // Report
     console.error(

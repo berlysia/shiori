@@ -8,6 +8,7 @@ import {
   PathBoundaryError,
 } from '../core/path-boundary.ts';
 import { warnIfGitDirty, saveRegistryRouted } from '../core/cli-context.ts';
+import { recordJournalEvent } from '../core/journal.ts';
 import {
   selectRefStatusProvider,
   resolveRefStatusMap,
@@ -382,6 +383,15 @@ export const resolveCommand = define({
       });
       if (!saved) return;
 
+      // Journal: record bulk resolve operation
+      recordJournalEvent({
+        cwd,
+        eventType: 'cli.resolve.bulk',
+        refs: closedRefs,
+        success: true,
+        entriesRemoved: bulkResult.allRegistryRemovals.length,
+      });
+
       // Report summary to stderr (always, regardless of format)
       console.error(
         `Resolved ${closedRefs.length} closed ref(s): ${closedRefs.join(', ')}`,
@@ -559,6 +569,15 @@ export const resolveCommand = define({
       label: 'Resolved',
     });
     if (!saved) return;
+
+    // Journal: record single-ref resolve operation
+    recordJournalEvent({
+      cwd,
+      eventType: 'cli.resolve',
+      refs: [ref],
+      success: true,
+      entriesRemoved: result.registryRemovals.length,
+    });
 
     // Report
     console.error(`Resolved ref "${ref}"`);
