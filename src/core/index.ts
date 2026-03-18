@@ -15,10 +15,15 @@ export type {
 
 // ── Parser ──────────────────────────────────────────────────
 export { parseShioriFields } from './parser.ts';
+export type { ParsedShioriFields } from './parser.ts';
 
 // ── Config ──────────────────────────────────────────────────
 export { loadConfig, resolveConfig } from './config.ts';
 export type { ShioriConfig, ResolvedConfig } from './config.ts';
+
+// ── Ref Pattern ────────────────────────────────────────────
+export { resolveRefUrl, matchRefPattern } from './ref-pattern.ts';
+export type { RefPatternConfig, RefPatternMatch } from './ref-pattern.ts';
 
 // ── Ref Validation ──────────────────────────────────────────
 export { isValidRef, REF_PATTERN } from './ref-validation.ts';

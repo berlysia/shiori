@@ -17,7 +17,16 @@ pnpm add @berlysia/shiori
 Shared type definitions, config loading, and registry loading.
 
 ```typescript
-import { loadConfig, resolveConfig, loadRegistry } from '@berlysia/shiori';
+import {
+  loadConfig,
+  resolveConfig,
+  loadRegistry,
+  parseShioriFields,
+  isValidRef,
+  REF_PATTERN,
+  resolveRefUrl,
+  matchRefPattern,
+} from '@berlysia/shiori';
 import type {
   ShioriAnnotation,
   ShioriCandidate,
@@ -32,6 +41,9 @@ import type {
   ResolvedConfig,
   RegistryLoadResult,
   RegistryValidationError,
+  ParsedShioriFields,
+  RefPatternConfig,
+  RefPatternMatch,
 } from '@berlysia/shiori';
 ```
 
@@ -152,6 +164,55 @@ type VerifyIssueType =
   | 'ref-status-closed';
 
 type IssueSeverity = 'error' | 'warning';
+```
+
+#### `parseShioriFields(input)`
+
+Parse a shiori field string with positional ref. The first token (before whitespace) is treated as the tracking reference. Remaining tokens are parsed as `key=value` pairs.
+
+```typescript
+function parseShioriFields(input: string): ParsedShioriFields;
+```
+
+**Example:**
+
+```typescript
+import { parseShioriFields } from '@berlysia/shiori';
+
+const fields = parseShioriFields('SUP-1234 expires=2026-06 reason=workaround');
+// → { ref: 'SUP-1234', expires: '2026-06', reason: 'workaround', errors: [] }
+```
+
+#### `ParsedShioriFields`
+
+```typescript
+interface ParsedShioriFields {
+  ref: string;
+  expires?: string;
+  reason?: string;
+  errors: string[];
+  [key: string]: string | string[] | undefined;
+}
+```
+
+#### `resolveRefUrl(ref, patterns)` / `matchRefPattern(ref, patterns)`
+
+Also available from the root barrel for convenience. See [`@berlysia/shiori/core/ref-pattern`](#berlysiashioricoref-pattern--ref-pattern-matching) for full documentation.
+
+```typescript
+import { resolveRefUrl, matchRefPattern } from '@berlysia/shiori';
+```
+
+#### `isValidRef(ref)` / `REF_PATTERN`
+
+Validate whether a ref string matches the expected format.
+
+```typescript
+import { isValidRef, REF_PATTERN } from '@berlysia/shiori';
+
+isValidRef('SUP-1234'); // → true
+isValidRef(''); // → false
+REF_PATTERN; // → /^[A-Z][A-Z0-9]*(?:[-:][A-Za-z0-9][-A-Za-z0-9._]*)*$/
 ```
 
 #### `loadConfig(cwd, configDir?)`

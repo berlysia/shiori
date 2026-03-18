@@ -182,6 +182,8 @@ monorepo 化により、CLI と拡張機能を同一リポジトリで管理す�
 - 欠点: 公開 API の変更に対する追従が遅れる。開発初期は同一リポジトリの方が変更を同期しやすい
 - 判断: monorepo で開始し、拡張機能が安定したら分離を検討
 
+> **注記（EP-0085 PoC）**: 初期 PoC フェーズでは別リポジトリ（`shiori-vscode`）で開発する方針に変更した。理由: (1) monorepo 化は既存 CI・ビルド設定の移行コストが大きく PoC 段階では過剰、(2) `@berlysia/shiori` を npm 依存として消費することで公開 API の外部消費性を実証できる、(3) PoC が成功した段階で本 ADR の monorepo 方針に移行する選択肢を残す。`show()` と `resolveRefUrl()` は純粋関数であり、gunshi/yaml/fast-glob に非依存のため tree-shaking でバンドル肥大化の懸念はない。
+
 ## Consequences
 
 ### 変更されるもの

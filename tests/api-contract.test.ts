@@ -139,6 +139,50 @@ describe('API contract: @berlysia/shiori (core barrel)', () => {
     const config = resolveConfig({ refPatterns: patterns });
     assert.deepEqual(config.refPatterns, patterns);
   });
+
+  it('exports isValidRef function', async () => {
+    const mod = await import('../src/core/index.ts');
+    assert.equal(typeof mod.isValidRef, 'function');
+  });
+
+  it('exports REF_PATTERN constant', async () => {
+    const mod = await import('../src/core/index.ts');
+    assert.ok(mod.REF_PATTERN instanceof RegExp);
+  });
+
+  it('exports resolveRefUrl from barrel', async () => {
+    const mod = await import('../src/core/index.ts');
+    assert.equal(typeof mod.resolveRefUrl, 'function');
+  });
+
+  it('exports matchRefPattern from barrel', async () => {
+    const mod = await import('../src/core/index.ts');
+    assert.equal(typeof mod.matchRefPattern, 'function');
+  });
+
+  it('barrel resolveRefUrl produces same result as subpath export', async () => {
+    const barrel = await import('../src/core/index.ts');
+    const subpath = await import('../src/core/ref-pattern.ts');
+    const patterns = [
+      {
+        match: 'JIRA-{id}',
+        urlTemplate: 'https://example.com/browse/JIRA-{id}',
+      },
+    ];
+    assert.equal(
+      barrel.resolveRefUrl('JIRA-1234', patterns),
+      subpath.resolveRefUrl('JIRA-1234', patterns),
+    );
+  });
+
+  it('parseShioriFields returns ParsedShioriFields shape', async () => {
+    const { parseShioriFields } = await import('../src/core/index.ts');
+    const result = parseShioriFields('SUP-1234 expires=2026-06');
+    assert.equal(result.ref, 'SUP-1234');
+    assert.equal(result.expires, '2026-06');
+    assert.ok(Array.isArray(result.errors));
+    assert.equal(result.errors.length, 0);
+  });
 });
 
 describe('API contract: @berlysia/shiori/core/ref-pattern', () => {
