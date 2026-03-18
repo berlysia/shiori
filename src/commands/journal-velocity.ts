@@ -17,7 +17,7 @@ import type {
   VelocityDirection,
   TrendFormat,
 } from '../core/types.ts';
-import { buildSparkline } from './trend.ts';
+import { buildSparkline } from '../core/sparkline.ts';
 
 /**
  * Truncate an ISO timestamp to the start of a bucket boundary.

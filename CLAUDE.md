@@ -44,10 +44,11 @@ Source Files → CommentProvider.scan() → ShioriAnnotation[]
 
 ### Commands (`src/commands/`)
 
-Pattern: `scan.ts` (logic) + `scan-cli.ts` (CLI wrapper). Framework: gunshi. Commands (21):
+Pattern: `scan.ts` (logic) + `scan-cli.ts` (CLI wrapper). Framework: gunshi. Commands (23):
 
-- **Workflow**: `init`, `scan`, `verify`, `check`, `update`, `adopt`, `resolve`, `migrate`, `watch`, `draft`, `candidates`
-- **Governance & Insights**: `health`, `triage`, `report`, `trend`, `delta`
+- **Workflow**: `init`, `scan`, `verify`, `check`, `update`, `adopt`, `resolve`, `migrate`, `watch`, `draft`, `candidates`, `annotate`
+- **Governance & Insights**: `health`, `triage`, `report`, `trend`, `delta`, `weekly-report`
+- **Journal**: `journal`
 - **Diagnostics**: `doctor`
 - **Information**: `show`, `why`, `jump`, `docs`
 
