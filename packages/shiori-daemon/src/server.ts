@@ -1,7 +1,7 @@
 import * as http from 'node:http';
 import type { DaemonConfig } from './types.ts';
 import { verifyWebhookSignature, parseGitHubEvent } from './webhook.ts';
-import { executeResolve } from './executor.ts';
+import { type ResolveQueue } from './executor.ts';
 
 /** Maximum request body size (1 MB). Prevents DoS via oversized payloads. */
 const MAX_BODY_BYTES = 1024 * 1024;
@@ -63,9 +63,12 @@ function sendJson(
  *
  * Endpoints:
  * - GET  /health  → 200 OK
- * - POST /webhook → Verify signature, parse event, execute resolve
+ * - POST /webhook → Verify signature, parse event, execute resolve (queued)
  */
-export function createServer(config: DaemonConfig): http.Server {
+export function createServer(
+  config: DaemonConfig,
+  queue: ResolveQueue,
+): http.Server {
   const server = http.createServer(async (req, res) => {
     // Health check
     if (req.method === 'GET' && req.url === '/health') {
@@ -103,9 +106,11 @@ export function createServer(config: DaemonConfig): http.Server {
           `[shiori-daemon] issue closed: ${event.repository.full_name}#${event.issue.number} "${event.issue.title}"`,
         );
 
-        const result = await executeResolve(config);
+        const result = await queue.enqueue(config);
 
-        if (result.success) {
+        if (result.exitCode === 503) {
+          sendJson(res, 503, { error: 'queue full' });
+        } else if (result.success) {
           console.log('[shiori-daemon] resolve completed successfully');
           sendJson(res, 200, {
             status: 'resolved',

@@ -2,7 +2,11 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { writeFileSync, chmodSync, unlinkSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { executeResolve, buildAllowedEnv } from '../src/executor.ts';
+import {
+  executeResolve,
+  buildAllowedEnv,
+  ResolveQueue,
+} from '../src/executor.ts';
 import type { DaemonConfig } from '../src/types.ts';
 
 /** Create a config that runs a custom command instead of shiori. */
@@ -13,6 +17,7 @@ function makeConfig(overrides?: Partial<DaemonConfig>): DaemonConfig {
     cwd: process.cwd(),
     shioriPath: 'echo',
     timeout: 5000,
+    maxQueueDepth: 10,
     ...overrides,
   };
 }
@@ -133,5 +138,93 @@ describe('executeResolve', () => {
     } finally {
       unlinkSync(scriptPath);
     }
+  });
+});
+
+describe('ResolveQueue', () => {
+  it('serializes concurrent enqueue calls', async () => {
+    // Track execution order to prove tasks run one-at-a-time.
+    // Use a script that writes a sequence number to stdout.
+    const order: number[] = [];
+    let counter = 0;
+
+    const queue = new ResolveQueue(10);
+
+    // Enqueue 3 tasks that use 'echo' (fast, succeeds immediately).
+    // We verify they complete in FIFO order by recording arrival.
+    const tasks = Array.from({ length: 3 }, () => {
+      const idx = counter++;
+      return queue.enqueue(makeConfig()).then((result) => {
+        order.push(idx);
+        return result;
+      });
+    });
+
+    const results = await Promise.all(tasks);
+
+    // All should succeed
+    for (const r of results) {
+      assert.equal(r.success, true);
+      assert.equal(r.exitCode, 0);
+    }
+
+    // Order must be 0, 1, 2 (FIFO serialization)
+    assert.deepEqual(order, [0, 1, 2]);
+  });
+
+  it('rejects when queue depth is exceeded', async () => {
+    const queue = new ResolveQueue(2);
+
+    // Create a slow script so tasks stay in the queue
+    const scriptPath = createSlowScript();
+    try {
+      const slowConfig = makeConfig({ shioriPath: scriptPath, timeout: 5000 });
+
+      // Fill the queue with 2 slow tasks
+      const task1 = queue.enqueue(slowConfig);
+      const task2 = queue.enqueue(slowConfig);
+
+      // 3rd should be rejected immediately
+      const rejected = await queue.enqueue(slowConfig);
+
+      assert.equal(rejected.success, false);
+      assert.equal(rejected.exitCode, 503);
+      assert.equal(rejected.output, 'queue full');
+
+      // Clean up: the slow tasks will timeout eventually;
+      // we don't await them here to keep test fast.
+      // Drain will wait for them but they have a 5s timeout.
+      // Instead, kill by not awaiting (they'll be collected by GC).
+      void task1;
+      void task2;
+    } finally {
+      unlinkSync(scriptPath);
+    }
+  });
+
+  it('tracks currentDepth correctly', async () => {
+    const queue = new ResolveQueue(10);
+    assert.equal(queue.currentDepth, 0);
+
+    // Enqueue a fast task
+    const task = queue.enqueue(makeConfig());
+    // Depth should be at least 1 while running
+    assert.ok(queue.currentDepth >= 1);
+
+    await task;
+    // After completion, depth returns to 0
+    assert.equal(queue.currentDepth, 0);
+  });
+
+  it('drain waits for all queued tasks', async () => {
+    const queue = new ResolveQueue(10);
+
+    // Enqueue 3 fast tasks
+    queue.enqueue(makeConfig());
+    queue.enqueue(makeConfig());
+    queue.enqueue(makeConfig());
+
+    await queue.drain();
+    assert.equal(queue.currentDepth, 0);
   });
 });

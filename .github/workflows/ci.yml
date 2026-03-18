@@ -35,6 +35,9 @@ jobs:
         if: matrix.node-version == 22
       - run: pnpm test
         if: matrix.node-version == 22
+      - name: shiori-daemon build
+        if: matrix.node-version == 22
+        run: pnpm --filter @berlysia/shiori-daemon build
       - name: shiori-daemon test
         if: matrix.node-version == 22
         run: pnpm --filter @berlysia/shiori-daemon test

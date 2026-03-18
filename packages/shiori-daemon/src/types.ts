@@ -10,6 +10,8 @@ export interface DaemonConfig {
   shioriPath: string;
   /** CLI execution timeout in milliseconds. */
   timeout: number;
+  /** Maximum number of pending resolve tasks in the queue. */
+  maxQueueDepth: number;
 }
 
 /** Parsed GitHub webhook event (issues closed only). */

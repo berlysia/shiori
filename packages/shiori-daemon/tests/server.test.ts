@@ -1,7 +1,10 @@
 import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
+import { writeFileSync, chmodSync, unlinkSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { createServer } from '../src/server.ts';
+import { ResolveQueue } from '../src/executor.ts';
 import type { DaemonConfig } from '../src/types.ts';
 
 const SECRET = 'test-secret';
@@ -13,6 +16,7 @@ function makeConfig(overrides?: Partial<DaemonConfig>): DaemonConfig {
     cwd: process.cwd(),
     shioriPath: 'echo', // will succeed and echo args
     timeout: 5000,
+    maxQueueDepth: 10,
     ...overrides,
   };
 }
@@ -21,11 +25,26 @@ function sign(body: string): string {
   return 'sha256=' + createHmac('sha256', SECRET).update(body).digest('hex');
 }
 
+/**
+ * Create a temporary executable script that ignores arguments and sleeps.
+ * Returns the full path; caller must clean up via unlinkSync.
+ */
+function createSlowScript(): string {
+  const dir = join(import.meta.dirname, 'fixtures');
+  mkdirSync(dir, { recursive: true });
+  const scriptPath = join(dir, `slow-srv-${process.pid}.sh`);
+  writeFileSync(scriptPath, '#!/bin/sh\nsleep 60\n', { mode: 0o755 });
+  chmodSync(scriptPath, 0o755);
+  return scriptPath;
+}
+
 /** Start server on a random port and return base URL + cleanup. */
 async function startServer(
   config: DaemonConfig,
+  queue?: ResolveQueue,
 ): Promise<{ baseUrl: string; close: () => Promise<void> }> {
-  const server = createServer(config);
+  const q = queue ?? new ResolveQueue(config.maxQueueDepth);
+  const server = createServer(config, q);
   await new Promise<void>((resolve) => server.listen(0, resolve));
   const addr = server.address();
   if (!addr || typeof addr === 'string') throw new Error('unexpected address');
@@ -167,6 +186,57 @@ describe('HTTP server', () => {
       false,
       'output must not be in error response',
     );
+  });
+
+  it('POST /webhook returns 503 when queue is full', async () => {
+    // maxQueueDepth=1, slow script fills the single slot
+    const scriptPath = createSlowScript();
+    try {
+      const config = makeConfig({
+        shioriPath: scriptPath,
+        timeout: 10000,
+        maxQueueDepth: 1,
+      });
+      const queue = new ResolveQueue(1);
+      const srv = await startServer(config, queue);
+      servers.push(srv);
+
+      const body = JSON.stringify({
+        action: 'closed',
+        issue: { number: 1, title: 'Queue test' },
+        repository: { full_name: 'test/repo' },
+      });
+      const headers = {
+        'x-hub-signature-256': sign(body),
+        'x-github-event': 'issues',
+      };
+
+      // First request fills the queue (slow, won't complete quickly)
+      const req1 = fetch(`${srv.baseUrl}/webhook`, {
+        method: 'POST',
+        headers,
+        body,
+      });
+
+      // Give a moment for the first request to be enqueued
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // Second request should be rejected with 503
+      const res2 = await fetch(`${srv.baseUrl}/webhook`, {
+        method: 'POST',
+        headers,
+        body,
+      });
+
+      assert.equal(res2.status, 503);
+      const json = (await res2.json()) as Record<string, unknown>;
+      assert.equal(json.error, 'queue full');
+
+      // Don't await req1 — let the slow script timeout naturally
+      void req1;
+    } finally {
+      unlinkSync(scriptPath);
+    }
   });
 
   it('returns 404 for unknown routes', async () => {

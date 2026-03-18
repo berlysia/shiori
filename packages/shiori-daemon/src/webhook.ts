@@ -16,17 +16,18 @@ export function verifyWebhookSignature(
     return false;
   }
 
-  const expected = createHmac('sha256', secret).update(payload).digest('hex');
-  const actual = signature.slice('sha256='.length);
+  const expectedBuf = createHmac('sha256', secret).update(payload).digest();
+  const actualHex = signature.slice('sha256='.length);
+  const actualBuf = Buffer.from(actualHex, 'hex');
 
-  if (expected.length !== actual.length) {
+  // Buffer.from with 'hex' encoding silently drops invalid hex characters,
+  // producing a shorter buffer. Compare buffer lengths to reject malformed input
+  // before timingSafeEqual (which throws RangeError on length mismatch).
+  if (expectedBuf.length !== actualBuf.length) {
     return false;
   }
 
-  return timingSafeEqual(
-    Buffer.from(expected, 'hex'),
-    Buffer.from(actual, 'hex'),
-  );
+  return timingSafeEqual(expectedBuf, actualBuf);
 }
 
 /**

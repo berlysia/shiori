@@ -1,5 +1,9 @@
 import { createServer } from './server.ts';
+import { ResolveQueue } from './executor.ts';
 import type { DaemonConfig } from './types.ts';
+
+/** Default maximum queue depth for serialized resolve tasks. */
+const DEFAULT_MAX_QUEUE_DEPTH = 10;
 
 /** Resolve daemon configuration from environment variables. */
 function loadConfig(): DaemonConfig {
@@ -15,21 +19,29 @@ function loadConfig(): DaemonConfig {
     cwd: process.env.SHIORI_CWD || process.cwd(),
     shioriPath: process.env.SHIORI_PATH || 'shiori',
     timeout: (Number(process.env.SHIORI_TIMEOUT) || 60) * 1000,
+    maxQueueDepth:
+      Number(process.env.SHIORI_MAX_QUEUE_DEPTH) || DEFAULT_MAX_QUEUE_DEPTH,
   };
 }
 
 const config = loadConfig();
-const server = createServer(config);
+const queue = new ResolveQueue(config.maxQueueDepth);
+const server = createServer(config, queue);
 
 server.listen(config.port, () => {
   console.log(`[shiori-daemon] listening on port ${config.port}`);
   console.log(`[shiori-daemon] cwd: ${config.cwd}`);
+  console.log(`[shiori-daemon] max queue depth: ${config.maxQueueDepth}`);
 });
 
-// Graceful shutdown
+// Graceful shutdown — drain pending resolve tasks before closing
 function shutdown(signal: string): void {
   console.log(`[shiori-daemon] ${signal} received, shutting down...`);
-  server.close(() => {
+
+  // Stop accepting new connections
+  server.close(async () => {
+    // Wait for queued resolve tasks to finish
+    await queue.drain();
     console.log('[shiori-daemon] server closed');
     process.exit(0);
   });

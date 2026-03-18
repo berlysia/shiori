@@ -41,6 +41,18 @@ describe('verifyWebhookSignature', () => {
       false,
     );
   });
+
+  it('rejects malformed hex without throwing RangeError', () => {
+    // Invalid hex characters cause Buffer.from('hex') to produce a shorter buffer.
+    // This must return false, not throw RangeError from timingSafeEqual.
+    const malformedSig = 'sha256=' + 'zz'.repeat(32);
+    assert.equal(verifyWebhookSignature(payload, malformedSig, secret), false);
+  });
+
+  it('rejects truncated hex signature', () => {
+    // A signature with too few hex characters
+    assert.equal(verifyWebhookSignature(payload, 'sha256=abcd', secret), false);
+  });
 });
 
 describe('parseGitHubEvent', () => {
