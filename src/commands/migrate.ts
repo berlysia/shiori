@@ -2,8 +2,12 @@ import type {
   ShioriCandidate,
   Registry,
   RegistryEntry,
+  FileEditResult,
 } from '../core/types.ts';
 import { escapeRegex } from '../core/regex-utils.ts';
+
+// Re-export FileEditResult for backward compatibility
+export type { FileEditResult } from '../core/types.ts';
 
 /** Options for migrate planning */
 export interface MigrateOptions {
@@ -35,16 +39,6 @@ export interface MigrateResult {
   actions: MigrateAction[];
   /** Generated registry entries (keyed by ref) */
   registry: Registry;
-}
-
-/** Result of applying migrations to file content */
-export interface FileEditResult {
-  /** Updated file content */
-  content: string;
-  /** Number of lines modified */
-  modifiedLines: number;
-  /** Warnings (e.g. line too long) */
-  warnings: string[];
 }
 
 /**

@@ -1,13 +1,26 @@
 import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
-import { writeFileSync, chmodSync, unlinkSync, mkdirSync } from 'node:fs';
+import {
+  writeFileSync,
+  chmodSync,
+  unlinkSync,
+  mkdirSync,
+  readFileSync,
+  existsSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import { createServer } from '../src/server.ts';
 import { ResolveQueue } from '../src/executor.ts';
 import type { DaemonConfig } from '../src/types.ts';
 
 const SECRET = 'test-secret';
+
+function makeJournalPath(): string {
+  const dir = join(import.meta.dirname, 'fixtures');
+  mkdirSync(dir, { recursive: true });
+  return join(dir, `journal-srv-${process.pid}-${Date.now()}.jsonl`);
+}
 
 function makeConfig(overrides?: Partial<DaemonConfig>): DaemonConfig {
   return {
@@ -17,6 +30,7 @@ function makeConfig(overrides?: Partial<DaemonConfig>): DaemonConfig {
     shioriPath: 'echo', // will succeed and echo args
     timeout: 5000,
     maxQueueDepth: 10,
+    journalPath: makeJournalPath(),
     ...overrides,
   };
 }
@@ -245,5 +259,130 @@ describe('HTTP server', () => {
 
     const res = await fetch(`${srv.baseUrl}/unknown`);
     assert.equal(res.status, 404);
+  });
+
+  it('writes journal entry on successful resolve', async () => {
+    const journalPath = makeJournalPath();
+    const config = makeConfig({ journalPath });
+    const srv = await startServer(config);
+    servers.push(srv);
+
+    const body = JSON.stringify({
+      action: 'closed',
+      issue: { number: 77, title: 'Journal test' },
+      repository: { full_name: 'test/journal-repo' },
+    });
+    const res = await fetch(`${srv.baseUrl}/webhook`, {
+      method: 'POST',
+      headers: {
+        'x-hub-signature-256': sign(body),
+        'x-github-event': 'issues',
+      },
+      body,
+    });
+    assert.equal(res.status, 200);
+
+    // Verify journal file was created with correct entry
+    assert.equal(existsSync(journalPath), true);
+    const lines = readFileSync(journalPath, 'utf-8')
+      .split('\n')
+      .filter(Boolean);
+    assert.equal(lines.length, 1);
+    const entry = JSON.parse(lines[0]!) as Record<string, unknown>;
+    assert.equal(entry.event_type, 'issues.closed');
+    assert.equal(entry.repository, 'test/journal-repo');
+    assert.equal(entry.issue_number, 77);
+    assert.equal(entry.resolve_success, true);
+    // echo output is not ResolveJsonOutput, so totalActions cannot be extracted
+    assert.equal(entry.annotations_resolved_count, null);
+
+    // Clean up
+    unlinkSync(journalPath);
+  });
+
+  it('extracts annotations_resolved_count from ResolveJsonOutput', async () => {
+    const journalPath = makeJournalPath();
+    // Create a script that outputs ResolveJsonOutput-shaped JSON
+    const dir = join(import.meta.dirname, 'fixtures');
+    mkdirSync(dir, { recursive: true });
+    const scriptPath = join(dir, `json-srv-${process.pid}.sh`);
+    const jsonOutput = JSON.stringify({
+      meta: { command: 'resolve', mode: 'closed' },
+      data: { summary: { totalActions: 5, totalRefs: 2 } },
+    });
+    writeFileSync(scriptPath, `#!/bin/sh\necho '${jsonOutput}'\n`, {
+      mode: 0o755,
+    });
+    chmodSync(scriptPath, 0o755);
+
+    try {
+      const config = makeConfig({ shioriPath: scriptPath, journalPath });
+      const srv = await startServer(config);
+      servers.push(srv);
+
+      const body = JSON.stringify({
+        action: 'closed',
+        issue: { number: 55, title: 'Count test' },
+        repository: { full_name: 'test/count-repo' },
+      });
+      const res = await fetch(`${srv.baseUrl}/webhook`, {
+        method: 'POST',
+        headers: {
+          'x-hub-signature-256': sign(body),
+          'x-github-event': 'issues',
+        },
+        body,
+      });
+      assert.equal(res.status, 200);
+
+      const lines = readFileSync(journalPath, 'utf-8')
+        .split('\n')
+        .filter(Boolean);
+      assert.equal(lines.length, 1);
+      const entry = JSON.parse(lines[0]!) as Record<string, unknown>;
+      assert.equal(entry.annotations_resolved_count, 5);
+      assert.equal(entry.resolve_success, true);
+    } finally {
+      unlinkSync(scriptPath);
+      if (existsSync(journalPath)) unlinkSync(journalPath);
+    }
+  });
+
+  it('writes journal entry on failed resolve', async () => {
+    const journalPath = makeJournalPath();
+    const config = makeConfig({ shioriPath: 'false', journalPath });
+    const srv = await startServer(config);
+    servers.push(srv);
+
+    const body = JSON.stringify({
+      action: 'closed',
+      issue: { number: 88, title: 'Journal fail test' },
+      repository: { full_name: 'test/fail-repo' },
+    });
+    const res = await fetch(`${srv.baseUrl}/webhook`, {
+      method: 'POST',
+      headers: {
+        'x-hub-signature-256': sign(body),
+        'x-github-event': 'issues',
+      },
+      body,
+    });
+    assert.equal(res.status, 500);
+
+    // Verify journal file was created with failure entry
+    assert.equal(existsSync(journalPath), true);
+    const lines = readFileSync(journalPath, 'utf-8')
+      .split('\n')
+      .filter(Boolean);
+    assert.equal(lines.length, 1);
+    const entry = JSON.parse(lines[0]!) as Record<string, unknown>;
+    assert.equal(entry.event_type, 'issues.closed');
+    assert.equal(entry.repository, 'test/fail-repo');
+    assert.equal(entry.issue_number, 88);
+    assert.equal(entry.resolve_success, false);
+    assert.equal(entry.annotations_resolved_count, null);
+
+    // Clean up
+    unlinkSync(journalPath);
   });
 });

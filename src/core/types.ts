@@ -554,6 +554,80 @@ export interface AnnotateResult {
 
 // ── Health types (EP-0024) ───────────────────────────────────
 
+// ── Resolve types (promoted from commands/resolve.ts) ────────
+
+/** Line-level action for resolving an annotation */
+export interface ResolveAction {
+  /** Target ref */
+  ref: string;
+  /** Source file path (relative) */
+  file: string;
+  /** Line number in source file */
+  line: number;
+  /** Action type: remove annotation portion or entire line */
+  type: 'remove-annotation' | 'remove-line';
+  /** Original line content */
+  originalLine: string;
+  /** Modified line content (null = remove entire line) */
+  modifiedLine: string | null;
+}
+
+/** Info about an annotation skipped due to stale scan result */
+export interface SkippedAnnotation {
+  /** Source file path */
+  file: string;
+  /** Line number from scan result */
+  line: number;
+  /** Why it was skipped */
+  reason: string;
+}
+
+/** Result of resolve planning */
+export interface ResolveResult {
+  /** Source change actions */
+  actions: ResolveAction[];
+  /** Refs to remove from registry */
+  registryRemovals: string[];
+  /** Number of unique files affected */
+  filesAffected: number;
+  /** Annotations skipped due to stale scan data */
+  skipped: SkippedAnnotation[];
+}
+
+/** Per-ref result in bulk resolve */
+export interface BulkResolveRefEntry {
+  /** The ref that was resolved */
+  ref: string;
+  /** Resolve result for this ref */
+  result: ResolveResult;
+}
+
+/** Aggregated result of bulk resolve for multiple refs */
+export interface BulkResolveResult {
+  /** Per-ref results for preview */
+  perRef: BulkResolveRefEntry[];
+  /** All actions merged across refs — use this for apply to avoid line offset issues */
+  allActions: ResolveAction[];
+  /** All registry removals (deduplicated) */
+  allRegistryRemovals: string[];
+  /** Total unique files affected */
+  totalFilesAffected: number;
+  /** All skipped annotations */
+  allSkipped: SkippedAnnotation[];
+}
+
+// ── File edit types ──────────────────────────────────────────
+
+/** Result of applying edits to file content (shared by resolve/migrate) */
+export interface FileEditResult {
+  /** Updated file content */
+  content: string;
+  /** Number of lines modified */
+  modifiedLines: number;
+  /** Warnings (e.g. line too long) */
+  warnings: string[];
+}
+
 /** Health output format */
 export type HealthFormat = 'json' | 'summary';
 

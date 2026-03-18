@@ -1,4 +1,5 @@
-import type { BulkResolveResult } from '../commands/resolve.ts';
+import type { BulkResolveResult } from '../core/types.ts';
+import { VERSION } from '../core/version.ts';
 
 /** Output format for resolve --closed */
 export type ResolveOutputFormat = 'text' | 'json';
@@ -78,7 +79,7 @@ function formatResolveAsJson(
       mode: 'closed',
       applied,
       timestamp: new Date().toISOString(),
-      version: getVersion(),
+      version: VERSION,
     },
     data: {
       refs: bulkResult.perRef.map((entry) => ({
@@ -99,18 +100,4 @@ function formatResolveAsJson(
   };
 
   return JSON.stringify(output, null, 2);
-}
-
-/**
- * Get shiori version from package.json at build time.
- * Falls back to 'unknown' if not available.
- */
-function getVersion(): string {
-  try {
-    // Use dynamic import to avoid bundling issues; version is informational only
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    return '0.1.1'; // Hardcoded for now; will be replaced by build-time injection
-  } catch {
-    return 'unknown';
-  }
 }

@@ -4,14 +4,48 @@ import {
   resolveScanResultPath,
   type LoadScanResultOptions,
 } from './scan-result-loader.ts';
-import {
-  checkScanFreshness,
-  type ScanFreshnessResult,
-} from '../commands/resolve.ts';
+
+// ── Pure types and logic ─────────────────────────────────────
+
+/** Result of scan-result freshness check */
+export interface ScanFreshnessResult {
+  /** Whether the scan result is fresh enough */
+  fresh: boolean;
+  /** Source files that are newer than scan result */
+  staleFiles: string[];
+}
+
+/**
+ * Check if scan result is fresh relative to source files.
+ *
+ * Compares scan-result mtime against each source file's mtime.
+ * If any source file is newer than the scan result, the result is stale.
+ *
+ * Pure comparison logic — file stats must be provided by the caller.
+ */
+export function checkScanFreshness(
+  scanResultMtimeMs: number,
+  sourceFileMtimes: Map<string, number>,
+): ScanFreshnessResult {
+  const staleFiles: string[] = [];
+
+  for (const [file, mtimeMs] of sourceFileMtimes) {
+    if (mtimeMs > scanResultMtimeMs) {
+      staleFiles.push(file);
+    }
+  }
+
+  return {
+    fresh: staleFiles.length === 0,
+    staleFiles,
+  };
+}
+
+// ── I/O wrapper ──────────────────────────────────────────────
 
 /**
  * Result of scan-freshness I/O check.
- * Wraps the pure ScanFreshnessResult with an additional `skipped` flag
+ * Wraps the pure ScanFreshnessResult with an additional `checked` flag
  * for cases where the check could not be performed (e.g. stdin source).
  */
 export interface ScanFreshnessCheckResult {

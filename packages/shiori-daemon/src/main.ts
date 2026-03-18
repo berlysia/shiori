@@ -21,6 +21,7 @@ function loadConfig(): DaemonConfig {
     timeout: (Number(process.env.SHIORI_TIMEOUT) || 60) * 1000,
     maxQueueDepth:
       Number(process.env.SHIORI_MAX_QUEUE_DEPTH) || DEFAULT_MAX_QUEUE_DEPTH,
+    journalPath: process.env.SHIORI_JOURNAL_PATH || './shiori-events.jsonl',
   };
 }
 

@@ -18,6 +18,11 @@ function makeConfig(overrides?: Partial<DaemonConfig>): DaemonConfig {
     shioriPath: 'echo',
     timeout: 5000,
     maxQueueDepth: 10,
+    journalPath: join(
+      import.meta.dirname,
+      'fixtures',
+      `journal-exec-${process.pid}.jsonl`,
+    ),
     ...overrides,
   };
 }

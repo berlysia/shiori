@@ -1,7 +1,8 @@
 import * as http from 'node:http';
-import type { DaemonConfig } from './types.ts';
+import type { DaemonConfig, JournalEntry } from './types.ts';
 import { verifyWebhookSignature, parseGitHubEvent } from './webhook.ts';
 import { type ResolveQueue } from './executor.ts';
+import { appendEvent } from './journal.ts';
 
 /** Maximum request body size (1 MB). Prevents DoS via oversized payloads. */
 const MAX_BODY_BYTES = 1024 * 1024;
@@ -112,15 +113,34 @@ export function createServer(
           sendJson(res, 503, { error: 'queue full' });
         } else if (result.success) {
           console.log('[shiori-daemon] resolve completed successfully');
+          const parsed = tryParseJson(result.output);
+          const entry: JournalEntry = {
+            timestamp: new Date().toISOString(),
+            event_type: 'issues.closed',
+            repository: event.repository.full_name,
+            issue_number: event.issue.number,
+            resolve_success: true,
+            annotations_resolved_count: extractTotalActions(parsed),
+          };
+          appendEvent(config.journalPath, entry);
           sendJson(res, 200, {
             status: 'resolved',
-            output: tryParseJson(result.output),
+            output: parsed,
           });
         } else {
           // Log full details for operators; respond with sanitized error only
           console.error(
             `[shiori-daemon] resolve failed (exit ${result.exitCode}): ${result.output}`,
           );
+          const entry: JournalEntry = {
+            timestamp: new Date().toISOString(),
+            event_type: 'issues.closed',
+            repository: event.repository.full_name,
+            issue_number: event.issue.number,
+            resolve_success: false,
+            annotations_resolved_count: null,
+          };
+          appendEvent(config.journalPath, entry);
           sendJson(res, 500, { error: 'resolve failed' });
         }
       } catch (err) {
@@ -148,4 +168,36 @@ function tryParseJson(str: string): unknown {
   } catch {
     return str;
   }
+}
+
+/**
+ * Extract totalActions from resolve --closed --format json output.
+ *
+ * The output follows ResolveJsonOutput schema:
+ * `{ meta: {...}, data: { summary: { totalActions: number } } }`
+ *
+ * Returns null if the structure is not recognized (safe fallback).
+ */
+function extractTotalActions(parsed: unknown): number | null {
+  if (
+    typeof parsed === 'object' &&
+    parsed !== null &&
+    'data' in parsed &&
+    typeof (parsed as Record<string, unknown>).data === 'object'
+  ) {
+    const data = (parsed as Record<string, unknown>).data as Record<
+      string,
+      unknown
+    >;
+    if (
+      typeof data.summary === 'object' &&
+      data.summary !== null &&
+      'totalActions' in data.summary
+    ) {
+      const totalActions = (data.summary as Record<string, unknown>)
+        .totalActions;
+      return typeof totalActions === 'number' ? totalActions : null;
+    }
+  }
+  return null;
 }
