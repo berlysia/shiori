@@ -23,6 +23,7 @@ import { whyCommand } from './commands/why-cli.ts';
 import { triageCommand } from './commands/triage-cli.ts';
 import { annotateCommand } from './commands/annotate-cli.ts';
 import { weeklyReportCommand } from './commands/weekly-report-cli.ts';
+import { journalCommand } from './commands/journal-cli.ts';
 import { VERSION } from './core/version.ts';
 
 const main = define({
@@ -63,6 +64,7 @@ Workflow:
   shiori migrate                 Auto-migrate lint disable comments
   shiori watch                   Refresh scan result on each save
   shiori delta                   Compare scan results for PR review
+  shiori journal                 Browse CLI operation journal
   shiori check --fail-on ...     Enforce governance in CI
 
 Diagnostics:
@@ -111,6 +113,7 @@ try {
       triage: triageCommand,
       annotate: annotateCommand,
       'weekly-report': weeklyReportCommand,
+      journal: journalCommand,
     },
   });
 } catch (err) {
