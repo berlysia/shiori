@@ -280,6 +280,8 @@ export const watchCommand = define({
         const { registry: existingRegistry } = await loadMultiRegistry(
           registryPath,
           config.refPatterns,
+          undefined,
+          cwd,
         );
         const merged = initRegistry({
           records: result.annotations,
@@ -317,6 +319,8 @@ export const watchCommand = define({
         const { registry, duplicates, refOrigins } = await loadMultiRegistry(
           registryPath,
           config.refPatterns,
+          undefined,
+          cwd,
         );
 
         const reportResult = watchReport({
@@ -361,6 +365,8 @@ export const watchCommand = define({
         const { registry, duplicates, refOrigins } = await loadMultiRegistry(
           registryPath,
           config.refPatterns,
+          undefined,
+          cwd,
         );
 
         const verifyResult = verify({

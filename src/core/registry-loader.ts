@@ -53,6 +53,8 @@ export async function loadConfigAndRegistry(
   const { registry, errors, duplicates, refOrigins } = await loadMultiRegistry(
     registryPath,
     config.refPatterns,
+    undefined, // basePath: use default (dirname of registryPath)
+    options.cwd, // path boundary validation
   );
 
   return { config, registry, registryPath, errors, duplicates, refOrigins };

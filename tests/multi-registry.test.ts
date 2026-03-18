@@ -4,6 +4,7 @@ import { writeFile, mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { loadMultiRegistry } from '../src/core/registry.ts';
+import { PathBoundaryError } from '../src/core/path-boundary.ts';
 import {
   routeRegistryByPattern,
   initRegistry,
@@ -254,6 +255,100 @@ describe('loadMultiRegistry', () => {
 
     const result = await loadMultiRegistry(defaultPath, undefined);
     assert.equal(result.refOrigins.size, 0);
+  });
+
+  it('rejects pattern registryFile that escapes cwd boundary', async () => {
+    const projectDir = join(tmpDir, 'boundary-project');
+    const outsideDir = join(tmpDir, 'boundary-outside');
+    await mkdir(projectDir, { recursive: true });
+    await mkdir(outsideDir, { recursive: true });
+
+    const defaultPath = join(projectDir, 'registry.json');
+    const outsidePath = join(outsideDir, 'evil-registry.json');
+
+    await writeFile(
+      defaultPath,
+      JSON.stringify({ 'SUP-1': { reason: 'ok', target: 'all' } }),
+    );
+    await writeFile(
+      outsidePath,
+      JSON.stringify({ 'EVIL-1': { reason: 'evil', target: 'all' } }),
+    );
+
+    await assert.rejects(
+      () =>
+        loadMultiRegistry(
+          defaultPath,
+          [
+            {
+              match: 'EVIL:{id}',
+              registryFile: outsidePath,
+            },
+          ],
+          undefined,
+          projectDir,
+        ),
+      (err: unknown) => {
+        assert.ok(err instanceof PathBoundaryError);
+        return true;
+      },
+    );
+  });
+
+  it('accepts pattern registryFile within cwd boundary', async () => {
+    const projectDir = join(tmpDir, 'boundary-ok-project');
+    await mkdir(projectDir, { recursive: true });
+
+    const defaultPath = join(projectDir, 'registry.json');
+    const patternPath = join(projectDir, 'ns-registry.json');
+
+    await writeFile(
+      defaultPath,
+      JSON.stringify({ 'SUP-1': { reason: 'ok', target: 'all' } }),
+    );
+    await writeFile(
+      patternPath,
+      JSON.stringify({ 'NS:1': { reason: 'ns', target: 'src/' } }),
+    );
+
+    const result = await loadMultiRegistry(
+      defaultPath,
+      [
+        {
+          match: 'NS:{id}',
+          registryFile: patternPath,
+        },
+      ],
+      undefined,
+      projectDir,
+    );
+
+    assert.equal(Object.keys(result.registry).length, 2);
+    assert.equal(result.registry['NS:1']!.reason, 'ns');
+  });
+
+  it('skips boundary check when cwd is not provided', async () => {
+    const defaultPath = join(tmpDir, 'no-cwd-default.json');
+    const patternPath = join(tmpDir, 'no-cwd-pattern.json');
+
+    await writeFile(
+      defaultPath,
+      JSON.stringify({ 'SUP-1': { reason: 'default', target: 'all' } }),
+    );
+    await writeFile(
+      patternPath,
+      JSON.stringify({ 'NS:1': { reason: 'pattern', target: 'src/' } }),
+    );
+
+    // No cwd provided — should not throw even if paths cross directories
+    const result = await loadMultiRegistry(defaultPath, [
+      {
+        match: 'NS:{id}',
+        registryFile: patternPath,
+      },
+    ]);
+
+    assert.equal(Object.keys(result.registry).length, 2);
   });
 });
 

@@ -3,6 +3,7 @@ import { extname, resolve, dirname } from 'node:path';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
 import type { Registry, RegistryEntry } from './types.ts';
 import type { RefPatternConfig } from './ref-pattern.ts';
+import { assertWithinCwd } from './path-boundary.ts';
 
 /** Validation error for a registry entry */
 export interface RegistryValidationError {
@@ -154,11 +155,15 @@ export interface MultiRegistryLoadResult {
  * @param defaultRegistryPath - Path to the default registry file
  * @param patterns - Ref pattern configuration (may contain registryFile)
  * @param basePath - Base directory to resolve relative registryFile paths against
+ * @param cwd - Working directory for path boundary validation. When provided,
+ *              all pattern registryFile paths are validated to stay within cwd.
+ * @throws {PathBoundaryError} if a pattern registryFile resolves outside cwd
  */
 export async function loadMultiRegistry(
   defaultRegistryPath: string,
   patterns: RefPatternConfig[] | undefined,
   basePath?: string,
+  cwd?: string,
 ): Promise<MultiRegistryLoadResult> {
   const allErrors: RegistryValidationError[] = [];
   const duplicates: RegistryDuplicateWarning[] = [];
@@ -183,6 +188,12 @@ export async function loadMultiRegistry(
       if (!pattern.registryFile) continue;
 
       const patternPath = resolve(resolveBase, pattern.registryFile);
+
+      // Validate path boundary before reading (symmetric with saveRegistryRouted)
+      if (cwd) {
+        await assertWithinCwd(patternPath, cwd);
+      }
+
       if (loaded.has(patternPath)) continue;
       loaded.add(patternPath);
 

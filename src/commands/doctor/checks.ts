@@ -184,7 +184,12 @@ export async function checkRegistryWithConfig(
 
   // Try to load and validate the registry
   try {
-    const result = await loadMultiRegistry(registryPath, config.refPatterns);
+    const result = await loadMultiRegistry(
+      registryPath,
+      config.refPatterns,
+      undefined,
+      cwd,
+    );
     const entryCount = Object.keys(result.registry).length;
     const registryRefs = Object.keys(result.registry);
 
