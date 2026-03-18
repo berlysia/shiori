@@ -7,7 +7,7 @@
  * @see EP-0081 for design rationale
  */
 
-import { appendFileSync, mkdirSync } from 'node:fs';
+import { appendFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import type { CliJournalEntry, CliOperationType } from './types.ts';
 
@@ -84,4 +84,71 @@ export function recordJournalEvent(options: {
   };
 
   appendJournalEntry(journalPath, entry);
+}
+
+/**
+ * Validate that a parsed JSON value looks like a CliJournalEntry.
+ * Checks structural shape without relying on TypeScript narrowing.
+ */
+function isJournalEntryShape(value: unknown): value is CliJournalEntry {
+  if (typeof value !== 'object' || value === null) return false;
+  const obj = value as Record<string, unknown>;
+  return (
+    typeof obj.timestamp === 'string' &&
+    obj.source === 'cli' &&
+    typeof obj.event_type === 'string' &&
+    Array.isArray(obj.refs) &&
+    typeof obj.success === 'boolean'
+  );
+}
+
+/**
+ * Read and parse journal entries from a JSONL file.
+ *
+ * Skips malformed lines (logs count to onSkipped callback).
+ * Returns empty array if file does not exist or cannot be read.
+ *
+ * @param journalPath - Absolute path to journal.jsonl
+ * @param callbacks - Optional callbacks for diagnostics
+ * @returns Parsed journal entries (order matches file order)
+ */
+export function readJournalEntries(
+  journalPath: string,
+  callbacks?: {
+    onReadError?: (message: string) => void;
+    onSkipped?: (count: number) => void;
+  },
+): CliJournalEntry[] {
+  let content: string;
+  try {
+    content = readFileSync(journalPath, 'utf-8');
+  } catch (err) {
+    callbacks?.onReadError?.(
+      `Cannot read journal file: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return [];
+  }
+
+  const lines = content.split('\n').filter((line) => line.trim().length > 0);
+  const entries: CliJournalEntry[] = [];
+  let skipped = 0;
+
+  for (const line of lines) {
+    try {
+      const parsed: unknown = JSON.parse(line);
+      if (isJournalEntryShape(parsed)) {
+        entries.push(parsed);
+      } else {
+        skipped++;
+      }
+    } catch {
+      skipped++;
+    }
+  }
+
+  if (skipped > 0) {
+    callbacks?.onSkipped?.(skipped);
+  }
+
+  return entries;
 }

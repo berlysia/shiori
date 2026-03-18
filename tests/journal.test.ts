@@ -1,11 +1,18 @@
 import { describe, it, afterEach, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, existsSync, rmSync, mkdirSync } from 'node:fs';
+import {
+  readFileSync,
+  writeFileSync,
+  existsSync,
+  rmSync,
+  mkdirSync,
+} from 'node:fs';
 import { join } from 'node:path';
 import {
   appendJournalEntry,
   resolveJournalPath,
   recordJournalEvent,
+  readJournalEntries,
   DEFAULT_JOURNAL_PATH,
   JOURNAL_PATH_ENV,
   JOURNAL_DISABLE_ENV,
@@ -328,5 +335,113 @@ describe('recordJournalEvent', () => {
     );
     assert.equal(parsed.entries_added, null);
     assert.equal(parsed.entries_removed, null);
+  });
+});
+
+describe('readJournalEntries', () => {
+  const dirs: string[] = [];
+
+  afterEach(() => {
+    for (const d of dirs) {
+      if (existsSync(d)) rmSync(d, { recursive: true });
+    }
+    dirs.length = 0;
+  });
+
+  it('reads valid JSONL entries', () => {
+    const dir = makeTmpDir();
+    dirs.push(dir);
+    const path = join(dir, 'journal.jsonl');
+    const entry1 = makeEntry({ refs: ['SUP-001'] });
+    const entry2 = makeEntry({ refs: ['SUP-002'] });
+    appendJournalEntry(path, entry1);
+    appendJournalEntry(path, entry2);
+
+    const entries = readJournalEntries(path);
+
+    assert.equal(entries.length, 2);
+    assert.deepEqual(entries[0]!.refs, ['SUP-001']);
+    assert.deepEqual(entries[1]!.refs, ['SUP-002']);
+  });
+
+  it('returns empty array for non-existent file', () => {
+    const entries = readJournalEntries('/non/existent/journal.jsonl');
+
+    assert.equal(entries.length, 0);
+  });
+
+  it('calls onReadError for non-existent file', () => {
+    let errorMsg = '';
+    readJournalEntries('/non/existent/journal.jsonl', {
+      onReadError: (msg) => {
+        errorMsg = msg;
+      },
+    });
+
+    assert.ok(errorMsg.includes('Cannot read journal file'));
+  });
+
+  it('skips malformed lines', () => {
+    const dir = makeTmpDir();
+    dirs.push(dir);
+    const path = join(dir, 'journal.jsonl');
+    const entry = makeEntry();
+    appendJournalEntry(path, entry);
+    // Append a malformed line
+    writeFileSync(path, readFileSync(path, 'utf-8') + 'not valid json\n');
+
+    const entries = readJournalEntries(path);
+
+    assert.equal(entries.length, 1);
+  });
+
+  it('calls onSkipped for malformed lines', () => {
+    const dir = makeTmpDir();
+    dirs.push(dir);
+    const path = join(dir, 'journal.jsonl');
+    writeFileSync(path, 'invalid1\ninvalid2\n');
+
+    let skippedCount = 0;
+    readJournalEntries(path, {
+      onSkipped: (count) => {
+        skippedCount = count;
+      },
+    });
+
+    assert.equal(skippedCount, 2);
+  });
+
+  it('skips entries with wrong shape (missing source field)', () => {
+    const dir = makeTmpDir();
+    dirs.push(dir);
+    const path = join(dir, 'journal.jsonl');
+    // Valid JSON but not a CliJournalEntry shape
+    writeFileSync(path, '{"timestamp":"2026-01-01","event_type":"test"}\n');
+
+    const entries = readJournalEntries(path);
+
+    assert.equal(entries.length, 0);
+  });
+
+  it('handles empty file', () => {
+    const dir = makeTmpDir();
+    dirs.push(dir);
+    const path = join(dir, 'journal.jsonl');
+    writeFileSync(path, '');
+
+    const entries = readJournalEntries(path);
+
+    assert.equal(entries.length, 0);
+  });
+
+  it('handles file with only whitespace lines', () => {
+    const dir = makeTmpDir();
+    dirs.push(dir);
+    const path = join(dir, 'journal.jsonl');
+    writeFileSync(path, '\n\n  \n');
+
+    const entries = readJournalEntries(path);
+
+    assert.equal(entries.length, 0);
   });
 });

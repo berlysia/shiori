@@ -2,7 +2,16 @@ import { define } from 'gunshi';
 import { readdir, readFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { computeTrend, formatTrend } from './trend.ts';
-import type { ReportResult, TrendFormat } from '../core/types.ts';
+import {
+  computeJournalVelocity,
+  formatJournalVelocity,
+} from './journal-velocity.ts';
+import { readJournalEntries, resolveJournalPath } from '../core/journal.ts';
+import type {
+  ReportResult,
+  TrendFormat,
+  VelocityBucket,
+} from '../core/types.ts';
 import { createFormatValidator } from '../core/cli-validation.ts';
 import { writeOutput } from '../core/cli-output.ts';
 import { trendArrow } from '../core/emoji.ts';
@@ -14,10 +23,16 @@ const validateTrendFormat = createFormatValidator<TrendFormat>([
   'spark',
 ] as const);
 
+const VALID_BUCKETS: readonly VelocityBucket[] = [
+  'hour',
+  'day',
+  'week',
+] as const;
+
 export const trendCommand = define({
   name: 'trend',
   description:
-    'Compare governance scores over time from historical report JSON files',
+    'Compare governance scores over time from historical report JSON files or journal',
   examples: `  # Analyze trend from a directory of report JSONs
   shiori trend --history ./reports/
 
@@ -33,6 +48,15 @@ export const trendCommand = define({
   # Compact sparkline for terminal dashboards
   shiori trend --history ./reports/ --format spark
 
+  # Velocity trend from journal (daily buckets)
+  shiori trend --from-journal
+
+  # Velocity trend with hourly granularity
+  shiori trend --from-journal --bucket hour
+
+  # Velocity trend with weekly granularity, last 4 weeks
+  shiori trend --from-journal --bucket week --last 4
+
   # CI recipe: save report, then compare trend
   shiori report -f json -o ./reports/$(date +%Y%m%dT%H%M%S).json
   shiori trend --history ./reports/ --last 10`,
@@ -43,7 +67,19 @@ export const trendCommand = define({
       short: 'H',
       description:
         'Directory containing ReportResult JSON files (from "shiori report -f json -o <path>")',
-      required: true,
+    },
+    fromJournal: {
+      type: 'boolean',
+      short: 'j',
+      description:
+        'Compute velocity trend from CLI operation journal instead of report history',
+      toKebab: true,
+    },
+    bucket: {
+      type: 'string',
+      short: 'b',
+      description:
+        'Time bucket granularity for journal velocity: hour, day, week (default: day). Only used with --from-journal',
     },
     last: {
       type: 'string',
@@ -69,9 +105,23 @@ export const trendCommand = define({
   },
   run: async (ctx) => {
     const cwd = ctx.values.cwd ?? process.cwd();
+    const fromJournal = ctx.values.fromJournal === true;
+    const hasHistory = ctx.values.history !== undefined;
 
-    if (!ctx.values.history) {
-      console.error('Error: --history is required');
+    // Mutual exclusion: --history and --from-journal cannot be used together
+    if (fromJournal && hasHistory) {
+      console.error(
+        'Error: --from-journal and --history are mutually exclusive',
+      );
+      process.exitCode = 1;
+      return;
+    }
+
+    // At least one data source is required
+    if (!fromJournal && !hasHistory) {
+      console.error(
+        'Error: Either --history <dir> or --from-journal is required',
+      );
       process.exitCode = 1;
       return;
     }
@@ -93,8 +143,72 @@ export const trendCommand = define({
       }
     }
 
+    // ── Journal velocity path ──────────────────────────────────
+    if (fromJournal) {
+      // Validate --bucket
+      let bucket: VelocityBucket = 'day';
+      if (ctx.values.bucket !== undefined) {
+        if (!VALID_BUCKETS.includes(ctx.values.bucket as VelocityBucket)) {
+          console.error(
+            `Error: Invalid --bucket value "${ctx.values.bucket}". Valid values: ${VALID_BUCKETS.join(', ')}`,
+          );
+          process.exitCode = 1;
+          return;
+        }
+        bucket = ctx.values.bucket as VelocityBucket;
+      }
+
+      // Resolve journal path
+      const journalPath = resolveJournalPath(cwd);
+      if (!journalPath) {
+        console.error(
+          'Error: Journal is disabled (SHIORI_JOURNAL_DISABLE is set)',
+        );
+        process.exitCode = 1;
+        return;
+      }
+
+      // Read journal entries
+      const entries = readJournalEntries(journalPath, {
+        onReadError: (msg) => console.error(`Error: ${msg}`),
+        onSkipped: (count) =>
+          console.error(`Skipped ${count} malformed journal line(s)`),
+      });
+
+      if (entries.length === 0) {
+        console.error('Error: No valid journal entries found');
+        process.exitCode = 1;
+        return;
+      }
+
+      console.error(
+        `Loaded ${entries.length} journal entry/entries from ${journalPath}`,
+      );
+
+      // Compute velocity
+      const result = computeJournalVelocity(entries, { bucket, last });
+      const output = formatJournalVelocity(result, format);
+
+      // Write output
+      const written = await writeOutput(output, {
+        outputPath: ctx.values.output,
+        cwd,
+        label: 'Velocity report',
+      });
+      if (!written) return;
+
+      // Log summary to stderr
+      const { summary } = result;
+      const sign = summary.totalNetChange >= 0 ? '+' : '';
+      console.error(
+        `Velocity: ${summary.totalOperations} ops, ${summary.successRate}% OK, net ${sign}${summary.totalNetChange} (${summary.direction}, ${summary.count} buckets)`,
+      );
+      return;
+    }
+
+    // ── Report history path (existing behavior) ────────────────
     // Load report files from history directory
-    const historyDir = resolve(cwd, ctx.values.history);
+    const historyDir = resolve(cwd, ctx.values.history!);
     let files: string[];
     try {
       const entries = await readdir(historyDir);

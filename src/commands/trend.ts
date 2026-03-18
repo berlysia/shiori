@@ -24,19 +24,20 @@ export function extractTrendPoint(report: ReportResult): TrendPoint {
 }
 
 /**
- * Compute a governance score trend from an array of ReportResult JSON objects.
+ * Compute TrendResult from pre-extracted TrendPoints.
  *
  * - Sorts by timestamp (oldest first)
  * - Deduplicates by timestamp (keeps first occurrence)
  * - Applies --last N limit after sorting
  *
+ * Shared computation core for both report-based and journal-based trend paths.
  * Pure function — no I/O.
  */
-export function computeTrend(
-  reports: ReportResult[],
+export function computeTrendFromPoints(
+  rawPoints: TrendPoint[],
   options?: { last?: number },
 ): TrendResult {
-  if (reports.length === 0) {
+  if (rawPoints.length === 0) {
     return {
       points: [],
       summary: {
@@ -52,10 +53,10 @@ export function computeTrend(
     };
   }
 
-  // Extract and sort by timestamp ascending (oldest first)
-  let points = reports
-    .map(extractTrendPoint)
-    .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+  // Sort by timestamp ascending (oldest first)
+  let points = [...rawPoints].sort((a, b) =>
+    a.timestamp.localeCompare(b.timestamp),
+  );
 
   // Deduplicate by timestamp (keep first occurrence)
   const seen = new Set<string>();
@@ -92,6 +93,20 @@ export function computeTrend(
       maxScore: Math.max(...scores),
     },
   };
+}
+
+/**
+ * Compute a governance score trend from an array of ReportResult JSON objects.
+ *
+ * Extracts TrendPoints from reports, then delegates to computeTrendFromPoints().
+ * Pure function — no I/O.
+ */
+export function computeTrend(
+  reports: ReportResult[],
+  options?: { last?: number },
+): TrendResult {
+  const points = reports.map(extractTrendPoint);
+  return computeTrendFromPoints(points, options);
 }
 
 /**

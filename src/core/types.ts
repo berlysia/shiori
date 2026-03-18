@@ -662,6 +662,62 @@ export interface CliJournalEntry {
   entries_removed: number | null;
 }
 
+// ── Journal Velocity types (EP-0080) ─────────────────────────
+
+/** Time bucket granularity for journal velocity aggregation */
+export type VelocityBucket = 'hour' | 'day' | 'week';
+
+/**
+ * A single data point in a journal-derived velocity trend.
+ *
+ * Unlike TrendPoint (which captures governance state snapshots),
+ * JournalVelocityPoint captures operation flow rates per time bucket.
+ */
+export interface JournalVelocityPoint {
+  /** ISO 8601 bucket start timestamp (truncated to bucket boundary) */
+  bucket: string;
+  /** Total operations in this bucket */
+  operations: number;
+  /** Successful operations */
+  successes: number;
+  /** Failed operations */
+  failures: number;
+  /** Total entries added across all operations in this bucket */
+  entriesAdded: number;
+  /** Total entries removed across all operations in this bucket */
+  entriesRemoved: number;
+  /** Net change: entriesAdded - entriesRemoved */
+  netChange: number;
+  /** Unique refs touched in this bucket */
+  refsCount: number;
+}
+
+/** Velocity direction derived from net change trend */
+export type VelocityDirection = 'growing' | 'shrinking' | 'neutral';
+
+/** Result of computing a journal velocity trend */
+export interface JournalVelocityResult {
+  /** Ordered data points (oldest first) */
+  points: JournalVelocityPoint[];
+  /** Summary of the velocity trend */
+  summary: {
+    /** Number of buckets */
+    count: number;
+    /** Oldest bucket */
+    oldest: string;
+    /** Newest bucket */
+    newest: string;
+    /** Total operations across all buckets */
+    totalOperations: number;
+    /** Overall success rate (0-100) */
+    successRate: number;
+    /** Net change across all buckets */
+    totalNetChange: number;
+    /** Direction: growing (net positive), shrinking (net negative), neutral */
+    direction: VelocityDirection;
+  };
+}
+
 /** Health output format */
 export type HealthFormat = 'json' | 'summary';
 

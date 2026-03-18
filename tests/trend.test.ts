@@ -4,6 +4,7 @@ import type { ReportResult, TrendResult } from '../src/core/types.ts';
 import {
   extractTrendPoint,
   computeTrend,
+  computeTrendFromPoints,
   formatTrend,
   formatTrendAsMarkdown,
   formatTrendAsCsv,
@@ -610,5 +611,90 @@ describe('formatTrendAsSpark', () => {
     const viaRouter = formatTrend(result, 'spark');
 
     assert.equal(viaRouter, viaSpark);
+  });
+});
+
+describe('computeTrendFromPoints', () => {
+  it('returns empty result for empty input', () => {
+    const result = computeTrendFromPoints([]);
+
+    assert.equal(result.points.length, 0);
+    assert.equal(result.summary.count, 0);
+    assert.equal(result.summary.direction, 'stable');
+  });
+
+  it('works with pre-extracted TrendPoints', () => {
+    const points = [
+      {
+        timestamp: '2026-02-01T00:00:00.000Z',
+        score: 90,
+        level: 'healthy' as const,
+        issues: 1,
+        annotations: 10,
+        candidates: 2,
+        registryEntries: 8,
+      },
+      {
+        timestamp: '2026-01-01T00:00:00.000Z',
+        score: 70,
+        level: 'warning' as const,
+        issues: 5,
+        annotations: 8,
+        candidates: 4,
+        registryEntries: 6,
+      },
+    ];
+
+    const result = computeTrendFromPoints(points);
+
+    assert.equal(result.points.length, 2);
+    // Sorted oldest first
+    assert.equal(result.points[0]!.timestamp, '2026-01-01T00:00:00.000Z');
+    assert.equal(result.points[1]!.timestamp, '2026-02-01T00:00:00.000Z');
+    assert.equal(result.summary.direction, 'improving');
+    assert.equal(result.summary.scoreChange, 20);
+  });
+
+  it('produces same result as computeTrend for equivalent input', () => {
+    const reports = [
+      makeReportResult({ timestamp: '2026-01-01T00:00:00.000Z', score: 60 }),
+      makeReportResult({ timestamp: '2026-02-01T00:00:00.000Z', score: 80 }),
+    ];
+
+    const viaTrend = computeTrend(reports);
+    const points = reports.map(extractTrendPoint);
+    const viaFromPoints = computeTrendFromPoints(points);
+
+    assert.deepEqual(viaTrend, viaFromPoints);
+  });
+
+  it('does not mutate input array', () => {
+    const points = [
+      {
+        timestamp: '2026-02-01T00:00:00.000Z',
+        score: 90,
+        level: 'healthy' as const,
+        issues: 0,
+        annotations: 5,
+        candidates: 1,
+        registryEntries: 4,
+      },
+      {
+        timestamp: '2026-01-01T00:00:00.000Z',
+        score: 70,
+        level: 'warning' as const,
+        issues: 3,
+        annotations: 5,
+        candidates: 2,
+        registryEntries: 4,
+      },
+    ];
+
+    const original = [...points];
+    computeTrendFromPoints(points);
+
+    // Input array order should not be changed
+    assert.equal(points[0]!.timestamp, original[0]!.timestamp);
+    assert.equal(points[1]!.timestamp, original[1]!.timestamp);
   });
 });
