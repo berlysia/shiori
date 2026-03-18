@@ -523,6 +523,21 @@ Score-based colors: green >=80 (healthy), yellow 50-79 (warning), red <50 (criti
 
 See [Governance Badge recipe](docs/recipes/governance-badge.md) for full setup with Gist token, scheduling, and troubleshooting.
 
+### Auto Resolve on Issue Close
+
+Automatically resolve annotations when their referenced GitHub Issue is closed. No daemon deployment required — runs entirely within GitHub Actions.
+
+```yaml
+on:
+  issues:
+    types: [closed]
+# → shiori scan && shiori resolve --closed --apply --yes
+```
+
+See [Auto Resolve on Issue Close recipe](docs/recipes/auto-resolve-on-issue-close.md) for the full workflow with Job Summary output, auto-commit, and daemon comparison guide.
+
+> **Tip:** For high-frequency issue processing or self-hosted environments, consider [shiori-daemon](packages/shiori-daemon/) as an alternative. Start with this Actions-based approach and migrate to the daemon if latency becomes a concern.
+
 ### Severity Mapping
 
 All issue types default to `warning`. Use `--fail-on` and `--warn-on` to control severity levels and CI exit codes:
