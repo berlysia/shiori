@@ -22,6 +22,7 @@ import { resolveCommand } from './commands/resolve-cli.ts';
 import { whyCommand } from './commands/why-cli.ts';
 import { triageCommand } from './commands/triage-cli.ts';
 import { annotateCommand } from './commands/annotate-cli.ts';
+import { weeklyReportCommand } from './commands/weekly-report-cli.ts';
 import { VERSION } from './core/version.ts';
 
 const main = define({
@@ -53,6 +54,7 @@ Workflow:
   shiori health                  Quick governance health summary
   shiori triage                  Prioritized action list by ref
   shiori report                  Generate governance health report
+  shiori weekly-report            Generate periodic governance report
   shiori trend                   Compare governance scores over time
   shiori update                  Add new refs to the registry
   shiori adopt                   Adopt existing lint disables into shiori
@@ -108,6 +110,7 @@ try {
       why: whyCommand,
       triage: triageCommand,
       annotate: annotateCommand,
+      'weekly-report': weeklyReportCommand,
     },
   });
 } catch (err) {

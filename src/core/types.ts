@@ -718,6 +718,105 @@ export interface JournalVelocityResult {
   };
 }
 
+// ── Weekly Report types (EP-0084) ────────────────────────────
+
+/** Report preset determines the data scope and time range */
+export type WeeklyReportPreset = 'weekly' | 'health' | 'custom';
+
+/** Output format for generated reports */
+export type WeeklyReportFormat = 'markdown' | 'html' | 'json';
+
+/**
+ * Options for the report generation pipeline.
+ */
+export interface WeeklyReportOptions {
+  /** Report preset (determines default time range and sections) */
+  preset: WeeklyReportPreset;
+  /** Output format */
+  format: WeeklyReportFormat;
+  /** Start date filter (ISO 8601 date string, inclusive) */
+  since?: string;
+  /** End date filter (ISO 8601 date string, inclusive) */
+  until?: string;
+  /** Output file path (stdout if omitted) */
+  output?: string;
+  /** Working directory */
+  cwd: string;
+}
+
+/**
+ * Collected raw data from journal, registry, and trend sources.
+ * Output of the DataCollector layer.
+ */
+export interface CollectedReportData {
+  /** Journal entries within the time range */
+  journalEntries: CliJournalEntry[];
+  /** Current registry snapshot */
+  registry: Registry;
+  /** Governance report snapshot */
+  reportResult: ReportResult;
+  /** Journal velocity data */
+  velocity: JournalVelocityResult;
+  /** Time range used for collection */
+  period: {
+    since: string;
+    until: string;
+  };
+}
+
+/**
+ * Activity summary metrics derived from journal data.
+ */
+export interface ActivitySummary {
+  /** Total operations in the period */
+  totalOperations: number;
+  /** Successful operations */
+  successfulOperations: number;
+  /** Failed operations */
+  failedOperations: number;
+  /** Success rate as percentage (0-100) */
+  successRate: number;
+  /** Net registry entry change */
+  netChange: number;
+  /** Unique refs touched */
+  uniqueRefs: string[];
+  /** Operations broken down by event type */
+  byEventType: Record<string, number>;
+}
+
+/**
+ * Analyzed report metrics.
+ * Output of the Analyzer layer.
+ */
+export interface AnalyzedReportMetrics {
+  /** Report generation timestamp */
+  timestamp: string;
+  /** Time period covered */
+  period: {
+    since: string;
+    until: string;
+  };
+  /** Activity summary from journal */
+  activity: ActivitySummary;
+  /** Current governance health snapshot */
+  health: {
+    level: HealthLevel;
+    score: number;
+    summary: string;
+  };
+  /** Registry overview */
+  registryOverview: {
+    totalEntries: number;
+    totalAnnotations: number;
+    totalCandidates: number;
+    totalIssues: number;
+  };
+  /** Key insights from governance report */
+  insights: ReportInsight[];
+  /** Velocity summary */
+  velocity: JournalVelocityResult['summary'];
+}
+
 /** Health output format */
 export type HealthFormat = 'json' | 'summary';
 
