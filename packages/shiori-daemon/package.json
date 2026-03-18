@@ -1,0 +1,26 @@
+{
+  "name": "@berlysia/shiori-daemon",
+  "version": "0.1.0",
+  "description": "GitHub webhook daemon for shiori — auto-resolve annotations on issue close",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/berlysia/shiori.git",
+    "directory": "packages/shiori-daemon"
+  },
+  "bin": {
+    "shiori-daemon": "./dist/src/main.js"
+  },
+  "files": [
+    "dist/src/"
+  ],
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=22.6.0"
+  }
+}
