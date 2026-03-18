@@ -135,6 +135,40 @@ describe('HTTP server', () => {
     assert.equal(json.error, 'payload too large');
   });
 
+  it('POST /webhook returns sanitized error on resolve failure', async () => {
+    // Use a command that always fails — "false" exits with code 1
+    const srv = await startServer(makeConfig({ shioriPath: 'false' }));
+    servers.push(srv);
+
+    const body = JSON.stringify({
+      action: 'closed',
+      issue: { number: 1, title: 'Fail test' },
+      repository: { full_name: 'test/repo' },
+    });
+    const res = await fetch(`${srv.baseUrl}/webhook`, {
+      method: 'POST',
+      headers: {
+        'x-hub-signature-256': sign(body),
+        'x-github-event': 'issues',
+      },
+      body,
+    });
+    assert.equal(res.status, 500);
+    const json = (await res.json()) as Record<string, unknown>;
+    assert.equal(json.error, 'resolve failed');
+    // Sanitized: no exitCode or output leaked to the response
+    assert.equal(
+      'exitCode' in json,
+      false,
+      'exitCode must not be in error response',
+    );
+    assert.equal(
+      'output' in json,
+      false,
+      'output must not be in error response',
+    );
+  });
+
   it('returns 404 for unknown routes', async () => {
     const srv = await startServer(makeConfig());
     servers.push(srv);

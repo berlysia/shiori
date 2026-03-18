@@ -35,6 +35,12 @@ jobs:
         if: matrix.node-version == 22
       - run: pnpm test
         if: matrix.node-version == 22
+      - name: shiori-daemon test
+        if: matrix.node-version == 22
+        run: pnpm --filter @berlysia/shiori-daemon test
+      - name: shiori-daemon typecheck
+        if: matrix.node-version == 22
+        run: pnpm --filter @berlysia/shiori-daemon typecheck
       - run: pnpm build
       - run: node dist/src/cli.js --help
 

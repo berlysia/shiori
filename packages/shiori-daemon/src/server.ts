@@ -112,14 +112,11 @@ export function createServer(config: DaemonConfig): http.Server {
             output: tryParseJson(result.output),
           });
         } else {
+          // Log full details for operators; respond with sanitized error only
           console.error(
             `[shiori-daemon] resolve failed (exit ${result.exitCode}): ${result.output}`,
           );
-          sendJson(res, 500, {
-            error: 'resolve failed',
-            exitCode: result.exitCode,
-            output: result.output,
-          });
+          sendJson(res, 500, { error: 'resolve failed' });
         }
       } catch (err) {
         if (err instanceof BodyTooLargeError) {
