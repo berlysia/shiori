@@ -11,3 +11,5 @@ scan:
     - '**/.config/**'
     # Project-specific: template string literals contain shiori: examples
     - '**/templates/**'
+    # Avoid pnpm store circular symlinks under .tmp (berlysia env-specific)
+    - '**/.tmp/**'
