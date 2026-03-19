@@ -1,22 +1,20 @@
-import { define } from 'gunshi';
-import { verify, formatActionHints } from './verify.ts';
-import { formatVerifyOutput } from '../formatters/index.ts';
-import {
-  parseAndValidateIssueTypes,
-  validateOutputFormat,
-} from '../core/cli-validation.ts';
-import { writeOutput } from '../core/cli-output.ts';
+import { define } from "gunshi";
+import { verify, formatActionHints } from "./verify.ts";
+import { formatVerifyOutput } from "../formatters/index.ts";
+import { parseAndValidateIssueTypes, validateOutputFormat } from "../core/cli-validation.ts";
+import { writeOutput } from "../core/cli-output.ts";
 import {
   createBaseContext,
   withRegistry,
   withScanResult,
   resolveExpiringThreshold,
-} from '../core/cli-context.ts';
-import { resolveRefStatusMap } from '../core/ref-status-providers/index.ts';
+} from "../core/cli-context.ts";
+import { resolveRefStatusMap } from "../core/ref-status-providers/index.ts";
+import { ExitCode } from "../core/exit-codes.ts";
 
 export const verifyCommand = define({
-  name: 'verify',
-  description: 'Verify annotations against the registry',
+  name: "verify",
+  description: "Verify annotations against the registry",
   examples: `  # Verify with auto-detected scan result and registry
   shiori verify --fail-on missing-in-registry,expired
 
@@ -31,69 +29,67 @@ export const verifyCommand = define({
   rendering: { header: null },
   args: {
     scan: {
-      type: 'string',
-      short: 's',
-      description:
-        'Path to scan result JSON (default: .config/shiori/scan-result.json or stdin)',
+      type: "string",
+      short: "s",
+      description: "Path to scan result JSON (default: .config/shiori/scan-result.json or stdin)",
     },
     registry: {
-      type: 'string',
-      short: 'r',
+      type: "string",
+      short: "r",
       description:
-        'Path to registry file (auto-detected from config or .config/shiori/registry.json)',
+        "Path to registry file (auto-detected from config or .config/shiori/registry.json)",
     },
     format: {
-      type: 'string',
-      short: 'f',
+      type: "string",
+      short: "f",
       description:
         'Output format: "json", "markdown", "sarif", "summary", "jsonl", "diagnostic". Default: "json"',
-      default: 'json',
+      default: "json",
     },
     failOn: {
-      type: 'string',
+      type: "string",
       toKebab: true,
       description:
         'Issue types to fail on (comma-separated). Example: "missing-in-registry,expired"',
     },
     warnOn: {
-      type: 'string',
+      type: "string",
       toKebab: true,
-      description:
-        'Issue types to warn on (comma-separated). Example: "unused-in-source"',
+      description: 'Issue types to warn on (comma-separated). Example: "unused-in-source"',
     },
     output: {
-      type: 'string',
-      short: 'o',
-      description: 'Output file path. If omitted, writes to stdout',
+      type: "string",
+      short: "o",
+      description: "Output file path. If omitted, writes to stdout",
     },
     cwd: {
-      type: 'string',
-      description: 'Working directory. Default: process.cwd()',
+      type: "string",
+      description: "Working directory. Default: process.cwd()",
     },
     config: {
-      type: 'string',
-      short: 'c',
+      type: "string",
+      short: "c",
       description:
-        'Path to config directory (YAML/JSON auto-detected). Default: <cwd>/.config/shiori',
+        "Path to config directory (YAML/JSON auto-detected). Default: <cwd>/.config/shiori",
     },
     expiringThreshold: {
-      type: 'string',
+      type: "string",
       toKebab: true,
       description:
-        'Days before expiration to trigger expiring-soon warning. Overrides config. Default: 14',
+        "Days before expiration to trigger expiring-soon warning. Overrides config. Default: 14",
     },
     refStatusCommand: {
-      type: 'string',
+      type: "string",
       toKebab: true,
       description:
-        'External command to check ref statuses. Receives refs on stdin (newline-delimited), returns JSONL with {ref, status} on stdout. Note: command path must not contain spaces',
+        "External command to check ref statuses. Receives refs on stdin (newline-delimited), returns JSONL with {ref, status} on stdout. Note: command path must not contain spaces",
     },
   },
   run: async (ctx) => {
     // Validate options early
-    const failOn = parseAndValidateIssueTypes(ctx.values.failOn, '--fail-on');
+    const failOn = parseAndValidateIssueTypes(ctx.values.failOn, "--fail-on");
     if (failOn === null) return;
-    const warnOn = parseAndValidateIssueTypes(ctx.values.warnOn, '--warn-on');
+    const warnOn = parseAndValidateIssueTypes(ctx.values.warnOn, "--warn-on");
     if (warnOn === null) return;
     const format = validateOutputFormat(ctx.values.format);
     if (format === null) return;
@@ -143,7 +139,7 @@ export const verifyCommand = define({
     const written = await writeOutput(output, {
       outputPath: ctx.values.output,
       cwd: base.cwd,
-      label: 'Report',
+      label: "Report",
     });
     if (!written) return;
 
@@ -152,7 +148,7 @@ export const verifyCommand = define({
     }
 
     if (result.summary.errors > 0) {
-      process.exitCode = 1;
+      process.exitCode = ExitCode.GOVERNANCE_VIOLATION;
     }
   },
 });

@@ -8,6 +8,7 @@ import { parseAndValidateIssueTypes, createFormatValidator } from "../core/cli-v
 import { DEFAULT_SCAN_PATTERNS, DEFAULT_SCAN_IGNORE } from "../core/scan-defaults.ts";
 import { writeOutput } from "../core/cli-output.ts";
 import { resolveExpiringThreshold } from "../core/cli-context.ts";
+import { ExitCode } from "../core/exit-codes.ts";
 
 const validateTriageFormat = createFormatValidator<TriageFormat>(
   ["json", "markdown"] as const,
@@ -203,7 +204,7 @@ export const triageCommand = define({
 
     // Exit code: fail when --fail-on issues produce errors
     if (verifyResult.summary.errors > 0) {
-      process.exitCode = 1;
+      process.exitCode = ExitCode.GOVERNANCE_VIOLATION;
     }
   },
 });

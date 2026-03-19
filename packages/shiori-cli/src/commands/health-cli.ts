@@ -23,6 +23,7 @@ import {
 } from "../core/cli-context.ts";
 import { initRegistry } from "./registry-generator.ts";
 import { recordJournalEvent } from "../core/journal.ts";
+import { ExitCode } from "../core/exit-codes.ts";
 import { planFix, formatFixPreview, formatFixResult, type FixApplyResult } from "./health-fix.ts";
 
 const validateHealthFormat = createFormatValidator<HealthFormat>(
@@ -398,7 +399,7 @@ export const healthCommand = define({
       : false;
 
     if (hasIssueFailure || hasLevelFailure) {
-      process.exitCode = 1;
+      process.exitCode = ExitCode.GOVERNANCE_VIOLATION;
     }
   },
 });

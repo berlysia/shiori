@@ -49,9 +49,21 @@ export const ExitCode = {
 
 Phase 1 では定数の定義とポリシー宣言のみを行い、既存の `process.exitCode = 1` を段階的に定数に置き換える作業は Phase 2 とする。
 
-### Phase 2: 段階的適用（将来）
+### Phase 2: 段階的適用
 
-既存コマンドの `process.exitCode = 1` を `process.exitCode = ExitCode.GOVERNANCE_VIOLATION` 等に置き換え。
+Phase 2 は2段階で進める:
+
+**Phase 2a: governance trigger の定数化（値の変更なし）**
+
+governance カテゴリのコマンドにおいて、ガバナンス違反検出時の `process.exitCode = 1` を `process.exitCode = ExitCode.GOVERNANCE_VIOLATION`（値は同じ `1`）に置き換える。passthrough カテゴリのコマンドから誤って設定されていた `process.exitCode = 1` を除去する。この段階では exit code の実際の値は変わらないため、破壊的変更は発生しない。
+
+対象:
+- governance コマンド（verify, check, triage, health, report, doctor, delta, summary）の governance trigger → `ExitCode.GOVERNANCE_VIOLATION`
+- passthrough コマンド（watch, journal, guide）の不正な `process.exitCode = 1` → 除去
+
+**Phase 2b: usage/environment の exit code 分離（破壊的変更）**
+
+usage カテゴリのコマンドの `process.exitCode = 1` を `ExitCode.USAGE_ERROR`（値 `2`）に、環境エラーを `ExitCode.ENVIRONMENT_ERROR`（値 `3`）に置き換える。これは exit code の値が変わる破壊的変更のため、メジャーバージョンアップまたは明示的なオプトインメカニズムが必要。共有ユーティリティ（`cli-validation.ts`, `cli-output.ts`, `cli-context.ts`）内の `process.exitCode = 1` も呼び出し元のカテゴリに応じた定数に置き換える。
 
 ### コマンド別ポリシー
 
@@ -80,6 +92,9 @@ Phase 1 では定数の定義とポリシー宣言のみを行い、既存の `p
 | weekly-report | output failures | usage |
 | journal | (none — query only) | passthrough |
 | docs | (none — display only) | passthrough |
+| summary | `summary.errors > 0` OR health level threshold | governance |
+| aggregate | validation failures, missing input files | usage |
+| guide | (none — interactive navigator) | passthrough |
 
 ## Consequences
 
@@ -91,7 +106,7 @@ Phase 1 では定数の定義とポリシー宣言のみを行い、既存の `p
 
 ### Negative
 
-- 既存の `process.exitCode = 1` を変更する際に破壊的変更のリスク（Phase 2 で対応）
+- 既存の `process.exitCode = 1` を変更する際に破壊的変更のリスク（Phase 2b で対応）
 - メタデータの維持コスト（新コマンド追加時にポリシー定義が必要）
 
 ### Neutral

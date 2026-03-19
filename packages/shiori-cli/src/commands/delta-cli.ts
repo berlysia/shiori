@@ -1,26 +1,20 @@
-import { define } from 'gunshi';
-import { resolve } from 'node:path';
-import { computeDelta, filterDelta } from './delta.ts';
-import type { ScanResult } from '../core/types.ts';
-import {
-  formatDeltaOutput,
-  type DeltaOutputFormat,
-} from '../formatters/index.ts';
-import { createFormatValidator } from '../core/cli-validation.ts';
-import { writeOutput } from '../core/cli-output.ts';
-import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
-import { loadScanResultFromFile } from '../core/scan-result-loader.ts';
-import { ScanResultNotFoundError } from '../core/errors.ts';
+import { define } from "gunshi";
+import { resolve } from "node:path";
+import { computeDelta, filterDelta } from "./delta.ts";
+import type { ScanResult } from "../core/types.ts";
+import { formatDeltaOutput, type DeltaOutputFormat } from "../formatters/index.ts";
+import { createFormatValidator } from "../core/cli-validation.ts";
+import { writeOutput } from "../core/cli-output.ts";
+import { assertWithinCwd, PathBoundaryError } from "../core/path-boundary.ts";
+import { loadScanResultFromFile } from "../core/scan-result-loader.ts";
+import { ScanResultNotFoundError } from "../core/errors.ts";
+import { ExitCode } from "../core/exit-codes.ts";
 
-const validateDeltaFormat = createFormatValidator<DeltaOutputFormat>([
-  'json',
-  'markdown',
-] as const);
+const validateDeltaFormat = createFormatValidator<DeltaOutputFormat>(["json", "markdown"] as const);
 
 export const deltaCommand = define({
-  name: 'delta',
-  description:
-    'Compare two scan results and report annotation changes (added/removed)',
+  name: "delta",
+  description: "Compare two scan results and report annotation changes (added/removed)",
   examples: `  # Compare base vs head scan results
   shiori delta --base base-scan.json --head head-scan.json
 
@@ -41,60 +35,60 @@ export const deltaCommand = define({
   rendering: { header: null },
   args: {
     base: {
-      type: 'string',
-      short: 'b',
-      description: 'Path to the base (before) scan result JSON file',
+      type: "string",
+      short: "b",
+      description: "Path to the base (before) scan result JSON file",
       required: true,
     },
     head: {
-      type: 'string',
-      short: 'h',
-      description: 'Path to the head (after) scan result JSON file',
+      type: "string",
+      short: "h",
+      description: "Path to the head (after) scan result JSON file",
       required: true,
     },
     format: {
-      type: 'string',
-      short: 'f',
-      description: 'Output format: json, markdown (default: json)',
+      type: "string",
+      short: "f",
+      description: "Output format: json, markdown (default: json)",
     },
     maxIncrease: {
-      type: 'string',
+      type: "string",
       toKebab: true,
       description:
-        'Maximum allowed net increase in annotations. Exit with code 1 if exceeded. Use 0 to forbid any increase.',
+        "Maximum allowed net increase in annotations. Exit with code 1 if exceeded. Use 0 to forbid any increase.",
     },
     output: {
-      type: 'string',
-      short: 'o',
-      description: 'Output file path. If omitted, writes to stdout',
+      type: "string",
+      short: "o",
+      description: "Output file path. If omitted, writes to stdout",
     },
     addedOnly: {
-      type: 'boolean',
+      type: "boolean",
       toKebab: true,
       description:
-        'Show only added annotations in the output. Useful for PR reviews that focus on newly introduced lint suppressions.',
+        "Show only added annotations in the output. Useful for PR reviews that focus on newly introduced lint suppressions.",
     },
     baseFallbackEmpty: {
-      type: 'boolean',
+      type: "boolean",
       toKebab: true,
       description:
-        'If the base file does not exist, treat it as an empty scan result instead of failing. Useful for initial PRs with no prior baseline.',
+        "If the base file does not exist, treat it as an empty scan result instead of failing. Useful for initial PRs with no prior baseline.",
     },
     cwd: {
-      type: 'string',
-      description: 'Working directory. Default: process.cwd()',
+      type: "string",
+      description: "Working directory. Default: process.cwd()",
     },
   },
   run: async (ctx) => {
     const cwd = ctx.values.cwd ?? process.cwd();
 
     if (!ctx.values.base) {
-      console.error('Error: --base is required');
+      console.error("Error: --base is required");
       process.exitCode = 1;
       return;
     }
     if (!ctx.values.head) {
-      console.error('Error: --head is required');
+      console.error("Error: --head is required");
       process.exitCode = 1;
       return;
     }
@@ -144,14 +138,9 @@ export const deltaCommand = define({
     try {
       baseScan = await loadScanResultFromFile(basePath);
     } catch (err) {
-      if (
-        ctx.values.baseFallbackEmpty &&
-        err instanceof ScanResultNotFoundError
-      ) {
+      if (ctx.values.baseFallbackEmpty && err instanceof ScanResultNotFoundError) {
         baseScan = emptyScanResult;
-        console.error(
-          `Base file not found: ${basePath} — using empty scan result as fallback`,
-        );
+        console.error(`Base file not found: ${basePath} — using empty scan result as fallback`);
       } else {
         console.error(
           `Error loading base scan result: ${err instanceof Error ? err.message : String(err)}`,
@@ -176,7 +165,7 @@ export const deltaCommand = define({
 
     // Apply kind filter for display output only
     const displayDeltaResult = ctx.values.addedOnly
-      ? filterDelta(fullDeltaResult, ['added'])
+      ? filterDelta(fullDeltaResult, ["added"])
       : fullDeltaResult;
 
     const output = formatDeltaOutput({
@@ -189,13 +178,13 @@ export const deltaCommand = define({
     const written = await writeOutput(output, {
       outputPath: ctx.values.output,
       cwd,
-      label: 'Delta report',
+      label: "Delta report",
     });
     if (!written) return;
 
     // Log summary to stderr (always uses full result for accurate counts)
     console.error(
-      `Delta: +${fullDeltaResult.summary.added} added, -${fullDeltaResult.summary.removed} removed, ${fullDeltaResult.summary.unchanged} unchanged (net: ${fullDeltaResult.summary.net >= 0 ? '+' : ''}${fullDeltaResult.summary.net})`,
+      `Delta: +${fullDeltaResult.summary.added} added, -${fullDeltaResult.summary.removed} removed, ${fullDeltaResult.summary.unchanged} unchanged (net: ${fullDeltaResult.summary.net >= 0 ? "+" : ""}${fullDeltaResult.summary.net})`,
     );
 
     // CI gate: --max-increase (uses full result, not filtered)
@@ -204,7 +193,7 @@ export const deltaCommand = define({
         console.error(
           `Error: Net annotation increase (${fullDeltaResult.summary.net}) exceeds maximum allowed (${maxIncrease})`,
         );
-        process.exitCode = 1;
+        process.exitCode = ExitCode.GOVERNANCE_VIOLATION;
       }
     }
   },
