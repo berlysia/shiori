@@ -527,8 +527,24 @@ CI失敗は最終ステップで明示的に `exit 1` することで制御し�
 
 ---
 
+## Composite Action で簡単に使う
+
+上記の YAML を数行に削減できる composite action が利用可能です：
+
+```yaml
+- uses: berlysia/shiori/actions/shiori-action@v0.1.1
+  with:
+    mode: pr-comment
+    max-increase: 0
+```
+
+詳細は [Composite Action レシピ](./github-actions-composite-action.md) を参照してください。
+
+---
+
 ## 関連
 
 - [ADR 018: 外部サービス連携戦略](../decisions/018-external-service-integration.md)
+- [Composite Action レシピ](./github-actions-composite-action.md)
 - [PR Onboarding Snippet](./pr-onboarding-snippet.md)
 - [Alert-to-Ref ブリッジレシピ](./alert-to-ref.md)

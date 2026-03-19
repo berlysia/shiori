@@ -1,0 +1,283 @@
+name: 'shiori-action'
+description: 'Zero-config CI integration for shiori annotation governance — scan, delta, PR comment, badge, checks gate, and SARIF in one action'
+author: 'berlysia'
+
+branding:
+  icon: 'bookmark'
+  color: 'blue'
+
+inputs:
+  mode:
+    description: >
+      Action mode: baseline, pr-comment, pr-description, checks-gate, badge, sarif.
+      baseline — Save scan results as artifact for delta comparison.
+      pr-comment — Post delta + triage report as PR comment.
+      pr-description — Embed delta + triage into PR description markers.
+      checks-gate — Run shiori check as a status check.
+      badge — Generate governance badge JSON (optionally upload to Gist).
+      sarif — Generate SARIF and upload to GitHub Code Scanning.
+    required: true
+  node-version:
+    description: 'Node.js version to use'
+    default: '22'
+  max-increase:
+    description: 'Maximum allowed net annotation increase before failing (pr-comment, pr-description modes)'
+    default: '0'
+  fail-on:
+    description: 'Comma-separated issue types to fail on (checks-gate mode)'
+    default: 'expired,missing-in-registry'
+  base-branch:
+    description: 'Base branch name for baseline workflow artifact lookup'
+    default: 'main'
+  baseline-workflow-name:
+    description: 'Workflow name that produces the baseline scan artifact'
+    default: 'shiori baseline'
+  baseline-artifact-name:
+    description: 'Artifact name for baseline scan results'
+    default: 'shiori-base-scan'
+  onboarding:
+    description: 'Include onboarding footer in PR comment (true/false)'
+    default: 'true'
+  added-only:
+    description: 'Show only added annotations in delta report (true/false)'
+    default: 'false'
+  gist-token:
+    description: 'Personal Access Token with Gist write permission (badge mode)'
+    default: ''
+  gist-id:
+    description: 'Gist ID to upload badge JSON (badge mode)'
+    default: ''
+  sarif-category:
+    description: 'Category name for SARIF upload (sarif mode)'
+    default: 'shiori'
+  working-directory:
+    description: 'Working directory for shiori CLI commands'
+    default: '.'
+  retention-days:
+    description: 'Artifact retention days (baseline, badge modes)'
+    default: '90'
+
+outputs:
+  scan-result:
+    description: 'Path to scan result JSON file'
+    value: ${{ steps.paths.outputs.scan-result }}
+  delta-result:
+    description: 'Path to delta result file'
+    value: ${{ steps.paths.outputs.delta-result }}
+  badge-json:
+    description: 'Path to badge JSON file'
+    value: ${{ steps.paths.outputs.badge-json }}
+  sarif-file:
+    description: 'Path to SARIF file'
+    value: ${{ steps.paths.outputs.sarif-file }}
+
+runs:
+  using: 'composite'
+  steps:
+    # --- Common: Set up output paths ---
+    - name: Set output paths
+      id: paths
+      shell: bash
+      run: |
+        SHIORI_TMP="${{ inputs.working-directory }}/.tmp"
+        mkdir -p "$SHIORI_TMP"
+        echo "tmp=$SHIORI_TMP" >> "$GITHUB_OUTPUT"
+        echo "scan-result=$SHIORI_TMP/shiori-base-scan.json" >> "$GITHUB_OUTPUT"
+        echo "head-scan=$SHIORI_TMP/shiori-head-scan.json" >> "$GITHUB_OUTPUT"
+        echo "delta-result=$SHIORI_TMP/shiori-delta.md" >> "$GITHUB_OUTPUT"
+        echo "triage-result=$SHIORI_TMP/shiori-triage.md" >> "$GITHUB_OUTPUT"
+        echo "badge-json=$SHIORI_TMP/shiori-badge.json" >> "$GITHUB_OUTPUT"
+        echo "sarif-file=$SHIORI_TMP/shiori.sarif" >> "$GITHUB_OUTPUT"
+        echo "comment-body=$SHIORI_TMP/shiori-comment.md" >> "$GITHUB_OUTPUT"
+
+    # ========================================
+    # MODE: baseline
+    # ========================================
+    - name: 'baseline: Scan annotations'
+      if: inputs.mode == 'baseline'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: pnpm shiori scan --output "${{ steps.paths.outputs.scan-result }}"
+
+    - name: 'baseline: Upload scan artifact'
+      if: inputs.mode == 'baseline'
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      with:
+        name: ${{ inputs.baseline-artifact-name }}
+        path: ${{ steps.paths.outputs.scan-result }}
+        retention-days: ${{ inputs.retention-days }}
+        overwrite: true
+
+    # ========================================
+    # MODE: pr-comment
+    # ========================================
+    - name: 'pr-comment: Download baseline artifact'
+      if: inputs.mode == 'pr-comment'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        bash "${{ github.action_path }}/scripts/download-baseline.sh" \
+          "${{ github.repository }}" \
+          "${{ inputs.base-branch }}" \
+          "${{ inputs.baseline-workflow-name }}" \
+          "${{ inputs.baseline-artifact-name }}" \
+          "${{ steps.paths.outputs.tmp }}"
+
+    - name: 'pr-comment: Scan annotations (PR head)'
+      if: inputs.mode == 'pr-comment'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: pnpm shiori scan --output "${{ steps.paths.outputs.head-scan }}"
+
+    - name: 'pr-comment: Compute delta'
+      id: pr-comment-delta
+      if: inputs.mode == 'pr-comment'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        DELTA_ARGS="--base ${{ steps.paths.outputs.scan-result }} --head ${{ steps.paths.outputs.head-scan }} --format markdown --base-fallback-empty --max-increase ${{ inputs.max-increase }} --output ${{ steps.paths.outputs.delta-result }}"
+        if [ "${{ inputs.added-only }}" = "true" ]; then
+          DELTA_ARGS="$DELTA_ARGS --added-only"
+        fi
+        pnpm shiori delta $DELTA_ARGS || echo "delta-failed=true" >> "$GITHUB_ENV"
+
+    - name: 'pr-comment: Generate triage report'
+      if: inputs.mode == 'pr-comment'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: pnpm shiori triage --format markdown --output "${{ steps.paths.outputs.triage-result }}" || true
+
+    - name: 'pr-comment: Post PR comment'
+      if: inputs.mode == 'pr-comment'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        bash "${{ github.action_path }}/scripts/post-pr-comment.sh" \
+          "${{ github.repository }}" \
+          "${{ github.event.pull_request.number }}" \
+          "${{ steps.paths.outputs.delta-result }}" \
+          "${{ steps.paths.outputs.triage-result }}" \
+          "${{ inputs.onboarding }}"
+
+    - name: 'pr-comment: Fail if annotation count increased'
+      if: inputs.mode == 'pr-comment' && env.delta-failed == 'true'
+      shell: bash
+      run: |
+        echo "::error::shiori delta: annotation count exceeded --max-increase ${{ inputs.max-increase }} threshold"
+        exit 1
+
+    # ========================================
+    # MODE: pr-description
+    # ========================================
+    - name: 'pr-description: Download baseline artifact'
+      if: inputs.mode == 'pr-description'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        bash "${{ github.action_path }}/scripts/download-baseline.sh" \
+          "${{ github.repository }}" \
+          "${{ inputs.base-branch }}" \
+          "${{ inputs.baseline-workflow-name }}" \
+          "${{ inputs.baseline-artifact-name }}" \
+          "${{ steps.paths.outputs.tmp }}"
+
+    - name: 'pr-description: Scan annotations (PR head)'
+      if: inputs.mode == 'pr-description'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: pnpm shiori scan --output "${{ steps.paths.outputs.head-scan }}"
+
+    - name: 'pr-description: Compute delta'
+      id: pr-description-delta
+      if: inputs.mode == 'pr-description'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        pnpm shiori delta \
+          --base "${{ steps.paths.outputs.scan-result }}" \
+          --head "${{ steps.paths.outputs.head-scan }}" \
+          --format markdown \
+          --base-fallback-empty \
+          --max-increase "${{ inputs.max-increase }}" \
+          --output "${{ steps.paths.outputs.delta-result }}" || echo "delta-failed=true" >> "$GITHUB_ENV"
+
+    - name: 'pr-description: Generate triage report'
+      if: inputs.mode == 'pr-description'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: pnpm shiori triage --format markdown --output "${{ steps.paths.outputs.triage-result }}" || true
+
+    - name: 'pr-description: Update PR description'
+      if: inputs.mode == 'pr-description'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        bash "${{ github.action_path }}/scripts/update-pr-description.sh" \
+          "${{ github.repository }}" \
+          "${{ github.event.pull_request.number }}" \
+          "${{ steps.paths.outputs.delta-result }}" \
+          "${{ steps.paths.outputs.triage-result }}"
+
+    - name: 'pr-description: Fail if annotation count increased'
+      if: inputs.mode == 'pr-description' && env.delta-failed == 'true'
+      shell: bash
+      run: |
+        echo "::error::shiori delta: annotation count exceeded --max-increase ${{ inputs.max-increase }} threshold"
+        exit 1
+
+    # ========================================
+    # MODE: checks-gate
+    # ========================================
+    - name: 'checks-gate: Run shiori check'
+      if: inputs.mode == 'checks-gate'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: pnpm shiori check --fail-on "${{ inputs.fail-on }}"
+
+    # ========================================
+    # MODE: badge
+    # ========================================
+    - name: 'badge: Generate badge JSON'
+      if: inputs.mode == 'badge'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: pnpm shiori report --format badge --output "${{ steps.paths.outputs.badge-json }}"
+
+    - name: 'badge: Upload badge artifact'
+      if: inputs.mode == 'badge'
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      with:
+        name: shiori-badge
+        path: ${{ steps.paths.outputs.badge-json }}
+        retention-days: ${{ inputs.retention-days }}
+        overwrite: true
+
+    - name: 'badge: Upload to Gist'
+      if: inputs.mode == 'badge' && inputs.gist-token != ''
+      shell: bash
+      env:
+        GIST_TOKEN: ${{ inputs.gist-token }}
+      run: |
+        bash "${{ github.action_path }}/scripts/upload-gist.sh" \
+          "${{ inputs.gist-id }}" \
+          "${{ steps.paths.outputs.badge-json }}"
+
+    # ========================================
+    # MODE: sarif
+    # ========================================
+    - name: 'sarif: Generate SARIF'
+      if: inputs.mode == 'sarif'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: pnpm shiori verify --format sarif --output "${{ steps.paths.outputs.sarif-file }}"
+
+    - name: 'sarif: Upload SARIF to Code Scanning'
+      if: inputs.mode == 'sarif'
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: ${{ steps.paths.outputs.sarif-file }}
+        category: ${{ inputs.sarif-category }}

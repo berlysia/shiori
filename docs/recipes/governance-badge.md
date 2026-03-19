@@ -194,7 +194,24 @@ node dist/src/cli.js report --format json | jq '.health'
 
 ---
 
+## Composite Action で簡単に使う
+
+上記の YAML を数行に削減できる composite action が利用可能です：
+
+```yaml
+- uses: berlysia/shiori/actions/shiori-action@v0.1.1
+  with:
+    mode: badge
+    gist-token: ${{ secrets.GIST_TOKEN }}
+    gist-id: ${{ vars.SHIORI_BADGE_GIST_ID }}
+```
+
+詳細は [Composite Action レシピ](./github-actions-composite-action.md) を参照してください。
+
+---
+
 ## 関連
 
+- [Composite Action レシピ](./github-actions-composite-action.md)
 - [Delta PR Comment レシピ](./github-actions-delta-pr-comment.md)
 - [Alert-to-Ref ブリッジレシピ](./alert-to-ref.md)

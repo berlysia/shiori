@@ -235,9 +235,25 @@ jobs:
 
 ---
 
+## Composite Action で簡単に使う
+
+上記の YAML を数行に削減できる composite action が利用可能です：
+
+```yaml
+- uses: berlysia/shiori/actions/shiori-action@v0.1.1
+  with:
+    mode: checks-gate
+    fail-on: expired,missing-in-registry
+```
+
+詳細は [Composite Action レシピ](./github-actions-composite-action.md) を参照してください。
+
+---
+
 ## 関連
 
 - [ADR 018: 外部サービス連携戦略](../decisions/018-external-service-integration.md)
+- [Composite Action レシピ](./github-actions-composite-action.md)
 - [Delta PR Comment レシピ](./github-actions-delta-pr-comment.md)
 - [Governance Badge レシピ](./governance-badge.md)
 - [Expires Alert レシピ](./github-actions-expires-alert.md)
