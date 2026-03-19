@@ -1,22 +1,52 @@
 {
   "name": "@berlysia/shiori-vscode",
+  "displayName": "shiori",
   "version": "0.1.0",
   "description": "VSCode extension for shiori annotation tracking",
+  "categories": [
+    "Other"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/berlysia/shiori.git",
     "directory": "packages/shiori-vscode"
   },
-  "type": "module",
+  "publisher": "berlysia",
+  "main": "./dist/extension.js",
   "scripts": {
-    "build": "tsc",
-    "typecheck": "tsc --noEmit"
+    "build": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap",
+    "watch": "pnpm build --watch",
+    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "package": "pnpm build && npx @vscode/vsce package --no-dependencies"
   },
   "dependencies": {
     "@berlysia/shiori": "workspace:*"
   },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "esbuild": "0.27.3",
+    "typescript": "^5.9.3"
+  },
+  "contributes": {
+    "configuration": {
+      "title": "shiori",
+      "properties": {
+        "shiori.registryPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to shiori registry file (auto-detected if empty)"
+        }
+      }
+    }
+  },
+  "activationEvents": [
+    "workspaceContains:.config/shiori/registry.json",
+    "workspaceContains:.config/shiori/registry.yaml",
+    "workspaceContains:.config/shiori/registry.yml"
+  ],
   "engines": {
-    "node": ">=22.6.0"
+    "vscode": "^1.85.0"
   }
 }

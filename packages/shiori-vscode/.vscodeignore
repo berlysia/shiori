@@ -1,5 +1,7 @@
 src/
 tests/
+out/
 tsconfig.json
 .gitignore
 node_modules/
+*.map

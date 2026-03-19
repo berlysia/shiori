@@ -49,6 +49,16 @@ importers:
       '@berlysia/shiori':
         specifier: workspace:*
         version: link:../..
+    devDependencies:
+      '@types/vscode':
+        specifier: ^1.85.0
+        version: 1.110.0
+      esbuild:
+        specifier: 0.27.3
+        version: 0.27.3
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
 
 packages:
   '@esbuild/aix-ppc64@0.27.3':
@@ -378,6 +388,12 @@ packages:
     resolution:
       {
         integrity: sha512-DZ8VwRFUNzuqJ5khrvwMXHmvPe+zGayJhr2CDNiKB1WBE1ST8Djl00D0IC4vvNmHMdj6DlbYRIaFE7WHjlDl5w==,
+      }
+
+  '@types/vscode@1.110.0':
+    resolution:
+      {
+        integrity: sha512-AGuxUEpU4F4mfuQjxPPaQVyuOMhs+VT/xRok1jiHVBubHK7lBRvCuOMZG0LKUwxncrPorJ5qq/uil3IdZBd5lA==,
       }
 
   acorn-jsx-walk@2.0.0:
@@ -1146,6 +1162,8 @@ snapshots:
   '@types/node@25.2.0':
     dependencies:
       undici-types: 7.16.0
+
+  '@types/vscode@1.110.0': {}
 
   acorn-jsx-walk@2.0.0: {}
 
