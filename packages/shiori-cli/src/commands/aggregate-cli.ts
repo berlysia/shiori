@@ -4,13 +4,36 @@ import { resolve, basename } from 'node:path';
 import fg from 'fast-glob';
 import {
   aggregate,
-  formatAggregate,
+  formatAggregateAsMarkdown,
   type AggregateFormat,
 } from './aggregate.ts';
+import { formatAggregateAsHtml } from '../formatters/aggregate-html-formatter.ts';
 import type { SummaryResult } from './summary.ts';
 import { createFormatValidator } from '../core/cli-validation.ts';
 import { writeOutput } from '../core/cli-output.ts';
-import { isAtOrBelowLevel, type HealthLevel } from '../core/types.ts';
+import {
+  isAtOrBelowLevel,
+  type AggregateResult,
+  type HealthLevel,
+} from '../core/types.ts';
+
+/**
+ * Format AggregateResult based on output format.
+ * Lives in CLI layer because it dispatches to formatters (HTML).
+ */
+function formatAggregate(
+  result: AggregateResult,
+  format: AggregateFormat,
+): string {
+  switch (format) {
+    case 'markdown':
+      return formatAggregateAsMarkdown(result);
+    case 'html':
+      return formatAggregateAsHtml(result);
+    default:
+      return JSON.stringify(result, null, 2);
+  }
+}
 
 const validateAggregateFormat = createFormatValidator<AggregateFormat>(
   ['json', 'markdown', 'html'] as const,

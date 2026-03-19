@@ -1,15 +1,37 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { HealthLevel, ReportResult } from '../src/core/types.ts';
+import type {
+  HealthLevel,
+  HealthResult,
+  ReportResult,
+} from '../src/core/types.ts';
 import {
   aggregate,
-  formatAggregate,
-  formatAggregateAsHtml,
   formatAggregateAsMarkdown,
   type AggregateInput,
 } from '../src/commands/aggregate.ts';
+import { formatAggregateAsHtml } from '../src/formatters/aggregate-html-formatter.ts';
+import type { AggregateFormat, AggregateResult } from '../src/core/types.ts';
 import type { SummaryResult } from '../src/commands/summary.ts';
-import type { HealthResult } from '../src/core/types.ts';
+
+/**
+ * Local copy of formatAggregate — the production version moved to
+ * aggregate-cli.ts (CLI layer) to satisfy the boundary rule that
+ * command pure logic must not import formatters.
+ */
+function formatAggregate(
+  result: AggregateResult,
+  format: AggregateFormat,
+): string {
+  switch (format) {
+    case 'markdown':
+      return formatAggregateAsMarkdown(result);
+    case 'html':
+      return formatAggregateAsHtml(result);
+    default:
+      return JSON.stringify(result, null, 2);
+  }
+}
 
 // ── Test helpers ────────────────────────────────────────────
 

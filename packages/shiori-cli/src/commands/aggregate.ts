@@ -4,10 +4,8 @@ import type {
   AggregateResult,
 } from '../core/types.ts';
 import { healthEmoji } from '../core/emoji.ts';
-import { formatAggregateAsHtml } from '../formatters/aggregate-html-formatter.ts';
 import type { SummaryResult } from './summary.ts';
 
-export { formatAggregateAsHtml };
 export type { AggregateFormat, AggregateResult };
 
 // ── Types ────────────────────────────────────────────────────
@@ -133,21 +131,4 @@ export function formatAggregateAsMarkdown(result: AggregateResult): string {
   lines.push('');
 
   return lines.join('\n');
-}
-
-/**
- * Format AggregateResult based on output format.
- */
-export function formatAggregate(
-  result: AggregateResult,
-  format: AggregateFormat,
-): string {
-  switch (format) {
-    case 'markdown':
-      return formatAggregateAsMarkdown(result);
-    case 'html':
-      return formatAggregateAsHtml(result);
-    default:
-      return JSON.stringify(result, null, 2);
-  }
 }
