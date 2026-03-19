@@ -53,12 +53,36 @@ export function planAdoption(options: AdoptOptions): AdoptResult {
     entry.kind = kind;
   }
 
-  // Build group summaries
+  const groups = buildGroupSummaries(candidates);
+  const byFile = groupActionsByFile(migrate.actions);
+
+  return {
+    migrate,
+    groups,
+    filesAffected: byFile.size,
+  };
+}
+
+/**
+ * Build the group key for a candidate (pattern/directive or pattern alone).
+ * Used by both planAdoption grouping and wizard group selection.
+ */
+export function buildGroupKey(candidate: ShioriCandidate): string {
+  return candidate.directive
+    ? `${candidate.pattern}/${candidate.directive}`
+    : candidate.pattern;
+}
+
+/**
+ * Build group summaries from candidates.
+ * Extracted for reuse between planAdoption and wizard flow.
+ */
+export function buildGroupSummaries(
+  candidates: ShioriCandidate[],
+): AdoptGroupSummary[] {
   const groupMap = new Map<string, AdoptGroupSummary>();
   for (const candidate of candidates) {
-    const key = candidate.directive
-      ? `${candidate.pattern}/${candidate.directive}`
-      : candidate.pattern;
+    const key = buildGroupKey(candidate);
     const existing = groupMap.get(key);
     if (existing) {
       existing.count++;
@@ -70,14 +94,27 @@ export function planAdoption(options: AdoptOptions): AdoptResult {
       });
     }
   }
+  return [...groupMap.values()];
+}
 
-  const byFile = groupActionsByFile(migrate.actions);
+/**
+ * Filter candidates by selected group keys.
+ * Returns only candidates whose pattern/directive match the selected groups.
+ */
+export function filterCandidatesByGroups(
+  candidates: ShioriCandidate[],
+  selectedKeys: Set<string>,
+): ShioriCandidate[] {
+  return candidates.filter((c) => selectedKeys.has(buildGroupKey(c)));
+}
 
-  return {
-    migrate,
-    groups: [...groupMap.values()],
-    filesAffected: byFile.size,
-  };
+/**
+ * Format a group label for display (e.g., "eslint / disable-next-line" or "keywords").
+ */
+export function formatGroupLabel(group: AdoptGroupSummary): string {
+  return group.directive
+    ? `${group.pattern} / ${group.directive}`
+    : group.pattern;
 }
 
 /**

@@ -1,7 +1,14 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import type { ShioriCandidate, Registry } from '../src/core/types.ts';
-import { planAdoption, formatAdoptPreview } from '../src/commands/adopt.ts';
+import {
+  planAdoption,
+  formatAdoptPreview,
+  buildGroupKey,
+  buildGroupSummaries,
+  filterCandidatesByGroups,
+  formatGroupLabel,
+} from '../src/commands/adopt.ts';
 
 function makeCandidate(
   overrides: Partial<ShioriCandidate> = {},
@@ -294,5 +301,139 @@ describe('formatAdoptPreview', () => {
     const preview = formatAdoptPreview(result);
 
     assert.ok(preview.includes('keywords: 1'));
+  });
+});
+
+describe('buildGroupKey', () => {
+  it('returns pattern/directive for lint candidates', () => {
+    const key = buildGroupKey(
+      makeCandidate({ pattern: 'eslint', directive: 'disable-next-line' }),
+    );
+    assert.equal(key, 'eslint/disable-next-line');
+  });
+
+  it('returns pattern alone when directive is undefined', () => {
+    const key = buildGroupKey(
+      makeCandidate({ pattern: 'keywords', directive: undefined }),
+    );
+    assert.equal(key, 'keywords');
+  });
+});
+
+describe('buildGroupSummaries', () => {
+  it('groups candidates by pattern/directive', () => {
+    const candidates = [
+      makeCandidate({
+        pattern: 'eslint',
+        directive: 'disable-next-line',
+        location: { file: 'a.ts', line: 1 },
+      }),
+      makeCandidate({
+        pattern: 'eslint',
+        directive: 'disable-next-line',
+        location: { file: 'b.ts', line: 2 },
+      }),
+      makeCandidate({
+        pattern: 'stylelint',
+        directive: 'disable-next-line',
+        location: { file: 'c.css', line: 3 },
+      }),
+    ];
+    const groups = buildGroupSummaries(candidates);
+
+    assert.equal(groups.length, 2);
+    assert.equal(groups[0]!.pattern, 'eslint');
+    assert.equal(groups[0]!.count, 2);
+    assert.equal(groups[1]!.pattern, 'stylelint');
+    assert.equal(groups[1]!.count, 1);
+  });
+
+  it('returns empty array for empty candidates', () => {
+    const groups = buildGroupSummaries([]);
+    assert.equal(groups.length, 0);
+  });
+});
+
+describe('filterCandidatesByGroups', () => {
+  it('returns only candidates matching selected groups', () => {
+    const candidates = [
+      makeCandidate({
+        pattern: 'eslint',
+        directive: 'disable-next-line',
+        rule: 'no-console',
+        location: { file: 'a.ts', line: 1 },
+      }),
+      makeCandidate({
+        pattern: 'stylelint',
+        directive: 'disable-next-line',
+        rule: 'color-named',
+        location: { file: 'b.css', line: 2 },
+      }),
+      makeCandidate({
+        pattern: 'eslint',
+        directive: 'disable-next-line',
+        rule: 'no-debugger',
+        location: { file: 'c.ts', line: 3 },
+      }),
+    ];
+
+    const selected = new Set(['eslint/disable-next-line']);
+    const filtered = filterCandidatesByGroups(candidates, selected);
+
+    assert.equal(filtered.length, 2);
+    assert.equal(filtered[0]!.rule, 'no-console');
+    assert.equal(filtered[1]!.rule, 'no-debugger');
+  });
+
+  it('returns empty array when no groups match', () => {
+    const candidates = [
+      makeCandidate({
+        pattern: 'eslint',
+        directive: 'disable-next-line',
+        location: { file: 'a.ts', line: 1 },
+      }),
+    ];
+
+    const filtered = filterCandidatesByGroups(
+      candidates,
+      new Set(['nonexistent']),
+    );
+    assert.equal(filtered.length, 0);
+  });
+
+  it('handles keyword candidates (no directive)', () => {
+    const candidates = [
+      makeCandidate({
+        pattern: 'keywords',
+        directive: undefined,
+        location: { file: 'a.ts', line: 1 },
+      }),
+    ];
+
+    const filtered = filterCandidatesByGroups(
+      candidates,
+      new Set(['keywords']),
+    );
+    assert.equal(filtered.length, 1);
+  });
+});
+
+describe('formatGroupLabel', () => {
+  it('formats label with directive', () => {
+    const label = formatGroupLabel({
+      pattern: 'eslint',
+      directive: 'disable-next-line',
+      count: 5,
+    });
+    assert.equal(label, 'eslint / disable-next-line');
+  });
+
+  it('formats label without directive', () => {
+    const label = formatGroupLabel({
+      pattern: 'keywords',
+      directive: undefined,
+      count: 3,
+    });
+    assert.equal(label, 'keywords');
   });
 });

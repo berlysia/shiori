@@ -383,3 +383,64 @@ describe('adopt-cli: --apply mode', () => {
     assert.ok(stderr.includes('shiori check'));
   });
 });
+
+describe('adopt-cli: --wizard flag', () => {
+  let baseDir: string;
+  let cleanup: () => Promise<void>;
+
+  before(async () => {
+    ({ baseDir, cleanup } = await createTempBase('shiori-adopt-wizard-'));
+  });
+
+  after(async () => {
+    await cleanup();
+  });
+
+  it('falls back to dry-run in non-TTY mode', async () => {
+    const dir = await createFixtureDir(baseDir, 'wizard-notty', {
+      sourceFiles: {
+        'src/app.ts':
+          '// eslint-disable-next-line no-console\nconsole.log("hi");\n',
+      },
+      scanResult: {
+        annotations: [],
+        candidates: [
+          {
+            pattern: 'eslint-disable-next-line',
+            directive: 'no-console',
+            location: { file: 'src/app.ts', line: 1 },
+          },
+        ],
+        filesScanned: 1,
+      },
+    });
+
+    // runCli uses stdio: ['ignore', ...] which is non-TTY
+    const { exitCode, stderr, stdout } = await runCli([
+      'adopt',
+      '--cwd',
+      dir,
+      '--scan',
+      join(dir, SCAN_RESULT_REL),
+      '--wizard',
+    ]);
+
+    assert.equal(exitCode, 0);
+    // Should warn about non-TTY fallback
+    assert.ok(
+      stderr.includes('--wizard requires an interactive terminal'),
+      'Should warn about non-TTY fallback',
+    );
+    // Should still show dry-run preview (non-wizard flow)
+    assert.ok(
+      stdout.includes('1 candidate(s)') || stderr.includes('--apply'),
+      'Should show dry-run output',
+    );
+    // Source file should NOT be modified
+    const afterContent = await readFile(join(dir, 'src/app.ts'), 'utf-8');
+    assert.ok(
+      !afterContent.includes('shiori:'),
+      'Source should NOT be modified in non-TTY wizard mode',
+    );
+  });
+});
