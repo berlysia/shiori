@@ -1,18 +1,19 @@
-import { access, readFile, stat } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
-import { isNodeError } from '../../core/errors.ts';
+import { access, readFile, stat } from "node:fs/promises";
+import { join, resolve } from "node:path";
+import { isNodeError } from "../../core/errors.ts";
 import {
   loadConfig,
   CONFIG_FILENAMES,
   DEFAULT_REGISTRY_PATH,
   DEFAULT_SCAN_RESULT_PATH,
-} from '../../core/config.ts';
-import type { ResolvedConfig } from '../../core/config.ts';
-import type { Registry } from '../../core/types.ts';
-import { loadMultiRegistry } from '../../core/registry.ts';
-import { matchRefPattern } from '../../core/ref-pattern.ts';
-import type { DoctorCheck } from '../../core/types.ts';
-import type { ConfigLoadResult, RegistryCheckResult } from './types.ts';
+} from "../../core/config.ts";
+import type { ResolvedConfig } from "../../core/config.ts";
+import type { Registry } from "../../core/types.ts";
+import { loadMultiRegistry } from "../../core/registry.ts";
+import { matchRefPattern } from "../../core/ref-pattern.ts";
+import type { DoctorCheck } from "../../core/types.ts";
+import type { ConfigLoadResult, RegistryCheckResult } from "./types.ts";
+import { findMissingPolicies, findStalePolicies } from "../../core/exit-codes.ts";
 
 /** Minimum Node.js version required by shiori */
 const MIN_NODE_MAJOR = 22;
@@ -22,10 +23,7 @@ const MIN_NODE_MINOR = 6;
  * Load config once — returns the resolved config or undefined if loading failed.
  * Failure is not fatal since checkConfig will report it independently.
  */
-export async function loadConfigOnce(
-  cwd: string,
-  configDir?: string,
-): Promise<ConfigLoadResult> {
+export async function loadConfigOnce(cwd: string, configDir?: string): Promise<ConfigLoadResult> {
   try {
     const config = await loadConfig(cwd, configDir);
     return { config };
@@ -45,9 +43,9 @@ export function checkNodeVersion(): DoctorCheck {
   const match = version.match(/^v(\d+)\.(\d+)\.(\d+)/);
   if (!match) {
     return {
-      name: 'node-version',
-      label: 'Node.js version',
-      status: 'fail',
+      name: "node-version",
+      label: "Node.js version",
+      status: "fail",
       message: `Could not parse Node.js version: ${version}`,
     };
   }
@@ -55,22 +53,19 @@ export function checkNodeVersion(): DoctorCheck {
   const major = Number(match[1]);
   const minor = Number(match[2]);
 
-  if (
-    major > MIN_NODE_MAJOR ||
-    (major === MIN_NODE_MAJOR && minor >= MIN_NODE_MINOR)
-  ) {
+  if (major > MIN_NODE_MAJOR || (major === MIN_NODE_MAJOR && minor >= MIN_NODE_MINOR)) {
     return {
-      name: 'node-version',
-      label: 'Node.js version',
-      status: 'pass',
+      name: "node-version",
+      label: "Node.js version",
+      status: "pass",
       message: `Node.js ${version} (>= ${MIN_NODE_MAJOR}.${MIN_NODE_MINOR}.0)`,
     };
   }
 
   return {
-    name: 'node-version',
-    label: 'Node.js version',
-    status: 'fail',
+    name: "node-version",
+    label: "Node.js version",
+    status: "fail",
     message: `Node.js ${version} is below minimum ${MIN_NODE_MAJOR}.${MIN_NODE_MINOR}.0`,
     fix: `Upgrade Node.js to >= ${MIN_NODE_MAJOR}.${MIN_NODE_MINOR}.0`,
   };
@@ -79,11 +74,8 @@ export function checkNodeVersion(): DoctorCheck {
 /**
  * Check that a config file exists and is loadable.
  */
-export async function checkConfig(
-  cwd: string,
-  configDir?: string,
-): Promise<DoctorCheck> {
-  const dir = configDir ? resolve(cwd, configDir) : join(cwd, '.config/shiori');
+export async function checkConfig(cwd: string, configDir?: string): Promise<DoctorCheck> {
+  const dir = configDir ? resolve(cwd, configDir) : join(cwd, ".config/shiori");
 
   // Check if any config file exists
   let foundConfig: string | undefined;
@@ -94,11 +86,11 @@ export async function checkConfig(
       foundConfig = filename;
       break;
     } catch (err) {
-      if (isNodeError(err) && err.code === 'ENOENT') continue;
+      if (isNodeError(err) && err.code === "ENOENT") continue;
       return {
-        name: 'config',
-        label: 'Configuration',
-        status: 'fail',
+        name: "config",
+        label: "Configuration",
+        status: "fail",
         message: `Error accessing ${configPath}: ${err instanceof Error ? err.message : String(err)}`,
       };
     }
@@ -106,10 +98,10 @@ export async function checkConfig(
 
   if (!foundConfig) {
     return {
-      name: 'config',
-      label: 'Configuration',
-      status: 'warn',
-      message: 'No config file found (using defaults)',
+      name: "config",
+      label: "Configuration",
+      status: "warn",
+      message: "No config file found (using defaults)",
       fix: 'Run "shiori init" to create .config/shiori/config.yaml',
     };
   }
@@ -118,18 +110,18 @@ export async function checkConfig(
   try {
     await loadConfig(cwd, configDir);
     return {
-      name: 'config',
-      label: 'Configuration',
-      status: 'pass',
+      name: "config",
+      label: "Configuration",
+      status: "pass",
       message: `Loaded ${foundConfig}`,
     };
   } catch (err) {
     return {
-      name: 'config',
-      label: 'Configuration',
-      status: 'fail',
+      name: "config",
+      label: "Configuration",
+      status: "fail",
       message: `Failed to parse ${foundConfig}: ${err instanceof Error ? err.message : String(err)}`,
-      fix: 'Check config file syntax (YAML/JSON)',
+      fix: "Check config file syntax (YAML/JSON)",
     };
   }
 }
@@ -146,10 +138,10 @@ export async function checkRegistryWithConfig(
   if (!config) {
     return {
       check: {
-        name: 'registry',
-        label: 'Registry',
-        status: 'fail',
-        message: 'Cannot check registry: config loading failed',
+        name: "registry",
+        label: "Registry",
+        status: "fail",
+        message: "Cannot check registry: config loading failed",
       },
     };
   }
@@ -161,12 +153,12 @@ export async function checkRegistryWithConfig(
   try {
     await access(registryPath);
   } catch (err) {
-    if (isNodeError(err) && err.code === 'ENOENT') {
+    if (isNodeError(err) && err.code === "ENOENT") {
       return {
         check: {
-          name: 'registry',
-          label: 'Registry',
-          status: 'fail',
+          name: "registry",
+          label: "Registry",
+          status: "fail",
           message: `Registry file not found: ${registryPath}`,
           fix: 'Run "shiori init" to create the registry',
         },
@@ -174,9 +166,9 @@ export async function checkRegistryWithConfig(
     }
     return {
       check: {
-        name: 'registry',
-        label: 'Registry',
-        status: 'fail',
+        name: "registry",
+        label: "Registry",
+        status: "fail",
         message: `Error accessing registry: ${err instanceof Error ? err.message : String(err)}`,
       },
     };
@@ -184,21 +176,16 @@ export async function checkRegistryWithConfig(
 
   // Try to load and validate the registry
   try {
-    const result = await loadMultiRegistry(
-      registryPath,
-      config.refPatterns,
-      undefined,
-      cwd,
-    );
+    const result = await loadMultiRegistry(registryPath, config.refPatterns, undefined, cwd);
     const entryCount = Object.keys(result.registry).length;
     const registryRefs = Object.keys(result.registry);
 
     if (result.errors.length > 0) {
       return {
         check: {
-          name: 'registry',
-          label: 'Registry',
-          status: 'warn',
+          name: "registry",
+          label: "Registry",
+          status: "warn",
           message: `Registry loaded with ${result.errors.length} validation error(s) (${entryCount} entries)`,
           fix: 'Run "shiori verify" to see detailed validation errors',
         },
@@ -210,11 +197,11 @@ export async function checkRegistryWithConfig(
     if (result.duplicates.length > 0) {
       return {
         check: {
-          name: 'registry',
-          label: 'Registry',
-          status: 'warn',
+          name: "registry",
+          label: "Registry",
+          status: "warn",
           message: `Registry loaded with ${result.duplicates.length} duplicate warning(s) (${entryCount} entries)`,
-          fix: 'Check for duplicate refs across registry files',
+          fix: "Check for duplicate refs across registry files",
         },
         registryRefs,
         registry: result.registry,
@@ -223,9 +210,9 @@ export async function checkRegistryWithConfig(
 
     return {
       check: {
-        name: 'registry',
-        label: 'Registry',
-        status: 'pass',
+        name: "registry",
+        label: "Registry",
+        status: "pass",
         message: `Registry loaded (${entryCount} entries)`,
       },
       registryRefs,
@@ -234,11 +221,11 @@ export async function checkRegistryWithConfig(
   } catch (err) {
     return {
       check: {
-        name: 'registry',
-        label: 'Registry',
-        status: 'fail',
+        name: "registry",
+        label: "Registry",
+        status: "fail",
         message: `Failed to load registry: ${err instanceof Error ? err.message : String(err)}`,
-        fix: 'Check registry file syntax (JSON/YAML)',
+        fix: "Check registry file syntax (JSON/YAML)",
       },
     };
   }
@@ -248,10 +235,7 @@ export async function checkRegistryWithConfig(
  * Keep the existing public API for backward compatibility with tests.
  * Delegates to checkRegistryWithConfig internally.
  */
-export async function checkRegistry(
-  cwd: string,
-  configDir?: string,
-): Promise<DoctorCheck> {
+export async function checkRegistry(cwd: string, configDir?: string): Promise<DoctorCheck> {
   const configResult = await loadConfigOnce(cwd, configDir);
   const result = await checkRegistryWithConfig(cwd, configResult);
   return result.check;
@@ -271,45 +255,42 @@ export function checkRefPatternsConsistency(
 ): DoctorCheck {
   if (!config?.refPatterns || config.refPatterns.length === 0) {
     return {
-      name: 'ref-patterns',
-      label: 'Ref patterns',
-      status: 'pass',
-      message: 'No refPatterns configured (skipped)',
+      name: "ref-patterns",
+      label: "Ref patterns",
+      status: "pass",
+      message: "No refPatterns configured (skipped)",
     };
   }
 
   if (registryRefs.length === 0) {
     return {
-      name: 'ref-patterns',
-      label: 'Ref patterns',
-      status: 'pass',
+      name: "ref-patterns",
+      label: "Ref patterns",
+      status: "pass",
       message: `${config.refPatterns.length} pattern(s) configured, registry is empty`,
     };
   }
 
-  const unmatchedRefs = registryRefs.filter(
-    (ref) => !matchRefPattern(ref, config.refPatterns),
-  );
+  const unmatchedRefs = registryRefs.filter((ref) => !matchRefPattern(ref, config.refPatterns));
 
   if (unmatchedRefs.length === 0) {
     return {
-      name: 'ref-patterns',
-      label: 'Ref patterns',
-      status: 'pass',
+      name: "ref-patterns",
+      label: "Ref patterns",
+      status: "pass",
       message: `All ${registryRefs.length} ref(s) match configured patterns`,
     };
   }
 
-  const examples = unmatchedRefs.slice(0, 3).join(', ');
-  const suffix =
-    unmatchedRefs.length > 3 ? `, … (${unmatchedRefs.length} total)` : '';
+  const examples = unmatchedRefs.slice(0, 3).join(", ");
+  const suffix = unmatchedRefs.length > 3 ? `, … (${unmatchedRefs.length} total)` : "";
 
   return {
-    name: 'ref-patterns',
-    label: 'Ref patterns',
-    status: 'warn',
+    name: "ref-patterns",
+    label: "Ref patterns",
+    status: "warn",
     message: `${unmatchedRefs.length} ref(s) do not match any configured pattern: ${examples}${suffix}`,
-    fix: 'Add matching patterns to refPatterns in config, or update refs to follow existing patterns',
+    fix: "Add matching patterns to refPatterns in config, or update refs to follow existing patterns",
   };
 }
 
@@ -327,28 +308,25 @@ export async function checkScanResultFreshness(
   cwd: string,
   config: ResolvedConfig | undefined,
 ): Promise<DoctorCheck> {
-  const scanResultPath = resolve(
-    cwd,
-    config?.paths.scanResult ?? DEFAULT_SCAN_RESULT_PATH,
-  );
+  const scanResultPath = resolve(cwd, config?.paths.scanResult ?? DEFAULT_SCAN_RESULT_PATH);
 
   let fileStat;
   try {
     fileStat = await stat(scanResultPath);
   } catch (err) {
-    if (isNodeError(err) && err.code === 'ENOENT') {
+    if (isNodeError(err) && err.code === "ENOENT") {
       return {
-        name: 'scan-result',
-        label: 'Scan result',
-        status: 'warn',
+        name: "scan-result",
+        label: "Scan result",
+        status: "warn",
         message: 'scan-result.json not found (has "shiori scan" been run?)',
         fix: 'Run "shiori scan" to generate scan results',
       };
     }
     return {
-      name: 'scan-result',
-      label: 'Scan result',
-      status: 'fail',
+      name: "scan-result",
+      label: "Scan result",
+      status: "fail",
       message: `Error accessing scan-result.json: ${err instanceof Error ? err.message : String(err)}`,
     };
   }
@@ -358,23 +336,21 @@ export async function checkScanResultFreshness(
 
   if (ageHours > SCAN_RESULT_STALE_HOURS) {
     const ageDisplay =
-      ageHours >= 48
-        ? `${Math.round(ageHours / 24)}d ago`
-        : `${Math.round(ageHours)}h ago`;
+      ageHours >= 48 ? `${Math.round(ageHours / 24)}d ago` : `${Math.round(ageHours)}h ago`;
     return {
-      name: 'scan-result',
-      label: 'Scan result',
-      status: 'warn',
+      name: "scan-result",
+      label: "Scan result",
+      status: "warn",
       message: `scan-result.json is stale (last updated ${ageDisplay})`,
       fix: 'Run "shiori scan" to refresh scan results',
     };
   }
 
   return {
-    name: 'scan-result',
-    label: 'Scan result',
-    status: 'pass',
-    message: 'scan-result.json is up to date',
+    name: "scan-result",
+    label: "Scan result",
+    status: "pass",
+    message: "scan-result.json is up to date",
   };
 }
 
@@ -382,45 +358,43 @@ export async function checkScanResultFreshness(
  * Check that scan-result.json is in .gitignore.
  */
 export async function checkGitignore(cwd: string): Promise<DoctorCheck> {
-  const gitignorePath = join(cwd, '.gitignore');
-  const entry = '.config/shiori/scan-result.json';
+  const gitignorePath = join(cwd, ".gitignore");
+  const entry = ".config/shiori/scan-result.json";
 
   try {
-    const content = await readFile(gitignorePath, 'utf-8');
-    const hasEntry = content
-      .split('\n')
-      .some((line) => line.trim() === entry.trim());
+    const content = await readFile(gitignorePath, "utf-8");
+    const hasEntry = content.split("\n").some((line) => line.trim() === entry.trim());
 
     if (hasEntry) {
       return {
-        name: 'gitignore',
-        label: '.gitignore',
-        status: 'pass',
-        message: 'scan-result.json is in .gitignore',
+        name: "gitignore",
+        label: ".gitignore",
+        status: "pass",
+        message: "scan-result.json is in .gitignore",
       };
     }
 
     return {
-      name: 'gitignore',
-      label: '.gitignore',
-      status: 'warn',
-      message: 'scan-result.json is not in .gitignore',
+      name: "gitignore",
+      label: ".gitignore",
+      status: "warn",
+      message: "scan-result.json is not in .gitignore",
       fix: 'Run "shiori init" or add ".config/shiori/scan-result.json" to .gitignore',
     };
   } catch (err) {
-    if (isNodeError(err) && err.code === 'ENOENT') {
+    if (isNodeError(err) && err.code === "ENOENT") {
       return {
-        name: 'gitignore',
-        label: '.gitignore',
-        status: 'warn',
-        message: '.gitignore not found',
+        name: "gitignore",
+        label: ".gitignore",
+        status: "warn",
+        message: ".gitignore not found",
         fix: 'Run "shiori init" to create .gitignore with scan-result.json entry',
       };
     }
     return {
-      name: 'gitignore',
-      label: '.gitignore',
-      status: 'fail',
+      name: "gitignore",
+      label: ".gitignore",
+      status: "fail",
       message: `Error reading .gitignore: ${err instanceof Error ? err.message : String(err)}`,
     };
   }
@@ -432,18 +406,15 @@ export async function checkGitignore(cwd: string): Promise<DoctorCheck> {
  * Warns when entries have an `expires` date in the past, indicating
  * workarounds or temporary suppression that should have been resolved.
  */
-export function checkExpiredEntries(
-  registry: Registry,
-  now?: Date,
-): DoctorCheck {
+export function checkExpiredEntries(registry: Registry, now?: Date): DoctorCheck {
   const currentDate = now ?? new Date();
   const entries = Object.entries(registry);
   if (entries.length === 0) {
     return {
-      name: 'expired-entries',
-      label: 'Expired entries',
-      status: 'pass',
-      message: 'No registry entries to check',
+      name: "expired-entries",
+      label: "Expired entries",
+      status: "pass",
+      message: "No registry entries to check",
     };
   }
 
@@ -459,22 +430,22 @@ export function checkExpiredEntries(
 
   if (expired.length === 0) {
     return {
-      name: 'expired-entries',
-      label: 'Expired entries',
-      status: 'pass',
-      message: 'No expired entries in registry',
+      name: "expired-entries",
+      label: "Expired entries",
+      status: "pass",
+      message: "No expired entries in registry",
     };
   }
 
-  const examples = expired.slice(0, 3).join(', ');
-  const suffix = expired.length > 3 ? `, … (${expired.length} total)` : '';
+  const examples = expired.slice(0, 3).join(", ");
+  const suffix = expired.length > 3 ? `, … (${expired.length} total)` : "";
 
   return {
-    name: 'expired-entries',
-    label: 'Expired entries',
-    status: 'warn',
+    name: "expired-entries",
+    label: "Expired entries",
+    status: "warn",
     message: `${expired.length} expired entry/entries in registry: ${examples}${suffix}`,
-    fix: 'Review and resolve expired entries, or update their expiration dates',
+    fix: "Review and resolve expired entries, or update their expiration dates",
   };
 }
 
@@ -488,38 +459,73 @@ export function checkRegistryCompleteness(registry: Registry): DoctorCheck {
   const entries = Object.entries(registry);
   if (entries.length === 0) {
     return {
-      name: 'registry-completeness',
-      label: 'Registry completeness',
-      status: 'pass',
-      message: 'No registry entries to check',
+      name: "registry-completeness",
+      label: "Registry completeness",
+      status: "pass",
+      message: "No registry entries to check",
     };
   }
 
   const incomplete: string[] = [];
   for (const [ref, entry] of entries) {
-    if (entry.reason === 'TODO: fill in reason') {
+    if (entry.reason === "TODO: fill in reason") {
       incomplete.push(ref);
     }
   }
 
   if (incomplete.length === 0) {
     return {
-      name: 'registry-completeness',
-      label: 'Registry completeness',
-      status: 'pass',
+      name: "registry-completeness",
+      label: "Registry completeness",
+      status: "pass",
       message: `All ${entries.length} entries have reasons filled in`,
     };
   }
 
-  const examples = incomplete.slice(0, 3).join(', ');
-  const suffix =
-    incomplete.length > 3 ? `, … (${incomplete.length} total)` : '';
+  const examples = incomplete.slice(0, 3).join(", ");
+  const suffix = incomplete.length > 3 ? `, … (${incomplete.length} total)` : "";
 
   return {
-    name: 'registry-completeness',
-    label: 'Registry completeness',
-    status: 'warn',
+    name: "registry-completeness",
+    label: "Registry completeness",
+    status: "warn",
     message: `${incomplete.length} entry/entries have placeholder reasons: ${examples}${suffix}`,
-    fix: 'Fill in reasons for these entries in the registry file',
+    fix: "Fill in reasons for these entries in the registry file",
+  };
+}
+
+/**
+ * Check that every registered CLI command has an exit code policy defined,
+ * and that no stale policies exist for removed commands.
+ *
+ * ADR 027: doctor self-verification for exit code policy coverage.
+ */
+export function checkExitCodePolicies(registeredCommands: readonly string[]): DoctorCheck {
+  const missing = findMissingPolicies(registeredCommands);
+  const stale = findStalePolicies(registeredCommands);
+
+  if (missing.length === 0 && stale.length === 0) {
+    return {
+      name: "exit-code-policies",
+      label: "Exit code policies",
+      status: "pass",
+      message: `All ${registeredCommands.length} commands have exit code policies defined`,
+    };
+  }
+
+  const parts: string[] = [];
+  if (missing.length > 0) {
+    parts.push(`${missing.length} command(s) missing policy: ${missing.join(", ")}`);
+  }
+  if (stale.length > 0) {
+    parts.push(`${stale.length} stale policy/policies: ${stale.join(", ")}`);
+  }
+
+  return {
+    name: "exit-code-policies",
+    label: "Exit code policies",
+    status: "warn",
+    message: parts.join("; "),
+    fix: "Update EXIT_CODE_POLICIES in core/exit-codes.ts to match registered commands",
   };
 }

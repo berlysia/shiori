@@ -4,9 +4,9 @@ import type {
   DoctorResult,
   DoctorFormat,
   MaturityResult,
-} from '../core/types.ts';
-import type { MaturityLevel } from '../core/types.ts';
-import type { DoctorOptions } from './doctor/types.ts';
+} from "../core/types.ts";
+import type { MaturityLevel } from "../core/types.ts";
+import type { DoctorOptions } from "./doctor/types.ts";
 import {
   loadConfigOnce,
   checkNodeVersion,
@@ -17,12 +17,14 @@ import {
   checkScanResultFreshness,
   checkExpiredEntries,
   checkRegistryCompleteness,
-} from './doctor/checks.ts';
-import { assessMaturity } from './doctor/maturity.ts';
-import { buildUpgradePlan } from './doctor/upgrade.ts';
+  checkExitCodePolicies,
+} from "./doctor/checks.ts";
+import { assessMaturity } from "./doctor/maturity.ts";
+import { buildUpgradePlan } from "./doctor/upgrade.ts";
+import { REGISTERED_COMMANDS } from "../core/exit-codes.ts";
 
 // Re-export public APIs for backward compatibility (tests, CLI wrapper)
-export type { DoctorOptions } from './doctor/types.ts';
+export type { DoctorOptions } from "./doctor/types.ts";
 export {
   checkNodeVersion,
   checkConfig,
@@ -32,9 +34,10 @@ export {
   checkGitignore,
   checkExpiredEntries,
   checkRegistryCompleteness,
-} from './doctor/checks.ts';
-export { assessMaturity } from './doctor/maturity.ts';
-export { buildUpgradePlan } from './doctor/upgrade.ts';
+  checkExitCodePolicies,
+} from "./doctor/checks.ts";
+export { assessMaturity } from "./doctor/maturity.ts";
+export { buildUpgradePlan } from "./doctor/upgrade.ts";
 export type {
   UpgradePlan,
   UpgradeAction,
@@ -43,8 +46,8 @@ export type {
   UpgradeResult,
   BadgeMode,
   BuildUpgradePlanOptions,
-} from './doctor/upgrade.ts';
-export { formatUpgradePlan, formatUpgradeResult } from './doctor/upgrade.ts';
+} from "./doctor/upgrade.ts";
+export { formatUpgradePlan, formatUpgradeResult } from "./doctor/upgrade.ts";
 
 /**
  * Run all diagnostic checks and return the result.
@@ -60,21 +63,17 @@ export async function doctor(options: DoctorOptions): Promise<DoctorResult> {
   const configLoadResult = await loadConfigOnce(options.cwd, options.configDir);
 
   // Run independent checks concurrently
-  const [nodeCheck, configCheck, gitignoreCheck, scanResultCheck] =
-    await Promise.all([
-      checkNodeVersion(),
-      checkConfig(options.cwd, options.configDir),
-      checkGitignore(options.cwd),
-      checkScanResultFreshness(options.cwd, configLoadResult.config),
-    ]);
+  const [nodeCheck, configCheck, gitignoreCheck, scanResultCheck] = await Promise.all([
+    checkNodeVersion(),
+    checkConfig(options.cwd, options.configDir),
+    checkGitignore(options.cwd),
+    checkScanResultFreshness(options.cwd, configLoadResult.config),
+  ]);
   checks.push(nodeCheck);
   checks.push(configCheck);
 
   // Registry check uses pre-loaded config
-  const registryCheck = await checkRegistryWithConfig(
-    options.cwd,
-    configLoadResult,
-  );
+  const registryCheck = await checkRegistryWithConfig(options.cwd, configLoadResult);
   checks.push(registryCheck.check);
 
   // ref-patterns check uses registry result (depends on registry check)
@@ -95,10 +94,13 @@ export async function doctor(options: DoctorOptions): Promise<DoctorResult> {
   checks.push(gitignoreCheck);
   checks.push(scanResultCheck);
 
+  // Exit code policy self-verification (ADR 027)
+  checks.push(checkExitCodePolicies(REGISTERED_COMMANDS));
+
   const summary = {
-    pass: checks.filter((c) => c.status === 'pass').length,
-    warn: checks.filter((c) => c.status === 'warn').length,
-    fail: checks.filter((c) => c.status === 'fail').length,
+    pass: checks.filter((c) => c.status === "pass").length,
+    warn: checks.filter((c) => c.status === "warn").length,
+    fail: checks.filter((c) => c.status === "fail").length,
   };
 
   const result: DoctorResult = { checks, summary };
@@ -114,55 +116,50 @@ export async function doctor(options: DoctorOptions): Promise<DoctorResult> {
 /** Status icon for display */
 function statusIcon(status: DoctorCheckStatus): string {
   switch (status) {
-    case 'pass':
-      return '✓';
-    case 'warn':
-      return '!';
-    case 'fail':
-      return '✗';
+    case "pass":
+      return "✓";
+    case "warn":
+      return "!";
+    case "fail":
+      return "✗";
   }
 }
 
 /**
  * Format the doctor result as human-readable text.
  */
-export function formatDoctorText(
-  result: DoctorResult,
-  showFix: boolean,
-): string {
+export function formatDoctorText(result: DoctorResult, showFix: boolean): string {
   const lines: string[] = [];
 
-  lines.push('shiori doctor:');
-  lines.push('');
+  lines.push("shiori doctor:");
+  lines.push("");
 
   for (const check of result.checks) {
-    lines.push(
-      `  ${statusIcon(check.status)} ${check.label}: ${check.message}`,
-    );
+    lines.push(`  ${statusIcon(check.status)} ${check.label}: ${check.message}`);
     if (showFix && check.fix) {
       lines.push(`    → ${check.fix}`);
     }
   }
 
-  lines.push('');
+  lines.push("");
   const parts: string[] = [];
   if (result.summary.pass > 0) parts.push(`${result.summary.pass} passed`);
   if (result.summary.warn > 0) parts.push(`${result.summary.warn} warning(s)`);
   if (result.summary.fail > 0) parts.push(`${result.summary.fail} failed`);
-  lines.push(`  ${parts.join(', ')}`);
+  lines.push(`  ${parts.join(", ")}`);
 
   // Maturity assessment section
   if (result.maturity) {
-    lines.push('');
+    lines.push("");
     lines.push(formatMaturityText(result.maturity));
   }
 
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 /** Format maturity level bar: filled blocks for achieved, empty for remaining */
 function maturityBar(level: MaturityLevel): string {
-  return '█'.repeat(level) + '░'.repeat(4 - level);
+  return "█".repeat(level) + "░".repeat(4 - level);
 }
 
 /**
@@ -171,42 +168,36 @@ function maturityBar(level: MaturityLevel): string {
 export function formatMaturityText(maturity: MaturityResult): string {
   const lines: string[] = [];
 
-  lines.push(
-    `Governance Maturity: Level ${maturity.level}/4 — ${maturity.levelLabel}`,
-  );
+  lines.push(`Governance Maturity: Level ${maturity.level}/4 — ${maturity.levelLabel}`);
   lines.push(`  [${maturityBar(maturity.level as MaturityLevel)}]`);
-  lines.push('');
+  lines.push("");
 
   // Show signals
-  lines.push('  Signals:');
+  lines.push("  Signals:");
   for (const signal of maturity.signals) {
-    const icon = signal.detected ? '✓' : '·';
+    const icon = signal.detected ? "✓" : "·";
     lines.push(`    ${icon} ${signal.label}: ${signal.message}`);
   }
 
   // Show next actions
   if (maturity.nextActions.length > 0) {
-    lines.push('');
-    lines.push('  Next steps:');
+    lines.push("");
+    lines.push("  Next steps:");
     for (const action of maturity.nextActions) {
       lines.push(`    → Level ${action.targetLevel}: ${action.description}`);
       lines.push(`      Run: ${action.action}`);
     }
   }
 
-  return lines.join('\n');
+  return lines.join("\n");
 }
 
 /**
  * Format the doctor result for output.
  */
-export function formatDoctor(
-  result: DoctorResult,
-  format: DoctorFormat,
-  showFix: boolean,
-): string {
+export function formatDoctor(result: DoctorResult, format: DoctorFormat, showFix: boolean): string {
   switch (format) {
-    case 'json':
+    case "json":
       return JSON.stringify(result, null, 2);
     default:
       return formatDoctorText(result, showFix);
