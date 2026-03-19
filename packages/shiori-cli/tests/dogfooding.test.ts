@@ -37,6 +37,7 @@ const DOGFOODING_ANNOTATIONS: {
   // DEV-016: resolved by assertScanResultShape() — shape validation added to readFromStdin()
   // DEV-017: resolved by loadScanResultFromFile() — delta-cli now uses shared loader with isNodeError()
   { ref: 'DEV-018', file: 'src/core/report-files.ts' },
+  { ref: 'DEV-019', file: 'src/commands/aggregate-cli.ts' },
 ];
 
 const ALL_DEV_REFS = DOGFOODING_ANNOTATIONS.map((a) => a.ref).sort();

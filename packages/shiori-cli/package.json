@@ -57,7 +57,7 @@
     "test:coverage": "node --experimental-strip-types --experimental-test-coverage --test tests/*.test.ts tests/**/*.test.ts",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint src/ tests/",
-    "lint:boundaries": "depcruise src/ --config .dependency-cruiser.cjs",
+    "lint:boundaries": "depcruise 'src/**/*.ts' --config .dependency-cruiser.cjs",
     "link:local": "pnpm build && pnpm link --global",
     "unlink:local": "pnpm unlink --global",
     "build:playground": "esbuild src/playground/index.ts --bundle --format=esm --target=es2022 --outfile=playground/shiori-playground.js --minify --sourcemap --metafile=playground/meta.json --platform=browser && cp src/playground/index.html playground/index.html",

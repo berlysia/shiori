@@ -62,8 +62,12 @@ module.exports = {
     // Composition sources: modules that compose multiple commands by design.
     //   scan-workspaces → scan, init-steps → scan/init/registry/next-steps/ci-templates
     //   doctor → doctor/* sub-modules
+    //   summary → health/delta/trend/triage
+    //   aggregate → summary
     // Composition targets: higher-level commands that compose lower-level ones.
     //   check → verify, report → verify, health → report, adopt → migrate
+    //   health/delta/trend/triage (consumed by summary)
+    //   summary (consumed by aggregate)
     {
       name: 'commands-no-horizontal-deps',
       comment:
@@ -77,6 +81,8 @@ module.exports = {
           'init-steps\\.ts$',
           'doctor\\.ts$',
           'doctor/.*\\.ts$',
+          'summary\\.ts$',
+          'aggregate\\.ts$',
         ],
       },
       to: {
@@ -85,6 +91,11 @@ module.exports = {
           'verify\\.ts$',
           'report\\.ts$',
           'migrate\\.ts$',
+          'health\\.ts$',
+          'delta\\.ts$',
+          'trend\\.ts$',
+          'triage\\.ts$',
+          'summary\\.ts$',
           '-cli\\.ts$',
         ],
       },

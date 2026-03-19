@@ -79,5 +79,12 @@
     "owner": "berlysia",
     "notes": "isReportShape() validates structure at runtime; TypeScript cannot narrow from Record<string, unknown> to ReportResult through type predicate",
     "kind": "type-assertion"
+  },
+  "DEV-019": {
+    "reason": "runtime JSON shape validated by isSummaryShape but static type requires assertion",
+    "target": "src/commands/aggregate-cli.ts",
+    "owner": "berlysia",
+    "notes": "isSummaryShape() validates structure at runtime; TypeScript cannot narrow from Record<string, unknown> to SummaryResult through type predicate",
+    "kind": "type-assertion"
   }
 }

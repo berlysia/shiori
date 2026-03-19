@@ -41,10 +41,13 @@ function isSummaryShape(value: Record<string, unknown>): boolean {
   const issues = health.issues as Record<string, unknown> | undefined;
   if (!issues) return false;
   if (typeof issues.total !== 'number') return false;
+  if (typeof issues.errors !== 'number') return false;
+  if (typeof issues.warnings !== 'number') return false;
 
   const expiring = health.expiring as Record<string, unknown> | undefined;
   if (!expiring) return false;
   if (typeof expiring.expired !== 'number') return false;
+  if (typeof expiring.expiringSoon !== 'number') return false;
 
   return true;
 }
