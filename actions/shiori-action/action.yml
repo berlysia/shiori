@@ -36,7 +36,7 @@ inputs:
     description: 'Artifact name for baseline scan results'
     default: 'shiori-base-scan'
   onboarding:
-    description: 'Include onboarding footer in PR comment (true/false)'
+    description: 'Include onboarding footer in PR comment. When true and no registry file exists, also discovers untracked lint disables and shows top 3 examples (true/false)'
     default: 'true'
   added-only:
     description: 'Show only added annotations in delta report (true/false)'
@@ -89,6 +89,7 @@ runs:
         echo "badge-json=$SHIORI_TMP/shiori-badge.json" >> "$GITHUB_OUTPUT"
         echo "sarif-file=$SHIORI_TMP/shiori.sarif" >> "$GITHUB_OUTPUT"
         echo "comment-body=$SHIORI_TMP/shiori-comment.md" >> "$GITHUB_OUTPUT"
+        echo "candidates-result=$SHIORI_TMP/shiori-candidates.json" >> "$GITHUB_OUTPUT"
 
     # ========================================
     # MODE: baseline
@@ -148,6 +149,22 @@ runs:
       working-directory: ${{ inputs.working-directory }}
       run: pnpm shiori triage --format markdown --output "${{ steps.paths.outputs.triage-result }}" || true
 
+    - name: 'pr-comment: Discover untracked candidates (onboarding)'
+      if: inputs.mode == 'pr-comment' && inputs.onboarding == 'true'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      run: |
+        # Only scan for candidates when no registry file exists
+        REGISTRY_PATH=".config/shiori/registry.json"
+        REGISTRY_YAML=".config/shiori/registry.yaml"
+        REGISTRY_YML=".config/shiori/registry.yml"
+        if [ ! -f "$REGISTRY_PATH" ] && [ ! -f "$REGISTRY_YAML" ] && [ ! -f "$REGISTRY_YML" ]; then
+          pnpm shiori candidates \
+            --scan "${{ steps.paths.outputs.head-scan }}" \
+            --format json \
+            --output "${{ steps.paths.outputs.candidates-result }}" || true
+        fi
+
     - name: 'pr-comment: Post PR comment'
       if: inputs.mode == 'pr-comment'
       shell: bash
@@ -159,7 +176,8 @@ runs:
           "${{ github.event.pull_request.number }}" \
           "${{ steps.paths.outputs.delta-result }}" \
           "${{ steps.paths.outputs.triage-result }}" \
-          "${{ inputs.onboarding }}"
+          "${{ inputs.onboarding }}" \
+          "${{ steps.paths.outputs.candidates-result }}"
 
     - name: 'pr-comment: Fail if annotation count increased'
       if: inputs.mode == 'pr-comment' && env.delta-failed == 'true'
@@ -277,7 +295,7 @@ runs:
 
     - name: 'sarif: Upload SARIF to Code Scanning'
       if: inputs.mode == 'sarif'
-      uses: github/codeql-action/upload-sarif@v3
+      uses: github/codeql-action/upload-sarif@603b797f8b14b413fe025cd935a91c16c4782713 # v3
       with:
         sarif_file: ${{ steps.paths.outputs.sarif-file }}
         category: ${{ inputs.sarif-category }}

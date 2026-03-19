@@ -38,9 +38,10 @@ DELTA_START="<!-- shiori-delta-start -->"
 DELTA_END="<!-- shiori-delta-end -->"
 
 if echo "$PR_BODY" | grep -qF "$DELTA_START" && echo "$PR_BODY" | grep -qF "$DELTA_END"; then
-  # Replace content between markers using awk for reliable multi-line replacement
-  PR_BODY=$(echo "$PR_BODY" | awk -v start="$DELTA_START" -v end_marker="$DELTA_END" -v content="$DELTA_CONTENT" '
-    $0 == start { print; print content; skip=1; next }
+  # Replace content between markers using ENVIRON to avoid awk -v backslash/newline issues
+  export SHIORI_REPLACE_CONTENT="$DELTA_CONTENT"
+  PR_BODY=$(echo "$PR_BODY" | awk -v start="$DELTA_START" -v end_marker="$DELTA_END" '
+    $0 == start { print; print ENVIRON["SHIORI_REPLACE_CONTENT"]; skip=1; next }
     $0 == end_marker { skip=0 }
     !skip { print }
   ')
@@ -60,8 +61,9 @@ TRIAGE_START="<!-- shiori-triage-start -->"
 TRIAGE_END="<!-- shiori-triage-end -->"
 
 if echo "$PR_BODY" | grep -qF "$TRIAGE_START" && echo "$PR_BODY" | grep -qF "$TRIAGE_END"; then
-  PR_BODY=$(echo "$PR_BODY" | awk -v start="$TRIAGE_START" -v end_marker="$TRIAGE_END" -v content="$TRIAGE_CONTENT" '
-    $0 == start { print; print content; skip=1; next }
+  export SHIORI_REPLACE_CONTENT="$TRIAGE_CONTENT"
+  PR_BODY=$(echo "$PR_BODY" | awk -v start="$TRIAGE_START" -v end_marker="$TRIAGE_END" '
+    $0 == start { print; print ENVIRON["SHIORI_REPLACE_CONTENT"]; skip=1; next }
     $0 == end_marker { skip=0 }
     !skip { print }
   ')

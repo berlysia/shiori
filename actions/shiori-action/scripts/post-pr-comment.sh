@@ -2,7 +2,7 @@
 # Post or update a PR comment with delta and triage reports.
 # Uses gh CLI for GitHub API calls.
 #
-# Usage: post-pr-comment.sh <repo> <pr-number> <delta-file> <triage-file> <show-onboarding>
+# Usage: post-pr-comment.sh <repo> <pr-number> <delta-file> <triage-file> <show-onboarding> [candidates-file]
 # Requires: GH_TOKEN environment variable
 
 set -euo pipefail
@@ -12,17 +12,19 @@ PR_NUMBER="$2"
 DELTA_FILE="$3"
 TRIAGE_FILE="$4"
 SHOW_ONBOARDING="$5"
+CANDIDATES_FILE="${6:-}"
 
 MARKER="<!-- shiori-delta -->"
 
 echo "::group::Post PR comment"
 
-# Read delta report
+# Read delta report (always include marker for comment deduplication)
 DELTA_CONTENT=""
 if [ -f "$DELTA_FILE" ]; then
   DELTA_CONTENT=$(cat "$DELTA_FILE")
 else
-  DELTA_CONTENT="_No delta report generated._"
+  DELTA_CONTENT="$MARKER
+_No delta report generated._"
 fi
 
 # Read triage report
@@ -48,6 +50,24 @@ fi
 
 # Add onboarding footer
 if [ "$SHOW_ONBOARDING" = "true" ]; then
+  # Build candidates discovery section when candidates file is provided
+  CANDIDATES_SECTION=""
+  if [ -n "$CANDIDATES_FILE" ] && [ -f "$CANDIDATES_FILE" ]; then
+    CANDIDATES_COUNT=$(jq '.count // 0' "$CANDIDATES_FILE" 2>/dev/null || echo "0")
+    if [ "$CANDIDATES_COUNT" -gt 0 ] 2>/dev/null; then
+      # Extract top 3 candidates for display
+      CANDIDATES_EXAMPLES=$(jq -r '.candidates[:3][] | "- `\(.location.file):\(.location.line)` \(.pattern)\(if .rule then " `\(.rule)`" else "" end)"' "$CANDIDATES_FILE" 2>/dev/null || true)
+      CANDIDATES_SECTION="
+#### 🔍 Untracked lint disables detected
+
+Found **${CANDIDATES_COUNT}** untracked lint disable(s) in this PR.
+
+${CANDIDATES_EXAMPLES}
+
+Start tracking with \`shiori adopt\` to bring them under governance."
+    fi
+  fi
+
   BODY="$BODY
 
 ---
@@ -57,6 +77,7 @@ if [ "$SHOW_ONBOARDING" = "true" ]; then
 
 **shiori** tracks lint-disable annotations and other code exceptions in a structured registry,
 keeping technical debt visible and governable.
+${CANDIDATES_SECTION}
 
 #### Quick Start
 
