@@ -1,7 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { writeFileSync, chmodSync, unlinkSync, mkdirSync } from 'node:fs';
+import { writeFileSync, chmodSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import {
   executeResolve,
   buildAllowedEnv,
@@ -19,9 +20,8 @@ function makeConfig(overrides?: Partial<DaemonConfig>): DaemonConfig {
     timeout: 5000,
     maxQueueDepth: 10,
     journalPath: join(
-      import.meta.dirname,
-      'fixtures',
-      `journal-exec-${process.pid}.jsonl`,
+      tmpdir(),
+      `journal-exec-${process.pid}-${Date.now()}.jsonl`,
     ),
     ...overrides,
   };
@@ -32,9 +32,7 @@ function makeConfig(overrides?: Partial<DaemonConfig>): DaemonConfig {
  * Returns the full path; caller must clean up via unlinkSync.
  */
 function createSlowScript(): string {
-  const dir = join(import.meta.dirname, 'fixtures');
-  mkdirSync(dir, { recursive: true });
-  const scriptPath = join(dir, `slow-${process.pid}.sh`);
+  const scriptPath = join(tmpdir(), `slow-${process.pid}-${Date.now()}.sh`);
   writeFileSync(scriptPath, '#!/bin/sh\nsleep 60\n', { mode: 0o755 });
   // chmodSync as an extra safety net for platforms where mode flag is ignored
   chmodSync(scriptPath, 0o755);

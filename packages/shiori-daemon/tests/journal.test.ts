@@ -2,14 +2,12 @@ import { describe, it, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, unlinkSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { appendEvent } from '../src/journal.ts';
 import type { JournalEntry } from '../src/types.ts';
 
 function makeTmpPath(): string {
-  return join(
-    import.meta.dirname,
-    `fixtures/journal-${process.pid}-${Date.now()}.jsonl`,
-  );
+  return join(tmpdir(), `journal-${process.pid}-${Date.now()}.jsonl`);
 }
 
 function makeEntry(overrides?: Partial<JournalEntry>): JournalEntry {

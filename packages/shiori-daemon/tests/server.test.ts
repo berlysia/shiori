@@ -5,11 +5,11 @@ import {
   writeFileSync,
   chmodSync,
   unlinkSync,
-  mkdirSync,
   readFileSync,
   existsSync,
 } from 'node:fs';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { createServer } from '../src/server.ts';
 import { ResolveQueue } from '../src/executor.ts';
 import type { DaemonConfig } from '../src/types.ts';
@@ -17,9 +17,7 @@ import type { DaemonConfig } from '../src/types.ts';
 const SECRET = 'test-secret';
 
 function makeJournalPath(): string {
-  const dir = join(import.meta.dirname, 'fixtures');
-  mkdirSync(dir, { recursive: true });
-  return join(dir, `journal-srv-${process.pid}-${Date.now()}.jsonl`);
+  return join(tmpdir(), `journal-srv-${process.pid}-${Date.now()}.jsonl`);
 }
 
 function makeConfig(overrides?: Partial<DaemonConfig>): DaemonConfig {
@@ -44,9 +42,7 @@ function sign(body: string): string {
  * Returns the full path; caller must clean up via unlinkSync.
  */
 function createSlowScript(): string {
-  const dir = join(import.meta.dirname, 'fixtures');
-  mkdirSync(dir, { recursive: true });
-  const scriptPath = join(dir, `slow-srv-${process.pid}.sh`);
+  const scriptPath = join(tmpdir(), `slow-srv-${process.pid}-${Date.now()}.sh`);
   writeFileSync(scriptPath, '#!/bin/sh\nsleep 60\n', { mode: 0o755 });
   chmodSync(scriptPath, 0o755);
   return scriptPath;
@@ -303,9 +299,10 @@ describe('HTTP server', () => {
   it('extracts annotations_resolved_count from ResolveJsonOutput', async () => {
     const journalPath = makeJournalPath();
     // Create a script that outputs ResolveJsonOutput-shaped JSON
-    const dir = join(import.meta.dirname, 'fixtures');
-    mkdirSync(dir, { recursive: true });
-    const scriptPath = join(dir, `json-srv-${process.pid}.sh`);
+    const scriptPath = join(
+      tmpdir(),
+      `json-srv-${process.pid}-${Date.now()}.sh`,
+    );
     const jsonOutput = JSON.stringify({
       meta: { command: 'resolve', mode: 'closed' },
       data: { summary: { totalActions: 5, totalRefs: 2 } },
