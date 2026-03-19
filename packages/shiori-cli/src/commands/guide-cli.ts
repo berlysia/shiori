@@ -9,14 +9,16 @@ import {
   rankUseCasesByContext,
   formatWizardResult,
   formatWizardResultJson,
+  mapDoctorToGuideContext,
   type UseCase,
   type GuideContext,
+  type GuideContextError,
 } from './guide.ts';
-import { loadConfigOnce } from './doctor/checks.ts';
-import { assessMaturity } from './doctor/maturity.ts';
+import { doctor } from './doctor.ts';
 import { scan } from './scan.ts';
 import { report } from './report.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
+import type { DoctorResult, ReportResult } from '../core/types.ts';
 import {
   createBaseContext,
   withRegistry,
@@ -25,31 +27,46 @@ import {
 
 /**
  * Extract project context for wizard-mode ranking.
- * Performs IO (config loading, maturity assessment, scan + report)
- * and returns a GuideContext snapshot.
  *
- * Errors are caught per-stage so partial context is still usable.
+ * Two-stage architecture (Architect decision):
+ *   Stage 1 — doctor(maturity: true) → DoctorResult (diagnostics + maturity)
+ *   Stage 2 — scan + report → ReportResult (health + annotations)
+ *
+ * Both stages feed into mapDoctorToGuideContext() for field extraction.
+ * Errors are caught per-stage and recorded in GuideContext.errors
+ * so partial context is still usable (graceful degradation).
  */
-async function extractGuideContext(
+export async function extractGuideContext(
   cwd: string,
   configDir?: string,
 ): Promise<GuideContext> {
-  const context: GuideContext = {};
+  const errors: GuideContextError[] = [];
+  let doctorResult: DoctorResult | undefined;
+  let reportResult: ReportResult | undefined;
 
-  // Stage 1: Load config and assess maturity (lightweight)
-  const configLoadResult = await loadConfigOnce(cwd, configDir);
-
-  if (configLoadResult.config) {
-    const maturityResult = await assessMaturity(cwd, configLoadResult);
-    context.maturity = maturityResult.level;
-  } else {
-    // No config means maturity level 0
-    context.maturity = 0;
+  // ── Stage 1: Doctor diagnostics + maturity ──
+  try {
+    doctorResult = await doctor({
+      cwd,
+      configDir,
+      maturity: true,
+    });
+  } catch (err) {
+    errors.push({
+      stage: 'doctor',
+      message: err instanceof Error ? err.message : String(err),
+    });
   }
 
-  // Stage 2: Load registry and run scan + report for health score
-  // Only attempt if config exists (otherwise scan/verify will fail)
-  if (configLoadResult.config) {
+  // ── Stage 2: Scan + report for health data ──
+  // Only attempt if doctor found a valid config (fail count check
+  // ensures config-check passed; no doctorResult means Stage 1 failed)
+  const hasConfig =
+    doctorResult?.checks.some(
+      (c) => c.name === 'config' && c.status !== 'fail',
+    ) ?? false;
+
+  if (hasConfig) {
     try {
       const base = createBaseContext(cwd);
       const regCtx = await withRegistry(base, { configDir });
@@ -71,7 +88,7 @@ async function extractGuideContext(
         },
       });
 
-      const reportResult = report({
+      reportResult = report({
         scanResult,
         registry: regCtx.registry,
         failOn: [],
@@ -80,20 +97,26 @@ async function extractGuideContext(
         refPatterns: regCtx.config.refPatterns,
         refOrigins: regCtx.refOrigins,
       });
-
-      context.healthScore = reportResult.health.score;
-      context.healthLevel = reportResult.health.level;
-      context.annotationCount = reportResult.totals.annotations;
-      context.candidateCount = reportResult.totals.candidates;
-
-      // Check for expired/expiring-soon from verify byType
-      context.hasExpiredAnnotations =
-        reportResult.verifyResult.summary.byType['expired'] > 0;
-      context.hasExpiringSoonAnnotations =
-        reportResult.verifyResult.summary.byType['expiring-soon'] > 0;
-    } catch {
-      // Partial context is acceptable — wizard degrades gracefully
+    } catch (err) {
+      errors.push({
+        stage: 'report',
+        message: err instanceof Error ? err.message : String(err),
+      });
     }
+  }
+
+  // ── Merge via pure mapper ──
+  const context = mapDoctorToGuideContext({ doctorResult, reportResult });
+
+  // Fallback: if doctor didn't run maturity assessment successfully,
+  // set maturity=0 for unconfigured projects (preserves Phase 1 behavior)
+  if (context.maturity === undefined) {
+    context.maturity = 0;
+  }
+
+  // Attach errors if any occurred
+  if (errors.length > 0) {
+    context.errors = errors;
   }
 
   return context;

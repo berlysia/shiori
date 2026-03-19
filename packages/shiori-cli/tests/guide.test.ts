@@ -12,11 +12,18 @@ import {
   rankUseCasesByContext,
   formatWizardResult,
   formatWizardResultJson,
+  mapDoctorToGuideContext,
   type UseCaseCategory,
   type GuideContext,
+  type GuideContextInput,
   type ContextCondition,
   type UseCase,
 } from '../src/commands/guide.ts';
+import type {
+  DoctorResult,
+  ReportResult,
+  VerifyResult,
+} from '../src/core/types.ts';
 
 describe('guide', () => {
   describe('USE_CASES', () => {
@@ -578,6 +585,10 @@ describe('wizard: contextConditions data integrity', () => {
       'hasExpiringSoonAnnotations',
       'candidateCount',
       'annotationCount',
+      'diagnostics',
+      'hasDoctorFailures',
+      'hasDoctorWarnings',
+      'errors',
     ];
     for (const uc of USE_CASES) {
       if (uc.contextConditions) {
@@ -683,5 +694,267 @@ describe('wizard: formatWizardResultJson', () => {
       assert.ok(typeof rec.explanation === 'string');
       assert.ok(typeof rec.score === 'number');
     }
+  });
+});
+
+// ── mapDoctorToGuideContext (Phase 2) ────────────────────────
+
+/** Minimal VerifyResult for testing */
+function stubVerifyResult(
+  overrides: Partial<VerifyResult['summary']['byType']> = {},
+): VerifyResult {
+  return {
+    timestamp: new Date().toISOString(),
+    issues: [],
+    summary: {
+      total: 0,
+      errors: 0,
+      warnings: 0,
+      byType: {
+        'missing-in-registry': 0,
+        'unused-in-source': 0,
+        expired: 0,
+        'syntax-error': 0,
+        'ref-format': 0,
+        'ref-collision': 0,
+        'unrouted-ref': 0,
+        'registry-routing-mismatch': 0,
+        'expiring-soon': 0,
+        'ref-status-closed': 0,
+        ...overrides,
+      },
+    },
+    scannedRecords: 0,
+    registryEntries: 0,
+  };
+}
+
+/** Minimal ReportResult for testing */
+function stubReportResult(
+  overrides: Partial<{
+    score: number;
+    level: 'healthy' | 'warning' | 'critical';
+    annotations: number;
+    candidates: number;
+    verifyByType: Partial<VerifyResult['summary']['byType']>;
+  }> = {},
+): ReportResult {
+  return {
+    timestamp: new Date().toISOString(),
+    health: {
+      level: overrides.level ?? 'healthy',
+      score: overrides.score ?? 100,
+      summary: 'test',
+    },
+    totals: {
+      annotations: overrides.annotations ?? 0,
+      candidates: overrides.candidates ?? 0,
+      registryEntries: 0,
+      issues: 0,
+      errors: 0,
+      warnings: 0,
+    },
+    insights: [],
+    byType: {} as Record<string, number>,
+    byRule: [],
+    byKind: [],
+    byOwner: [],
+    verifyResult: stubVerifyResult(overrides.verifyByType),
+  } as ReportResult;
+}
+
+/** Minimal DoctorResult for testing */
+function stubDoctorResult(
+  overrides: Partial<{
+    pass: number;
+    warn: number;
+    fail: number;
+    maturityLevel: 0 | 1 | 2 | 3 | 4;
+  }> = {},
+): DoctorResult {
+  const result: DoctorResult = {
+    checks: [],
+    summary: {
+      pass: overrides.pass ?? 3,
+      warn: overrides.warn ?? 0,
+      fail: overrides.fail ?? 0,
+    },
+  };
+  if (overrides.maturityLevel !== undefined) {
+    result.maturity = {
+      level: overrides.maturityLevel,
+      levelLabel: `Level ${overrides.maturityLevel}`,
+      signals: [],
+      nextActions: [],
+    };
+  }
+  return result;
+}
+
+describe('mapDoctorToGuideContext', () => {
+  it('returns empty context for empty input', () => {
+    const ctx = mapDoctorToGuideContext({});
+    assert.deepEqual(ctx, {});
+  });
+
+  it('extracts maturity from DoctorResult', () => {
+    const ctx = mapDoctorToGuideContext({
+      doctorResult: stubDoctorResult({ maturityLevel: 2 }),
+    });
+    assert.equal(ctx.maturity, 2);
+  });
+
+  it('does not set maturity when doctor has no maturity assessment', () => {
+    const ctx = mapDoctorToGuideContext({
+      doctorResult: stubDoctorResult({}),
+    });
+    assert.equal(ctx.maturity, undefined);
+  });
+
+  it('extracts diagnostics summary from DoctorResult', () => {
+    const ctx = mapDoctorToGuideContext({
+      doctorResult: stubDoctorResult({ pass: 5, warn: 2, fail: 1 }),
+    });
+    assert.deepEqual(ctx.diagnostics, { pass: 5, warn: 2, fail: 1 });
+    assert.equal(ctx.hasDoctorFailures, true);
+    assert.equal(ctx.hasDoctorWarnings, true);
+  });
+
+  it('sets hasDoctorFailures=false when no failures', () => {
+    const ctx = mapDoctorToGuideContext({
+      doctorResult: stubDoctorResult({ pass: 5, warn: 0, fail: 0 }),
+    });
+    assert.equal(ctx.hasDoctorFailures, false);
+    assert.equal(ctx.hasDoctorWarnings, false);
+  });
+
+  it('extracts health from ReportResult', () => {
+    const ctx = mapDoctorToGuideContext({
+      reportResult: stubReportResult({ score: 75, level: 'warning' }),
+    });
+    assert.equal(ctx.healthScore, 75);
+    assert.equal(ctx.healthLevel, 'warning');
+  });
+
+  it('extracts annotation and candidate counts from ReportResult', () => {
+    const ctx = mapDoctorToGuideContext({
+      reportResult: stubReportResult({ annotations: 10, candidates: 5 }),
+    });
+    assert.equal(ctx.annotationCount, 10);
+    assert.equal(ctx.candidateCount, 5);
+  });
+
+  it('detects expired annotations from ReportResult', () => {
+    const ctx = mapDoctorToGuideContext({
+      reportResult: stubReportResult({
+        verifyByType: { expired: 3 },
+      }),
+    });
+    assert.equal(ctx.hasExpiredAnnotations, true);
+    assert.equal(ctx.hasExpiringSoonAnnotations, false);
+  });
+
+  it('detects expiring-soon annotations from ReportResult', () => {
+    const ctx = mapDoctorToGuideContext({
+      reportResult: stubReportResult({
+        verifyByType: { 'expiring-soon': 2 },
+      }),
+    });
+    assert.equal(ctx.hasExpiredAnnotations, false);
+    assert.equal(ctx.hasExpiringSoonAnnotations, true);
+  });
+
+  it('merges both DoctorResult and ReportResult', () => {
+    const ctx = mapDoctorToGuideContext({
+      doctorResult: stubDoctorResult({
+        maturityLevel: 3,
+        pass: 6,
+        warn: 1,
+        fail: 0,
+      }),
+      reportResult: stubReportResult({
+        score: 85,
+        level: 'healthy',
+        annotations: 20,
+        candidates: 3,
+      }),
+    });
+    assert.equal(ctx.maturity, 3);
+    assert.equal(ctx.healthScore, 85);
+    assert.equal(ctx.annotationCount, 20);
+    assert.equal(ctx.candidateCount, 3);
+    assert.deepEqual(ctx.diagnostics, { pass: 6, warn: 1, fail: 0 });
+    assert.equal(ctx.hasDoctorFailures, false);
+    assert.equal(ctx.hasDoctorWarnings, true);
+  });
+});
+
+// ── formatWizardResult: diagnostics & errors (Phase 2) ──────
+
+describe('wizard: formatWizardResult (Phase 2)', () => {
+  it('shows doctor issues count in context when diagnostics have failures', () => {
+    const ctx: GuideContext = {
+      maturity: 2,
+      diagnostics: { pass: 3, warn: 1, fail: 2 },
+      hasDoctorFailures: true,
+    };
+    const result = rankUseCasesByContext(ctx);
+    const output = formatWizardResult(result);
+    assert.ok(output.includes('Doctor: 2 issue(s)'));
+  });
+
+  it('omits doctor issues when no failures', () => {
+    const ctx: GuideContext = {
+      maturity: 2,
+      diagnostics: { pass: 5, warn: 0, fail: 0 },
+      hasDoctorFailures: false,
+    };
+    const result = rankUseCasesByContext(ctx);
+    const output = formatWizardResult(result);
+    assert.ok(!output.includes('Doctor:'));
+  });
+
+  it('shows errors when present in context', () => {
+    const ctx: GuideContext = {
+      maturity: 0,
+      errors: [{ stage: 'report', message: 'Registry not found' }],
+    };
+    const result = rankUseCasesByContext(ctx);
+    const output = formatWizardResult(result);
+    assert.ok(output.includes('! report: Registry not found'));
+  });
+
+  it('omits errors section when no errors', () => {
+    const ctx: GuideContext = { maturity: 2 };
+    const result = rankUseCasesByContext(ctx);
+    const output = formatWizardResult(result);
+    assert.ok(!output.includes('!'));
+  });
+
+  it('diagnose use case scores higher with hasDoctorFailures', () => {
+    const ctxWithFailures: GuideContext = {
+      maturity: 2,
+      healthScore: 60,
+      hasDoctorFailures: true,
+    };
+    const ctxWithoutFailures: GuideContext = {
+      maturity: 2,
+      healthScore: 60,
+      hasDoctorFailures: false,
+    };
+    const resultWith = rankUseCasesByContext(ctxWithFailures, 25);
+    const resultWithout = rankUseCasesByContext(ctxWithoutFailures, 25);
+
+    const diagnoseWith = resultWith.recommendations.find(
+      (r) => r.useCase.id === 'diagnose',
+    );
+    const diagnoseWithout = resultWithout.recommendations.find(
+      (r) => r.useCase.id === 'diagnose',
+    );
+    assert.ok(diagnoseWith && diagnoseWithout);
+    assert.ok(
+      diagnoseWith.score > diagnoseWithout.score,
+      `diagnose with failures (${diagnoseWith.score}) should score higher than without (${diagnoseWithout.score})`,
+    );
   });
 });

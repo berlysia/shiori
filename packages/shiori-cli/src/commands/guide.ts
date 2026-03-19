@@ -7,9 +7,40 @@
  * Pure module — no IO, no process access.
  */
 
-import type { HealthLevel, MaturityLevel } from '../core/types.ts';
+import type {
+  DoctorResult,
+  HealthLevel,
+  MaturityLevel,
+  ReportResult,
+} from '../core/types.ts';
 
 // ── Use-case mapping data ─────────────────────────────────────
+
+/**
+ * Structured error from a specific extraction stage.
+ * Allows wizard to degrade gracefully while surfacing
+ * what went wrong to callers (JSON output, formatters).
+ */
+export interface GuideContextError {
+  /** Which extraction stage failed */
+  stage: 'doctor' | 'config' | 'maturity' | 'scan' | 'report';
+  /** Human-readable error message */
+  message: string;
+}
+
+/**
+ * Doctor diagnostics summary embedded in GuideContext.
+ * Carries check pass/warn/fail counts so the wizard
+ * can boost diagnostic use cases without re-running doctor.
+ */
+export interface GuideDiagnostics {
+  /** Number of passing doctor checks */
+  pass: number;
+  /** Number of warning doctor checks */
+  warn: number;
+  /** Number of failing doctor checks */
+  fail: number;
+}
 
 /**
  * Project context snapshot used for wizard-mode ranking.
@@ -31,6 +62,14 @@ export interface GuideContext {
   candidateCount?: number;
   /** Number of tracked annotations */
   annotationCount?: number;
+  /** Doctor check summary for diagnostic-aware ranking */
+  diagnostics?: GuideDiagnostics;
+  /** Whether doctor detected any failing checks */
+  hasDoctorFailures?: boolean;
+  /** Whether doctor detected any warning checks */
+  hasDoctorWarnings?: boolean;
+  /** Errors encountered during context extraction (partial context) */
+  errors?: GuideContextError[];
 }
 
 /**
@@ -312,6 +351,7 @@ export const USE_CASES: readonly UseCase[] = [
     options: ['--format json', '--fix'],
     contextConditions: [
       { field: 'healthScore', op: 'lt', value: 50, boost: 15 },
+      { field: 'hasDoctorFailures', op: 'truthy', boost: 15 },
     ],
   },
   {
@@ -582,9 +622,20 @@ export function formatWizardResult(result: WizardResult): string {
   if (ctx.candidateCount !== undefined && ctx.candidateCount > 0) {
     contextParts.push(`${ctx.candidateCount} untracked candidate(s)`);
   }
+  if (ctx.diagnostics && ctx.diagnostics.fail > 0) {
+    contextParts.push(`Doctor: ${ctx.diagnostics.fail} issue(s)`);
+  }
 
   if (contextParts.length > 0) {
     lines.push(`Project context: ${contextParts.join(' | ')}`);
+    lines.push('');
+  }
+
+  // Errors (partial context warnings)
+  if (ctx.errors && ctx.errors.length > 0) {
+    for (const err of ctx.errors) {
+      lines.push(`  ! ${err.stage}: ${err.message}`);
+    }
     lines.push('');
   }
 
@@ -620,4 +671,73 @@ export function formatWizardResultJson(result: WizardResult): string {
     null,
     2,
   );
+}
+
+// ── DoctorResult → GuideContext mapper (Phase 2) ─────────────
+
+/**
+ * Input for the two-stage GuideContext mapper.
+ * DoctorResult provides diagnostics + maturity; ReportResult provides
+ * health, annotations, and candidates. Both are optional for graceful
+ * degradation — the mapper produces a partial GuideContext from
+ * whatever data is available.
+ */
+export interface GuideContextInput {
+  /** Doctor diagnostic result (stage 1) */
+  doctorResult?: DoctorResult;
+  /** Report result with health + verify data (stage 2) */
+  reportResult?: ReportResult;
+}
+
+/**
+ * Map DoctorResult + ReportResult → GuideContext.
+ *
+ * Pure function — no IO. Designed to replace the inline field
+ * extraction that was previously embedded in extractGuideContext().
+ *
+ * Stage 1 (DoctorResult): maturity level + diagnostic check summary.
+ * Stage 2 (ReportResult): health score, annotation/candidate counts,
+ *   expired/expiring-soon flags.
+ */
+export function mapDoctorToGuideContext(
+  input: GuideContextInput,
+): GuideContext {
+  const context: GuideContext = {};
+
+  // ── Stage 1: DoctorResult → maturity + diagnostics ──
+  if (input.doctorResult) {
+    const dr = input.doctorResult;
+
+    // Maturity (only present when doctor ran with --maturity)
+    if (dr.maturity) {
+      context.maturity = dr.maturity.level;
+    }
+
+    // Diagnostics summary
+    context.diagnostics = {
+      pass: dr.summary.pass,
+      warn: dr.summary.warn,
+      fail: dr.summary.fail,
+    };
+    context.hasDoctorFailures = dr.summary.fail > 0;
+    context.hasDoctorWarnings = dr.summary.warn > 0;
+  }
+
+  // ── Stage 2: ReportResult → health + annotations ──
+  if (input.reportResult) {
+    const rr = input.reportResult;
+
+    context.healthScore = rr.health.score;
+    context.healthLevel = rr.health.level;
+    context.annotationCount = rr.totals.annotations;
+    context.candidateCount = rr.totals.candidates;
+
+    // Expired/expiring-soon flags from verify byType
+    context.hasExpiredAnnotations =
+      (rr.verifyResult.summary.byType['expired'] ?? 0) > 0;
+    context.hasExpiringSoonAnnotations =
+      (rr.verifyResult.summary.byType['expiring-soon'] ?? 0) > 0;
+  }
+
+  return context;
 }
