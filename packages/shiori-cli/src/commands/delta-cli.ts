@@ -10,6 +10,7 @@ import { createFormatValidator } from '../core/cli-validation.ts';
 import { writeOutput } from '../core/cli-output.ts';
 import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
 import { loadScanResultFromFile } from '../core/scan-result-loader.ts';
+import { ScanResultNotFoundError } from '../core/errors.ts';
 
 const validateDeltaFormat = createFormatValidator<DeltaOutputFormat>([
   'json',
@@ -145,8 +146,7 @@ export const deltaCommand = define({
     } catch (err) {
       if (
         ctx.values.baseFallbackEmpty &&
-        err instanceof Error &&
-        err.message.includes('not found')
+        err instanceof ScanResultNotFoundError
       ) {
         baseScan = emptyScanResult;
         console.error(

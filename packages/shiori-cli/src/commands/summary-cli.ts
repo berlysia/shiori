@@ -19,6 +19,7 @@ import {
   type ScanResult,
 } from '../core/types.ts';
 import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
+import { ScanResultNotFoundError } from '../core/errors.ts';
 import {
   createBaseContext,
   withRegistry,
@@ -271,8 +272,7 @@ export const summaryCommand = define({
       } catch (err) {
         if (
           ctx.values.baseFallbackEmpty &&
-          err instanceof Error &&
-          err.message.includes('not found')
+          err instanceof ScanResultNotFoundError
         ) {
           baseScanResult = emptyScanResult;
           console.error(

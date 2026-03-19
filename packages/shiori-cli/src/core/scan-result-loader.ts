@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import type { ScanResult } from './types.ts';
 import type { ResolvedConfig } from './config.ts';
 import { DEFAULT_SCAN_RESULT_PATH } from './config.ts';
-import { isNodeError } from './errors.ts';
+import { isNodeError, ScanResultNotFoundError } from './errors.ts';
 
 export interface LoadScanResultOptions {
   /** Value of --scan argument (undefined if not provided, "-" for stdin) */
@@ -154,9 +154,7 @@ export async function loadScanResultFromFile(
     content = await readFile(filePath, 'utf-8');
   } catch (err) {
     if (isNodeError(err) && err.code === 'ENOENT') {
-      throw new Error(
-        `Scan result file not found: ${filePath}\nRun 'shiori scan' first to generate it.`,
-      );
+      throw new ScanResultNotFoundError(filePath);
     }
     if (isNodeError(err) && err.code === 'EACCES') {
       throw new Error(

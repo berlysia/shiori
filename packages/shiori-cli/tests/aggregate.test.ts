@@ -87,6 +87,14 @@ function makeInput(
 // ── Tests ────────────────────────────────────────────────────
 
 describe('aggregate', () => {
+  describe('input validation', () => {
+    it('throws on empty inputs array', () => {
+      assert.throws(() => aggregate([]), {
+        message: /requires at least one input/,
+      });
+    });
+  });
+
   describe('basic aggregation', () => {
     it('aggregates two repositories', () => {
       const result = aggregate([

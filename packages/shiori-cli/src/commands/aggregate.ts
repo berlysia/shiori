@@ -27,6 +27,12 @@ export interface AggregateInput {
  * Repository keys are derived from summaryResult.repository ?? fallbackRepository.
  */
 export function aggregate(inputs: AggregateInput[]): AggregateResult {
+  if (inputs.length === 0) {
+    throw new Error(
+      'aggregate() requires at least one input. Caller must validate that inputs is non-empty.',
+    );
+  }
+
   const repositories: AggregateRepositoryEntry[] = inputs.map((input) => {
     const { summaryResult, fallbackRepository } = input;
     const { health } = summaryResult;
