@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/berlysia/shiori/actions/workflows/ci.yml/badge.svg)](https://github.com/berlysia/shiori/actions/workflows/ci.yml)
 
-[**Live Demo** — shiori governance dashboard](https://berlysia.github.io/shiori/)
+[**Playground** — try shiori in your browser](https://berlysia.github.io/shiori/playground/) · [Governance Dashboard](https://berlysia.github.io/shiori/)
 
 **Your `eslint-disable` comments are hiding technical debt. shiori makes it visible, trackable, and auditable.**
 
