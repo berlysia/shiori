@@ -1,0 +1,22 @@
+{
+  "name": "@berlysia/shiori-vscode",
+  "version": "0.1.0",
+  "description": "VSCode extension for shiori annotation tracking",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/berlysia/shiori.git",
+    "directory": "packages/shiori-vscode"
+  },
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@berlysia/shiori": "workspace:*"
+  },
+  "engines": {
+    "node": ">=22.6.0"
+  }
+}

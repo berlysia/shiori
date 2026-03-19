@@ -4,6 +4,16 @@
 
 shiori is an annotation tracking and governance CLI tool. It recovers structured annotations (lint violations hidden by `disable` comments) from source code, manages them in a JSON registry, and verifies them in CI. Current version: 0.1.1.
 
+### Workspace Structure
+
+pnpm workspace monorepo:
+
+- **Root** (`@berlysia/shiori`) — CLI + core library (npm published)
+- **packages/shiori-daemon** (`@berlysia/shiori-daemon`) — GitHub webhook daemon
+- **packages/shiori-vscode** (`@berlysia/shiori-vscode`) — VSCode extension (depends on `@berlysia/shiori` via `workspace:*`)
+
+`packages/shiori-vscode` requires root `pnpm build` first (imports from `dist/`).
+
 ## Commands
 
 ```bash

@@ -44,6 +44,12 @@ importers:
 
   packages/shiori-daemon: {}
 
+  packages/shiori-vscode:
+    dependencies:
+      '@berlysia/shiori':
+        specifier: workspace:*
+        version: link:../..
+
 packages:
   '@esbuild/aix-ppc64@0.27.3':
     resolution:

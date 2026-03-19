@@ -45,6 +45,12 @@ jobs:
         if: matrix.node-version == 22
         run: pnpm --filter @berlysia/shiori-daemon typecheck
       - run: pnpm build
+      - name: shiori-vscode build
+        if: matrix.node-version == 22
+        run: pnpm --filter @berlysia/shiori-vscode build
+      - name: shiori-vscode typecheck
+        if: matrix.node-version == 22
+        run: pnpm --filter @berlysia/shiori-vscode typecheck
       - run: node dist/src/cli.js --help
 
       # Dogfooding: verify shiori's own annotations against registry
