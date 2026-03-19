@@ -24,6 +24,7 @@ import { triageCommand } from './commands/triage-cli.ts';
 import { annotateCommand } from './commands/annotate-cli.ts';
 import { weeklyReportCommand } from './commands/weekly-report-cli.ts';
 import { journalCommand } from './commands/journal-cli.ts';
+import { summaryCommand } from './commands/summary-cli.ts';
 import { VERSION } from './core/version.ts';
 
 const main = define({
@@ -53,6 +54,7 @@ Workflow:
   shiori init                    Set up shiori in your project
   shiori check                   Scan and verify against registry
   shiori health                  Quick governance health summary
+  shiori summary                 Aggregated governance summary for PR/CI
   shiori triage                  Prioritized action list by ref
   shiori report                  Generate governance health report
   shiori weekly-report            Generate periodic governance report
@@ -114,6 +116,7 @@ try {
       annotate: annotateCommand,
       'weekly-report': weeklyReportCommand,
       journal: journalCommand,
+      summary: summaryCommand,
     },
   });
 } catch (err) {

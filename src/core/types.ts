@@ -851,6 +851,11 @@ export interface AnalyzedReportMetrics {
   velocity: JournalVelocityResult['summary'];
 }
 
+// ── Summary types (EP-0090) ──────────────────────────────────
+
+/** Output format for summary command */
+export type SummaryFormat = 'json' | 'markdown';
+
 /** Health output format */
 export type HealthFormat = 'json' | 'summary';
 
