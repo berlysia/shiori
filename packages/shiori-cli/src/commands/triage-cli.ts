@@ -1,31 +1,22 @@
-import { define } from 'gunshi';
-import {
-  loadConfigAndRegistry,
-  reportRegistryIssues,
-} from '../core/registry-loader.ts';
-import { scan } from './scan.ts';
-import { CommentProvider } from '../core/providers/CommentProvider.ts';
-import { triage, formatTriageOutput, type TriageFormat } from './triage.ts';
-import {
-  parseAndValidateIssueTypes,
-  createFormatValidator,
-} from '../core/cli-validation.ts';
-import {
-  DEFAULT_SCAN_PATTERNS,
-  DEFAULT_SCAN_IGNORE,
-} from '../core/scan-defaults.ts';
-import { writeOutput } from '../core/cli-output.ts';
-import { resolveExpiringThreshold } from '../core/cli-context.ts';
+import { define } from "gunshi";
+import { loadConfigAndRegistry, reportRegistryIssues } from "../core/registry-loader.ts";
+import { scan } from "./scan.ts";
+import { verify } from "./verify.ts";
+import { CommentProvider } from "../core/providers/CommentProvider.ts";
+import { triage, formatTriageOutput, type TriageFormat } from "./triage.ts";
+import { parseAndValidateIssueTypes, createFormatValidator } from "../core/cli-validation.ts";
+import { DEFAULT_SCAN_PATTERNS, DEFAULT_SCAN_IGNORE } from "../core/scan-defaults.ts";
+import { writeOutput } from "../core/cli-output.ts";
+import { resolveExpiringThreshold } from "../core/cli-context.ts";
 
 const validateTriageFormat = createFormatValidator<TriageFormat>(
-  ['json', 'markdown'] as const,
-  'json',
+  ["json", "markdown"] as const,
+  "json",
 );
 
 export const triageCommand = define({
-  name: 'triage',
-  description:
-    'Generate a prioritized action list from verify issues, grouped by ref',
+  name: "triage",
+  description: "Generate a prioritized action list from verify issues, grouped by ref",
   examples: `  # Generate triage report (JSON)
   shiori triage
 
@@ -49,81 +40,80 @@ export const triageCommand = define({
   rendering: { header: null },
   args: {
     patterns: {
-      type: 'string',
-      short: 'p',
+      type: "string",
+      short: "p",
       description:
         'Glob patterns to scan (comma-separated). Default: "**/*.{css,scss,pcss,js,ts,tsx,jsx}"',
     },
     ignore: {
-      type: 'string',
-      short: 'i',
+      type: "string",
+      short: "i",
       description:
         'Patterns to ignore (comma-separated). Default: "**/node_modules/**,**/dist/**,**/.git/**"',
     },
     registry: {
-      type: 'string',
-      short: 'r',
+      type: "string",
+      short: "r",
       description:
-        'Path to registry file (auto-detected from config or .config/shiori/registry.json)',
+        "Path to registry file (auto-detected from config or .config/shiori/registry.json)",
     },
     format: {
-      type: 'string',
-      short: 'f',
+      type: "string",
+      short: "f",
       description: 'Output format: "json", "markdown". Default: "json"',
-      default: 'json',
+      default: "json",
     },
     output: {
-      type: 'string',
-      short: 'o',
-      description: 'Output file path. If omitted, writes to stdout',
+      type: "string",
+      short: "o",
+      description: "Output file path. If omitted, writes to stdout",
     },
     owner: {
-      type: 'string',
-      description: 'Filter by registry entry owner',
+      type: "string",
+      description: "Filter by registry entry owner",
     },
     kind: {
-      type: 'string',
-      description: 'Filter by registry entry kind',
+      type: "string",
+      description: "Filter by registry entry kind",
     },
     expiredOnly: {
-      type: 'boolean',
+      type: "boolean",
       toKebab: true,
-      description: 'Show only refs with expired issues',
+      description: "Show only refs with expired issues",
     },
     failOn: {
-      type: 'string',
+      type: "string",
       toKebab: true,
       description:
         'Issue types to fail on (comma-separated). Example: "expired,missing-in-registry"',
     },
     warnOn: {
-      type: 'string',
+      type: "string",
       toKebab: true,
-      description:
-        'Issue types to warn on (comma-separated). Example: "unused-in-source"',
+      description: 'Issue types to warn on (comma-separated). Example: "unused-in-source"',
     },
     cwd: {
-      type: 'string',
-      description: 'Working directory. Default: process.cwd()',
+      type: "string",
+      description: "Working directory. Default: process.cwd()",
     },
     config: {
-      type: 'string',
-      short: 'c',
+      type: "string",
+      short: "c",
       description:
-        'Path to config directory (YAML/JSON auto-detected). Default: <cwd>/.config/shiori',
+        "Path to config directory (YAML/JSON auto-detected). Default: <cwd>/.config/shiori",
     },
     expiringThreshold: {
-      type: 'string',
+      type: "string",
       toKebab: true,
       description:
-        'Days before expiration to trigger expiring-soon warning. Overrides config. Default: 14',
+        "Days before expiration to trigger expiring-soon warning. Overrides config. Default: 14",
     },
   },
   run: async (ctx) => {
     // Validate options early
-    const failOn = parseAndValidateIssueTypes(ctx.values.failOn, '--fail-on');
+    const failOn = parseAndValidateIssueTypes(ctx.values.failOn, "--fail-on");
     if (failOn === null) return;
-    const warnOn = parseAndValidateIssueTypes(ctx.values.warnOn, '--warn-on');
+    const warnOn = parseAndValidateIssueTypes(ctx.values.warnOn, "--warn-on");
     if (warnOn === null) return;
 
     const format = validateTriageFormat(ctx.values.format);
@@ -140,11 +130,11 @@ export const triageCommand = define({
     const { config, registry, duplicates, refOrigins } = configAndRegistry;
 
     const patterns = ctx.values.patterns
-      ? ctx.values.patterns.split(',').map((s: string) => s.trim())
+      ? ctx.values.patterns.split(",").map((s: string) => s.trim())
       : (config.scanPatterns ?? DEFAULT_SCAN_PATTERNS);
 
     const ignore = ctx.values.ignore
-      ? ctx.values.ignore.split(',').map((s: string) => s.trim())
+      ? ctx.values.ignore.split(",").map((s: string) => s.trim())
       : [...DEFAULT_SCAN_IGNORE, ...(config.scanIgnore ?? [])];
 
     // Scan
@@ -161,12 +151,21 @@ export const triageCommand = define({
       `Scanned ${scanResult.filesScanned} files, found ${scanResult.annotations.length} annotation(s), ${scanResult.candidates.length} candidate(s)`,
     );
 
-    // Triage
-    const expiringThresholdDays = resolveExpiringThreshold(
-      ctx.values.expiringThreshold,
-      config,
-    );
+    // Verify (pre-compute to reuse in triage and for exit code)
+    const expiringThresholdDays = resolveExpiringThreshold(ctx.values.expiringThreshold, config);
 
+    const verifyResult = verify({
+      records: scanResult.annotations,
+      registry,
+      failOn,
+      warnOn,
+      duplicates,
+      refPatterns: config.refPatterns,
+      refOrigins,
+      expiringThresholdDays,
+    });
+
+    // Triage (reuse verifyResult to avoid duplicate verify() call)
     const result = triage({
       scanResult,
       registry,
@@ -179,11 +178,12 @@ export const triageCommand = define({
       owner: ctx.values.owner,
       kind: ctx.values.kind,
       expiredOnly: ctx.values.expiredOnly,
+      verifyResult,
     });
 
     // Empty result message
     if (result.items.length === 0) {
-      console.error('No items match the filter criteria.');
+      console.error("No items match the filter criteria.");
     }
 
     // Output
@@ -192,7 +192,7 @@ export const triageCommand = define({
     const written = await writeOutput(output, {
       outputPath: ctx.values.output,
       cwd,
-      label: 'Triage report',
+      label: "Triage report",
     });
     if (!written) return;
 
@@ -200,5 +200,10 @@ export const triageCommand = define({
     console.error(
       `Triage: ${result.summary.total} item(s) — critical: ${result.summary.byPriority.critical}, high: ${result.summary.byPriority.high}, medium: ${result.summary.byPriority.medium}, low: ${result.summary.byPriority.low}`,
     );
+
+    // Exit code: fail when --fail-on issues produce errors
+    if (verifyResult.summary.errors > 0) {
+      process.exitCode = 1;
+    }
   },
 });
