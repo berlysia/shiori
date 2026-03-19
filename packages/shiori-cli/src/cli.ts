@@ -26,6 +26,7 @@ import { weeklyReportCommand } from './commands/weekly-report-cli.ts';
 import { journalCommand } from './commands/journal-cli.ts';
 import { summaryCommand } from './commands/summary-cli.ts';
 import { aggregateCommand } from './commands/aggregate-cli.ts';
+import { guideCommand } from './commands/guide-cli.ts';
 import { VERSION } from './core/version.ts';
 
 const main = define({
@@ -73,6 +74,7 @@ Workflow:
 
 Diagnostics:
   shiori doctor                  Diagnose shiori setup
+  shiori guide                   Interactive command navigator
 
 Other commands:
   shiori scan                    Extract annotations from source
@@ -120,6 +122,7 @@ try {
       journal: journalCommand,
       summary: summaryCommand,
       aggregate: aggregateCommand,
+      guide: guideCommand,
     },
   });
 } catch (err) {
