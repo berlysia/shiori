@@ -25,6 +25,7 @@ import { annotateCommand } from './commands/annotate-cli.ts';
 import { weeklyReportCommand } from './commands/weekly-report-cli.ts';
 import { journalCommand } from './commands/journal-cli.ts';
 import { summaryCommand } from './commands/summary-cli.ts';
+import { aggregateCommand } from './commands/aggregate-cli.ts';
 import { VERSION } from './core/version.ts';
 
 const main = define({
@@ -67,6 +68,7 @@ Workflow:
   shiori watch                   Refresh scan result on each save
   shiori delta                   Compare scan results for PR review
   shiori journal                 Browse CLI operation journal
+  shiori aggregate               Aggregate multi-repo summaries
   shiori check --fail-on ...     Enforce governance in CI
 
 Diagnostics:
@@ -117,6 +119,7 @@ try {
       'weekly-report': weeklyReportCommand,
       journal: journalCommand,
       summary: summaryCommand,
+      aggregate: aggregateCommand,
     },
   });
 } catch (err) {

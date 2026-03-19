@@ -906,3 +906,53 @@ export interface HealthResult {
   /** Trend summary (present when --history is supplied) */
   trend?: TrendResult['summary'];
 }
+
+// ── Aggregate types (EP-0093) ─────────────────────────────────
+
+/** Output format for aggregate command */
+export type AggregateFormat = 'json' | 'markdown';
+
+/** Per-repository row in the aggregate report */
+export interface AggregateRepositoryEntry {
+  /** Repository identifier (from summary --repository or fallback filename) */
+  repository: string;
+  /** Health score (0-100) */
+  score: number;
+  /** Health level */
+  level: HealthLevel;
+  /** Issue counts */
+  issues: {
+    total: number;
+    errors: number;
+    warnings: number;
+  };
+  /** Expired annotation count */
+  expired: number;
+  /** Expiring-soon annotation count */
+  expiringSoon: number;
+}
+
+/** Result of aggregating multiple repository summaries */
+export interface AggregateResult {
+  /** ISO timestamp when the aggregate was generated */
+  timestamp: string;
+  /** Per-repository entries (sorted by score ascending, then repository name) */
+  repositories: AggregateRepositoryEntry[];
+  /** Organization-level overall metrics */
+  overall: {
+    /** Number of repositories aggregated */
+    repositoryCount: number;
+    /** Simple average of all repository scores */
+    averageScore: number;
+    /** Repository with the lowest score (lexicographically smallest on tie) */
+    worstRepository: string;
+    /** Lowest score among all repositories */
+    worstScore: number;
+    /** Sum of issues across all repositories */
+    totalIssues: number;
+    /** Sum of errors across all repositories */
+    totalErrors: number;
+    /** Sum of warnings across all repositories */
+    totalWarnings: number;
+  };
+}
