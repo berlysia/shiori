@@ -1,4 +1,9 @@
-import type { ReportResult, HealthPrescription, VerifyIssueType } from "../core/types.ts";
+import type {
+  ReportResult,
+  HealthPrescription,
+  VerifyIssueType,
+  PrescriptionActionType,
+} from "../core/types.ts";
 import { ACTION_HINTS } from "../core/action-hints.ts";
 import { DEDUCTION_TIERS } from "./report.ts";
 
@@ -25,6 +30,29 @@ function estimateScoreImpact(
     return currentDeduction - newDeduction;
   }
   return 0;
+}
+
+/**
+ * Map issue type to a programmatic action type for fix dispatch (EP-0112).
+ * "update" is the only fully automatable action; others require human judgment.
+ */
+function buildActionType(issueType: VerifyIssueType): PrescriptionActionType {
+  switch (issueType) {
+    case "missing-in-registry":
+      return "update";
+    case "expired":
+    case "expiring-soon":
+    case "ref-status-closed":
+      return "triage";
+    case "syntax-error":
+    case "unused-in-source":
+    case "ref-format":
+    case "ref-collision":
+      return "verify";
+    case "unrouted-ref":
+    case "registry-routing-mismatch":
+      return "doctor";
+  }
 }
 
 /**
@@ -92,6 +120,7 @@ export function buildPrescriptions(reportResult: ReportResult): HealthPrescripti
         message: buildMessage(issueType, count),
         command: buildCommand(issueType),
         scoreImpact,
+        actionType: buildActionType(issueType),
       });
     }
   }
@@ -107,6 +136,7 @@ export function buildPrescriptions(reportResult: ReportResult): HealthPrescripti
         message: `${totals.candidates} untracked lint disable comment(s) found. Track them to improve coverage.`,
         command: "shiori candidates",
         scoreImpact: candidateImpact,
+        actionType: "candidates",
       });
     }
   }
