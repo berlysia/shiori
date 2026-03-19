@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type { HealthLevel } from '../src/core/types.ts';
+import type { HealthLevel, ReportResult } from '../src/core/types.ts';
 import {
   aggregate,
   formatAggregate,
@@ -59,6 +59,7 @@ function makeSummaryResult(
     timestamp: '2026-03-19T00:00:00.000Z',
     repository: overrides.repository,
     health: makeHealthResult(overrides),
+    _reportResult: {} as ReportResult,
   };
 }
 

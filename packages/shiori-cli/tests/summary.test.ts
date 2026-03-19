@@ -402,6 +402,44 @@ describe('formatSummaryAsMarkdown', () => {
   });
 });
 
+// ── _reportResult exposure ────────────────────────────────────
+
+describe('summary _reportResult', () => {
+  it('exposes internal reportResult for downstream reuse', () => {
+    const result = summary({
+      scanResult: makeScanResult([makeAnnotation({ ref: 'RPT-001' })]),
+      registry: {
+        'RPT-001': makeRegistryEntry(),
+      },
+      failOn: [],
+      warnOn: [],
+    });
+
+    assert.ok(result._reportResult);
+    assert.equal(result._reportResult.timestamp, result.timestamp);
+    assert.ok('verifyResult' in result._reportResult);
+    assert.ok('totals' in result._reportResult);
+  });
+
+  it('excludes _reportResult from JSON serialization', () => {
+    const result = summary({
+      scanResult: makeScanResult([makeAnnotation({ ref: 'SER-001' })]),
+      registry: {
+        'SER-001': makeRegistryEntry(),
+      },
+      failOn: [],
+      warnOn: [],
+    });
+
+    const json = formatSummary(result, 'json');
+    const parsed = JSON.parse(json);
+    assert.equal(parsed._reportResult, undefined);
+    // Other fields should still be present
+    assert.ok(parsed.health);
+    assert.ok(parsed.timestamp);
+  });
+});
+
 // ── verifyResult injection through summary → triage pipeline ─
 
 describe('summary verifyResult injection to triage', () => {

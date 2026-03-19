@@ -1,52 +1,33 @@
 #!/usr/bin/env bash
-# Post or update a PR comment with delta and triage reports.
+# Post or update a PR comment with governance summary.
 # Uses gh CLI for GitHub API calls.
 #
-# Usage: post-pr-comment.sh <repo> <pr-number> <delta-file> <triage-file> <show-onboarding> [candidates-file]
+# Usage: post-pr-comment.sh <repo> <pr-number> <summary-file> <show-onboarding> [candidates-file]
 # Requires: GH_TOKEN environment variable
 
 set -euo pipefail
 
 REPO="$1"
 PR_NUMBER="$2"
-DELTA_FILE="$3"
-TRIAGE_FILE="$4"
-SHOW_ONBOARDING="$5"
-CANDIDATES_FILE="${6:-}"
+SUMMARY_FILE="$3"
+SHOW_ONBOARDING="$4"
+CANDIDATES_FILE="${5:-}"
 
-MARKER="<!-- shiori-delta -->"
+MARKER="<!-- shiori-governance -->"
 
 echo "::group::Post PR comment"
 
-# Read delta report (always include marker for comment deduplication)
-DELTA_CONTENT=""
-if [ -f "$DELTA_FILE" ]; then
-  DELTA_CONTENT=$(cat "$DELTA_FILE")
+# Read summary report (always include marker for comment deduplication)
+SUMMARY_CONTENT=""
+if [ -f "$SUMMARY_FILE" ]; then
+  SUMMARY_CONTENT=$(cat "$SUMMARY_FILE")
 else
-  DELTA_CONTENT="$MARKER
-_No delta report generated._"
+  SUMMARY_CONTENT="_No governance summary generated._"
 fi
 
-# Read triage report
-TRIAGE_CONTENT=""
-if [ -f "$TRIAGE_FILE" ]; then
-  TRIAGE_CONTENT=$(cat "$TRIAGE_FILE")
-fi
-
-# Assemble comment body
-BODY="$DELTA_CONTENT"
-
-# Add triage section (collapsed)
-if [ -n "$TRIAGE_CONTENT" ]; then
-  BODY="$BODY
-
-<details>
-<summary>📋 Triage Report</summary>
-
-$TRIAGE_CONTENT
-
-</details>"
-fi
+# Assemble comment body with marker
+BODY="$MARKER
+$SUMMARY_CONTENT"
 
 # Add onboarding footer
 if [ "$SHOW_ONBOARDING" = "true" ]; then
@@ -100,8 +81,9 @@ pnpm shiori check
 </details>"
 fi
 
-# Find existing comment by marker
-COMMENT_ID=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate --jq ".[] | select(.body | contains(\"$MARKER\")) | .id" 2>/dev/null | head -1 || true)
+# Find existing comment by marker (also check legacy marker for migration)
+LEGACY_MARKER="<!-- shiori-delta -->"
+COMMENT_ID=$(gh api "repos/$REPO/issues/$PR_NUMBER/comments" --paginate --jq ".[] | select(.body | (contains(\"$MARKER\") or contains(\"$LEGACY_MARKER\"))) | .id" 2>/dev/null | head -1 || true)
 
 if [ -n "$COMMENT_ID" ] && [ "$COMMENT_ID" != "null" ]; then
   # Update existing comment

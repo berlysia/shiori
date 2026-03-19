@@ -90,6 +90,8 @@ runs:
         echo "sarif-file=$SHIORI_TMP/shiori.sarif" >> "$GITHUB_OUTPUT"
         echo "comment-body=$SHIORI_TMP/shiori-comment.md" >> "$GITHUB_OUTPUT"
         echo "candidates-result=$SHIORI_TMP/shiori-candidates.json" >> "$GITHUB_OUTPUT"
+        echo "summary-result=$SHIORI_TMP/shiori-summary.md" >> "$GITHUB_OUTPUT"
+        echo "summary-json=$SHIORI_TMP/shiori-summary.json" >> "$GITHUB_OUTPUT"
 
     # ========================================
     # MODE: baseline
@@ -131,23 +133,24 @@ runs:
       working-directory: ${{ inputs.working-directory }}
       run: pnpm shiori scan --output "${{ steps.paths.outputs.head-scan }}"
 
-    - name: 'pr-comment: Compute delta'
-      id: pr-comment-delta
+    - name: 'pr-comment: Generate governance summary'
       if: inputs.mode == 'pr-comment'
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       run: |
-        DELTA_ARGS="--base ${{ steps.paths.outputs.scan-result }} --head ${{ steps.paths.outputs.head-scan }} --format markdown --base-fallback-empty --max-increase ${{ inputs.max-increase }} --output ${{ steps.paths.outputs.delta-result }}"
-        if [ "${{ inputs.added-only }}" = "true" ]; then
-          DELTA_ARGS="$DELTA_ARGS --added-only"
-        fi
-        pnpm shiori delta $DELTA_ARGS || echo "delta-failed=true" >> "$GITHUB_ENV"
-
-    - name: 'pr-comment: Generate triage report'
-      if: inputs.mode == 'pr-comment'
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}
-      run: pnpm shiori triage --format markdown --output "${{ steps.paths.outputs.triage-result }}" || true
+        pnpm shiori summary \
+          --scan "${{ steps.paths.outputs.head-scan }}" \
+          --base "${{ steps.paths.outputs.scan-result }}" \
+          --base-fallback-empty \
+          --format markdown \
+          --output "${{ steps.paths.outputs.summary-result }}"
+        # Also generate JSON for delta gate check
+        pnpm shiori summary \
+          --scan "${{ steps.paths.outputs.head-scan }}" \
+          --base "${{ steps.paths.outputs.scan-result }}" \
+          --base-fallback-empty \
+          --format json \
+          --output "${{ steps.paths.outputs.summary-json }}"
 
     - name: 'pr-comment: Discover untracked candidates (onboarding)'
       if: inputs.mode == 'pr-comment' && inputs.onboarding == 'true'
@@ -174,17 +177,25 @@ runs:
         bash "${{ github.action_path }}/scripts/post-pr-comment.sh" \
           "${{ github.repository }}" \
           "${{ github.event.pull_request.number }}" \
-          "${{ steps.paths.outputs.delta-result }}" \
-          "${{ steps.paths.outputs.triage-result }}" \
+          "${{ steps.paths.outputs.summary-result }}" \
           "${{ inputs.onboarding }}" \
           "${{ steps.paths.outputs.candidates-result }}"
 
-    - name: 'pr-comment: Fail if annotation count increased'
-      if: inputs.mode == 'pr-comment' && env.delta-failed == 'true'
+    - name: 'pr-comment: Delta gate check'
+      if: inputs.mode == 'pr-comment'
       shell: bash
       run: |
-        echo "::error::shiori delta: annotation count exceeded --max-increase ${{ inputs.max-increase }} threshold"
-        exit 1
+        SUMMARY_JSON="${{ steps.paths.outputs.summary-json }}"
+        if [ ! -f "$SUMMARY_JSON" ]; then
+          echo "::warning::Summary JSON not found, skipping delta gate"
+          exit 0
+        fi
+        NET=$(jq '.delta.summary.net // 0' "$SUMMARY_JSON")
+        MAX_INCREASE="${{ inputs.max-increase }}"
+        if [ "$NET" -gt "$MAX_INCREASE" ]; then
+          echo "::error::shiori delta: net annotation increase ($NET) exceeded --max-increase $MAX_INCREASE threshold"
+          exit 1
+        fi
 
     # ========================================
     # MODE: pr-description

@@ -3,14 +3,16 @@ import { resolve } from 'node:path';
 import { scan } from './scan.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
 import { summary, formatSummary, type SummaryFormat } from './summary.ts';
-import { report as reportFn } from './report.ts';
 import {
   parseAndValidateIssueTypes,
   createFormatValidator,
 } from '../core/cli-validation.ts';
 import { writeOutput } from '../core/cli-output.ts';
 import { saveSnapshot, loadSnapshots } from '../core/snapshot.ts';
-import { loadScanResultFromFile } from '../core/scan-result-loader.ts';
+import {
+  loadScanResultFromFile,
+  loadScanResult,
+} from '../core/scan-result-loader.ts';
 import {
   isAtOrBelowLevel,
   type HealthLevel,
@@ -45,6 +47,9 @@ export const summaryCommand = define({
   # Markdown output for PR comments
   shiori summary --format markdown
 
+  # Use pre-computed scan result (avoids re-scanning in CI)
+  shiori summary --scan head-scan.json
+
   # Include delta (compare against base scan result)
   shiori summary --base base-scan.json
 
@@ -52,7 +57,7 @@ export const summaryCommand = define({
   shiori summary --history ./reports/
 
   # Full summary with delta + trend + snapshot
-  shiori summary --base base-scan.json --history ./reports/ --snapshot ./reports/
+  shiori summary --scan head-scan.json --base base-scan.json --history ./reports/ --snapshot ./reports/
 
   # Tag with repository name for multi-repo aggregation
   shiori summary --repository my-org/my-repo
@@ -64,6 +69,11 @@ export const summaryCommand = define({
   shiori summary --base base-scan.json --base-fallback-empty`,
   rendering: { header: null },
   args: {
+    scan: {
+      type: 'string',
+      description:
+        'Path to pre-computed scan result JSON. When provided, skips live scanning. Use "-" for stdin.',
+    },
     patterns: {
       type: 'string',
       short: 'p',
@@ -197,19 +207,38 @@ export const summaryCommand = define({
       regCtx.config,
     );
 
-    // Scan (head)
-    const provider = new CommentProvider();
-    const scanResult = await scan({
-      patterns,
-      ignore,
-      provider,
-      cwd: base.cwd,
-      providerOptions: { candidatePatterns: regCtx.config.candidatePatterns },
-    });
-
-    console.error(
-      `Scanned ${scanResult.filesScanned} files, found ${scanResult.annotations.length} annotation(s), ${scanResult.candidates.length} candidate(s)`,
-    );
+    // Scan (head): use pre-computed scan result if --scan is provided, otherwise live scan
+    let scanResult: ScanResult;
+    if (ctx.values.scan !== undefined) {
+      try {
+        scanResult = await loadScanResult({
+          explicitPath: ctx.values.scan,
+          config: regCtx.config,
+          cwd: base.cwd,
+        });
+        console.error(
+          `Loaded scan result: ${scanResult.annotations.length} annotation(s), ${scanResult.candidates.length} candidate(s)`,
+        );
+      } catch (err) {
+        console.error(
+          `Error loading scan result: ${err instanceof Error ? err.message : String(err)}`,
+        );
+        process.exitCode = 1;
+        return;
+      }
+    } else {
+      const provider = new CommentProvider();
+      scanResult = await scan({
+        patterns,
+        ignore,
+        provider,
+        cwd: base.cwd,
+        providerOptions: { candidatePatterns: regCtx.config.candidatePatterns },
+      });
+      console.error(
+        `Scanned ${scanResult.filesScanned} files, found ${scanResult.annotations.length} annotation(s), ${scanResult.candidates.length} candidate(s)`,
+      );
+    }
 
     const expiringThresholdDays = resolveExpiringThreshold(
       ctx.values.expiringThreshold,
@@ -290,21 +319,10 @@ export const summaryCommand = define({
       skipTriage: ctx.values.skipTriage,
     });
 
-    // Save snapshot if requested
+    // Save snapshot if requested (reuse reportResult from summary to avoid timestamp drift)
     if (ctx.values.snapshot) {
-      // Generate report for snapshot (summary internally uses report, but doesn't expose it)
-      const reportResult = reportFn({
-        scanResult,
-        registry: regCtx.registry,
-        failOn,
-        warnOn,
-        duplicates: regCtx.duplicates,
-        refPatterns: regCtx.config.refPatterns,
-        refOrigins: regCtx.refOrigins,
-        expiringThresholdDays,
-      });
       const snapshotResult = await saveSnapshot(
-        reportResult,
+        result._reportResult,
         ctx.values.snapshot,
         base.cwd,
       );

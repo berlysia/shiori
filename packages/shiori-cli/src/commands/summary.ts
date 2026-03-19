@@ -37,6 +37,12 @@ export interface SummaryResult {
   trend?: TrendResult;
   /** Prioritized triage list (undefined when no issues exist) */
   triage?: TriageResult;
+  /**
+   * Internal: the ReportResult generated during summary computation.
+   * Exposed so CLI callers (e.g. --snapshot) can reuse it without
+   * a redundant report() call. Excluded from JSON serialization.
+   */
+  _reportResult: ReportResult;
 }
 
 /** Options for the summary command */
@@ -105,6 +111,7 @@ export function summary(options: SummaryOptions): SummaryResult {
     delta: deltaResult,
     trend: trendResult,
     triage: triageResult,
+    _reportResult: reportResult,
   };
 }
 
@@ -237,7 +244,10 @@ export function formatSummary(
   switch (format) {
     case 'markdown':
       return formatSummaryAsMarkdown(result);
-    default:
-      return JSON.stringify(result, null, 2);
+    default: {
+      // Exclude internal _reportResult from JSON serialization
+      const { _reportResult: _, ...serializable } = result;
+      return JSON.stringify(serializable, null, 2);
+    }
   }
 }
