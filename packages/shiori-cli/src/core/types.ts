@@ -926,6 +926,23 @@ export interface HealthResult {
   insights: ReportInsight[];
   /** Trend summary (present when --history is supplied) */
   trend?: TrendResult['summary'];
+  /** Actionable prescriptions derived from health analysis (EP-0104) */
+  prescriptions?: HealthPrescription[];
+}
+
+/** Urgency level for health prescriptions */
+export type PrescriptionUrgency = 'critical' | 'recommended' | 'suggestion';
+
+/** A single actionable prescription for improving governance health (EP-0104) */
+export interface HealthPrescription {
+  /** Urgency level of this prescription */
+  urgency: PrescriptionUrgency;
+  /** Human-readable summary of what to do */
+  message: string;
+  /** CLI command to run (copy-paste ready) */
+  command: string;
+  /** Expected score improvement if this prescription is addressed */
+  scoreImpact: number;
 }
 
 // ── Aggregate types (EP-0093) ─────────────────────────────────

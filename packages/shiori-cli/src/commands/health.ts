@@ -6,6 +6,7 @@ import type {
 } from '../core/types.ts';
 import { healthEmoji, trendArrow } from '../core/emoji.ts';
 import { report, type ReportOptions } from './report.ts';
+import { buildPrescriptions } from './prescriptions.ts';
 
 export type { HealthResult, HealthFormat };
 
@@ -71,6 +72,12 @@ export function buildHealthResult(
     result.trend = trendResult.summary;
   }
 
+  // Generate prescriptions when score is below 100
+  const prescriptions = buildPrescriptions(reportResult);
+  if (prescriptions.length > 0) {
+    result.prescriptions = prescriptions;
+  }
+
   return result;
 }
 
@@ -114,6 +121,24 @@ export function formatHealthSummary(result: HealthResult): string {
         38,
       ) + '│',
     );
+  }
+
+  // Prescriptions (when present)
+  if (result.prescriptions && result.prescriptions.length > 0) {
+    lines.push('├─────────────────────────────────────┤');
+    lines.push('│ 💊 Prescriptions:'.padEnd(38) + '│');
+    for (const rx of result.prescriptions.slice(0, 3)) {
+      const urgencyMark =
+        rx.urgency === 'critical'
+          ? '🔴'
+          : rx.urgency === 'recommended'
+            ? '🟡'
+            : '⚪';
+      lines.push(
+        `│  ${urgencyMark} +${rx.scoreImpact}pt: ${rx.command}`.padEnd(38) +
+          '│',
+      );
+    }
   }
 
   // Triage suggestion (when issues exist)

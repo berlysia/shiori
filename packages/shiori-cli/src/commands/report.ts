@@ -174,7 +174,7 @@ function buildInsights(
  * - Each error-level issue type deducts points proportional to severity
  * - Untracked candidates reduce score (less impact than actual issues)
  */
-function calculateScore(
+export function calculateScore(
   annotations: ShioriAnnotation[],
   candidates: ShioriCandidate[],
   byType: Record<VerifyIssueType, number>,
