@@ -1,12 +1,7 @@
-import type {
-  HealthResult,
-  HealthFormat,
-  ReportResult,
-  TrendResult,
-} from '../core/types.ts';
-import { healthEmoji, trendArrow } from '../core/emoji.ts';
-import { report, type ReportOptions } from './report.ts';
-import { buildPrescriptions } from './prescriptions.ts';
+import type { HealthResult, HealthFormat, ReportResult, TrendResult } from "../core/types.ts";
+import { healthEmoji, trendArrow } from "../core/emoji.ts";
+import { report, type ReportOptions } from "./report.ts";
+import { buildPrescriptions } from "./prescriptions.ts";
 
 export type { HealthResult, HealthFormat };
 
@@ -47,8 +42,8 @@ export function buildHealthResult(
   // Append triage suggestion when actionable issues exist
   if (reportResult.totals.issues > 0) {
     insights.push({
-      level: 'info',
-      label: 'triage',
+      level: "info",
+      label: "triage",
       message: `Run "shiori triage" to see a prioritized action list, or "shiori health --triage" to combine both.`,
     });
   }
@@ -62,8 +57,8 @@ export function buildHealthResult(
       warnings: reportResult.totals.warnings,
     },
     expiring: {
-      expired: reportResult.byType['expired'],
-      expiringSoon: reportResult.byType['expiring-soon'],
+      expired: reportResult.byType["expired"],
+      expiringSoon: reportResult.byType["expiring-soon"],
     },
     insights,
   };
@@ -82,85 +77,124 @@ export function buildHealthResult(
 }
 
 /**
+ * Estimate the display width of a string, accounting for emoji characters.
+ * Emoji (surrogate pairs / characters outside BMP) are treated as width 2.
+ * ASCII and other BMP characters are treated as width 1.
+ */
+function displayWidth(str: string): number {
+  let width = 0;
+  for (const ch of str) {
+    const cp = ch.codePointAt(0) ?? 0;
+    // Emoji and other wide characters: surrogate-pair range, Variation Selectors,
+    // Emoji Modifier, Regional Indicators, Miscellaneous Symbols, Dingbats, etc.
+    if (cp > 0xffff || (cp >= 0x2600 && cp <= 0x27bf) || (cp >= 0x1f000 && cp <= 0x1faff)) {
+      width += 2;
+    } else if (cp === 0xfe0f) {
+      // Variation Selector-16 (emoji presentation) — already counted in base char
+      // Skip adding width for this zero-width modifier
+    } else {
+      width += 1;
+    }
+  }
+  return width;
+}
+
+/**
+ * Pad a string to target display width with spaces on the right.
+ * Unlike String.padEnd, this accounts for emoji display widths.
+ */
+function padEndDisplay(str: string, targetWidth: number): string {
+  const currentWidth = displayWidth(str);
+  if (currentWidth >= targetWidth) return str;
+  return str + " ".repeat(targetWidth - currentWidth);
+}
+
+/**
  * Format HealthResult as a human-readable summary for stderr.
- * Uses a box-style layout for CI visibility.
+ * Uses a box-style layout with dynamic width for CI visibility.
  */
 export function formatHealthSummary(result: HealthResult): string {
-  const lines: string[] = [];
   const emoji = healthEmoji(result.health.level);
 
-  lines.push('┌─────────────────────────────────────┐');
-  lines.push(
-    `│ ${emoji} Health: ${result.health.score}/100 (${result.health.level})`.padEnd(
-      38,
-    ) + '│',
-  );
-  lines.push('├─────────────────────────────────────┤');
+  // Build content lines (without box decorations) as sections
+  // Each section is an array of content strings; sections are separated by ├─┤
+  type Section = string[];
+  const sections: Section[] = [];
 
-  // Issue counts
-  lines.push(
-    `│ Issues: ${result.issues.total} (${result.issues.errors} errors, ${result.issues.warnings} warnings)`.padEnd(
-      38,
-    ) + '│',
+  // Header section
+  sections.push([`${emoji} Health: ${result.health.score}/100 (${result.health.level})`]);
+
+  // Info section
+  const infoLines: string[] = [];
+  infoLines.push(
+    `Issues: ${result.issues.total} (${result.issues.errors} errors, ${result.issues.warnings} warnings)`,
   );
 
-  // Expiration counts
   if (result.expiring.expired > 0 || result.expiring.expiringSoon > 0) {
-    lines.push(
-      `│ Expired: ${result.expiring.expired}, Expiring soon: ${result.expiring.expiringSoon}`.padEnd(
-        38,
-      ) + '│',
+    infoLines.push(
+      `Expired: ${result.expiring.expired}, Expiring soon: ${result.expiring.expiringSoon}`,
     );
   }
 
-  // Trend direction (if present)
   if (result.trend) {
     const arrow = trendArrow(result.trend.direction);
-    lines.push(
-      `│ Trend: ${arrow} ${result.trend.direction} (${result.trend.scoreChange >= 0 ? '+' : ''}${result.trend.scoreChange})`.padEnd(
-        38,
-      ) + '│',
+    const sign = result.trend.scoreChange >= 0 ? "+" : "";
+    infoLines.push(
+      `Trend: ${arrow} ${result.trend.direction} (${sign}${result.trend.scoreChange})`,
     );
   }
+  sections.push(infoLines);
 
-  // Prescriptions (when present)
+  // Prescriptions section (when present)
   if (result.prescriptions && result.prescriptions.length > 0) {
-    lines.push('├─────────────────────────────────────┤');
-    lines.push('│ 💊 Prescriptions:'.padEnd(38) + '│');
+    const rxLines: string[] = [];
+    rxLines.push("💊 Prescriptions:");
     for (const rx of result.prescriptions.slice(0, 3)) {
       const urgencyMark =
-        rx.urgency === 'critical'
-          ? '🔴'
-          : rx.urgency === 'recommended'
-            ? '🟡'
-            : '⚪';
-      lines.push(
-        `│  ${urgencyMark} +${rx.scoreImpact}pt: ${rx.command}`.padEnd(38) +
-          '│',
-      );
+        rx.urgency === "critical" ? "🔴" : rx.urgency === "recommended" ? "🟡" : "⚪";
+      rxLines.push(` ${urgencyMark} +${rx.scoreImpact}pt: ${rx.command}`);
     }
+    sections.push(rxLines);
   }
 
   // Triage suggestion (when issues exist)
   if (result.issues.total > 0) {
-    lines.push('├─────────────────────────────────────┤');
-    lines.push('│ 💡 Run: shiori health --triage'.padEnd(38) + '│');
+    sections.push(["💡 Run: shiori health --triage"]);
   }
 
-  lines.push('└─────────────────────────────────────┘');
+  // Calculate box inner width from all content lines
+  // Add 1 for left padding space inside box
+  const allContentLines = sections.flat();
+  const maxContentWidth = Math.max(...allContentLines.map((line) => displayWidth(line)));
+  // Inner width = 1 (left pad) + content + 1 (right pad)
+  const innerWidth = maxContentWidth + 2;
 
-  return lines.join('\n');
+  // Build output
+  const outputLines: string[] = [];
+  const hBar = "─".repeat(innerWidth);
+
+  outputLines.push(`┌${hBar}┐`);
+
+  for (let si = 0; si < sections.length; si++) {
+    if (si > 0) {
+      outputLines.push(`├${hBar}┤`);
+    }
+    for (const content of sections[si]!) {
+      outputLines.push(`│${padEndDisplay(` ${content}`, innerWidth)}│`);
+    }
+  }
+
+  outputLines.push(`└${hBar}┘`);
+
+  return outputLines.join("\n");
 }
 
 /**
  * Format HealthResult for output.
  */
-export function formatHealth(
-  result: HealthResult,
-  format: HealthFormat,
-): string {
+export function formatHealth(result: HealthResult, format: HealthFormat): string {
   switch (format) {
-    case 'summary':
+    case "summary":
       return formatHealthSummary(result);
     default:
       return JSON.stringify(result, null, 2);
