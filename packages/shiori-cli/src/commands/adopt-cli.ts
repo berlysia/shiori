@@ -16,6 +16,7 @@ import { applyMigrateToFile, groupActionsByFile } from './migrate.ts';
 import {
   planAdoption,
   formatAdoptPreview,
+  buildGroupKey,
   buildGroupSummaries,
   filterCandidatesByGroups,
   formatGroupLabel,
@@ -268,6 +269,13 @@ export const adoptCommand = define({
       );
     }
 
+    // Wizard includes its own apply confirmation step; --apply is redundant
+    if (wizard && apply && process.stdin.isTTY) {
+      console.error(
+        'Note: --wizard includes an apply confirmation step. The --apply flag is ignored in wizard mode.',
+      );
+    }
+
     // Validate prefix format (also re-validated after wizard override)
     if (!/^[A-Z][A-Z0-9]*(?:[-:][A-Za-z0-9][-A-Za-z0-9._]*)*$/.test(prefix)) {
       console.error(
@@ -317,12 +325,8 @@ export const adoptCommand = define({
         return;
       }
 
-      // Filter candidates to selected groups
-      const selectedKeys = new Set(
-        selectedGroups.map((g) =>
-          g.directive ? `${g.pattern}/${g.directive}` : g.pattern,
-        ),
-      );
+      // Filter candidates to selected groups (using shared buildGroupKey)
+      const selectedKeys = new Set(selectedGroups.map(buildGroupKey));
       candidates = filterCandidatesByGroups(candidates, selectedKeys);
 
       if (candidates.length === 0) {
@@ -449,17 +453,39 @@ async function applyAdoption(opts: {
     throw err;
   }
 
-  // Apply file modifications
+  // Apply file modifications (non-atomic: files are written sequentially;
+  // partial failure leaves already-written files modified on disk)
   let totalModified = 0;
   const allWarnings: string[] = [];
+  const writtenFiles: string[] = [];
 
   for (const [file, actions] of byFile) {
     const filePath = resolve(cwd, file);
-    const content = await readFile(filePath, 'utf-8');
-    const editResult = applyMigrateToFile(content, actions);
-    await writeFile(filePath, editResult.content, 'utf-8');
-    totalModified += editResult.modifiedLines;
-    allWarnings.push(...editResult.warnings);
+    try {
+      const content = await readFile(filePath, 'utf-8');
+      const editResult = applyMigrateToFile(content, actions);
+      await writeFile(filePath, editResult.content, 'utf-8');
+      writtenFiles.push(file);
+      totalModified += editResult.modifiedLines;
+      allWarnings.push(...editResult.warnings);
+    } catch (err) {
+      console.error(
+        `Error writing ${file}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      if (writtenFiles.length > 0) {
+        console.error(
+          `Warning: ${writtenFiles.length} file(s) were already modified before the error:`,
+        );
+        for (const f of writtenFiles) {
+          console.error(`  ${f}`);
+        }
+        console.error(
+          'Use "git checkout" or "git stash" to revert partial changes.',
+        );
+      }
+      process.exitCode = 1;
+      return;
+    }
   }
 
   // Update registry

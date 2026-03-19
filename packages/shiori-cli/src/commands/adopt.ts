@@ -64,13 +64,13 @@ export function planAdoption(options: AdoptOptions): AdoptResult {
 }
 
 /**
- * Build the group key for a candidate (pattern/directive or pattern alone).
- * Used by both planAdoption grouping and wizard group selection.
+ * Build the group key for a candidate or group summary (pattern/directive or pattern alone).
+ * Used by planAdoption grouping, filterCandidatesByGroups, and wizard group selection.
  */
-export function buildGroupKey(candidate: ShioriCandidate): string {
-  return candidate.directive
-    ? `${candidate.pattern}/${candidate.directive}`
-    : candidate.pattern;
+export function buildGroupKey(
+  item: Pick<ShioriCandidate, 'pattern' | 'directive'>,
+): string {
+  return item.directive ? `${item.pattern}/${item.directive}` : item.pattern;
 }
 
 /**

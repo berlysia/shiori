@@ -139,9 +139,10 @@ export const USE_CASES: readonly UseCase[] = [
     id: 'adopt-existing',
     label: 'Track existing lint disable comments',
     category: 'setup',
-    commands: ['shiori adopt'],
+    commands: ['shiori adopt --wizard'],
     explanation:
-      'Converts untracked lint disable comments into tracked shiori annotations.',
+      'Interactive wizard to selectively adopt untracked lint disable comments into shiori annotations.',
+    options: ['--prefix <PREFIX>', '--reason <REASON>', '--kind <KIND>'],
     contextConditions: [
       { field: 'candidateCount', op: 'gt', value: 0, boost: 15 },
       { field: 'maturity', op: 'lte', value: 1, boost: 5 },
