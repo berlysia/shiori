@@ -2,7 +2,7 @@
  * CLI integration tests for `shiori guide`.
  *
  * Covers: --json output, --list output, --use-case lookup (valid/invalid),
- * pipe mode fallback, and USE_CASES × registered commands sync.
+ * pipe mode fallback, --wizard mode, and USE_CASES × registered commands sync.
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
@@ -12,6 +12,7 @@ import {
   groupUseCases,
   type GroupedUseCases,
   type UseCaseCategory,
+  type GuideContext,
 } from '../src/commands/guide.ts';
 
 // ── --json mode ────────────────────────────────────────────────
@@ -275,6 +276,76 @@ describe('guide: USE_CASES sync validation', () => {
       groupedCount,
       USE_CASES.length,
       'grouped total should match USE_CASES length',
+    );
+  });
+});
+
+// ── --wizard mode (EP-0100) ───────────────────────────────────
+
+describe('guide-cli: --wizard mode', () => {
+  it('exits 0 and outputs recommendations to stderr (no config)', async () => {
+    // Default cwd is packages/shiori-cli (no shiori config)
+    // wizard should still work — maturity=0, no health data
+    const { exitCode, stderr } = await runCli(['guide', '--wizard']);
+
+    assert.equal(exitCode, 0);
+    assert.ok(
+      stderr.includes('Analyzing project context'),
+      'shows progress message',
+    );
+    assert.ok(
+      stderr.includes('shiori guide --wizard'),
+      'includes wizard header',
+    );
+    assert.ok(stderr.includes('1.'), 'shows numbered recommendation');
+    assert.ok(stderr.includes('score:'), 'shows score in output');
+  });
+
+  it('--wizard --json outputs valid JSON structure', async () => {
+    // Use default cwd (unconfigured) for fast, deterministic test
+    const { exitCode, stdout } = await runCli(['guide', '--wizard', '--json']);
+
+    assert.equal(exitCode, 0);
+    const parsed = JSON.parse(stdout) as {
+      context: GuideContext;
+      recommendations: Array<{
+        id: string;
+        label: string;
+        category: string;
+        commands: string[];
+        explanation: string;
+        score: number;
+      }>;
+    };
+
+    assert.ok(parsed.context, 'has context object');
+    assert.ok(
+      Array.isArray(parsed.recommendations),
+      'has recommendations array',
+    );
+    assert.equal(parsed.recommendations.length, 3, 'returns 3 recommendations');
+
+    for (const rec of parsed.recommendations) {
+      assert.ok(typeof rec.id === 'string', 'recommendation has id');
+      assert.ok(typeof rec.score === 'number', 'recommendation has score');
+      assert.ok(Array.isArray(rec.commands), 'recommendation has commands');
+    }
+  });
+
+  it('--wizard --json gracefully handles unconfigured project', async () => {
+    // Default cwd (packages/shiori-cli) has no shiori config
+    const { exitCode, stdout } = await runCli(['guide', '--wizard', '--json']);
+
+    assert.equal(exitCode, 0);
+    const parsed = JSON.parse(stdout) as { context: GuideContext };
+
+    // Maturity should be 0 for unconfigured project
+    assert.equal(parsed.context.maturity, 0, 'maturity should be 0');
+    // healthScore should be absent (no config to run report)
+    assert.equal(
+      parsed.context.healthScore,
+      undefined,
+      'healthScore should be absent',
     );
   });
 });

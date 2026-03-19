@@ -7,7 +7,15 @@ import {
   formatUseCase,
   formatAllUseCases,
   formatUseCasesJson,
+  evaluateCondition,
+  scoreUseCase,
+  rankUseCasesByContext,
+  formatWizardResult,
+  formatWizardResultJson,
   type UseCaseCategory,
+  type GuideContext,
+  type ContextCondition,
+  type UseCase,
 } from '../src/commands/guide.ts';
 
 describe('guide', () => {
@@ -295,5 +303,385 @@ describe('guide', () => {
         'generate-report should have recipes in JSON',
       );
     });
+  });
+});
+
+// ── Wizard logic (EP-0100) ──────────────────────────────────
+
+describe('wizard: evaluateCondition', () => {
+  it('truthy returns true for truthy values', () => {
+    const cond: ContextCondition = {
+      field: 'hasExpiredAnnotations',
+      op: 'truthy',
+      boost: 10,
+    };
+    assert.equal(
+      evaluateCondition(cond, { hasExpiredAnnotations: true }),
+      true,
+    );
+  });
+
+  it('truthy returns false for falsy values', () => {
+    const cond: ContextCondition = {
+      field: 'hasExpiredAnnotations',
+      op: 'truthy',
+      boost: 10,
+    };
+    assert.equal(
+      evaluateCondition(cond, { hasExpiredAnnotations: false }),
+      false,
+    );
+  });
+
+  it('truthy returns false for undefined fields', () => {
+    const cond: ContextCondition = {
+      field: 'hasExpiredAnnotations',
+      op: 'truthy',
+      boost: 10,
+    };
+    assert.equal(evaluateCondition(cond, {}), false);
+  });
+
+  it('falsy returns true for falsy values', () => {
+    const cond: ContextCondition = {
+      field: 'hasExpiredAnnotations',
+      op: 'falsy',
+      boost: 5,
+    };
+    assert.equal(
+      evaluateCondition(cond, { hasExpiredAnnotations: false }),
+      true,
+    );
+  });
+
+  it('eq matches exact value', () => {
+    const cond: ContextCondition = {
+      field: 'maturity',
+      op: 'eq',
+      value: 0,
+      boost: 20,
+    };
+    assert.equal(evaluateCondition(cond, { maturity: 0 }), true);
+    assert.equal(evaluateCondition(cond, { maturity: 1 }), false);
+  });
+
+  it('neq matches non-equal value', () => {
+    const cond: ContextCondition = {
+      field: 'maturity',
+      op: 'neq',
+      value: 0,
+      boost: 5,
+    };
+    assert.equal(evaluateCondition(cond, { maturity: 1 }), true);
+    assert.equal(evaluateCondition(cond, { maturity: 0 }), false);
+  });
+
+  it('lt compares numbers correctly', () => {
+    const cond: ContextCondition = {
+      field: 'healthScore',
+      op: 'lt',
+      value: 80,
+      boost: 10,
+    };
+    assert.equal(evaluateCondition(cond, { healthScore: 50 }), true);
+    assert.equal(evaluateCondition(cond, { healthScore: 80 }), false);
+    assert.equal(evaluateCondition(cond, { healthScore: 90 }), false);
+  });
+
+  it('lte compares numbers correctly', () => {
+    const cond: ContextCondition = {
+      field: 'maturity',
+      op: 'lte',
+      value: 2,
+      boost: 5,
+    };
+    assert.equal(evaluateCondition(cond, { maturity: 1 }), true);
+    assert.equal(evaluateCondition(cond, { maturity: 2 }), true);
+    assert.equal(evaluateCondition(cond, { maturity: 3 }), false);
+  });
+
+  it('gt compares numbers correctly', () => {
+    const cond: ContextCondition = {
+      field: 'candidateCount',
+      op: 'gt',
+      value: 0,
+      boost: 10,
+    };
+    assert.equal(evaluateCondition(cond, { candidateCount: 5 }), true);
+    assert.equal(evaluateCondition(cond, { candidateCount: 0 }), false);
+  });
+
+  it('gte compares numbers correctly', () => {
+    const cond: ContextCondition = {
+      field: 'maturity',
+      op: 'gte',
+      value: 2,
+      boost: 5,
+    };
+    assert.equal(evaluateCondition(cond, { maturity: 2 }), true);
+    assert.equal(evaluateCondition(cond, { maturity: 3 }), true);
+    assert.equal(evaluateCondition(cond, { maturity: 1 }), false);
+  });
+
+  it('returns false for undefined field regardless of operator', () => {
+    const ops = ['eq', 'neq', 'lt', 'lte', 'gt', 'gte'] as const;
+    for (const op of ops) {
+      const cond: ContextCondition = {
+        field: 'healthScore',
+        op,
+        value: 50,
+        boost: 10,
+      };
+      assert.equal(
+        evaluateCondition(cond, {}),
+        false,
+        `op=${op} should return false for undefined field`,
+      );
+    }
+  });
+});
+
+describe('wizard: scoreUseCase', () => {
+  it('returns 0 for use case without contextConditions', () => {
+    const uc: UseCase = {
+      id: 'test',
+      label: 'Test',
+      category: 'daily',
+      commands: ['shiori test'],
+      explanation: 'Test use case',
+    };
+    assert.equal(scoreUseCase(uc, { maturity: 2 }), 0);
+  });
+
+  it('sums matching condition boosts', () => {
+    const uc: UseCase = {
+      id: 'test',
+      label: 'Test',
+      category: 'daily',
+      commands: ['shiori test'],
+      explanation: 'Test use case',
+      contextConditions: [
+        { field: 'maturity', op: 'gte', value: 1, boost: 5 },
+        { field: 'hasExpiredAnnotations', op: 'truthy', boost: 10 },
+      ],
+    };
+    const ctx: GuideContext = {
+      maturity: 2,
+      hasExpiredAnnotations: true,
+    };
+    assert.equal(scoreUseCase(uc, ctx), 15);
+  });
+
+  it('only sums matching conditions', () => {
+    const uc: UseCase = {
+      id: 'test',
+      label: 'Test',
+      category: 'daily',
+      commands: ['shiori test'],
+      explanation: 'Test use case',
+      contextConditions: [
+        { field: 'maturity', op: 'eq', value: 0, boost: 20 },
+        { field: 'hasExpiredAnnotations', op: 'truthy', boost: 10 },
+      ],
+    };
+    const ctx: GuideContext = {
+      maturity: 2,
+      hasExpiredAnnotations: true,
+    };
+    // maturity=2 != 0, so only hasExpiredAnnotations matches
+    assert.equal(scoreUseCase(uc, ctx), 10);
+  });
+});
+
+describe('wizard: rankUseCasesByContext', () => {
+  it('returns top 3 recommendations by default', () => {
+    const result = rankUseCasesByContext({ maturity: 0 });
+    assert.equal(result.recommendations.length, 3);
+  });
+
+  it('respects custom topN parameter', () => {
+    const result = rankUseCasesByContext({ maturity: 2 }, 5);
+    assert.equal(result.recommendations.length, 5);
+  });
+
+  it('includes context in result', () => {
+    const ctx: GuideContext = { maturity: 1, healthScore: 70 };
+    const result = rankUseCasesByContext(ctx);
+    assert.deepEqual(result.context, ctx);
+  });
+
+  it('ranks first-setup highest for maturity 0', () => {
+    const result = rankUseCasesByContext({ maturity: 0 });
+    assert.ok(result.recommendations.length > 0);
+    assert.equal(result.recommendations[0]?.useCase.id, 'first-setup');
+    assert.equal(result.recommendations[0]?.score, 20);
+  });
+
+  it('ranks resolve-ref high when expired annotations exist', () => {
+    const ctx: GuideContext = {
+      maturity: 2,
+      hasExpiredAnnotations: true,
+      healthScore: 60,
+    };
+    const result = rankUseCasesByContext(ctx);
+    const resolveRef = result.recommendations.find(
+      (r) => r.useCase.id === 'resolve-ref',
+    );
+    assert.ok(resolveRef, 'resolve-ref should be in top recommendations');
+    assert.equal(resolveRef.score, 20);
+  });
+
+  it('ranks ci-setup high for maturity 1', () => {
+    const ctx: GuideContext = { maturity: 1, healthScore: 90 };
+    const result = rankUseCasesByContext(ctx);
+    const ciSetup = result.recommendations.find(
+      (r) => r.useCase.id === 'ci-setup',
+    );
+    assert.ok(ciSetup, 'ci-setup should be in top recommendations');
+    assert.equal(ciSetup.score, 15);
+  });
+
+  it('recommendations are sorted by score descending', () => {
+    const result = rankUseCasesByContext({
+      maturity: 1,
+      hasExpiredAnnotations: true,
+      candidateCount: 5,
+      healthScore: 40,
+    });
+    for (let i = 1; i < result.recommendations.length; i++) {
+      const prev = result.recommendations[i - 1];
+      const curr = result.recommendations[i];
+      assert.ok(prev !== undefined && curr !== undefined);
+      assert.ok(
+        prev.score >= curr.score,
+        `Recommendation ${i - 1} (score=${prev.score}) should >= recommendation ${i} (score=${curr.score})`,
+      );
+    }
+  });
+
+  it('returns scores of 0 for use cases without conditions when context is empty', () => {
+    const result = rankUseCasesByContext({});
+    // All scores should be 0 since no context data matches any condition
+    for (const rec of result.recommendations) {
+      assert.equal(rec.score, 0, `${rec.useCase.id} should score 0`);
+    }
+  });
+});
+
+describe('wizard: contextConditions data integrity', () => {
+  it('all contextConditions use valid GuideContext fields', () => {
+    const validFields: Array<keyof GuideContext> = [
+      'maturity',
+      'healthScore',
+      'healthLevel',
+      'hasExpiredAnnotations',
+      'hasExpiringSoonAnnotations',
+      'candidateCount',
+      'annotationCount',
+    ];
+    for (const uc of USE_CASES) {
+      if (uc.contextConditions) {
+        for (const cond of uc.contextConditions) {
+          assert.ok(
+            validFields.includes(cond.field),
+            `${uc.id}: invalid field "${cond.field}"`,
+          );
+        }
+      }
+    }
+  });
+
+  it('all contextConditions have positive boost values', () => {
+    for (const uc of USE_CASES) {
+      if (uc.contextConditions) {
+        for (const cond of uc.contextConditions) {
+          assert.ok(
+            cond.boost > 0,
+            `${uc.id}: boost should be positive, got ${cond.boost}`,
+          );
+        }
+      }
+    }
+  });
+
+  it('at least some use cases have contextConditions', () => {
+    const withConditions = USE_CASES.filter(
+      (uc) => uc.contextConditions && uc.contextConditions.length > 0,
+    );
+    assert.ok(
+      withConditions.length > 5,
+      `Expected many use cases to have contextConditions, got ${withConditions.length}`,
+    );
+  });
+});
+
+describe('wizard: formatWizardResult', () => {
+  it('includes header and context summary', () => {
+    const result = rankUseCasesByContext({
+      maturity: 1,
+      healthScore: 75,
+    });
+    const output = formatWizardResult(result);
+    assert.ok(output.includes('shiori guide --wizard'));
+    assert.ok(output.includes('Maturity: Level 1'));
+    assert.ok(output.includes('Health: 75/100'));
+  });
+
+  it('includes numbered recommendations with scores', () => {
+    const result = rankUseCasesByContext({ maturity: 0 });
+    const output = formatWizardResult(result);
+    assert.ok(output.includes('1.'), 'should have numbered item');
+    assert.ok(output.includes('score:'), 'should show score');
+    assert.ok(output.includes('$'), 'should show command');
+  });
+
+  it('shows expired annotation context when present', () => {
+    const result = rankUseCasesByContext({ hasExpiredAnnotations: true });
+    const output = formatWizardResult(result);
+    assert.ok(output.includes('Expired annotations detected'));
+  });
+
+  it('shows candidate count when present', () => {
+    const result = rankUseCasesByContext({ candidateCount: 10 });
+    const output = formatWizardResult(result);
+    assert.ok(output.includes('10 untracked candidate(s)'));
+  });
+
+  it('omits context summary when context is empty', () => {
+    const result = rankUseCasesByContext({});
+    const output = formatWizardResult(result);
+    assert.ok(!output.includes('Project context:'));
+  });
+});
+
+describe('wizard: formatWizardResultJson', () => {
+  it('produces valid JSON with context and recommendations', () => {
+    const ctx: GuideContext = { maturity: 2, healthScore: 85 };
+    const result = rankUseCasesByContext(ctx);
+    const json = formatWizardResultJson(result);
+    const parsed = JSON.parse(json) as {
+      context: GuideContext;
+      recommendations: Array<{
+        id: string;
+        label: string;
+        category: string;
+        commands: string[];
+        explanation: string;
+        score: number;
+      }>;
+    };
+
+    assert.deepEqual(parsed.context, ctx);
+    assert.ok(Array.isArray(parsed.recommendations));
+    assert.equal(parsed.recommendations.length, 3);
+
+    for (const rec of parsed.recommendations) {
+      assert.ok(typeof rec.id === 'string');
+      assert.ok(typeof rec.label === 'string');
+      assert.ok(typeof rec.category === 'string');
+      assert.ok(Array.isArray(rec.commands));
+      assert.ok(typeof rec.explanation === 'string');
+      assert.ok(typeof rec.score === 'number');
+    }
   });
 });

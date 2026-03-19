@@ -7,7 +7,47 @@
  * Pure module — no IO, no process access.
  */
 
+import type { HealthLevel, MaturityLevel } from '../core/types.ts';
+
 // ── Use-case mapping data ─────────────────────────────────────
+
+/**
+ * Project context snapshot used for wizard-mode ranking.
+ * All fields are optional — missing data simply skips the
+ * corresponding condition checks (graceful degradation).
+ */
+export interface GuideContext {
+  /** Governance maturity level (0-4) from doctor --maturity */
+  maturity?: MaturityLevel;
+  /** Health score (0-100) from report */
+  healthScore?: number;
+  /** Health level from report */
+  healthLevel?: HealthLevel;
+  /** Whether the project has expired annotations */
+  hasExpiredAnnotations?: boolean;
+  /** Whether the project has expiring-soon annotations */
+  hasExpiringSoonAnnotations?: boolean;
+  /** Number of untracked candidates */
+  candidateCount?: number;
+  /** Number of tracked annotations */
+  annotationCount?: number;
+}
+
+/**
+ * Declarative condition for context-aware use-case scoring.
+ * Each condition contributes a boost (positive or negative)
+ * when the project context matches the specified criteria.
+ */
+export interface ContextCondition {
+  /** GuideContext field to evaluate */
+  field: keyof GuideContext;
+  /** Comparison operator */
+  op: 'eq' | 'neq' | 'lt' | 'lte' | 'gt' | 'gte' | 'truthy' | 'falsy';
+  /** Value to compare against (unused for truthy/falsy) */
+  value?: number | boolean;
+  /** Score boost when condition matches (positive = more relevant) */
+  boost: number;
+}
 
 export interface UseCase {
   /** Short machine-readable key */
@@ -24,6 +64,8 @@ export interface UseCase {
   options?: string[];
   /** Related recipe filenames (relative to docs/recipes/) */
   recipes?: string[];
+  /** Declarative conditions for wizard-mode ranking (EP-0100) */
+  contextConditions?: ContextCondition[];
 }
 
 export type UseCaseCategory =
@@ -52,6 +94,7 @@ export const USE_CASES: readonly UseCase[] = [
       'Creates config, scans for annotations, and generates a registry.',
     options: ['--registry <path>', '--provider <name>'],
     recipes: ['pr-onboarding-snippet.md'],
+    contextConditions: [{ field: 'maturity', op: 'eq', value: 0, boost: 20 }],
   },
   {
     id: 'adopt-existing',
@@ -60,6 +103,10 @@ export const USE_CASES: readonly UseCase[] = [
     commands: ['shiori adopt'],
     explanation:
       'Converts untracked lint disable comments into tracked shiori annotations.',
+    contextConditions: [
+      { field: 'candidateCount', op: 'gt', value: 0, boost: 15 },
+      { field: 'maturity', op: 'lte', value: 1, boost: 5 },
+    ],
   },
   {
     id: 'ci-setup',
@@ -68,6 +115,7 @@ export const USE_CASES: readonly UseCase[] = [
     commands: ['shiori init --ci basic'],
     explanation: 'Generates a GitHub Actions workflow for shiori verify.',
     recipes: ['github-actions-composite-action.md', 'github-checks-gate.md'],
+    contextConditions: [{ field: 'maturity', op: 'eq', value: 1, boost: 15 }],
   },
 
   // ── Daily ──
@@ -78,6 +126,7 @@ export const USE_CASES: readonly UseCase[] = [
     commands: ['shiori check'],
     explanation: 'One-shot scan + verify — the primary command for daily use.',
     options: ['--fail-on <types>', '--format json'],
+    contextConditions: [{ field: 'maturity', op: 'gte', value: 1, boost: 5 }],
   },
   {
     id: 'add-annotation',
@@ -88,6 +137,7 @@ export const USE_CASES: readonly UseCase[] = [
       'Inserts a shiori annotation comment and creates a registry entry.',
     options: ['--ref <ref>', '--expires <YYYY-MM>', '--format json'],
     recipes: ['vscode-annotate-task.md'],
+    contextConditions: [{ field: 'maturity', op: 'gte', value: 1, boost: 3 }],
   },
   {
     id: 'resolve-ref',
@@ -98,6 +148,9 @@ export const USE_CASES: readonly UseCase[] = [
       'Removes the annotation from source code and the registry entry.',
     options: ['--closed', '--apply', '--yes'],
     recipes: ['auto-resolve-on-issue-close.md'],
+    contextConditions: [
+      { field: 'hasExpiredAnnotations', op: 'truthy', boost: 20 },
+    ],
   },
   {
     id: 'update-registry',
@@ -131,6 +184,7 @@ export const USE_CASES: readonly UseCase[] = [
       'github-actions-delta-pr-comment.md',
       'github-actions-delta-pr-description.md',
     ],
+    contextConditions: [{ field: 'maturity', op: 'gte', value: 2, boost: 5 }],
   },
   {
     id: 'lookup-ref',
@@ -156,6 +210,9 @@ export const USE_CASES: readonly UseCase[] = [
     explanation:
       'Shows lint disables that could be tracked by shiori but are not yet.',
     options: ['--format json'],
+    contextConditions: [
+      { field: 'candidateCount', op: 'gt', value: 0, boost: 10 },
+    ],
   },
 
   // ── Governance ──
@@ -167,6 +224,10 @@ export const USE_CASES: readonly UseCase[] = [
     explanation: 'Scores your project on tracking ratio, expiry, and coverage.',
     options: ['--fail-on <types>', '--fail-on-level <level>'],
     recipes: ['governance-badge.md'],
+    contextConditions: [
+      { field: 'healthScore', op: 'lt', value: 80, boost: 10 },
+      { field: 'maturity', op: 'gte', value: 1, boost: 3 },
+    ],
   },
   {
     id: 'triage-actions',
@@ -176,6 +237,10 @@ export const USE_CASES: readonly UseCase[] = [
     explanation:
       'Ranks annotations by urgency — expired first, then expiring soon.',
     recipes: ['renovate-triage.md'],
+    contextConditions: [
+      { field: 'hasExpiredAnnotations', op: 'truthy', boost: 15 },
+      { field: 'hasExpiringSoonAnnotations', op: 'truthy', boost: 10 },
+    ],
   },
   {
     id: 'generate-report',
@@ -195,6 +260,7 @@ export const USE_CASES: readonly UseCase[] = [
       'governance-badge.md',
       'code-scanning.md',
     ],
+    contextConditions: [{ field: 'maturity', op: 'gte', value: 2, boost: 5 }],
   },
   {
     id: 'weekly-report',
@@ -205,6 +271,7 @@ export const USE_CASES: readonly UseCase[] = [
       'Summarizes governance changes over a time period for team review.',
     options: ['--format html|markdown|json', '--preset <name>', '-o <file>'],
     recipes: ['slack-notification.md'],
+    contextConditions: [{ field: 'maturity', op: 'gte', value: 3, boost: 5 }],
   },
   {
     id: 'trend-analysis',
@@ -215,6 +282,7 @@ export const USE_CASES: readonly UseCase[] = [
       'Shows how tracking ratio and annotation count evolved across snapshots.',
     options: ['--history <dir>', '--format markdown|csv|spark'],
     recipes: ['scheduled-governance-orchestrator.md'],
+    contextConditions: [{ field: 'maturity', op: 'gte', value: 3, boost: 5 }],
   },
   {
     id: 'multi-repo',
@@ -230,6 +298,7 @@ export const USE_CASES: readonly UseCase[] = [
       '-o <file>',
     ],
     recipes: ['aggregate-html-dashboard.md'],
+    contextConditions: [{ field: 'maturity', op: 'gte', value: 4, boost: 3 }],
   },
 
   // ── Diagnostics ──
@@ -241,6 +310,9 @@ export const USE_CASES: readonly UseCase[] = [
     explanation:
       'Checks config, registry, Node version, gitignore, and scan freshness.',
     options: ['--format json', '--fix'],
+    contextConditions: [
+      { field: 'healthScore', op: 'lt', value: 50, boost: 15 },
+    ],
   },
   {
     id: 'maturity-check',
@@ -249,6 +321,7 @@ export const USE_CASES: readonly UseCase[] = [
     commands: ['shiori doctor --maturity'],
     explanation:
       'Evaluates your project on a 0-4 maturity scale (Discover → Enforce).',
+    contextConditions: [{ field: 'maturity', op: 'lte', value: 2, boost: 5 }],
   },
   {
     id: 'view-journal',
@@ -370,4 +443,181 @@ export function formatAllUseCases(grouped: GroupedUseCases): string {
  */
 export function formatUseCasesJson(grouped: GroupedUseCases): string {
   return JSON.stringify(grouped, null, 2);
+}
+
+// ── Wizard logic (EP-0100) ──────────────────────────────────
+
+/** Scored use case for wizard ranking */
+export interface ScoredUseCase {
+  useCase: UseCase;
+  score: number;
+}
+
+/** Wizard result returned by rankUseCasesByContext */
+export interface WizardResult {
+  /** Top-N recommended use cases with scores */
+  recommendations: ScoredUseCase[];
+  /** Project context used for ranking */
+  context: GuideContext;
+}
+
+/**
+ * Evaluate a single ContextCondition against a GuideContext.
+ * Returns true if the condition matches.
+ */
+export function evaluateCondition(
+  condition: ContextCondition,
+  context: GuideContext,
+): boolean {
+  const fieldValue = context[condition.field];
+
+  // Field not present in context — condition does not match
+  if (fieldValue === undefined || fieldValue === null) {
+    return false;
+  }
+
+  switch (condition.op) {
+    case 'truthy':
+      return Boolean(fieldValue);
+    case 'falsy':
+      return !fieldValue;
+    case 'eq':
+      return fieldValue === condition.value;
+    case 'neq':
+      return fieldValue !== condition.value;
+    case 'lt':
+      return (
+        typeof fieldValue === 'number' &&
+        typeof condition.value === 'number' &&
+        fieldValue < condition.value
+      );
+    case 'lte':
+      return (
+        typeof fieldValue === 'number' &&
+        typeof condition.value === 'number' &&
+        fieldValue <= condition.value
+      );
+    case 'gt':
+      return (
+        typeof fieldValue === 'number' &&
+        typeof condition.value === 'number' &&
+        fieldValue > condition.value
+      );
+    case 'gte':
+      return (
+        typeof fieldValue === 'number' &&
+        typeof condition.value === 'number' &&
+        fieldValue >= condition.value
+      );
+    default:
+      return false;
+  }
+}
+
+/**
+ * Score a single use case against the project context.
+ * Returns the sum of boosts from matching conditions (0 if none).
+ */
+export function scoreUseCase(useCase: UseCase, context: GuideContext): number {
+  if (!useCase.contextConditions || useCase.contextConditions.length === 0) {
+    return 0;
+  }
+  let total = 0;
+  for (const condition of useCase.contextConditions) {
+    if (evaluateCondition(condition, context)) {
+      total += condition.boost;
+    }
+  }
+  return total;
+}
+
+/**
+ * Rank use cases by context relevance and return top N recommendations.
+ * Pure function — no IO.
+ *
+ * Scoring: sum of matching contextCondition boosts.
+ * Tie-breaking: preserve USE_CASES insertion order (stable sort).
+ */
+export function rankUseCasesByContext(
+  context: GuideContext,
+  topN: number = 3,
+): WizardResult {
+  const scored: ScoredUseCase[] = USE_CASES.map((uc) => ({
+    useCase: uc,
+    score: scoreUseCase(uc, context),
+  }));
+
+  // Stable sort: higher score first; ties preserve original order
+  scored.sort((a, b) => b.score - a.score);
+
+  return {
+    recommendations: scored.slice(0, topN),
+    context,
+  };
+}
+
+/**
+ * Format wizard recommendations as human-readable text.
+ */
+export function formatWizardResult(result: WizardResult): string {
+  const lines: string[] = [];
+  lines.push('shiori guide --wizard — Recommended Actions');
+  lines.push('');
+
+  // Context summary
+  const ctx = result.context;
+  const contextParts: string[] = [];
+  if (ctx.maturity !== undefined) {
+    contextParts.push(`Maturity: Level ${ctx.maturity}`);
+  }
+  if (ctx.healthScore !== undefined) {
+    contextParts.push(`Health: ${ctx.healthScore}/100`);
+  }
+  if (ctx.hasExpiredAnnotations) {
+    contextParts.push('Expired annotations detected');
+  }
+  if (ctx.hasExpiringSoonAnnotations) {
+    contextParts.push('Expiring-soon annotations detected');
+  }
+  if (ctx.candidateCount !== undefined && ctx.candidateCount > 0) {
+    contextParts.push(`${ctx.candidateCount} untracked candidate(s)`);
+  }
+
+  if (contextParts.length > 0) {
+    lines.push(`Project context: ${contextParts.join(' | ')}`);
+    lines.push('');
+  }
+
+  // Recommendations
+  for (const [i, rec] of result.recommendations.entries()) {
+    lines.push(`${i + 1}. ${rec.useCase.label} (score: ${rec.score})`);
+    lines.push(`   ${rec.useCase.explanation}`);
+    for (const cmd of rec.useCase.commands) {
+      lines.push(`   $ ${cmd}`);
+    }
+    lines.push('');
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Format wizard result as JSON — for pipe/scripting.
+ */
+export function formatWizardResultJson(result: WizardResult): string {
+  return JSON.stringify(
+    {
+      context: result.context,
+      recommendations: result.recommendations.map((r) => ({
+        id: r.useCase.id,
+        label: r.useCase.label,
+        category: r.useCase.category,
+        commands: r.useCase.commands,
+        explanation: r.useCase.explanation,
+        score: r.score,
+      })),
+    },
+    null,
+    2,
+  );
 }
