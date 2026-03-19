@@ -4,6 +4,7 @@ import type { HealthLevel, ReportResult } from '../src/core/types.ts';
 import {
   aggregate,
   formatAggregate,
+  formatAggregateAsHtml,
   formatAggregateAsMarkdown,
   type AggregateInput,
 } from '../src/commands/aggregate.ts';
@@ -345,5 +346,214 @@ describe('formatAggregateAsMarkdown', () => {
     const output = formatAggregateAsMarkdown(result);
     assert.ok(output.includes('🟢'));
     assert.ok(output.includes('🔴'));
+  });
+});
+
+describe('formatAggregate html', () => {
+  const result = aggregate([
+    makeInput({ repository: 'org/repo-a', score: 90, level: 'healthy' }),
+    makeInput({
+      repository: 'org/repo-b',
+      score: 60,
+      level: 'warning',
+      issuesTotal: 3,
+      errors: 1,
+      warnings: 2,
+    }),
+  ]);
+
+  it('routes html format through formatAggregate', () => {
+    const output = formatAggregate(result, 'html');
+    assert.ok(output.includes('<!DOCTYPE html>'));
+    assert.ok(output.includes('Shiori Organization Governance Dashboard'));
+  });
+});
+
+describe('formatAggregateAsHtml', () => {
+  it('produces a self-contained HTML document', () => {
+    const result = aggregate([
+      makeInput({ repository: 'org/repo-a', score: 90, level: 'healthy' }),
+    ]);
+
+    const output = formatAggregateAsHtml(result);
+    assert.ok(output.includes('<!DOCTYPE html>'));
+    assert.ok(output.includes('<html lang="en">'));
+    assert.ok(output.includes('</html>'));
+    assert.ok(output.includes('<style>'));
+    assert.ok(output.includes('<script>'));
+  });
+
+  it('includes title and timestamp', () => {
+    const result = aggregate([
+      makeInput({ repository: 'test-repo', score: 80 }),
+    ]);
+
+    const output = formatAggregateAsHtml(result);
+    assert.ok(output.includes('Shiori Organization Governance Dashboard'));
+    assert.ok(output.includes('Generated:'));
+  });
+
+  it('includes overall summary card with score and metrics', () => {
+    const result = aggregate([
+      makeInput({
+        repository: 'repo-a',
+        score: 80,
+        level: 'healthy',
+        issuesTotal: 2,
+        errors: 1,
+        warnings: 1,
+      }),
+      makeInput({
+        repository: 'repo-b',
+        score: 60,
+        level: 'warning',
+        issuesTotal: 5,
+        errors: 2,
+        warnings: 3,
+      }),
+    ]);
+
+    const output = formatAggregateAsHtml(result);
+    // Average score: (80 + 60) / 2 = 70
+    assert.ok(output.includes('70/100'));
+    // Total metrics
+    assert.ok(output.includes('Repositories'));
+    assert.ok(output.includes('Total Issues'));
+    assert.ok(output.includes('Errors'));
+    assert.ok(output.includes('Warnings'));
+  });
+
+  it('includes worst repository highlight', () => {
+    const result = aggregate([
+      makeInput({ repository: 'good-repo', score: 90, level: 'healthy' }),
+      makeInput({ repository: 'bad-repo', score: 30, level: 'critical' }),
+    ]);
+
+    const output = formatAggregateAsHtml(result);
+    assert.ok(output.includes('Needs Attention'));
+    assert.ok(output.includes('bad-repo'));
+  });
+
+  it('includes repository comparison table with all columns', () => {
+    const result = aggregate([
+      makeInput({
+        repository: 'org/repo-a',
+        score: 80,
+        level: 'healthy',
+        issuesTotal: 1,
+        errors: 0,
+        warnings: 1,
+        expired: 0,
+        expiringSoon: 1,
+      }),
+    ]);
+
+    const output = formatAggregateAsHtml(result);
+    assert.ok(output.includes('org/repo-a'));
+    assert.ok(output.includes('Repository'));
+    assert.ok(output.includes('Score'));
+    assert.ok(output.includes('Level'));
+    assert.ok(output.includes('Issues'));
+    assert.ok(output.includes('Expired'));
+    assert.ok(output.includes('Expiring'));
+  });
+
+  it('includes score distribution sparkline', () => {
+    const result = aggregate([
+      makeInput({ repository: 'repo-a', score: 90, level: 'healthy' }),
+      makeInput({ repository: 'repo-b', score: 30, level: 'critical' }),
+    ]);
+
+    const output = formatAggregateAsHtml(result);
+    assert.ok(output.includes('Score Distribution'));
+    assert.ok(output.includes('sparkline'));
+  });
+
+  it('uses health-colored level badges', () => {
+    const result = aggregate([
+      makeInput({ repository: 'healthy-repo', score: 90, level: 'healthy' }),
+      makeInput({ repository: 'warning-repo', score: 60, level: 'warning' }),
+      makeInput({
+        repository: 'critical-repo',
+        score: 20,
+        level: 'critical',
+      }),
+    ]);
+
+    const output = formatAggregateAsHtml(result);
+    assert.ok(output.includes('level-badge healthy'));
+    assert.ok(output.includes('level-badge warning'));
+    assert.ok(output.includes('level-badge critical'));
+  });
+
+  it('escapes HTML special characters in repository names', () => {
+    const result = aggregate([
+      makeInput({
+        repository: '<script>alert("xss")</script>',
+        score: 80,
+      }),
+    ]);
+
+    const output = formatAggregateAsHtml(result);
+    assert.ok(!output.includes('<script>alert'));
+    assert.ok(output.includes('&lt;script&gt;'));
+  });
+
+  it('applies dark theme CSS variables', () => {
+    const result = aggregate([makeInput({ repository: 'test', score: 80 })]);
+
+    const output = formatAggregateAsHtml(result);
+    assert.ok(output.includes('--bg: #0f172a'));
+    assert.ok(output.includes('--surface: #1e293b'));
+    assert.ok(output.includes('--text: #f1f5f9'));
+  });
+
+  it('renders score bars with health-colored fills', () => {
+    const result = aggregate([
+      makeInput({ repository: 'repo-a', score: 90, level: 'healthy' }),
+    ]);
+
+    const output = formatAggregateAsHtml(result);
+    assert.ok(output.includes('score-bar-fill'));
+    assert.ok(output.includes('#22c55e'));
+  });
+
+  it('includes footer', () => {
+    const result = aggregate([makeInput({ repository: 'test', score: 80 })]);
+
+    const output = formatAggregateAsHtml(result);
+    assert.ok(output.includes('<footer>'));
+    assert.ok(output.includes('Generated by shiori'));
+  });
+
+  it('includes collapsible section script', () => {
+    const result = aggregate([makeInput({ repository: 'test', score: 80 })]);
+
+    const output = formatAggregateAsHtml(result);
+    assert.ok(output.includes('querySelectorAll'));
+    assert.ok(output.includes('addEventListener'));
+  });
+
+  it('uses correct color for overall card based on average score', () => {
+    // Healthy (>= 80)
+    const healthyResult = aggregate([
+      makeInput({ repository: 'a', score: 90, level: 'healthy' }),
+    ]);
+    const healthyOutput = formatAggregateAsHtml(healthyResult);
+    assert.ok(healthyOutput.includes('--overall-color: #22c55e'));
+
+    // Warning (50-79)
+    const warningResult = aggregate([
+      makeInput({ repository: 'a', score: 60, level: 'warning' }),
+    ]);
+    const warningOutput = formatAggregateAsHtml(warningResult);
+    assert.ok(warningOutput.includes('--overall-color: #eab308'));
+
+    // Critical (< 50)
+    const criticalResult = aggregate([
+      makeInput({ repository: 'a', score: 30, level: 'critical' }),
+    ]);
+    const criticalOutput = formatAggregateAsHtml(criticalResult);
+    assert.ok(criticalOutput.includes('--overall-color: #ef4444'));
   });
 });

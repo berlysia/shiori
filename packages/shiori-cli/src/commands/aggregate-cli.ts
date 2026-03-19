@@ -13,7 +13,7 @@ import { writeOutput } from '../core/cli-output.ts';
 import { isAtOrBelowLevel, type HealthLevel } from '../core/types.ts';
 
 const validateAggregateFormat = createFormatValidator<AggregateFormat>(
-  ['json', 'markdown'] as const,
+  ['json', 'markdown', 'html'] as const,
   'json',
 );
 
@@ -65,6 +65,9 @@ export const aggregateCommand = define({
   # Markdown output for dashboards
   shiori aggregate --files "reports/*.json" --format markdown
 
+  # HTML dashboard for CI artifacts
+  shiori aggregate --files "reports/*.json" --format html -o dashboard.html
+
   # CI gate: fail if any repository score is at or below critical
   shiori aggregate --files "reports/*.json" --fail-on-level critical`,
   rendering: { header: null },
@@ -77,7 +80,7 @@ export const aggregateCommand = define({
     },
     format: {
       type: 'string',
-      description: 'Output format: "json", "markdown". Default: "json"',
+      description: 'Output format: "json", "markdown", "html". Default: "json"',
       default: 'json',
     },
     output: {

@@ -910,7 +910,7 @@ export interface HealthResult {
 // ── Aggregate types (EP-0093) ─────────────────────────────────
 
 /** Output format for aggregate command */
-export type AggregateFormat = 'json' | 'markdown';
+export type AggregateFormat = 'json' | 'markdown' | 'html';
 
 /** Per-repository row in the aggregate report */
 export interface AggregateRepositoryEntry {
