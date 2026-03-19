@@ -6,6 +6,18 @@ settings:
 
 importers:
   .:
+    devDependencies:
+      husky:
+        specifier: 9.1.7
+        version: 9.1.7
+      lint-staged:
+        specifier: 16.2.7
+        version: 16.2.7
+      prettier:
+        specifier: ^3.8.1
+        version: 3.8.1
+
+  packages/shiori-cli:
     dependencies:
       fast-glob:
         specifier: ^3.3.3
@@ -26,29 +38,27 @@ importers:
       esbuild:
         specifier: 0.27.3
         version: 0.27.3
-      husky:
-        specifier: 9.1.7
-        version: 9.1.7
-      lint-staged:
-        specifier: 16.2.7
-        version: 16.2.7
       oxlint:
         specifier: 1.43.0
         version: 1.43.0
-      prettier:
-        specifier: ^3.8.1
-        version: 3.8.1
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
 
-  packages/shiori-daemon: {}
+  packages/shiori-daemon:
+    devDependencies:
+      '@types/node':
+        specifier: 25.2.0
+        version: 25.2.0
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
 
   packages/shiori-vscode:
     dependencies:
       '@berlysia/shiori':
         specifier: workspace:*
-        version: link:../..
+        version: link:../shiori-cli
     devDependencies:
       '@types/vscode':
         specifier: ^1.85.0

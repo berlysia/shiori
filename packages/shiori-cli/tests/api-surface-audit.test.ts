@@ -3,14 +3,15 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
-const ROOT = join(import.meta.dirname, '..');
+const PKG_ROOT = join(import.meta.dirname, '..');
+const REPO_ROOT = join(import.meta.dirname, '../../..');
 
 /**
  * Extract export entry point paths from package.json exports field.
  * Returns the subpath keys (e.g. ".", "./core/ref-pattern").
  */
 async function getPackageExports(): Promise<string[]> {
-  const raw = await readFile(join(ROOT, 'package.json'), 'utf-8');
+  const raw = await readFile(join(PKG_ROOT, 'package.json'), 'utf-8');
   const pkg = JSON.parse(raw) as { exports?: Record<string, unknown> };
   if (!pkg.exports) return [];
   return Object.keys(pkg.exports);
@@ -25,7 +26,7 @@ async function getPackageExports(): Promise<string[]> {
  * Returns the subpath portion (e.g. ".", "./core/ref-pattern").
  */
 async function getDocumentedExports(): Promise<string[]> {
-  const raw = await readFile(join(ROOT, 'docs/api.md'), 'utf-8');
+  const raw = await readFile(join(REPO_ROOT, 'docs/api.md'), 'utf-8');
   const PKG_NAME = '@berlysia/shiori';
   const importPattern = new RegExp(
     `from\\s+['"]${PKG_NAME.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(/[^'"]*)?['"]`,
@@ -65,7 +66,7 @@ describe('API surface audit', () => {
   });
 
   it('all package.json export paths point to existing source files', async () => {
-    const raw = await readFile(join(ROOT, 'package.json'), 'utf-8');
+    const raw = await readFile(join(PKG_ROOT, 'package.json'), 'utf-8');
     const pkg = JSON.parse(raw) as {
       exports?: Record<string, { types?: string; import?: string }>;
     };
@@ -82,7 +83,7 @@ describe('API surface audit', () => {
         .replace(/\.js$/, '.ts');
 
       try {
-        await readFile(join(ROOT, srcPath), 'utf-8');
+        await readFile(join(PKG_ROOT, srcPath), 'utf-8');
       } catch {
         assert.fail(
           `Export "${subpath}" points to "${importPath}" but source file "${srcPath}" does not exist`,

@@ -102,13 +102,13 @@ jobs:
 
       # Scan PR head annotations
       - name: Scan annotations (PR head)
-        run: node dist/src/cli.js scan --output .tmp/shiori-head-scan.json
+        run: node packages/shiori-cli/dist/src/cli.js scan --output .tmp/shiori-head-scan.json
 
       # Compute delta and generate Markdown report
       - name: Compute delta
         id: delta
         run: |
-          node dist/src/cli.js delta \
+          node packages/shiori-cli/dist/src/cli.js delta \
             --base .tmp/shiori-base-scan.json \
             --head .tmp/shiori-head-scan.json \
             --format markdown \
@@ -120,7 +120,7 @@ jobs:
       # Generate triage report for technical debt visibility
       - name: Generate triage report
         run: |
-          node dist/src/cli.js triage \
+          node packages/shiori-cli/dist/src/cli.js triage \
             --format markdown \
             --output .tmp/shiori-triage.md
         continue-on-error: true

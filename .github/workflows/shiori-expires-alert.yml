@@ -35,7 +35,7 @@ jobs:
         id: shiori
         run: |
           # Run check with expiring-soon and expired as errors
-          node dist/src/cli.js check \
+          node packages/shiori-cli/dist/src/cli.js check \
             --fail-on expiring-soon,expired \
             --expiring-threshold 30 \
             -f json \
@@ -57,7 +57,7 @@ jobs:
           TITLE="shiori: $(date +%Y-%m-%d) — ${SHIORI_EXPIRED} expired, ${SHIORI_EXPIRING} expiring soon"
 
           # Generate markdown report for issue body
-          BODY=$(node dist/src/cli.js check \
+          BODY=$(node packages/shiori-cli/dist/src/cli.js check \
             --fail-on expiring-soon,expired \
             --expiring-threshold 30 \
             -f markdown 2>/dev/null || true)

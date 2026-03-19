@@ -1,87 +1,18 @@
 {
-  "name": "@berlysia/shiori",
-  "version": "0.1.1",
-  "description": "Annotation tracking and governance CLI tool for recovering structured annotations from source code",
-  "keywords": [
-    "annotations",
-    "ci",
-    "disable-comments",
-    "eslint",
-    "governance",
-    "lint",
-    "registry",
-    "stylelint"
-  ],
-  "homepage": "https://github.com/berlysia/shiori#readme",
-  "bugs": {
-    "url": "https://github.com/berlysia/shiori/issues"
-  },
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/berlysia/shiori.git"
-  },
-  "bin": {
-    "shiori": "./dist/src/cli.js"
-  },
-  "files": [
-    "dist/src/"
-  ],
-  "type": "module",
-  "exports": {
-    ".": {
-      "types": "./dist/src/core/index.d.ts",
-      "import": "./dist/src/core/index.js"
-    },
-    "./core/ref-pattern": {
-      "types": "./dist/src/core/ref-pattern.d.ts",
-      "import": "./dist/src/core/ref-pattern.js"
-    },
-    "./commands/show": {
-      "types": "./dist/src/commands/show.d.ts",
-      "import": "./dist/src/commands/show.js"
-    },
-    "./core/ref-status-providers": {
-      "types": "./dist/src/core/ref-status-providers/types.d.ts",
-      "import": "./dist/src/core/ref-status-providers/types.js"
-    }
-  },
-  "publishConfig": {
-    "access": "public"
-  },
+  "private": true,
   "scripts": {
-    "clean": "rm -rf dist",
-    "build": "tsc",
-    "test": "node --experimental-strip-types --test tests/*.test.ts tests/**/*.test.ts",
-    "test:coverage": "node --experimental-strip-types --experimental-test-coverage --test tests/*.test.ts tests/**/*.test.ts",
-    "typecheck": "tsc --noEmit",
-    "lint": "oxlint src/ tests/",
-    "lint:boundaries": "depcruise src/ --config .dependency-cruiser.cjs",
-    "link:local": "pnpm build && pnpm link --global",
-    "unlink:local": "pnpm unlink --global",
-    "build:playground": "esbuild src/playground/index.ts --bundle --format=esm --target=es2022 --outfile=playground/shiori-playground.js --minify --sourcemap --metafile=playground/meta.json --platform=browser && cp src/playground/index.html playground/index.html",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r run typecheck",
+    "lint": "pnpm -r run lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepublishOnly": "pnpm clean && pnpm build && pnpm test",
     "prepare": "husky"
   },
-  "dependencies": {
-    "fast-glob": "^3.3.3",
-    "gunshi": "^0.27.6",
-    "yaml": "2.8.2"
-  },
   "devDependencies": {
-    "@types/node": "25.2.0",
-    "dependency-cruiser": "17.3.8",
-    "esbuild": "0.27.3",
     "husky": "9.1.7",
     "lint-staged": "16.2.7",
-    "oxlint": "1.43.0",
-    "prettier": "^3.8.1",
-    "typescript": "^5.9.3"
-  },
-  "engines": {
-    "node": ">=18.0.0"
+    "prettier": "^3.8.1"
   },
   "packageManager": "pnpm@10.27.0"
 }

@@ -1,10 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { CommentProvider } from '../src/core/providers/CommentProvider.ts';
 import { loadRegistry } from '../src/core/registry.ts';
 import { verify } from '../src/commands/verify.ts';
 
+const REPO_ROOT = resolve(import.meta.dirname, '../../..');
 const provider = new CommentProvider();
 
 /**
@@ -59,7 +61,7 @@ describe('dogfooding: shiori tracks its own annotations', () => {
 
   it('registry contains entries for all DEV- annotations', async () => {
     const { registry, errors } = await loadRegistry(
-      '.config/shiori/registry.json',
+      resolve(REPO_ROOT, '.config/shiori/registry.json'),
     );
 
     assert.equal(errors.length, 0, 'registry should have no validation errors');
@@ -78,7 +80,9 @@ describe('dogfooding: shiori tracks its own annotations', () => {
       return provider.scan({ path: f, content }).annotations;
     });
 
-    const { registry } = await loadRegistry('.config/shiori/registry.json');
+    const { registry } = await loadRegistry(
+      resolve(REPO_ROOT, '.config/shiori/registry.json'),
+    );
 
     const result = verify({
       records: allAnnotations,

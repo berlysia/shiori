@@ -6,22 +6,22 @@ shiori is an annotation tracking and governance CLI tool. It recovers structured
 
 ### Workspace Structure
 
-pnpm workspace monorepo:
+pnpm workspace monorepo (root is `private: true`, workspace management only):
 
-- **Root** (`@berlysia/shiori`) — CLI + core library (npm published)
+- **packages/shiori-cli** (`@berlysia/shiori`) — CLI + core library (npm published)
 - **packages/shiori-daemon** (`@berlysia/shiori-daemon`) — GitHub webhook daemon
 - **packages/shiori-vscode** (`@berlysia/shiori-vscode`) — VSCode extension (depends on `@berlysia/shiori` via `workspace:*`)
 
-`packages/shiori-vscode` requires root `pnpm build` first (imports from `dist/`).
+Root scripts delegate to packages via `pnpm -r`. `packages/shiori-vscode` requires `@berlysia/shiori` build first (imports from `dist/`).
 
 ## Commands
 
 ```bash
 pnpm install          # Install dependencies
-pnpm build            # TypeScript compilation (tsc → dist/)
-pnpm test             # Run all tests (node:test with --experimental-strip-types)
-pnpm typecheck        # Type check without emitting (tsc --noEmit)
-pnpm lint             # Lint with oxlint
+pnpm build            # Build all packages (pnpm -r build)
+pnpm test             # Run all tests (pnpm -r test)
+pnpm typecheck        # Type check all packages (pnpm -r run typecheck)
+pnpm lint             # Lint all packages (pnpm -r run lint)
 pnpm format           # Format with prettier
 pnpm format:check     # Check formatting
 ```
@@ -29,7 +29,7 @@ pnpm format:check     # Check formatting
 Run a single test file:
 
 ```bash
-node --experimental-strip-types --test tests/parser.test.ts
+node --experimental-strip-types --test packages/shiori-cli/tests/parser.test.ts
 ```
 
 Requires Node.js >= 22.6.0.
@@ -44,7 +44,7 @@ Source Files → CommentProvider.scan() → ShioriAnnotation[]
                               verify() + Registry → VerifyResult (issues, summary)
 ```
 
-### Core Modules (`src/core/`)
+### Core Modules (`packages/shiori-cli/src/core/`)
 
 - **types.ts** — Shared types (`ShioriAnnotation`, `Registry`, `VerifyIssue`, etc.)
 - **parser.ts** — `parseShioriFields()`: `shiori: <ref> [key=value ...]` syntax parsing
@@ -52,7 +52,7 @@ Source Files → CommentProvider.scan() → ShioriAnnotation[]
 - **providers/AnnotationProvider.ts** — Provider interface
 - **providers/CommentProvider.ts** — Line-based text scanning for lint disable comments
 
-### Commands (`src/commands/`)
+### Commands (`packages/shiori-cli/src/commands/`)
 
 Pattern: `scan.ts` (logic) + `scan-cli.ts` (CLI wrapper). Framework: gunshi. Commands (23):
 

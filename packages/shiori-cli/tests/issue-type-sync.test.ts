@@ -4,14 +4,14 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { VERIFY_ISSUE_TYPES } from '../src/core/types.ts';
 
-const ROOT = join(import.meta.dirname, '..');
+const REPO_ROOT = join(import.meta.dirname, '../../..');
 
 /**
  * Extract issue type names from a Markdown list in the "Detects:" section of README.md.
  * Matches lines like: - **missing-in-registry** — description
  */
 async function getReadmeIssueTypes(): Promise<string[]> {
-  const raw = await readFile(join(ROOT, 'README.md'), 'utf-8');
+  const raw = await readFile(join(REPO_ROOT, 'README.md'), 'utf-8');
   const pattern = /^- \*\*([a-z-]+)\*\*/gm;
   const types: string[] = [];
   let m: RegExpExecArray | null;
@@ -32,7 +32,7 @@ async function getReadmeIssueTypes(): Promise<string[]> {
  * Matches rows like: | `missing-in-registry`       | warning          | ...
  */
 async function getReadmeSeverityMappingTypes(): Promise<string[]> {
-  const raw = await readFile(join(ROOT, 'README.md'), 'utf-8');
+  const raw = await readFile(join(REPO_ROOT, 'README.md'), 'utf-8');
   const headerIdx = raw.indexOf('### Severity Mapping');
   if (headerIdx === -1) return [];
 
@@ -55,7 +55,7 @@ async function getReadmeSeverityMappingTypes(): Promise<string[]> {
  * Matches lines like:   | 'missing-in-registry'
  */
 async function getApiDocIssueTypes(): Promise<string[]> {
-  const raw = await readFile(join(ROOT, 'docs/api.md'), 'utf-8');
+  const raw = await readFile(join(REPO_ROOT, 'docs/api.md'), 'utf-8');
   const typeBlockStart = raw.indexOf('type VerifyIssueType =');
   if (typeBlockStart === -1) return [];
 

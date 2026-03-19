@@ -29,44 +29,29 @@ jobs:
         if: matrix.node-version == 22
       - run: pnpm lint
         if: matrix.node-version == 22
-      - run: pnpm lint:boundaries
+      - run: pnpm --filter @berlysia/shiori run lint:boundaries
         if: matrix.node-version == 22
       - run: pnpm format:check
         if: matrix.node-version == 22
       - run: pnpm test
         if: matrix.node-version == 22
-      - name: shiori-daemon build
-        if: matrix.node-version == 22
-        run: pnpm --filter @berlysia/shiori-daemon build
-      - name: shiori-daemon test
-        if: matrix.node-version == 22
-        run: pnpm --filter @berlysia/shiori-daemon test
-      - name: shiori-daemon typecheck
-        if: matrix.node-version == 22
-        run: pnpm --filter @berlysia/shiori-daemon typecheck
       - run: pnpm build
-      - name: shiori-vscode build
-        if: matrix.node-version == 22
-        run: pnpm --filter @berlysia/shiori-vscode build
-      - name: shiori-vscode typecheck
-        if: matrix.node-version == 22
-        run: pnpm --filter @berlysia/shiori-vscode typecheck
-      - run: node dist/src/cli.js --help
+      - run: node packages/shiori-cli/dist/src/cli.js --help
 
       # Dogfooding: verify shiori's own annotations against registry
       - name: shiori verify (dogfooding)
         if: matrix.node-version == 22
-        run: node dist/src/cli.js verify
+        run: node packages/shiori-cli/dist/src/cli.js verify
 
       # Dogfooding: health check for governance score visibility
       - name: shiori health (dogfooding)
         if: matrix.node-version == 22
-        run: node dist/src/cli.js health
+        run: node packages/shiori-cli/dist/src/cli.js health
 
       # Dogfooding: generate HTML governance dashboard
       - name: shiori report --format html (dogfooding)
         if: matrix.node-version == 22
-        run: node dist/src/cli.js report --format html --output .tmp/shiori-report.html
+        run: node packages/shiori-cli/dist/src/cli.js report --format html --output .tmp/shiori-report.html
 
       - name: Upload HTML governance report
         if: matrix.node-version == 22

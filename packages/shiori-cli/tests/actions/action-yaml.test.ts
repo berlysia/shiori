@@ -5,7 +5,7 @@ import { resolve, join } from 'node:path';
 import { constants } from 'node:fs';
 import { parse as parseYaml } from 'yaml';
 
-const ROOT = resolve(import.meta.dirname, '../..');
+const ROOT = resolve(import.meta.dirname, '../../../..');
 const ACTION_DIR = resolve(ROOT, 'actions/shiori-action');
 const ACTION_YML = resolve(ACTION_DIR, 'action.yml');
 const SCRIPTS_DIR = resolve(ACTION_DIR, 'scripts');

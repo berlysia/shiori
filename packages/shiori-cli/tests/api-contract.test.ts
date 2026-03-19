@@ -3,14 +3,15 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
-const ROOT = resolve(import.meta.dirname, '..');
+const PKG_ROOT = resolve(import.meta.dirname, '..');
+const REPO_ROOT = resolve(import.meta.dirname, '../../..');
 
 /**
  * Read package.json exports and return normalized export specifiers.
  * Returns an array of export paths like [".", "./core/ref-pattern", "./commands/show"].
  */
 async function getPackageExports(): Promise<string[]> {
-  const raw = await readFile(resolve(ROOT, 'package.json'), 'utf-8');
+  const raw = await readFile(resolve(PKG_ROOT, 'package.json'), 'utf-8');
   const pkg = JSON.parse(raw);
   return Object.keys(pkg.exports ?? {});
 }
@@ -19,7 +20,7 @@ async function getPackageExports(): Promise<string[]> {
  * Read docs/api.md content.
  */
 async function getApiDoc(): Promise<string> {
-  return readFile(resolve(ROOT, 'docs/api.md'), 'utf-8');
+  return readFile(resolve(REPO_ROOT, 'docs/api.md'), 'utf-8');
 }
 
 /**
@@ -38,7 +39,7 @@ describe('API contract: package.json exports ↔ docs/api.md', () => {
   it('every package.json export specifier is documented in docs/api.md', async () => {
     const exports = await getPackageExports();
     const doc = await getApiDoc();
-    const raw = await readFile(resolve(ROOT, 'package.json'), 'utf-8');
+    const raw = await readFile(resolve(PKG_ROOT, 'package.json'), 'utf-8');
     const pkg = JSON.parse(raw);
     const packageName: string = pkg.name;
 
@@ -60,7 +61,7 @@ describe('API contract: package.json exports ↔ docs/api.md', () => {
   });
 
   it('every export entry points to an existing source file', async () => {
-    const raw = await readFile(resolve(ROOT, 'package.json'), 'utf-8');
+    const raw = await readFile(resolve(PKG_ROOT, 'package.json'), 'utf-8');
     const pkg = JSON.parse(raw);
     const exports: Record<string, Record<string, string>> = pkg.exports ?? {};
 
@@ -75,7 +76,7 @@ describe('API contract: package.json exports ↔ docs/api.md', () => {
           .replace(/^\.\/dist\//, './')
           .replace(/\.js$/, '.ts');
         try {
-          await readFile(resolve(ROOT, sourcePath), 'utf-8');
+          await readFile(resolve(PKG_ROOT, sourcePath), 'utf-8');
         } catch {
           missing.push(
             `Export "${specifier}" → source "${sourcePath}" does not exist`,

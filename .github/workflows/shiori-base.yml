@@ -28,7 +28,7 @@ jobs:
       - run: pnpm build
 
       - name: Scan annotations (baseline)
-        run: node dist/src/cli.js scan --output .tmp/shiori-base-scan.json
+        run: node packages/shiori-cli/dist/src/cli.js scan --output .tmp/shiori-base-scan.json
 
       - name: Upload baseline scan artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -40,7 +40,7 @@ jobs:
 
       # Save health snapshot for trend analysis over time
       - name: Save health snapshot
-        run: node dist/src/cli.js health --snapshot .tmp/snapshots/ -f json
+        run: node packages/shiori-cli/dist/src/cli.js health --snapshot .tmp/snapshots/ -f json
 
       - name: Upload health snapshot artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

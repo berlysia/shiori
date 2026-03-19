@@ -24,7 +24,7 @@ jobs:
       - run: pnpm build
       - run: pnpm test
       - run: npm install -g npm@latest
-      - run: npm publish --access public --provenance
+      - run: cd packages/shiori-cli && npm publish --access public --provenance
 
   github-release:
     runs-on: ubuntu-latest

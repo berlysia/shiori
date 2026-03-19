@@ -32,7 +32,7 @@ jobs:
 
       # Generate shields.io endpoint JSON from governance score
       - name: Generate badge JSON
-        run: node dist/src/cli.js report --format badge --output .tmp/shiori-badge.json
+        run: node packages/shiori-cli/dist/src/cli.js report --format badge --output .tmp/shiori-badge.json
 
       # Upload badge as artifact for score tracking over time
       - name: Upload badge artifact
