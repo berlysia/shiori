@@ -243,7 +243,7 @@ async function pMapLimited<T, R>(
   fn: (item: T) => Promise<R>,
   concurrency: number,
 ): Promise<R[]> {
-  const results: R[] = new Array(items.length);
+  const results: R[] = Array.from<R>({ length: items.length });
   let nextIndex = 0;
 
   async function worker(): Promise<void> {

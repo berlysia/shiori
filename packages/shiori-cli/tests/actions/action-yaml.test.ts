@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile, access, stat } from 'node:fs/promises';
+import { readFile, access } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { constants } from 'node:fs';
 import { parse as parseYaml } from 'yaml';

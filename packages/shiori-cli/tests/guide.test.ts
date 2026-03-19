@@ -15,7 +15,6 @@ import {
   mapDoctorToGuideContext,
   type UseCaseCategory,
   type GuideContext,
-  type GuideContextInput,
   type ContextCondition,
   type UseCase,
 } from '../src/commands/guide.ts';

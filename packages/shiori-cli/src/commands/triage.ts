@@ -1,5 +1,4 @@
 import type {
-  Registry,
   RegistryEntry,
   ScanResult,
   VerifyIssue,
@@ -7,8 +6,6 @@ import type {
   VerifyResult,
   TriageFormat,
 } from '../core/types.ts';
-import type { RegistryDuplicateWarning } from '../core/registry.ts';
-import type { RefPatternConfig } from '../core/ref-pattern.ts';
 import { resolveRefUrl } from '../core/ref-pattern.ts';
 import { verify, type VerifyOptions } from './verify.ts';
 import { ACTION_HINTS } from '../core/action-hints.ts';

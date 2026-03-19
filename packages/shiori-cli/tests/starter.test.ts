@@ -4,7 +4,6 @@ import {
   STARTER_KINDS,
   STARTER_LABELS,
   generateStarter,
-  type StarterKind,
 } from '../src/templates/starter.ts';
 
 describe('starter templates', () => {

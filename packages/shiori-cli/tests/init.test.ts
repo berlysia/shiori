@@ -1,6 +1,6 @@
 import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { writeFile, mkdtemp, mkdir, rm, readFile } from 'node:fs/promises';
+import { writeFile, mkdtemp, mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileExists, fileContainsLine } from '../src/commands/init.ts';

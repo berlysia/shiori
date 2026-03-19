@@ -1,7 +1,5 @@
 import type {
   ShioriAnnotation,
-  Registry,
-  RefStatusValue,
   ChronicleEntry,
   ChronicleEvent,
   ChronicleResult,
