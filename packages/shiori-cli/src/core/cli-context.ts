@@ -20,10 +20,7 @@ import {
   reportRegistryIssues,
   type ConfigAndRegistryResult,
 } from './registry-loader.ts';
-import {
-  loadScanResult,
-  type LoadScanResultOptions,
-} from './scan-result-loader.ts';
+import { loadScanResult } from './scan-result-loader.ts';
 import type { ScanResult } from './types.ts';
 import { DEFAULT_SCAN_PATTERNS, DEFAULT_SCAN_IGNORE } from './scan-defaults.ts';
 import { assertWithinCwd, PathBoundaryError } from './path-boundary.ts';

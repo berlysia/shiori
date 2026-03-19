@@ -24,9 +24,12 @@ describe('doctor --upgrade CLI', () => {
     const dir = await createFixtureDir(baseDir, 'upgrade-yes', {
       skipRegistry: true,
     });
-    const { stderr, exitCode } = await runCli(
+    const { stderr } = await runCli(
       ['doctor', '--cwd', dir, '--upgrade', '--yes'],
-      { baseDir, timeout: 10000 },
+      {
+        baseDir,
+        timeout: 10000,
+      },
     );
     // Should show upgrade plan and attempt to execute
     assert.ok(
@@ -109,7 +112,10 @@ describe('doctor --upgrade CLI', () => {
 
     const { stderr } = await runCli(
       ['doctor', '--cwd', dir, '--upgrade', '--yes'],
-      { baseDir, timeout: 10000 },
+      {
+        baseDir,
+        timeout: 10000,
+      },
     );
 
     // Should show upgrade plan with init action
@@ -140,7 +146,10 @@ describe('doctor --upgrade CLI', () => {
 
     const { stderr } = await runCli(
       ['doctor', '--cwd', dir, '--upgrade', '--yes'],
-      { baseDir, timeout: 10000 },
+      {
+        baseDir,
+        timeout: 10000,
+      },
     );
 
     // --yes should default to artifacts-only badge mode
@@ -172,7 +181,10 @@ describe('doctor --upgrade CLI', () => {
     });
     const { stderr } = await runCli(
       ['doctor', '--cwd', dir, '--upgrade', '--yes', '-f', 'json'],
-      { baseDir, timeout: 10000 },
+      {
+        baseDir,
+        timeout: 10000,
+      },
     );
 
     // JSON output should contain upgrade result

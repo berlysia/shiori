@@ -84,7 +84,7 @@ function fetchIssueStatus(
   token: string,
   apiBaseUrl: string,
 ): Promise<RefStatus> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve, _reject) => {
     const url = new URL(
       `/repos/${owner}/${repo}/issues/${issueNumber}`,
       apiBaseUrl,
@@ -174,7 +174,7 @@ async function withConcurrency<T>(
   tasks: Array<() => Promise<T>>,
   limit: number,
 ): Promise<T[]> {
-  const results: T[] = new Array(tasks.length);
+  const results: T[] = Array.from<T>({ length: tasks.length });
   let nextIndex = 0;
 
   async function worker(): Promise<void> {

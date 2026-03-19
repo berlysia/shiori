@@ -21,7 +21,6 @@ import {
   stepGitignore,
   stepCi,
   PathBoundaryError,
-  type CiTemplateKind,
 } from './init-steps.ts';
 import type { UpgradeAction, BadgeMode } from './doctor/upgrade.ts';
 

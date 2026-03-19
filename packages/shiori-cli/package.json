@@ -56,7 +56,7 @@
     "test": "node --experimental-strip-types --test tests/*.test.ts tests/**/*.test.ts",
     "test:coverage": "node --experimental-strip-types --experimental-test-coverage --test tests/*.test.ts tests/**/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "lint": "oxlint src/ tests/",
+    "lint": "oxlint src/ tests/ --ignore-pattern 'tests/fixtures/**'",
     "lint:boundaries": "depcruise 'src/**/*.ts' --config .dependency-cruiser.cjs",
     "link:local": "pnpm build && pnpm link --global",
     "unlink:local": "pnpm unlink --global",
