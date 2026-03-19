@@ -224,6 +224,24 @@ export interface TrendResult {
 /** Health level for report */
 export type HealthLevel = 'healthy' | 'warning' | 'critical';
 
+/** Numeric ordering for HealthLevel (lower = worse) */
+const HEALTH_LEVEL_ORDER: Record<HealthLevel, number> = {
+  critical: 0,
+  warning: 1,
+  healthy: 2,
+};
+
+/**
+ * Check if actual level is at or below the threshold level.
+ * Level ordering: critical < warning < healthy
+ */
+export function isAtOrBelowLevel(
+  actual: HealthLevel,
+  threshold: HealthLevel,
+): boolean {
+  return HEALTH_LEVEL_ORDER[actual] <= HEALTH_LEVEL_ORDER[threshold];
+}
+
 // ── Report types (EP-0020: promoted from commands/report.ts) ─────
 
 /** A single governance insight */

@@ -4,6 +4,7 @@ import type {
   ScanResult,
   VerifyIssue,
   VerifyIssueType,
+  VerifyResult,
   TriageFormat,
 } from '../core/types.ts';
 import type { RegistryDuplicateWarning } from '../core/registry.ts';
@@ -17,6 +18,8 @@ export type { TriageFormat };
 
 export interface TriageOptions extends Omit<VerifyOptions, 'records'> {
   scanResult: ScanResult;
+  /** Pre-computed verify result to avoid duplicate verify() calls (e.g. from summary) */
+  verifyResult?: VerifyResult;
   /** Filter by owner (from registry entry) */
   owner?: string;
   /** Filter by kind (from registry entry) */
@@ -119,18 +122,28 @@ function determineAction(issues: VerifyIssue[], ref: string): string {
 
 /**
  * Generate a prioritized triage list from scan results and registry.
- * Pure function — no I/O. Runs verify() internally, groups issues by ref,
+ * Pure function — no I/O. Uses injected verifyResult when provided,
+ * otherwise runs verify() internally. Groups issues by ref,
  * enriches with registry context and source locations, and sorts by priority.
  */
 export function triage(options: TriageOptions): TriageResult {
-  const { scanResult, owner, kind, expiredOnly, ...verifyOpts } = options;
+  const {
+    scanResult,
+    verifyResult: injectedVerifyResult,
+    owner,
+    kind,
+    expiredOnly,
+    ...verifyOpts
+  } = options;
   const { registry, refPatterns } = verifyOpts;
 
-  // Run verify on full dataset
-  const verifyResult = verify({
-    ...verifyOpts,
-    records: scanResult.annotations,
-  });
+  // Use injected result if available, otherwise run verify()
+  const verifyResult =
+    injectedVerifyResult ??
+    verify({
+      ...verifyOpts,
+      records: scanResult.annotations,
+    });
 
   // Group issues by ref
   const issuesByRef = new Map<string, VerifyIssue[]>();

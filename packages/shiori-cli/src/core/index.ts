@@ -29,6 +29,7 @@ export type { RefPatternConfig, RefPatternMatch } from './ref-pattern.ts';
 export { isValidRef, REF_PATTERN } from './ref-validation.ts';
 
 // ── Types ───────────────────────────────────────────────────
+export { isAtOrBelowLevel } from './types.ts';
 export type {
   ShioriAnnotation,
   ShioriCandidate,

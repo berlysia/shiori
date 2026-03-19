@@ -89,9 +89,13 @@ export function summary(options: SummaryOptions): SummaryResult {
   }
 
   // 4. Compute triage (when issues exist and not skipped)
+  //    Inject reportResult.verifyResult to avoid duplicate verify() call
   let triageResult: TriageResult | undefined;
   if (!skipTriage && reportResult.totals.issues > 0) {
-    triageResult = triage(reportOpts);
+    triageResult = triage({
+      ...reportOpts,
+      verifyResult: reportResult.verifyResult,
+    });
   }
 
   return {

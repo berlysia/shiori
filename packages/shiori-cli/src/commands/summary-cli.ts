@@ -11,7 +11,11 @@ import {
 import { writeOutput } from '../core/cli-output.ts';
 import { saveSnapshot, loadSnapshots } from '../core/snapshot.ts';
 import { loadScanResultFromFile } from '../core/scan-result-loader.ts';
-import type { HealthLevel, ScanResult } from '../core/types.ts';
+import {
+  isAtOrBelowLevel,
+  type HealthLevel,
+  type ScanResult,
+} from '../core/types.ts';
 import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
 import {
   createBaseContext,
@@ -351,19 +355,3 @@ export const summaryCommand = define({
     }
   },
 });
-
-/**
- * Check if actual level is at or below the threshold level.
- * Level ordering: critical < warning < healthy
- */
-function isAtOrBelowLevel(
-  actual: HealthLevel,
-  threshold: HealthLevel,
-): boolean {
-  const levelOrder: Record<HealthLevel, number> = {
-    critical: 0,
-    warning: 1,
-    healthy: 2,
-  };
-  return levelOrder[actual] <= levelOrder[threshold];
-}

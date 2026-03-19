@@ -16,7 +16,7 @@ import {
 } from '../core/cli-validation.ts';
 import { saveSnapshot, loadSnapshots } from '../core/snapshot.ts';
 import { writeOutput } from '../core/cli-output.ts';
-import type { HealthLevel } from '../core/types.ts';
+import { isAtOrBelowLevel, type HealthLevel } from '../core/types.ts';
 import {
   createBaseContext,
   withRegistry,
@@ -305,19 +305,3 @@ export const healthCommand = define({
     }
   },
 });
-
-/**
- * Check if actual level is at or below the threshold level.
- * Level ordering: critical < warning < healthy
- */
-export function isAtOrBelowLevel(
-  actual: HealthLevel,
-  threshold: HealthLevel,
-): boolean {
-  const levelOrder: Record<HealthLevel, number> = {
-    critical: 0,
-    warning: 1,
-    healthy: 2,
-  };
-  return levelOrder[actual] <= levelOrder[threshold];
-}

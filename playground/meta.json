@@ -1,0 +1,184 @@
+{
+  "inputs": {
+    "src/core/parser.ts": {
+      "bytes": 3586,
+      "imports": [],
+      "format": "esm"
+    },
+    "src/core/comment-syntax.ts": {
+      "bytes": 2328,
+      "imports": [],
+      "format": "esm"
+    },
+    "src/core/providers/AnnotationProvider.ts": {
+      "bytes": 6175,
+      "imports": [],
+      "format": "esm"
+    },
+    "src/core/regex-utils.ts": {
+      "bytes": 201,
+      "imports": [],
+      "format": "esm"
+    },
+    "src/core/providers/CommentProvider.ts": {
+      "bytes": 11445,
+      "imports": [
+        {
+          "path": "src/core/providers/AnnotationProvider.ts",
+          "kind": "import-statement",
+          "original": "./AnnotationProvider.ts"
+        },
+        {
+          "path": "src/core/parser.ts",
+          "kind": "import-statement",
+          "original": "../parser.ts"
+        },
+        {
+          "path": "src/core/comment-syntax.ts",
+          "kind": "import-statement",
+          "original": "../comment-syntax.ts"
+        },
+        {
+          "path": "src/core/regex-utils.ts",
+          "kind": "import-statement",
+          "original": "../regex-utils.ts"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/core/types.ts": {
+      "bytes": 16264,
+      "imports": [],
+      "format": "esm"
+    },
+    "src/core/ref-validation.ts": {
+      "bytes": 649,
+      "imports": [],
+      "format": "esm"
+    },
+    "src/core/ref-pattern.ts": {
+      "bytes": 2212,
+      "imports": [
+        {
+          "path": "src/core/regex-utils.ts",
+          "kind": "import-statement",
+          "original": "./regex-utils.ts"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/commands/verify.ts": {
+      "bytes": 13480,
+      "imports": [
+        {
+          "path": "src/core/types.ts",
+          "kind": "import-statement",
+          "original": "../core/types.ts"
+        },
+        {
+          "path": "src/core/ref-validation.ts",
+          "kind": "import-statement",
+          "original": "../core/ref-validation.ts"
+        },
+        {
+          "path": "src/core/ref-pattern.ts",
+          "kind": "import-statement",
+          "original": "../core/ref-pattern.ts"
+        }
+      ],
+      "format": "esm"
+    },
+    "src/playground/index.ts": {
+      "bytes": 1156,
+      "imports": [
+        {
+          "path": "src/core/parser.ts",
+          "kind": "import-statement",
+          "original": "../core/parser.ts"
+        },
+        {
+          "path": "src/core/comment-syntax.ts",
+          "kind": "import-statement",
+          "original": "../core/comment-syntax.ts"
+        },
+        {
+          "path": "src/core/providers/CommentProvider.ts",
+          "kind": "import-statement",
+          "original": "../core/providers/CommentProvider.ts"
+        },
+        {
+          "path": "src/commands/verify.ts",
+          "kind": "import-statement",
+          "original": "../commands/verify.ts"
+        },
+        {
+          "path": "src/core/ref-validation.ts",
+          "kind": "import-statement",
+          "original": "../core/ref-validation.ts"
+        },
+        {
+          "path": "src/core/types.ts",
+          "kind": "import-statement",
+          "original": "../core/types.ts"
+        }
+      ],
+      "format": "esm"
+    }
+  },
+  "outputs": {
+    "playground/shiori-playground.js.map": {
+      "imports": [],
+      "exports": [],
+      "inputs": {},
+      "bytes": 75595
+    },
+    "playground/shiori-playground.js": {
+      "imports": [],
+      "exports": [
+        "COMMENT_SYNTAXES",
+        "CommentProvider",
+        "EXTENSION_MAP",
+        "REF_PATTERN",
+        "VERIFY_ISSUE_TYPES",
+        "getCommentSyntax",
+        "isValidRef",
+        "parseShioriFields",
+        "verify"
+      ],
+      "entryPoint": "src/playground/index.ts",
+      "inputs": {
+        "src/core/parser.ts": {
+          "bytesInOutput": 1036
+        },
+        "src/playground/index.ts": {
+          "bytesInOutput": 0
+        },
+        "src/core/comment-syntax.ts": {
+          "bytesInOutput": 787
+        },
+        "src/core/providers/AnnotationProvider.ts": {
+          "bytesInOutput": 1271
+        },
+        "src/core/regex-utils.ts": {
+          "bytesInOutput": 61
+        },
+        "src/core/providers/CommentProvider.ts": {
+          "bytesInOutput": 3073
+        },
+        "src/core/types.ts": {
+          "bytesInOutput": 182
+        },
+        "src/core/ref-validation.ts": {
+          "bytesInOutput": 91
+        },
+        "src/core/ref-pattern.ts": {
+          "bytesInOutput": 309
+        },
+        "src/commands/verify.ts": {
+          "bytesInOutput": 3572
+        }
+      },
+      "bytes": 10613
+    }
+  }
+}
