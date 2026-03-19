@@ -423,7 +423,6 @@ describe('formatGroupLabel', () => {
     const label = formatGroupLabel({
       pattern: 'eslint',
       directive: 'disable-next-line',
-      count: 5,
     });
     assert.equal(label, 'eslint / disable-next-line');
   });
@@ -432,7 +431,6 @@ describe('formatGroupLabel', () => {
     const label = formatGroupLabel({
       pattern: 'keywords',
       directive: undefined,
-      count: 3,
     });
     assert.equal(label, 'keywords');
   });

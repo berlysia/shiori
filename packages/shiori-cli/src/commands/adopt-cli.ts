@@ -262,17 +262,19 @@ export const adoptCommand = define({
     let reason = ctx.values.reason ?? 'adopted by shiori adopt';
     let kind = ctx.values.kind ?? 'adoption';
 
+    // --wizard and --apply are mutually exclusive
+    if (wizard && apply) {
+      console.error(
+        'Error: --wizard and --apply are mutually exclusive. --wizard includes its own apply confirmation step.',
+      );
+      process.exitCode = 1;
+      return;
+    }
+
     // Wizard requires TTY; fall back to dry-run for non-TTY
     if (wizard && !process.stdin.isTTY) {
       console.error(
         'Warning: --wizard requires an interactive terminal. Falling back to dry-run mode.',
-      );
-    }
-
-    // Wizard includes its own apply confirmation step; --apply is redundant
-    if (wizard && apply && process.stdin.isTTY) {
-      console.error(
-        'Note: --wizard includes an apply confirmation step. The --apply flag is ignored in wizard mode.',
       );
     }
 

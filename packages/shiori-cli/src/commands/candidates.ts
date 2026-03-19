@@ -1,4 +1,5 @@
 import type { ShioriCandidate } from '../core/types.ts';
+import { formatGroupLabel } from './adopt.ts';
 
 export type CandidatesOutputFormat = 'json' | 'markdown';
 
@@ -35,7 +36,7 @@ export function formatCandidatesAsMarkdown(result: CandidatesResult): string {
   // Group by pattern + directive
   const byGroup = new Map<string, ShioriCandidate[]>();
   for (const c of result.candidates) {
-    const key = c.directive ? `${c.pattern} / ${c.directive}` : c.pattern;
+    const key = formatGroupLabel(c);
     const group = byGroup.get(key) ?? [];
     group.push(c);
     byGroup.set(key, group);

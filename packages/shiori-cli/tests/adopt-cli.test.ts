@@ -396,6 +396,38 @@ describe('adopt-cli: --wizard flag', () => {
     await cleanup();
   });
 
+  it('rejects --wizard combined with --apply as mutually exclusive', async () => {
+    const dir = await createFixtureDir(baseDir, 'wizard-apply', {
+      scanResult: {
+        annotations: [],
+        candidates: [
+          {
+            pattern: 'eslint-disable-next-line',
+            directive: 'no-console',
+            location: { file: 'src/app.ts', line: 1 },
+          },
+        ],
+        filesScanned: 1,
+      },
+    });
+
+    const { exitCode, stderr } = await runCli([
+      'adopt',
+      '--cwd',
+      dir,
+      '--scan',
+      join(dir, SCAN_RESULT_REL),
+      '--wizard',
+      '--apply',
+    ]);
+
+    assert.equal(exitCode, 1);
+    assert.ok(
+      stderr.includes('--wizard and --apply are mutually exclusive'),
+      'Should report mutually exclusive error',
+    );
+  });
+
   it('falls back to dry-run in non-TTY mode', async () => {
     const dir = await createFixtureDir(baseDir, 'wizard-notty', {
       sourceFiles: {
