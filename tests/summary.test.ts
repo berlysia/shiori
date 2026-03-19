@@ -12,7 +12,6 @@ import {
   summary,
   formatSummary,
   formatSummaryAsMarkdown,
-  type SummaryResult,
 } from '../src/commands/summary.ts';
 import { report } from '../src/commands/report.ts';
 
