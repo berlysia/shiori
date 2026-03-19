@@ -1529,4 +1529,132 @@ describe('verify', () => {
       assert.ok(md.includes('No issues found'));
     });
   });
+
+  describe('result metadata', () => {
+    it('timestamp reflects injected now parameter as ISO 8601', () => {
+      const now = new Date('2025-03-15T10:30:00.000Z');
+      const result = verify({
+        records: [makeAnnotation({ ref: 'META-001' })],
+        registry: { 'META-001': makeRegistryEntry() },
+        failOn: [],
+        warnOn: [],
+        now,
+      });
+
+      assert.equal(result.timestamp, '2025-03-15T10:30:00.000Z');
+    });
+
+    it('scannedRecords matches input records length', () => {
+      const records = [
+        makeAnnotation({ ref: 'CNT-001' }),
+        makeAnnotation({ ref: 'CNT-002', location: { file: 'b.ts', line: 2 } }),
+        makeAnnotation({ ref: 'CNT-003', location: { file: 'c.ts', line: 3 } }),
+      ];
+      const result = verify({
+        records,
+        registry: {
+          'CNT-001': makeRegistryEntry(),
+          'CNT-002': makeRegistryEntry(),
+          'CNT-003': makeRegistryEntry(),
+        },
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+      });
+
+      assert.equal(result.scannedRecords, 3);
+    });
+
+    it('registryEntries matches registry key count', () => {
+      const result = verify({
+        records: [],
+        registry: {
+          'REG-A': makeRegistryEntry(),
+          'REG-B': makeRegistryEntry(),
+        },
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+      });
+
+      assert.equal(result.registryEntries, 2);
+    });
+
+    it('scannedRecords and registryEntries are zero for empty inputs', () => {
+      const result = verify({
+        records: [],
+        registry: {},
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+      });
+
+      assert.equal(result.scannedRecords, 0);
+      assert.equal(result.registryEntries, 0);
+      assert.equal(result.summary.total, 0);
+    });
+  });
+
+  describe('determineSeverity fallback', () => {
+    it('defaults to warning when issue type is in neither failOn nor warnOn', () => {
+      // missing-in-registry not in either failOn or warnOn → should default to warning
+      const records = [makeAnnotation({ ref: 'FALLBACK-001' })];
+      const result = verify({
+        records,
+        registry: {},
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+      });
+
+      const issue = result.issues.find((i) => i.type === 'missing-in-registry');
+      assert.ok(issue);
+      assert.equal(issue.severity, 'warning');
+    });
+
+    it('promotes to error when issue type is in failOn', () => {
+      const records = [makeAnnotation({ ref: 'PROMO-001' })];
+      const result = verify({
+        records,
+        registry: {},
+        failOn: ['missing-in-registry'],
+        warnOn: [],
+        now: referenceDate,
+      });
+
+      const issue = result.issues.find((i) => i.type === 'missing-in-registry');
+      assert.ok(issue);
+      assert.equal(issue.severity, 'error');
+    });
+
+    it('stays warning when issue type is in warnOn', () => {
+      const records = [makeAnnotation({ ref: 'WARN-001' })];
+      const result = verify({
+        records,
+        registry: {},
+        failOn: [],
+        warnOn: ['missing-in-registry'],
+        now: referenceDate,
+      });
+
+      const issue = result.issues.find((i) => i.type === 'missing-in-registry');
+      assert.ok(issue);
+      assert.equal(issue.severity, 'warning');
+    });
+
+    it('failOn takes precedence over warnOn', () => {
+      const records = [makeAnnotation({ ref: 'BOTH-001' })];
+      const result = verify({
+        records,
+        registry: {},
+        failOn: ['missing-in-registry'],
+        warnOn: ['missing-in-registry'],
+        now: referenceDate,
+      });
+
+      const issue = result.issues.find((i) => i.type === 'missing-in-registry');
+      assert.ok(issue);
+      assert.equal(issue.severity, 'error');
+    });
+  });
 });

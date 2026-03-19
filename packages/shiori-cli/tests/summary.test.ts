@@ -401,3 +401,78 @@ describe('formatSummaryAsMarkdown', () => {
     assert.ok(output.includes('**Expired:**'));
   });
 });
+
+// ── verifyResult injection through summary → triage pipeline ─
+
+describe('summary verifyResult injection to triage', () => {
+  it('passes reportResult.verifyResult to triage avoiding duplicate verify', () => {
+    // Setup: annotation missing from registry → generates issues
+    const headScan = makeScanResult([makeAnnotation({ ref: 'PIPE-001' })]);
+
+    const result = summary({
+      scanResult: headScan,
+      registry: {},
+      failOn: [],
+      warnOn: [],
+    });
+
+    // The summary should have triage (because issues exist)
+    assert.ok(result.triage, 'triage should be present when issues exist');
+    assert.ok(result.triage.items.length > 0);
+
+    // The triage items should reflect the same issues as health
+    assert.ok(result.health.issues.total > 0);
+    // Triage item ref should match the annotation ref
+    assert.equal(result.triage.items[0]!.ref, 'PIPE-001');
+  });
+
+  it('triage timestamp matches report timestamp (shared verifyResult)', () => {
+    const headScan = makeScanResult([makeAnnotation({ ref: 'TIME-001' })]);
+
+    const result = summary({
+      scanResult: headScan,
+      registry: {},
+      failOn: [],
+      warnOn: [],
+    });
+
+    assert.ok(result.triage);
+    // Both summary and triage timestamps originate from the same
+    // report() → verify() call, so they should be identical
+    assert.equal(result.timestamp, result.triage.timestamp);
+  });
+
+  it('triage issue types align with health totals', () => {
+    // Create multiple issue types
+    const headScan = makeScanResult([
+      makeAnnotation({ ref: 'MULTI-001' }),
+      makeAnnotation({ ref: 'MULTI-002' }),
+    ]);
+    const registry: Registry = {
+      'MULTI-001': makeRegistryEntry({ expires: '2020-01-01' }),
+      // MULTI-002 missing from registry
+    };
+
+    const result = summary({
+      scanResult: headScan,
+      registry,
+      failOn: [],
+      warnOn: [],
+    });
+
+    assert.ok(result.triage);
+    // Health reports total issues; triage groups by ref
+    // MULTI-001: expired → critical triage item
+    // MULTI-002: missing-in-registry → high triage item
+    assert.equal(result.triage.items.length, 2);
+
+    const refs = result.triage.items.map((i) => i.ref).sort();
+    assert.deepEqual(refs, ['MULTI-001', 'MULTI-002']);
+
+    const multi001 = result.triage.items.find((i) => i.ref === 'MULTI-001')!;
+    assert.equal(multi001.priority, 'critical');
+
+    const multi002 = result.triage.items.find((i) => i.ref === 'MULTI-002')!;
+    assert.equal(multi002.priority, 'high');
+  });
+});

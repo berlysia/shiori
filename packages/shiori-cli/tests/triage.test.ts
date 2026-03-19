@@ -5,12 +5,14 @@ import {
   formatTriageAsMarkdown,
   formatTriageOutput,
 } from '../src/commands/triage.ts';
+import { verify } from '../src/commands/verify.ts';
 import type {
   ShioriAnnotation,
   ShioriCandidate,
   Registry,
   RegistryEntry,
   ScanResult,
+  VerifyResult,
 } from '../src/core/types.ts';
 
 // ── Test helpers ─────────────────────────────────────────────
@@ -627,5 +629,211 @@ describe('formatTriageOutput', () => {
     const output = formatTriageOutput(result, 'markdown');
 
     assert.ok(output.includes('# Shiori Triage Report'));
+  });
+});
+
+// ── verifyResult injection path ─────────────────────────────
+
+describe('triage verifyResult injection', () => {
+  it('uses injected verifyResult instead of computing internally', () => {
+    const annotations = [makeAnnotation('INJ-001', 'src/a.ts', 1)];
+    const registry: Registry = {
+      'INJ-001': makeRegistryEntry({ expires: '2020-01-01' }),
+    };
+    const scanResult = makeScanResult(annotations);
+    const now = new Date('2025-01-01');
+
+    // Pre-compute verifyResult
+    const preComputed = verify({
+      records: annotations,
+      registry,
+      failOn: [],
+      warnOn: [],
+      now,
+    });
+
+    // Triage with injection
+    const withInjection = triage({
+      scanResult,
+      registry,
+      failOn: [],
+      warnOn: [],
+      now,
+      verifyResult: preComputed,
+    });
+
+    // Triage without injection (internally calls verify)
+    const withoutInjection = triage({
+      scanResult,
+      registry,
+      failOn: [],
+      warnOn: [],
+      now,
+    });
+
+    // Both paths should produce equivalent triage results
+    assert.equal(withInjection.items.length, withoutInjection.items.length);
+    assert.equal(withInjection.items[0]!.ref, withoutInjection.items[0]!.ref);
+    assert.equal(
+      withInjection.items[0]!.priority,
+      withoutInjection.items[0]!.priority,
+    );
+    assert.deepEqual(
+      withInjection.summary.byPriority,
+      withoutInjection.summary.byPriority,
+    );
+  });
+
+  it('preserves timestamp from injected verifyResult', () => {
+    const annotations = [makeAnnotation('TS-001', 'src/a.ts', 1)];
+    const registry: Registry = {};
+    const scanResult = makeScanResult(annotations);
+
+    const fixedTimestamp = '2025-06-15T12:00:00.000Z';
+    const injected: VerifyResult = {
+      timestamp: fixedTimestamp,
+      issues: [
+        {
+          type: 'missing-in-registry',
+          severity: 'warning',
+          ref: 'TS-001',
+          message: 'ID "TS-001" found in source but not in registry',
+          file: 'src/a.ts',
+          line: 1,
+        },
+      ],
+      summary: {
+        total: 1,
+        errors: 0,
+        warnings: 1,
+        byType: {
+          'syntax-error': 0,
+          'ref-format': 0,
+          'missing-in-registry': 1,
+          'unused-in-source': 0,
+          expired: 0,
+          'expiring-soon': 0,
+          'ref-collision': 0,
+          'unrouted-ref': 0,
+          'registry-routing-mismatch': 0,
+          'ref-status-closed': 0,
+        },
+      },
+      scannedRecords: 1,
+      registryEntries: 0,
+    };
+
+    const result = triage({
+      scanResult,
+      registry,
+      failOn: [],
+      warnOn: [],
+      verifyResult: injected,
+    });
+
+    // Triage result should carry the injected verifyResult's timestamp
+    assert.equal(result.timestamp, fixedTimestamp);
+  });
+
+  it('uses injected issues for grouping and priority', () => {
+    // Inject a verifyResult with a custom issue set
+    const annotations = [makeAnnotation('CUSTOM-001', 'src/a.ts', 1)];
+    const registry: Registry = {
+      'CUSTOM-001': makeRegistryEntry(),
+    };
+    const scanResult = makeScanResult(annotations);
+
+    // Manually craft a verifyResult with an expired issue
+    // (even though the registry entry has no expires — injection overrides)
+    const injected: VerifyResult = {
+      timestamp: new Date('2025-01-01').toISOString(),
+      issues: [
+        {
+          type: 'expired',
+          severity: 'error',
+          ref: 'CUSTOM-001',
+          message: 'ID "CUSTOM-001" expired on 2024-01-01',
+          file: undefined,
+          line: undefined,
+        },
+      ],
+      summary: {
+        total: 1,
+        errors: 1,
+        warnings: 0,
+        byType: {
+          'syntax-error': 0,
+          'ref-format': 0,
+          'missing-in-registry': 0,
+          'unused-in-source': 0,
+          expired: 1,
+          'expiring-soon': 0,
+          'ref-collision': 0,
+          'unrouted-ref': 0,
+          'registry-routing-mismatch': 0,
+          'ref-status-closed': 0,
+        },
+      },
+      scannedRecords: 1,
+      registryEntries: 1,
+    };
+
+    const result = triage({
+      scanResult,
+      registry,
+      failOn: [],
+      warnOn: [],
+      verifyResult: injected,
+    });
+
+    // Should use the injected expired issue, not compute its own
+    assert.equal(result.items.length, 1);
+    assert.equal(result.items[0]!.ref, 'CUSTOM-001');
+    assert.equal(result.items[0]!.priority, 'critical');
+    assert.ok(result.items[0]!.issues.some((i) => i.type === 'expired'));
+  });
+
+  it('produces empty triage when injected verifyResult has no issues', () => {
+    const annotations = [makeAnnotation('CLEAN-001', 'src/a.ts', 1)];
+    const registry: Registry = {};
+    const scanResult = makeScanResult(annotations);
+
+    // Inject a clean verifyResult (no issues, even though registry is empty)
+    const injected: VerifyResult = {
+      timestamp: new Date().toISOString(),
+      issues: [],
+      summary: {
+        total: 0,
+        errors: 0,
+        warnings: 0,
+        byType: {
+          'syntax-error': 0,
+          'ref-format': 0,
+          'missing-in-registry': 0,
+          'unused-in-source': 0,
+          expired: 0,
+          'expiring-soon': 0,
+          'ref-collision': 0,
+          'unrouted-ref': 0,
+          'registry-routing-mismatch': 0,
+          'ref-status-closed': 0,
+        },
+      },
+      scannedRecords: 1,
+      registryEntries: 0,
+    };
+
+    const result = triage({
+      scanResult,
+      registry,
+      failOn: [],
+      warnOn: [],
+      verifyResult: injected,
+    });
+
+    // Without injection, missing-in-registry would produce issues
+    // With injection, the clean result should be used as-is
+    assert.equal(result.items.length, 0);
+    assert.equal(result.summary.total, 0);
   });
 });
