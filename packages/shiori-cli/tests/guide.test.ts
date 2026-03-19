@@ -51,6 +51,60 @@ describe('guide', () => {
         );
       }
     });
+
+    it('options arrays contain non-empty strings when present', () => {
+      for (const uc of USE_CASES) {
+        if (uc.options) {
+          assert.ok(
+            Array.isArray(uc.options),
+            `Use case ${uc.id}: options must be an array`,
+          );
+          for (const opt of uc.options) {
+            assert.ok(
+              typeof opt === 'string' && opt.length > 0,
+              `Use case ${uc.id}: option must be a non-empty string`,
+            );
+          }
+        }
+      }
+    });
+
+    it('recipe filenames end with .md when present', () => {
+      for (const uc of USE_CASES) {
+        if (uc.recipes) {
+          assert.ok(
+            Array.isArray(uc.recipes),
+            `Use case ${uc.id}: recipes must be an array`,
+          );
+          for (const recipe of uc.recipes) {
+            assert.ok(
+              recipe.endsWith('.md'),
+              `Use case ${uc.id}: recipe "${recipe}" must end with .md`,
+            );
+          }
+        }
+      }
+    });
+
+    it('at least some use cases have options', () => {
+      const withOptions = USE_CASES.filter(
+        (uc) => uc.options && uc.options.length > 0,
+      );
+      assert.ok(
+        withOptions.length > 0,
+        'Expected at least some use cases to have options',
+      );
+    });
+
+    it('at least some use cases have recipes', () => {
+      const withRecipes = USE_CASES.filter(
+        (uc) => uc.recipes && uc.recipes.length > 0,
+      );
+      assert.ok(
+        withRecipes.length > 0,
+        'Expected at least some use cases to have recipes',
+      );
+    });
   });
 
   describe('groupUseCases', () => {
@@ -108,6 +162,49 @@ describe('guide', () => {
         assert.ok(output.includes(`$ ${cmd}`));
       }
     });
+
+    it('shows options section when use case has options', () => {
+      const uc = findUseCase('generate-report')!;
+      assert.ok(
+        uc.options && uc.options.length > 0,
+        'generate-report should have options',
+      );
+      const output = formatUseCase(uc);
+      assert.ok(output.includes('Options:'));
+      for (const opt of uc.options!) {
+        assert.ok(output.includes(opt), `Missing option: ${opt}`);
+      }
+    });
+
+    it('shows recipes section when use case has recipes', () => {
+      const uc = findUseCase('generate-report')!;
+      assert.ok(
+        uc.recipes && uc.recipes.length > 0,
+        'generate-report should have recipes',
+      );
+      const output = formatUseCase(uc);
+      assert.ok(output.includes('Recipes:'));
+      for (const recipe of uc.recipes!) {
+        assert.ok(
+          output.includes(`docs/recipes/${recipe}`),
+          `Missing recipe path: ${recipe}`,
+        );
+      }
+    });
+
+    it('omits options section when use case has no options', () => {
+      const uc = findUseCase('full-docs')!;
+      assert.ok(!uc.options, 'full-docs should not have options');
+      const output = formatUseCase(uc);
+      assert.ok(!output.includes('Options:'));
+    });
+
+    it('omits recipes section when use case has no recipes', () => {
+      const uc = findUseCase('adopt-existing')!;
+      assert.ok(!uc.recipes, 'adopt-existing should not have recipes');
+      const output = formatUseCase(uc);
+      assert.ok(!output.includes('Recipes:'));
+    });
   });
 
   describe('formatAllUseCases', () => {
@@ -132,6 +229,21 @@ describe('guide', () => {
           `Missing use case label: ${uc.label}`,
         );
       }
+    });
+
+    it('shows recipe count for use cases with recipes', () => {
+      const grouped = groupUseCases();
+      const output = formatAllUseCases(grouped);
+      // generate-report has 3 recipes
+      assert.ok(
+        output.includes('3 recipes'),
+        'generate-report should show 3 recipes',
+      );
+      // multi-repo has 1 recipe
+      assert.ok(
+        output.includes('1 recipe)'),
+        'multi-repo should show 1 recipe',
+      );
     });
   });
 
@@ -158,6 +270,30 @@ describe('guide', () => {
         assert.ok(Array.isArray(group.useCases));
         assert.ok(group.useCases.length > 0);
       }
+    });
+
+    it('includes options and recipes in JSON output', () => {
+      const grouped = groupUseCases();
+      const json = formatUseCasesJson(grouped);
+      const parsed = JSON.parse(json) as Array<{
+        useCases: Array<{
+          id: string;
+          options?: string[];
+          recipes?: string[];
+        }>;
+      }>;
+      // Find generate-report which has both options and recipes
+      const allUseCases = parsed.flatMap((g) => g.useCases);
+      const report = allUseCases.find((uc) => uc.id === 'generate-report');
+      assert.ok(report, 'generate-report should be in JSON output');
+      assert.ok(
+        Array.isArray(report.options) && report.options.length > 0,
+        'generate-report should have options in JSON',
+      );
+      assert.ok(
+        Array.isArray(report.recipes) && report.recipes.length > 0,
+        'generate-report should have recipes in JSON',
+      );
     });
   });
 });

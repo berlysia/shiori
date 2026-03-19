@@ -20,6 +20,10 @@ export interface UseCase {
   commands: string[];
   /** One-sentence explanation of what the commands do */
   explanation: string;
+  /** Commonly useful options for the primary command */
+  options?: string[];
+  /** Related recipe filenames (relative to docs/recipes/) */
+  recipes?: string[];
 }
 
 export type UseCaseCategory =
@@ -46,6 +50,8 @@ export const USE_CASES: readonly UseCase[] = [
     commands: ['shiori init'],
     explanation:
       'Creates config, scans for annotations, and generates a registry.',
+    options: ['--registry <path>', '--provider <name>'],
+    recipes: ['pr-onboarding-snippet.md'],
   },
   {
     id: 'adopt-existing',
@@ -61,6 +67,7 @@ export const USE_CASES: readonly UseCase[] = [
     category: 'setup',
     commands: ['shiori init --ci basic'],
     explanation: 'Generates a GitHub Actions workflow for shiori verify.',
+    recipes: ['github-actions-composite-action.md', 'github-checks-gate.md'],
   },
 
   // ── Daily ──
@@ -70,6 +77,7 @@ export const USE_CASES: readonly UseCase[] = [
     category: 'daily',
     commands: ['shiori check'],
     explanation: 'One-shot scan + verify — the primary command for daily use.',
+    options: ['--fail-on <types>', '--format json'],
   },
   {
     id: 'add-annotation',
@@ -78,6 +86,8 @@ export const USE_CASES: readonly UseCase[] = [
     commands: ['shiori annotate --target <file:line>'],
     explanation:
       'Inserts a shiori annotation comment and creates a registry entry.',
+    options: ['--ref <ref>', '--expires <YYYY-MM>', '--format json'],
+    recipes: ['vscode-annotate-task.md'],
   },
   {
     id: 'resolve-ref',
@@ -86,6 +96,8 @@ export const USE_CASES: readonly UseCase[] = [
     commands: ['shiori resolve --ref <ref>'],
     explanation:
       'Removes the annotation from source code and the registry entry.',
+    options: ['--closed', '--apply', '--yes'],
+    recipes: ['auto-resolve-on-issue-close.md'],
   },
   {
     id: 'update-registry',
@@ -102,6 +114,8 @@ export const USE_CASES: readonly UseCase[] = [
     commands: ['shiori watch'],
     explanation:
       'Watches source files and re-scans on change — keeps scan-result fresh.',
+    options: ['--dashboard', '--open', '--sync-registry'],
+    recipes: ['local-dashboard.md'],
   },
 
   // ── Review ──
@@ -112,6 +126,11 @@ export const USE_CASES: readonly UseCase[] = [
     commands: ['shiori delta'],
     explanation:
       'Compares scan results between branches to show added/removed annotations.',
+    options: ['--base <path>', '--head <path>', '--format markdown'],
+    recipes: [
+      'github-actions-delta-pr-comment.md',
+      'github-actions-delta-pr-description.md',
+    ],
   },
   {
     id: 'lookup-ref',
@@ -120,6 +139,7 @@ export const USE_CASES: readonly UseCase[] = [
     commands: ['shiori why --ref <ref>'],
     explanation:
       'Shows registry info, source locations, issues, and URL for one ref.',
+    options: ['--json'],
   },
   {
     id: 'jump-to-source',
@@ -135,6 +155,7 @@ export const USE_CASES: readonly UseCase[] = [
     commands: ['shiori candidates'],
     explanation:
       'Shows lint disables that could be tracked by shiori but are not yet.',
+    options: ['--format json'],
   },
 
   // ── Governance ──
@@ -144,6 +165,8 @@ export const USE_CASES: readonly UseCase[] = [
     category: 'governance',
     commands: ['shiori health'],
     explanation: 'Scores your project on tracking ratio, expiry, and coverage.',
+    options: ['--fail-on <types>', '--fail-on-level <level>'],
+    recipes: ['governance-badge.md'],
   },
   {
     id: 'triage-actions',
@@ -152,6 +175,7 @@ export const USE_CASES: readonly UseCase[] = [
     commands: ['shiori triage'],
     explanation:
       'Ranks annotations by urgency — expired first, then expiring soon.',
+    recipes: ['renovate-triage.md'],
   },
   {
     id: 'generate-report',
@@ -159,6 +183,18 @@ export const USE_CASES: readonly UseCase[] = [
     category: 'governance',
     commands: ['shiori report'],
     explanation: 'Produces a Markdown or JSON governance health report.',
+    options: [
+      '--format html|markdown|badge',
+      '--diff-base <path>',
+      '--provenance',
+      '--chronicle',
+      '-o <file>',
+    ],
+    recipes: [
+      'html-artifacts-dashboard.md',
+      'governance-badge.md',
+      'code-scanning.md',
+    ],
   },
   {
     id: 'weekly-report',
@@ -167,6 +203,8 @@ export const USE_CASES: readonly UseCase[] = [
     commands: ['shiori weekly-report'],
     explanation:
       'Summarizes governance changes over a time period for team review.',
+    options: ['--format html|markdown|json', '--preset <name>', '-o <file>'],
+    recipes: ['slack-notification.md'],
   },
   {
     id: 'trend-analysis',
@@ -175,6 +213,8 @@ export const USE_CASES: readonly UseCase[] = [
     commands: ['shiori trend'],
     explanation:
       'Shows how tracking ratio and annotation count evolved across snapshots.',
+    options: ['--history <dir>', '--format markdown|csv|spark'],
+    recipes: ['scheduled-governance-orchestrator.md'],
   },
   {
     id: 'multi-repo',
@@ -183,6 +223,13 @@ export const USE_CASES: readonly UseCase[] = [
     commands: ['shiori aggregate'],
     explanation:
       'Combines governance summaries from multiple repositories into one view.',
+    options: [
+      '--files <glob>',
+      '--format html|markdown',
+      '--fail-on-level <level>',
+      '-o <file>',
+    ],
+    recipes: ['aggregate-html-dashboard.md'],
   },
 
   // ── Diagnostics ──
@@ -193,6 +240,7 @@ export const USE_CASES: readonly UseCase[] = [
     commands: ['shiori doctor'],
     explanation:
       'Checks config, registry, Node version, gitignore, and scan freshness.',
+    options: ['--format json', '--fix'],
   },
   {
     id: 'maturity-check',
@@ -208,6 +256,7 @@ export const USE_CASES: readonly UseCase[] = [
     category: 'diagnostics',
     commands: ['shiori journal'],
     explanation: 'Shows a log of past shiori CLI operations and their results.',
+    options: ['--last <n>', '--format json'],
   },
   {
     id: 'full-docs',
@@ -263,6 +312,7 @@ export function findUseCase(id: string): UseCase | undefined {
 
 /**
  * Format a single use case as human-readable text.
+ * Includes recommended options and related recipes when available.
  */
 export function formatUseCase(useCase: UseCase): string {
   const lines: string[] = [];
@@ -272,11 +322,26 @@ export function formatUseCase(useCase: UseCase): string {
   for (const cmd of useCase.commands) {
     lines.push(`  $ ${cmd}`);
   }
+  if (useCase.options && useCase.options.length > 0) {
+    lines.push('');
+    lines.push('  Options:');
+    for (const opt of useCase.options) {
+      lines.push(`    ${opt}`);
+    }
+  }
+  if (useCase.recipes && useCase.recipes.length > 0) {
+    lines.push('');
+    lines.push('  Recipes:');
+    for (const recipe of useCase.recipes) {
+      lines.push(`    docs/recipes/${recipe}`);
+    }
+  }
   return lines.join('\n');
 }
 
 /**
  * Format all use cases grouped by category — for pipe/dump output.
+ * Shows commands and recipe count for each use case.
  */
 export function formatAllUseCases(grouped: GroupedUseCases): string {
   const lines: string[] = [];
@@ -287,8 +352,12 @@ export function formatAllUseCases(grouped: GroupedUseCases): string {
     lines.push(`${group.categoryLabel}:`);
     for (const uc of group.useCases) {
       const cmds = uc.commands.join(', ');
+      const recipeCount =
+        uc.recipes && uc.recipes.length > 0
+          ? ` (${uc.recipes.length} recipe${uc.recipes.length > 1 ? 's' : ''})`
+          : '';
       lines.push(`  ${uc.label}`);
-      lines.push(`    → ${cmds}`);
+      lines.push(`    \u2192 ${cmds}${recipeCount}`);
     }
     lines.push('');
   }

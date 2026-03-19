@@ -12,7 +12,9 @@ import type {
   ShioriAnnotation,
   ShioriCandidate,
   ReportResult,
+  MaturityLevel,
 } from '../src/core/types.ts';
+import { maturityStageFromLevel } from '../src/core/types.ts';
 
 function makeAnnotation(
   overrides: Partial<ShioriAnnotation> = {},
@@ -148,5 +150,75 @@ describe('formatReportAsBadge', () => {
     assert.ok(output.includes('\n'));
     // Round-trip: parse and re-stringify preserves output
     assert.equal(JSON.stringify(JSON.parse(output), null, 2), output);
+  });
+
+  it('omits stage when maturityLevel is not provided', () => {
+    const result = makeReport({});
+    const badge = JSON.parse(formatReportAsBadge(result)) as ShieldsBadge;
+    assert.equal(badge.stage, undefined);
+  });
+
+  it('includes stage Discover for maturity level 0', () => {
+    const result = makeReport({});
+    const badge = JSON.parse(formatReportAsBadge(result, 0)) as ShieldsBadge;
+    assert.equal(badge.stage, 'Discover');
+  });
+
+  it('includes stage Adopt for maturity level 1', () => {
+    const result = makeReport({});
+    const badge = JSON.parse(formatReportAsBadge(result, 1)) as ShieldsBadge;
+    assert.equal(badge.stage, 'Adopt');
+  });
+
+  it('includes stage Adopt for maturity level 2', () => {
+    const result = makeReport({});
+    const badge = JSON.parse(formatReportAsBadge(result, 2)) as ShieldsBadge;
+    assert.equal(badge.stage, 'Adopt');
+  });
+
+  it('includes stage Enforce for maturity level 3', () => {
+    const result = makeReport({});
+    const badge = JSON.parse(formatReportAsBadge(result, 3)) as ShieldsBadge;
+    assert.equal(badge.stage, 'Enforce');
+  });
+
+  it('includes stage Enforce for maturity level 4', () => {
+    const result = makeReport({});
+    const badge = JSON.parse(formatReportAsBadge(result, 4)) as ShieldsBadge;
+    assert.equal(badge.stage, 'Enforce');
+  });
+});
+
+describe('maturityStageFromLevel', () => {
+  it('maps level 0 to Discover', () => {
+    assert.equal(maturityStageFromLevel(0), 'Discover');
+  });
+
+  it('maps level 1 to Adopt', () => {
+    assert.equal(maturityStageFromLevel(1), 'Adopt');
+  });
+
+  it('maps level 2 to Adopt', () => {
+    assert.equal(maturityStageFromLevel(2), 'Adopt');
+  });
+
+  it('maps level 3 to Enforce', () => {
+    assert.equal(maturityStageFromLevel(3), 'Enforce');
+  });
+
+  it('maps level 4 to Enforce', () => {
+    assert.equal(maturityStageFromLevel(4), 'Enforce');
+  });
+
+  it('covers all MaturityLevel values', () => {
+    const levels: MaturityLevel[] = [0, 1, 2, 3, 4];
+    const validStages = ['Discover', 'Adopt', 'Enforce'];
+    for (const level of levels) {
+      const stage = maturityStageFromLevel(level);
+      assert.ok(
+        validStages.includes(stage),
+        `Level ${level} mapped to unexpected stage: ${stage}`,
+      );
+    }
   });
 });

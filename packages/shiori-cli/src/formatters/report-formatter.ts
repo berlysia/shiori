@@ -1,4 +1,11 @@
-import type { ReportResult, ReportFormat, HealthLevel } from '../core/types.ts';
+import type {
+  ReportResult,
+  ReportFormat,
+  HealthLevel,
+  MaturityLevel,
+  MaturityStage,
+} from '../core/types.ts';
+import { maturityStageFromLevel } from '../core/types.ts';
 import { healthEmoji, insightIcon } from '../core/emoji.ts';
 import {
   formatReportAsHtml,
@@ -18,6 +25,8 @@ export interface ShieldsBadge {
   message: string;
   /** Badge color based on health level */
   color: 'brightgreen' | 'yellow' | 'red';
+  /** Governance maturity stage (present when maturity level is available) */
+  stage?: MaturityStage;
 }
 
 /**
@@ -130,36 +139,50 @@ export function formatReportAsMarkdown(result: ReportResult): string {
 
 /**
  * Format a ReportResult as shields.io endpoint badge JSON.
+ * When `maturityLevel` is provided, includes the derived stage in the output.
  * Pure function — no I/O.
  */
-export function formatReportAsBadge(result: ReportResult): string {
+export function formatReportAsBadge(
+  result: ReportResult,
+  maturityLevel?: MaturityLevel,
+): string {
   const badge: ShieldsBadge = {
     schemaVersion: 1,
     label: 'governance',
     message: `${result.health.score}/100`,
     color: healthColor(result.health.level),
   };
+  if (maturityLevel !== undefined) {
+    badge.stage = maturityStageFromLevel(maturityLevel);
+  }
   return JSON.stringify(badge, null, 2);
+}
+
+/** Options for formatReportOutput beyond the format itself */
+export interface FormatReportOptions extends HtmlReportOptions {
+  /** Maturity level for badge format (adds stage field when provided) */
+  maturityLevel?: MaturityLevel;
 }
 
 /**
  * Format report result for output.
  *
- * The optional `htmlOptions` parameter is forwarded to the HTML formatter
- * when `format` is `'html'`. It is ignored for other formats.
+ * HTML-specific options are forwarded to the HTML formatter.
+ * When `format` is `'badge'` and `options.maturityLevel` is provided,
+ * the badge JSON includes a `stage` field.
  */
 export function formatReportOutput(
   result: ReportResult,
   format: ReportFormat,
-  htmlOptions?: HtmlReportOptions,
+  options?: FormatReportOptions,
 ): string {
   switch (format) {
     case 'markdown':
       return formatReportAsMarkdown(result);
     case 'badge':
-      return formatReportAsBadge(result);
+      return formatReportAsBadge(result, options?.maturityLevel);
     case 'html':
-      return formatReportAsHtml(result, htmlOptions);
+      return formatReportAsHtml(result, options);
     default:
       return JSON.stringify(result, null, 2);
   }

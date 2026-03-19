@@ -24,6 +24,7 @@ export {
   formatReportAsBadge,
   formatReportOutput,
   type ShieldsBadge,
+  type FormatReportOptions,
 } from './report-formatter.ts';
 export {
   formatAnnotateAsJson,

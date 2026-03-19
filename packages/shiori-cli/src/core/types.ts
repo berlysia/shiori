@@ -492,6 +492,27 @@ export interface MaturityResult {
   nextActions: MaturityNextAction[];
 }
 
+// ── Maturity stage (EP-0099) ─────────────────────────────────
+
+/**
+ * High-level governance maturity stage derived from MaturityLevel.
+ * Reduces the 5-level scale to 3 actionable stages for badge display.
+ */
+export type MaturityStage = 'Discover' | 'Adopt' | 'Enforce';
+
+/**
+ * Map a MaturityLevel (0-4) to a MaturityStage.
+ *
+ * - Level 0 → Discover: project has not yet set up shiori
+ * - Level 1-2 → Adopt: basic setup or CI integration in progress
+ * - Level 3-4 → Enforce: visible governance or continuous monitoring
+ */
+export function maturityStageFromLevel(level: MaturityLevel): MaturityStage {
+  if (level === 0) return 'Discover';
+  if (level <= 2) return 'Adopt';
+  return 'Enforce';
+}
+
 // ── Chronicle types (EP-0048) ────────────────────────────────
 
 /**
