@@ -6,7 +6,7 @@
  */
 
 import { createInterface, type Interface as ReadlineInterface } from "node:readline/promises";
-import type { FixAction } from "./fix.ts";
+import type { FixAction } from "../core/types.ts";
 
 // ── Types ────────────────────────────────────────────────────
 

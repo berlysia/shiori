@@ -963,6 +963,52 @@ export interface AggregateRepositoryEntry {
   expiringSoon: number;
 }
 
+// ── Fix types (EP-0118) ──────────────────────────────────────
+
+/** A single automatable fix action */
+export interface FixAction {
+  /** Action type. Phase 1: "update" only; extensible for future actions */
+  type: "update";
+  /** Human-readable description of what this action does */
+  description: string;
+  /** Refs affected by this action */
+  refs: string[];
+}
+
+/** A manual suggestion (not automatable) */
+export interface ManualSuggestion {
+  /** Issue type that triggers this suggestion */
+  issueType: VerifyIssueType;
+  /** Number of issues of this type */
+  count: number;
+  /** Suggested CLI command */
+  command: string;
+  /** Human-readable message */
+  message: string;
+}
+
+/** Plan output (dry-run result) */
+export interface FixPlan {
+  /** Automatable actions to execute */
+  actions: FixAction[];
+  /** Manual suggestions (require human judgment) */
+  manualSuggestions: ManualSuggestion[];
+  /** Summary counts */
+  summary: { automatable: number; manual: number };
+}
+
+/** Result of applying fix actions */
+export interface FixApplyResult {
+  /** Actions that were applied */
+  applied: FixAction[];
+  /** Registry changes made */
+  registryChanges: { added: string[] };
+  /** Health score before fix */
+  scoreBefore: number;
+  /** Health score after fix */
+  scoreAfter: number;
+}
+
 /** Result of aggregating multiple repository summaries */
 export interface AggregateResult {
   /** ISO timestamp when the aggregate was generated */

@@ -15,16 +15,14 @@ import { initRegistry } from "./registry-generator.ts";
 import { recordJournalEvent } from "../core/journal.ts";
 import { ExitCode } from "../core/exit-codes.ts";
 import { writeOutput } from "../core/cli-output.ts";
+import { planFixActions, type FixAction, type FixApplyResult } from "./fix.ts";
 import {
-  planFixActions,
   formatFixPlan,
   formatFixPlanJson,
   formatFixPlanMarkdown,
   formatFixApplyResult,
   formatFixApplyResultJson,
-  type FixAction,
-  type FixApplyResult,
-} from "./fix.ts";
+} from "../formatters/fix-formatter.ts";
 import { promptFixAction, createFixReadline } from "./fix-interactive.ts";
 
 /** Output format for fix command */

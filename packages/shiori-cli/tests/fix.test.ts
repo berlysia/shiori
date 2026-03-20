@@ -7,16 +7,14 @@ import type {
   ScanResult,
   ReportResult,
 } from "../src/core/types.ts";
+import { planFixActions, type FixPlan, type FixApplyResult } from "../src/commands/fix.ts";
 import {
-  planFixActions,
   formatFixPlan,
   formatFixPlanJson,
   formatFixPlanMarkdown,
   formatFixApplyResult,
   formatFixApplyResultJson,
-  type FixPlan,
-  type FixApplyResult,
-} from "../src/commands/fix.ts";
+} from "../src/formatters/fix-formatter.ts";
 import { report } from "../src/commands/report.ts";
 
 // ── Helpers ──────────────────────────────────────────────────

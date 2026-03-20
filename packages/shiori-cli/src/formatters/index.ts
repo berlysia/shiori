@@ -4,39 +4,43 @@ import type {
   ShioriAnnotation,
   ShioriCandidate,
   VerifyResult,
-} from '../core/types.ts';
-import { formatVerifyResultAsMarkdown } from './markdown.ts';
-import { formatDeltaAsMarkdown } from './delta-markdown.ts';
-import { formatAsDiagnostic } from './diagnostic.ts';
-import { formatAsJsonl } from './jsonl.ts';
-import { formatAsSarif } from './sarif.ts';
-import { formatAsSummary } from './summary.ts';
-import type { OutputFormat } from './types.ts';
+} from "../core/types.ts";
+import { formatVerifyResultAsMarkdown } from "./markdown.ts";
+import { formatDeltaAsMarkdown } from "./delta-markdown.ts";
+import { formatAsDiagnostic } from "./diagnostic.ts";
+import { formatAsJsonl } from "./jsonl.ts";
+import { formatAsSarif } from "./sarif.ts";
+import { formatAsSummary } from "./summary.ts";
+import type { OutputFormat } from "./types.ts";
 
-export type { OutputFormat } from './types.ts';
-export { formatAsDiagnostic } from './diagnostic.ts';
-export { formatAsJsonl } from './jsonl.ts';
-export { formatAsSarif } from './sarif.ts';
-export { formatAsSummary, type SummaryInput } from './summary.ts';
-export { formatDeltaAsMarkdown } from './delta-markdown.ts';
+export type { OutputFormat } from "./types.ts";
+export { formatAsDiagnostic } from "./diagnostic.ts";
+export { formatAsJsonl } from "./jsonl.ts";
+export { formatAsSarif } from "./sarif.ts";
+export { formatAsSummary, type SummaryInput } from "./summary.ts";
+export { formatDeltaAsMarkdown } from "./delta-markdown.ts";
 export {
   formatReportAsMarkdown,
   formatReportAsBadge,
   formatReportOutput,
   type ShieldsBadge,
   type FormatReportOptions,
-} from './report-formatter.ts';
-export {
-  formatAnnotateAsJson,
-  type AnnotateJsonOutput,
-} from './annotate-formatter.ts';
+} from "./report-formatter.ts";
+export { formatAnnotateAsJson, type AnnotateJsonOutput } from "./annotate-formatter.ts";
 export {
   formatResolveOutput,
   type ResolveOutputFormat,
   type ResolveJsonOutput,
   type ResolveJsonRefSummary,
   type FormatResolveOutputOptions,
-} from './resolve-formatter.ts';
+} from "./resolve-formatter.ts";
+export {
+  formatFixPlan,
+  formatFixPlanJson,
+  formatFixPlanMarkdown,
+  formatFixApplyResult,
+  formatFixApplyResultJson,
+} from "./fix-formatter.ts";
 
 export interface FormatVerifyOutputOptions {
   format: OutputFormat;
@@ -49,20 +53,20 @@ export interface FormatVerifyOutputOptions {
 export function formatVerifyOutput(options: FormatVerifyOutputOptions): string {
   const { format, verifyResult, annotations, candidates, registry } = options;
   switch (format) {
-    case 'markdown':
+    case "markdown":
       return formatVerifyResultAsMarkdown(verifyResult);
-    case 'sarif':
+    case "sarif":
       return formatAsSarif(verifyResult);
-    case 'summary':
+    case "summary":
       return formatAsSummary({
         verifyResult,
         annotations,
         candidates,
         registry,
       });
-    case 'jsonl':
+    case "jsonl":
       return formatAsJsonl(verifyResult);
-    case 'diagnostic':
+    case "diagnostic":
       return formatAsDiagnostic(verifyResult);
     default:
       return JSON.stringify(verifyResult, null, 2);
@@ -70,7 +74,7 @@ export function formatVerifyOutput(options: FormatVerifyOutputOptions): string {
 }
 
 /** Delta output format — currently json and markdown */
-export type DeltaOutputFormat = 'json' | 'markdown';
+export type DeltaOutputFormat = "json" | "markdown";
 
 export interface FormatDeltaOutputOptions {
   format: DeltaOutputFormat;
@@ -81,7 +85,7 @@ export interface FormatDeltaOutputOptions {
 export function formatDeltaOutput(options: FormatDeltaOutputOptions): string {
   const { format, deltaResult, maxIncrease } = options;
   switch (format) {
-    case 'markdown':
+    case "markdown":
       return formatDeltaAsMarkdown(deltaResult, { maxIncrease });
     default:
       return JSON.stringify(deltaResult, null, 2);
