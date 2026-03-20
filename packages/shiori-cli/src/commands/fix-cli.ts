@@ -14,19 +14,26 @@ import {
 import { initRegistry } from "./registry-generator.ts";
 import { recordJournalEvent } from "../core/journal.ts";
 import { ExitCode } from "../core/exit-codes.ts";
+import { writeOutput } from "../core/cli-output.ts";
 import {
   planFixActions,
   formatFixPlan,
   formatFixPlanJson,
+  formatFixPlanMarkdown,
   formatFixApplyResult,
   formatFixApplyResultJson,
+  type FixAction,
   type FixApplyResult,
 } from "./fix.ts";
+import { promptFixAction, createFixReadline } from "./fix-interactive.ts";
 
 /** Output format for fix command */
-type FixFormat = "text" | "json";
+type FixFormat = "text" | "json" | "markdown";
 
-const validateFixFormat = createFormatValidator<FixFormat>(["text", "json"] as const, "text");
+const validateFixFormat = createFormatValidator<FixFormat>(
+  ["text", "json", "markdown"] as const,
+  "text",
+);
 
 export const fixCommand = define({
   name: "fix",
@@ -39,6 +46,12 @@ export const fixCommand = define({
 
   # JSON output for CI integration
   shiori fix --format json
+
+  # Markdown output for PR comments (EP-0121)
+  shiori fix --format markdown --output fix-preview.md
+
+  # Interactive mode: approve/skip each action
+  shiori fix --interactive
 
   # Execute with JSON output
   shiori fix --apply --format json`,
@@ -76,13 +89,23 @@ export const fixCommand = define({
     format: {
       type: "string",
       short: "f",
-      description: 'Output format: "text", "json". Default: "text"',
+      description: 'Output format: "text", "json", "markdown". Default: "text"',
       default: "text",
+    },
+    output: {
+      type: "string",
+      short: "o",
+      description: "Output file path. If omitted, writes to stdout",
     },
     apply: {
       type: "boolean",
       short: "a",
       description: "Execute fixes (default: dry-run preview)",
+    },
+    interactive: {
+      type: "boolean",
+      short: "I",
+      description: "Interactively approve/skip each fix action (requires TTY)",
     },
     cwd: {
       type: "string",
@@ -110,6 +133,20 @@ export const fixCommand = define({
 
     const format = validateFixFormat(ctx.values.format);
     if (format === null) return;
+
+    // Mutual exclusivity: --apply and --interactive cannot be used together
+    if (ctx.values.apply && ctx.values.interactive) {
+      console.error("Error: --apply and --interactive are mutually exclusive.");
+      process.exitCode = ExitCode.USAGE_ERROR;
+      return;
+    }
+
+    // Interactive mode requires a TTY
+    if (ctx.values.interactive && !process.stdin.isTTY) {
+      console.error("Error: --interactive requires a TTY (not available in this environment).");
+      process.exitCode = ExitCode.USAGE_ERROR;
+      return;
+    }
 
     // Load context
     const base = createBaseContext(ctx.values.cwd);
@@ -158,10 +195,134 @@ export const fixCommand = define({
     // Plan fix actions
     const plan = planFixActions(reportResult);
 
+    // Interactive mode (EP-0122): approve/skip each action individually
+    if (ctx.values.interactive) {
+      if (plan.actions.length === 0) {
+        console.error("No automatable fix actions available.");
+      } else {
+        console.error("🔧 Interactive Fix:");
+
+        const approvedActions: FixAction[] = [];
+        let quit = false;
+        const rl = createFixReadline({
+          input: process.stdin,
+          output: process.stderr,
+        });
+
+        try {
+          for (const action of plan.actions) {
+            const choice = await promptFixAction(action, rl, process.stderr);
+
+            if (choice === "quit") {
+              console.error("\n  Quit. No further actions will be processed.");
+              quit = true;
+              break;
+            }
+
+            if (choice === "approve") {
+              approvedActions.push(action);
+            } else {
+              console.error("  Skipped.");
+            }
+          }
+
+          // Execute approved actions
+          if (approvedActions.length > 0 && !quit) {
+            const beforeResult = buildHealthResult(reportResult);
+            const beforeScore = beforeResult.health.score;
+
+            const updatedRegistry = initRegistry({
+              records: scanResult.annotations,
+              existingRegistry: regCtx.registry,
+            });
+
+            const newRefs = Object.keys(updatedRegistry).filter((ref) => !(ref in regCtx.registry));
+
+            if (newRefs.length > 0) {
+              const saved = await saveRegistryRouted({
+                registry: updatedRegistry,
+                registryPath: regCtx.registryPath,
+                cwd: base.cwd,
+                refPatterns: regCtx.config.refPatterns,
+                label: "Fixed (interactive)",
+              });
+
+              if (!saved) {
+                console.error("Error: Registry save failed (path boundary error).");
+                process.exitCode = ExitCode.ENVIRONMENT_ERROR;
+                return;
+              }
+
+              recordJournalEvent({
+                cwd: base.cwd,
+                eventType: "cli.fix",
+                refs: newRefs,
+                success: true,
+                entriesAdded: newRefs.length,
+              });
+
+              // Re-run report to get after score
+              const afterReportResult = report({
+                scanResult,
+                registry: updatedRegistry,
+                failOn,
+                warnOn,
+                duplicates: regCtx.duplicates,
+                refPatterns: regCtx.config.refPatterns,
+                refOrigins: regCtx.refOrigins,
+                expiringThresholdDays,
+              });
+              const afterResult = buildHealthResult(afterReportResult);
+              const afterScore = afterResult.health.score;
+
+              console.error(
+                formatFixApplyResult({
+                  applied: approvedActions,
+                  registryChanges: { added: newRefs },
+                  scoreBefore: beforeScore,
+                  scoreAfter: afterScore,
+                }),
+              );
+            } else {
+              console.error("Registry is already up to date (no new refs to add).");
+            }
+          } else if (!quit) {
+            console.error("\n  No actions were approved.");
+          }
+        } finally {
+          rl.close();
+        }
+      }
+
+      // Show manual suggestions after interactive processing
+      if (plan.manualSuggestions.length > 0) {
+        console.error("");
+        console.error("📋 Manual actions (not automatable):");
+        for (const suggestion of plan.manualSuggestions) {
+          console.error(`  - ${suggestion.command}: ${suggestion.message}`);
+        }
+      }
+
+      return;
+    }
+
     // Dry-run mode (default)
     if (!ctx.values.apply) {
       if (format === "json") {
-        console.log(formatFixPlanJson(plan));
+        const written = await writeOutput(formatFixPlanJson(plan), {
+          outputPath: ctx.values.output,
+          cwd: base.cwd,
+          label: "Fix preview",
+        });
+        if (!written) return;
+      } else if (format === "markdown") {
+        const md = formatFixPlanMarkdown(plan);
+        const written = await writeOutput(md, {
+          outputPath: ctx.values.output,
+          cwd: base.cwd,
+          label: "Fix preview",
+        });
+        if (!written) return;
       } else {
         console.error(formatFixPlan(plan));
       }
@@ -171,7 +332,20 @@ export const fixCommand = define({
     // Apply mode
     if (plan.actions.length === 0) {
       if (format === "json") {
-        console.log(formatFixPlanJson(plan));
+        const written = await writeOutput(formatFixPlanJson(plan), {
+          outputPath: ctx.values.output,
+          cwd: base.cwd,
+          label: "Fix result",
+        });
+        if (!written) return;
+      } else if (format === "markdown") {
+        const md = formatFixPlanMarkdown(plan);
+        const written = await writeOutput(md, {
+          outputPath: ctx.values.output,
+          cwd: base.cwd,
+          label: "Fix result",
+        });
+        if (!written) return;
       } else {
         console.error("No automatable fix actions to apply.");
         if (plan.manualSuggestions.length > 0) {
@@ -198,14 +372,21 @@ export const fixCommand = define({
     const newRefs = Object.keys(updatedRegistry).filter((ref) => !(ref in regCtx.registry));
 
     if (newRefs.length === 0) {
-      if (format === "json") {
+      if (format === "json" || format === "markdown") {
         const result: FixApplyResult = {
           applied: [],
           registryChanges: { added: [] },
           scoreBefore: beforeScore,
           scoreAfter: beforeScore,
         };
-        console.log(formatFixApplyResultJson(result));
+        const content =
+          format === "json" ? formatFixApplyResultJson(result) : formatFixApplyResult(result);
+        const written = await writeOutput(content, {
+          outputPath: ctx.values.output,
+          cwd: base.cwd,
+          label: "Fix result",
+        });
+        if (!written) return;
       } else {
         console.error("Registry is already up to date (no new refs to add).");
       }
@@ -266,7 +447,12 @@ export const fixCommand = define({
     };
 
     if (format === "json") {
-      console.log(formatFixApplyResultJson(fixResult));
+      const written = await writeOutput(formatFixApplyResultJson(fixResult), {
+        outputPath: ctx.values.output,
+        cwd: base.cwd,
+        label: "Fix result",
+      });
+      if (!written) return;
     } else {
       console.error(formatFixApplyResult(fixResult));
     }

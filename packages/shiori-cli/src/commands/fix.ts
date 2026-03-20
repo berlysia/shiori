@@ -194,6 +194,55 @@ export function formatFixPlanJson(plan: FixPlan): string {
 }
 
 /**
+ * Format a fix plan as GitHub-flavored markdown for PR comments (EP-0121).
+ * Wraps content in a collapsed `<details>` block to minimize noise.
+ * Returns empty string when there are no actions and no suggestions,
+ * so the caller can skip rendering the section entirely.
+ */
+export function formatFixPlanMarkdown(plan: FixPlan): string {
+  const hasActions = plan.actions.length > 0;
+  const hasSuggestions = plan.manualSuggestions.length > 0;
+
+  if (!hasActions && !hasSuggestions) {
+    return "";
+  }
+
+  const lines: string[] = [];
+
+  lines.push("<details>");
+  lines.push("<summary>🔧 Fix Preview</summary>");
+  lines.push("");
+
+  if (hasActions) {
+    lines.push("#### Automatable Fixes");
+    lines.push("");
+    lines.push("| Action | Description | Refs |");
+    lines.push("|--------|-------------|------|");
+    for (const action of plan.actions) {
+      lines.push(`| ${action.type} | ${action.description} | ${action.refs.length} |`);
+    }
+    lines.push("");
+    lines.push("Run `shiori fix --apply` to execute these fixes.");
+  }
+
+  if (hasSuggestions) {
+    if (hasActions) {
+      lines.push("");
+    }
+    lines.push("#### Manual Actions Required");
+    lines.push("");
+    for (const suggestion of plan.manualSuggestions) {
+      lines.push(`- \`${suggestion.command}\`: ${suggestion.message}`);
+    }
+  }
+
+  lines.push("");
+  lines.push("</details>");
+
+  return lines.join("\n");
+}
+
+/**
  * Format a fix apply result for human-readable output.
  */
 export function formatFixApplyResult(result: FixApplyResult): string {

@@ -118,7 +118,14 @@ jobs:
             --output .tmp/shiori-triage.md
         continue-on-error: true
 
-      # Assemble PR comment body from delta, triage, and onboarding footer
+      - name: Generate fix preview
+        run: |
+          node packages/shiori-cli/dist/src/cli.js fix \
+            --format markdown \
+            --output .tmp/shiori-fix-preview.md
+        continue-on-error: true
+
+      # Assemble PR comment body from delta, fix preview, triage, and onboarding footer
       - name: Assemble PR comment body
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         with:
@@ -135,6 +142,18 @@ jobs:
               delta = '_No delta report generated._';
             }
             sections.push(delta);
+
+            // Fix preview (already wrapped in <details> by CLI)
+            let fixPreview;
+            try {
+              fixPreview = fs.readFileSync('.tmp/shiori-fix-preview.md', 'utf-8').trim();
+            } catch {
+              fixPreview = null;
+            }
+            if (fixPreview) {
+              sections.push('');
+              sections.push(fixPreview);
+            }
 
             // Triage report (collapsed)
             let triage;

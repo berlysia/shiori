@@ -11,6 +11,7 @@ import {
   planFixActions,
   formatFixPlan,
   formatFixPlanJson,
+  formatFixPlanMarkdown,
   formatFixApplyResult,
   formatFixApplyResultJson,
   type FixPlan,
@@ -238,6 +239,94 @@ describe("formatFixPlanJson", () => {
     const parsed = JSON.parse(json);
     assert.equal(parsed.actions.length, 1);
     assert.equal(parsed.summary.automatable, 1);
+  });
+});
+
+// ── formatFixPlanMarkdown ────────────────────────────────────
+
+describe("formatFixPlanMarkdown", () => {
+  it("returns empty string when no actions and no suggestions", () => {
+    const plan: FixPlan = {
+      actions: [],
+      manualSuggestions: [],
+      summary: { automatable: 0, manual: 0 },
+    };
+
+    const output = formatFixPlanMarkdown(plan);
+    assert.equal(output, "");
+  });
+
+  it("renders collapsed details with automatable actions table", () => {
+    const plan: FixPlan = {
+      actions: [
+        { type: "update", description: "Add 2 missing ref(s) to registry", refs: ["A", "B"] },
+      ],
+      manualSuggestions: [],
+      summary: { automatable: 1, manual: 0 },
+    };
+
+    const output = formatFixPlanMarkdown(plan);
+    assert.ok(output.includes("<details>"));
+    assert.ok(output.includes("</details>"));
+    assert.ok(output.includes("<summary>"));
+    assert.ok(output.includes("Fix Preview"));
+    assert.ok(output.includes("Automatable Fixes"));
+    assert.ok(output.includes("| update |"));
+    assert.ok(output.includes("| 2 |"));
+    assert.ok(output.includes("shiori fix --apply"));
+  });
+
+  it("renders manual suggestions when no automatable actions", () => {
+    const plan: FixPlan = {
+      actions: [],
+      manualSuggestions: [
+        {
+          issueType: "expired",
+          count: 3,
+          command: "shiori triage --expired-only",
+          message: "3 expired issue(s)",
+        },
+      ],
+      summary: { automatable: 0, manual: 1 },
+    };
+
+    const output = formatFixPlanMarkdown(plan);
+    assert.ok(output.includes("<details>"));
+    assert.ok(output.includes("</details>"));
+    assert.ok(output.includes("Manual Actions Required"));
+    assert.ok(output.includes("`shiori triage --expired-only`"));
+    assert.ok(!output.includes("Automatable Fixes"));
+  });
+
+  it("renders both actions and suggestions", () => {
+    const plan: FixPlan = {
+      actions: [{ type: "update", description: "Add 1 ref", refs: ["A"] }],
+      manualSuggestions: [
+        { issueType: "expired", count: 1, command: "shiori triage", message: "1 expired" },
+      ],
+      summary: { automatable: 1, manual: 1 },
+    };
+
+    const output = formatFixPlanMarkdown(plan);
+    assert.ok(output.includes("Automatable Fixes"));
+    assert.ok(output.includes("Manual Actions Required"));
+    assert.ok(output.includes("shiori fix --apply"));
+    assert.ok(output.includes("`shiori triage`"));
+  });
+
+  it("renders multiple actions in table", () => {
+    const plan: FixPlan = {
+      actions: [
+        { type: "update", description: "Add 2 ref(s)", refs: ["A", "B"] },
+        { type: "update", description: "Add 1 ref(s)", refs: ["C"] },
+      ],
+      manualSuggestions: [],
+      summary: { automatable: 2, manual: 0 },
+    };
+
+    const output = formatFixPlanMarkdown(plan);
+    const tableRows = output.split("\n").filter((line) => line.startsWith("| update"));
+    assert.equal(tableRows.length, 2);
   });
 });
 
