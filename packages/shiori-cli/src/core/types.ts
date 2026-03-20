@@ -696,6 +696,7 @@ export type CliOperationType =
   | "cli.resolve.bulk"
   | "cli.adopt"
   | "cli.update"
+  | "cli.fix"
   | "cli.annotate"
   | "cli.migrate";
 

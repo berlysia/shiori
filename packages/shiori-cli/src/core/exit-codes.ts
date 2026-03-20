@@ -83,6 +83,7 @@ export const REGISTERED_COMMANDS: readonly string[] = [
   "summary",
   "aggregate",
   "guide",
+  "fix",
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -206,6 +207,10 @@ export const EXIT_CODE_POLICIES: Record<string, ExitCodePolicy> = {
     failCondition: null,
   },
   guide: {
+    category: "passthrough",
+    failCondition: null,
+  },
+  fix: {
     category: "passthrough",
     failCondition: null,
   },
