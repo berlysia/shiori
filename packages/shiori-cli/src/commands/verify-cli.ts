@@ -11,6 +11,7 @@ import {
 } from "../core/cli-context.ts";
 import { resolveRefStatusMap } from "../core/ref-status-providers/index.ts";
 import { ExitCode } from "../core/exit-codes.ts";
+import { formatOnboardingGuidance } from "../core/onboarding-guidance.ts";
 
 export const verifyCommand = define({
   name: "verify",
@@ -145,6 +146,19 @@ export const verifyCommand = define({
 
     for (const hint of formatActionHints(result)) {
       console.error(hint);
+    }
+
+    // Onboarding guidance for initial setup state (EP-0127)
+    const uniqueRefs = new Set(scanResult.annotations.map((a) => a.ref));
+    for (const line of formatOnboardingGuidance({
+      context: {
+        totalUniqueRefs: uniqueRefs.size,
+        missingInRegistryCount: result.summary.byType["missing-in-registry"],
+      },
+      format,
+      isTTY: process.stderr.isTTY ?? false,
+    })) {
+      console.error(line);
     }
 
     if (result.summary.errors > 0) {

@@ -16,6 +16,7 @@ import { recordJournalEvent } from "../core/journal.ts";
 import { ExitCode } from "../core/exit-codes.ts";
 import { writeOutput } from "../core/cli-output.ts";
 import { planFixActions, type FixAction, type FixApplyResult } from "./fix.ts";
+import { formatOnboardingGuidance } from "../core/onboarding-guidance.ts";
 import {
   formatFixPlan,
   formatFixPlanJson,
@@ -52,7 +53,10 @@ export const fixCommand = define({
   shiori fix --interactive
 
   # Execute with JSON output
-  shiori fix --apply --format json`,
+  shiori fix --apply --format json
+
+  # Write applied refs to file for CI automation (EP-0124)
+  shiori fix --apply --output-refs .tmp/applied-refs.txt`,
   rendering: { header: null },
   args: {
     patterns: {
@@ -121,6 +125,12 @@ export const fixCommand = define({
       description:
         "Days before expiration to trigger expiring-soon warning. Overrides config. Default: 14",
     },
+    outputRefs: {
+      type: "string",
+      toKebab: true,
+      description:
+        "Write applied refs (newline-delimited) to file. Requires --apply. For CI automation (EP-0124)",
+    },
   },
   run: async (ctx) => {
     // Validate options early
@@ -144,6 +154,20 @@ export const fixCommand = define({
       console.error("Error: --interactive requires a TTY (not available in this environment).");
       process.exitCode = ExitCode.USAGE_ERROR;
       return;
+    }
+
+    // --output-refs requires --apply (CI automation, not meaningful in dry-run or interactive)
+    if (ctx.values.outputRefs) {
+      if (!ctx.values.apply) {
+        console.error("Error: --output-refs requires --apply.");
+        process.exitCode = ExitCode.USAGE_ERROR;
+        return;
+      }
+      if (ctx.values.interactive) {
+        console.error("Error: --output-refs and --interactive are mutually exclusive.");
+        process.exitCode = ExitCode.USAGE_ERROR;
+        return;
+      }
     }
 
     // Load context
@@ -324,11 +348,38 @@ export const fixCommand = define({
       } else {
         console.error(formatFixPlan(plan));
       }
+
+      // Onboarding guidance for initial setup state (EP-0127)
+      const uniqueRefs = new Set(scanResult.annotations.map((a) => a.ref));
+      for (const line of formatOnboardingGuidance({
+        context: {
+          totalUniqueRefs: uniqueRefs.size,
+          missingInRegistryCount: reportResult.byType["missing-in-registry"],
+        },
+        format,
+        isTTY: process.stderr.isTTY ?? false,
+      })) {
+        console.error(line);
+      }
+
       return;
     }
 
     // Apply mode
     if (plan.actions.length === 0) {
+      // Write empty refs file even when no actions (downstream existence check)
+      if (ctx.values.outputRefs) {
+        const refsWritten = await writeOutput("", {
+          outputPath: ctx.values.outputRefs,
+          cwd: base.cwd,
+          label: "Applied refs",
+        });
+        if (!refsWritten) {
+          process.exitCode = ExitCode.ENVIRONMENT_ERROR;
+          return;
+        }
+      }
+
       if (format === "json") {
         const written = await writeOutput(formatFixPlanJson(plan), {
           outputPath: ctx.values.output,
@@ -370,6 +421,19 @@ export const fixCommand = define({
     const newRefs = Object.keys(updatedRegistry).filter((ref) => !(ref in regCtx.registry));
 
     if (newRefs.length === 0) {
+      // Write empty refs file even when no new refs (downstream existence check)
+      if (ctx.values.outputRefs) {
+        const refsWritten = await writeOutput("", {
+          outputPath: ctx.values.outputRefs,
+          cwd: base.cwd,
+          label: "Applied refs",
+        });
+        if (!refsWritten) {
+          process.exitCode = ExitCode.ENVIRONMENT_ERROR;
+          return;
+        }
+      }
+
       if (format === "json" || format === "markdown") {
         const result: FixApplyResult = {
           applied: [],
@@ -428,6 +492,19 @@ export const fixCommand = define({
     });
     const afterResult = buildHealthResult(afterReportResult);
     const afterScore = afterResult.health.score;
+
+    // Write applied refs to file for CI automation (EP-0124)
+    if (ctx.values.outputRefs) {
+      const refsWritten = await writeOutput(newRefs.join("\n"), {
+        outputPath: ctx.values.outputRefs,
+        cwd: base.cwd,
+        label: "Applied refs",
+      });
+      if (!refsWritten) {
+        process.exitCode = ExitCode.ENVIRONMENT_ERROR;
+        return;
+      }
+    }
 
     // Build applied actions from actual newRefs (not plan.actions.refs)
     // because initRegistry filters via isValidRef — some plan refs may be skipped.
