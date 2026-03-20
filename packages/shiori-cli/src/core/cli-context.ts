@@ -8,23 +8,24 @@
  * @see EP-0002 for design rationale
  */
 
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
-import { dirname, resolve } from 'node:path';
-import { saveRegistry } from './registry.ts';
-import type { Registry } from './types.ts';
-import type { ResolvedConfig } from './config.ts';
-import type { RefPatternConfig } from './ref-pattern.ts';
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { dirname, resolve } from "node:path";
+import { saveRegistry } from "./registry.ts";
+import type { Registry } from "./types.ts";
+import type { ResolvedConfig } from "./config.ts";
+import type { RefPatternConfig } from "./ref-pattern.ts";
+import { ExitCode } from "./exit-codes.ts";
 import {
   loadConfigAndRegistry,
   reportRegistryIssues,
   type ConfigAndRegistryResult,
-} from './registry-loader.ts';
-import { loadScanResult } from './scan-result-loader.ts';
-import type { ScanResult } from './types.ts';
-import { DEFAULT_SCAN_PATTERNS, DEFAULT_SCAN_IGNORE } from './scan-defaults.ts';
-import { assertWithinCwd, PathBoundaryError } from './path-boundary.ts';
-import { routeRegistryByPattern } from './registry-router.ts';
+} from "./registry-loader.ts";
+import { loadScanResult } from "./scan-result-loader.ts";
+import type { ScanResult } from "./types.ts";
+import { DEFAULT_SCAN_PATTERNS, DEFAULT_SCAN_IGNORE } from "./scan-defaults.ts";
+import { assertWithinCwd, PathBoundaryError } from "./path-boundary.ts";
+import { routeRegistryByPattern } from "./registry-router.ts";
 
 const execFileAsync = promisify(execFile);
 
@@ -51,8 +52,8 @@ export interface RegistryContext extends BaseContext {
   config: ResolvedConfig;
   registry: Registry;
   registryPath: string;
-  duplicates: ConfigAndRegistryResult['duplicates'];
-  refOrigins: ConfigAndRegistryResult['refOrigins'];
+  duplicates: ConfigAndRegistryResult["duplicates"];
+  refOrigins: ConfigAndRegistryResult["refOrigins"];
 }
 
 /**
@@ -125,11 +126,11 @@ export function resolveScanPatterns(
   config: ResolvedConfig,
 ): { patterns: string[]; ignore: string[] } {
   const patterns = patternsArg
-    ? patternsArg.split(',').map((s) => s.trim())
+    ? patternsArg.split(",").map((s) => s.trim())
     : (config.scanPatterns ?? DEFAULT_SCAN_PATTERNS);
 
   const ignore = ignoreArg
-    ? ignoreArg.split(',').map((s) => s.trim())
+    ? ignoreArg.split(",").map((s) => s.trim())
     : [...DEFAULT_SCAN_IGNORE, ...(config.scanIgnore ?? [])];
 
   return { patterns, ignore };
@@ -166,17 +167,15 @@ export function resolveExpiringThreshold(
  *
  * @returns `true` if dirty, `false` if clean, `undefined` if git is not available
  */
-export async function warnIfGitDirty(
-  cwd: string,
-): Promise<boolean | undefined> {
+export async function warnIfGitDirty(cwd: string): Promise<boolean | undefined> {
   try {
-    const { stdout } = await execFileAsync('git', ['status', '--porcelain'], {
+    const { stdout } = await execFileAsync("git", ["status", "--porcelain"], {
       cwd,
     });
     const dirty = stdout.trim().length > 0;
     if (dirty) {
       console.error(
-        'Warning: Git working tree has uncommitted changes. Consider committing first.',
+        "Warning: Git working tree has uncommitted changes. Consider committing first.",
       );
     }
     return dirty;
@@ -219,7 +218,7 @@ export async function saveRegistryRouted(options: {
   } catch (err) {
     if (err instanceof PathBoundaryError) {
       console.error(`Error: ${err.message}`);
-      process.exitCode = 1;
+      process.exitCode = ExitCode.ENVIRONMENT_ERROR;
       return false;
     }
     throw err;
@@ -235,7 +234,7 @@ export async function saveRegistryRouted(options: {
         await saveRegistry(registryPath, entries);
         if (!quiet) {
           console.error(
-            `${label ?? 'Updated'} default registry (${Object.keys(entries).length} entries) at ${registryPath}`,
+            `${label ?? "Updated"} default registry (${Object.keys(entries).length} entries) at ${registryPath}`,
           );
         }
       } else {
@@ -243,7 +242,7 @@ export async function saveRegistryRouted(options: {
         await saveRegistry(targetPath, entries);
         if (!quiet) {
           console.error(
-            `${label ?? 'Updated'} pattern registry (${Object.keys(entries).length} entries) at ${targetPath}`,
+            `${label ?? "Updated"} pattern registry (${Object.keys(entries).length} entries) at ${targetPath}`,
           );
         }
       }

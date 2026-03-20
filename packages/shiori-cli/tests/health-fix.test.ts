@@ -6,7 +6,7 @@ import {
   formatFixPreview,
   formatFixResult,
   type FixPreview,
-  type FixApplyResult,
+  type HealthFixApplyResult,
 } from "../src/commands/health-fix.ts";
 
 function makePrescription(overrides: Partial<HealthPrescription> = {}): HealthPrescription {
@@ -104,7 +104,7 @@ describe("formatFixPreview", () => {
 
 describe("formatFixResult", () => {
   it("formats successful fix with score delta", () => {
-    const result: FixApplyResult = {
+    const result: HealthFixApplyResult = {
       success: true,
       action: "update",
       description: "Added 3 ref(s) to registry",
@@ -120,7 +120,7 @@ describe("formatFixResult", () => {
   });
 
   it("formats negative score delta correctly", () => {
-    const result: FixApplyResult = {
+    const result: HealthFixApplyResult = {
       success: true,
       action: "update",
       description: "Added 1 ref(s) to registry",
@@ -135,7 +135,7 @@ describe("formatFixResult", () => {
   });
 
   it("formats failed fix", () => {
-    const result: FixApplyResult = {
+    const result: HealthFixApplyResult = {
       success: false,
       action: "update",
       description: "Registry save failed",

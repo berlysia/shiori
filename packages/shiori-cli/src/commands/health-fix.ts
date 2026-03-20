@@ -23,7 +23,7 @@ export interface FixPreview {
 }
 
 /** Result of applying a fix */
-export interface FixApplyResult {
+export interface HealthFixApplyResult {
   /** Whether the fix succeeded */
   success: boolean;
   /** Which action type was executed */
@@ -96,7 +96,7 @@ export function formatFixPreview(preview: FixPreview): string {
 /**
  * Format a fix result for human-readable output after apply.
  */
-export function formatFixResult(result: FixApplyResult): string {
+export function formatFixResult(result: HealthFixApplyResult): string {
   const lines: string[] = [];
 
   if (result.success) {

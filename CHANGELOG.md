@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+#### `shiori fix` — Unified Remediation Command (EP-0118)
+
+- `shiori fix` — Plan and execute automatable governance issue remediation in a single command
+  - Dry-run mode (default): show what would be fixed with `--format text|json|markdown`
+  - `--apply` flag to execute fixes (adds missing refs to registry, records journal events)
+  - `--interactive` mode (EP-0122) with per-action approve/skip/quit prompts and before/after health score comparison
+  - `--output <path>` to write results to file
+  - Automatic derivation of manual suggestions from non-automatable issue types with contextual CLI commands
+- Phase 1 scope: automated `missing-in-registry` issue resolution with `AUTOMATABLE_ISSUE_TYPES` set for Phase 2 extensibility
+
+#### CI Trust Bridge: Fix Preview in PR Comments (EP-0121)
+
+- Fix preview step integrated into `shiori-pr-comment.yml` workflow — `shiori fix --format markdown` generates a collapsed `<details>` block in PR comments showing automatable fixes and manual suggestions
+- Zero-click visibility: governance repair candidates appear directly in PR reviews without manual commands
+
+#### Output Formats
+
+- `--format markdown` for `fix` command — GitHub-flavored Markdown with collapsed `<details>` wrapper for PR comment integration
+- `--format json` for `fix` command — Machine-readable fix plan and apply result for CI pipelines
+
+### Changed
+
+- Fix formatter functions extracted from `commands/fix.ts` to `formatters/fix-formatter.ts` (EP-0126), establishing clean separation between command logic and output formatting layers
+- Fix-related type definitions (`FixAction`, `ManualSuggestion`, `FixPlan`, `FixApplyResult`) promoted to `core/types.ts`
+- Interactive fix prompt logic separated to `commands/fix-interactive.ts` with abstract I/O context for testability
+
 ## [0.1.1] - 2026-03-16
 
 ### Added

@@ -24,7 +24,12 @@ import {
 import { initRegistry } from "./registry-generator.ts";
 import { recordJournalEvent } from "../core/journal.ts";
 import { ExitCode } from "../core/exit-codes.ts";
-import { planFix, formatFixPreview, formatFixResult, type FixApplyResult } from "./health-fix.ts";
+import {
+  planFix,
+  formatFixPreview,
+  formatFixResult,
+  type HealthFixApplyResult,
+} from "./health-fix.ts";
 
 const validateHealthFormat = createFormatValidator<HealthFormat>(
   ["json", "summary"] as const,
@@ -341,7 +346,7 @@ export const healthCommand = define({
           });
           if (!saved) {
             // Structured error output for failed save
-            const failResult: FixApplyResult = {
+            const failResult: HealthFixApplyResult = {
               success: false,
               action: preview.target.actionType,
               description: "Registry save failed (path boundary error)",
@@ -377,7 +382,7 @@ export const healthCommand = define({
           const afterResult = buildHealthResult(afterReportResult, trendResult);
           const afterScore = afterResult.health.score;
 
-          const fixResult: FixApplyResult = {
+          const fixResult: HealthFixApplyResult = {
             success: true,
             action: preview.target.actionType,
             description: `Added ${newRefs.length} ref(s) to registry`,
