@@ -170,6 +170,7 @@ export const watchCommand = define({
     const formatMode = ctx.values.format ?? "pretty";
     if (formatMode !== "pretty" && formatMode !== "diagnostic") {
       console.error(`Error: --format must be "pretty" or "diagnostic" (got "${formatMode}")`);
+      process.exitCode = 1;
       return;
     }
 
@@ -182,6 +183,7 @@ export const watchCommand = define({
     // --format diagnostic and --dashboard are mutually exclusive
     if (diagnosticMode && dashboardMode) {
       console.error("Error: --format diagnostic and --dashboard are mutually exclusive");
+      process.exitCode = 1;
       return;
     }
 
@@ -222,6 +224,7 @@ export const watchCommand = define({
     } catch (err) {
       if (err instanceof PathBoundaryError) {
         console.error(`Error: ${err.message}`);
+        process.exitCode = 1;
         return;
       }
       throw err;

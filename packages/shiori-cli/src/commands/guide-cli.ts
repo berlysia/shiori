@@ -253,6 +253,7 @@ export const guideCommand = define({
             console.error(`  ${uc.id}`);
           }
         }
+        process.exitCode = 1;
         return;
       }
       console.error(formatUseCase(useCase));

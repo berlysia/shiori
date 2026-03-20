@@ -223,7 +223,7 @@ export const fixCommand = define({
 
     if (!saved) {
       console.error("Error: Registry save failed (path boundary error).");
-      process.exitCode = ExitCode.GOVERNANCE_VIOLATION;
+      process.exitCode = ExitCode.ENVIRONMENT_ERROR;
       return;
     }
 

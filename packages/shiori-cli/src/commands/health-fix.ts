@@ -40,7 +40,13 @@ export interface FixApplyResult {
 
 // ── Plan ─────────────────────────────────────────────────────
 
-/** Action types that can be executed without human judgment */
+/**
+ * Action types that can be executed without human judgment.
+ *
+ * Related: fix.ts defines AUTOMATABLE_ISSUE_TYPES (VerifyIssueType level).
+ * Both express "what can be auto-fixed" at different abstraction layers.
+ * EP-0118 Phase 2 should unify these into a single automatability definition.
+ */
 const AUTOMATABLE_ACTIONS: ReadonlySet<PrescriptionActionType> = new Set(["update"]);
 
 /**

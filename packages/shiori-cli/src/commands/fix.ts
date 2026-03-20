@@ -59,6 +59,10 @@ export interface FixApplyResult {
 /**
  * Issue types that are handled by automatable fix actions.
  * Manual suggestions are derived by excluding these from VERIFY_ISSUE_TYPES.
+ *
+ * Related: health-fix.ts defines AUTOMATABLE_ACTIONS (PrescriptionActionType level).
+ * Both express "what can be auto-fixed" at different abstraction layers.
+ * EP-0118 Phase 2 should unify these into a single automatability definition.
  */
 const AUTOMATABLE_ISSUE_TYPES: ReadonlySet<VerifyIssueType> = new Set(["missing-in-registry"]);
 
