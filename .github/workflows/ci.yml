@@ -26,6 +26,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+      - run: pnpm --filter @berlysia/shiori run build:playground
+        if: matrix.node-version == 22
       - run: pnpm typecheck
         if: matrix.node-version == 22
       - run: pnpm lint
