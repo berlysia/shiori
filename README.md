@@ -649,6 +649,14 @@ pnpm link:local    # Install `shiori` command globally from local source
 pnpm unlink:local  # Remove the global link
 ```
 
+### Releasing
+
+```bash
+pnpm release patch   # or minor / major
+```
+
+This runs the full quality gate (typecheck → lint → boundary check → format check → build → test) and then bumps the version in `packages/shiori-cli/package.json` via `npm version`. Commit and push the version bump after the script completes.
+
 ## License
 
 [MIT](LICENSE)

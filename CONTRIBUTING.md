@@ -55,6 +55,14 @@ Each CLI command has two files:
 
 Core modules live in `src/core/`. Design decisions are documented as ADRs in `docs/decisions/`.
 
+## Releasing
+
+```bash
+pnpm release patch   # or minor / major
+```
+
+Runs typecheck → lint → boundary check → format check → build → test, then bumps the version in `packages/shiori-cli/package.json`. Commit and push after the script completes.
+
 ## Commit Messages
 
 Follow [Conventional Commits](https://www.conventionalcommits.org/):
