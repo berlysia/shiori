@@ -30,5 +30,7 @@ jobs:
           inputs: .
           online-audits: true
           config: .github/zizmor.yml
+          advanced-security: false
+          annotations: true
         env:
           GH_TOKEN: ${{ github.token }}
