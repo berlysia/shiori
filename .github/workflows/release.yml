@@ -21,11 +21,11 @@ jobs:
           node-version: 22
           registry-url: https://registry.npmjs.org
       - run: pnpm install --frozen-lockfile
+      - run: pnpm build
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm --filter @berlysia/shiori run lint:boundaries
       - run: pnpm format:check
-      - run: pnpm build
       - run: pnpm test
       - run: npm install -g npm@latest
       - run: cd packages/shiori-cli && npm publish --access public --provenance
