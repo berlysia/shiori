@@ -40,10 +40,10 @@ jobs:
         if: matrix.node-version == 22
       - run: node packages/shiori-cli/dist/src/cli.js --help
 
-      # Dogfooding: verify shiori's own annotations against registry
-      - name: shiori verify (dogfooding)
+      # Dogfooding: scan + verify shiori's own annotations against registry
+      - name: shiori check (dogfooding)
         if: matrix.node-version == 22
-        run: node packages/shiori-cli/dist/src/cli.js verify
+        run: node packages/shiori-cli/dist/src/cli.js check
 
       # Dogfooding: health check for governance score visibility
       - name: shiori health (dogfooding)
