@@ -8,4 +8,4 @@ rules:
     ignore:
       # Composite action uses ${{ inputs.* }} and ${{ steps.*.outputs.* }} in run: blocks,
       # which is standard practice. Inputs are controlled by the calling workflow, not external actors.
-      - actions/shiori-action/action.yml
+      - action.yml
