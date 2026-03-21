@@ -1,48 +1,59 @@
-import { define } from "gunshi";
-import { scan } from "./scan.ts";
-import { CommentProvider } from "../core/providers/CommentProvider.ts";
-import { report } from "./report.ts";
-import { computeTrend } from "./trend.ts";
+import { define } from 'gunshi';
+import { scan } from './scan.ts';
+import { CommentProvider } from '../core/providers/CommentProvider.ts';
+import { report } from './report.ts';
+import { computeTrend } from './trend.ts';
 import {
   buildHealthResult,
   formatHealth,
   formatHealthSummary,
   type HealthFormat,
-} from "./health.ts";
-import { triage, formatTriageOutput, type TriageFormat } from "./triage.ts";
-import { parseAndValidateIssueTypes, createFormatValidator } from "../core/cli-validation.ts";
-import { saveSnapshot, loadSnapshots } from "../core/snapshot.ts";
-import { writeOutput } from "../core/cli-output.ts";
-import { isAtOrBelowLevel, type HealthLevel } from "../core/types.ts";
+} from './health.ts';
+import { triage, formatTriageOutput, type TriageFormat } from './triage.ts';
+import {
+  parseAndValidateIssueTypes,
+  createFormatValidator,
+} from '../core/cli-validation.ts';
+import { saveSnapshot, loadSnapshots } from '../core/snapshot.ts';
+import { writeOutput } from '../core/cli-output.ts';
+import { isAtOrBelowLevel, type HealthLevel } from '../core/types.ts';
 import {
   createBaseContext,
   withRegistry,
   saveRegistryRouted,
   resolveScanPatterns,
   resolveExpiringThreshold,
-} from "../core/cli-context.ts";
-import { initRegistry } from "./registry-generator.ts";
-import { recordJournalEvent } from "../core/journal.ts";
-import { ExitCode } from "../core/exit-codes.ts";
+} from '../core/cli-context.ts';
+import { initRegistry } from './registry-generator.ts';
+import { recordJournalEvent } from '../core/journal.ts';
+import { ExitCode } from '../core/exit-codes.ts';
 import {
   planFix,
   formatFixPreview,
   formatFixResult,
   type HealthFixApplyResult,
-} from "./health-fix.ts";
+} from './health-fix.ts';
 
 const validateHealthFormat = createFormatValidator<HealthFormat>(
-  ["json", "summary"] as const,
-  "summary",
+  ['json', 'summary'] as const,
+  'summary',
 );
 
-const validateTriageFormat = createFormatValidator<TriageFormat>(["json", "markdown"] as const);
+const validateTriageFormat = createFormatValidator<TriageFormat>([
+  'json',
+  'markdown',
+] as const);
 
-const VALID_FAIL_ON_LEVELS: readonly string[] = ["critical", "warning", "healthy"];
+const VALID_FAIL_ON_LEVELS: readonly string[] = [
+  'critical',
+  'warning',
+  'healthy',
+];
 
 export const healthCommand = define({
-  name: "health",
-  description: "Show a quick governance health summary (score, expiring-soon, trend)",
+  name: 'health',
+  description:
+    'Show a quick governance health summary (score, expiring-soon, trend)',
   examples: `  # Quick health check
   shiori health
 
@@ -69,103 +80,109 @@ export const healthCommand = define({
   rendering: { header: null },
   args: {
     patterns: {
-      type: "string",
-      short: "p",
+      type: 'string',
+      short: 'p',
       description:
         'Glob patterns to scan (comma-separated). Default: "**/*.{css,scss,pcss,js,ts,tsx,jsx}"',
     },
     ignore: {
-      type: "string",
-      short: "i",
+      type: 'string',
+      short: 'i',
       description:
         'Patterns to ignore (comma-separated). Default: "**/node_modules/**,**/dist/**,**/.git/**"',
     },
     registry: {
-      type: "string",
-      short: "r",
+      type: 'string',
+      short: 'r',
       description:
-        "Path to registry file (auto-detected from config or .config/shiori/registry.json)",
+        'Path to registry file (auto-detected from config or .config/shiori/registry.json)',
     },
     failOn: {
-      type: "string",
+      type: 'string',
       toKebab: true,
       description:
         'Issue types to fail on (comma-separated). Example: "expired,missing-in-registry"',
     },
     warnOn: {
-      type: "string",
+      type: 'string',
       toKebab: true,
-      description: 'Issue types to warn on (comma-separated). Example: "unused-in-source"',
+      description:
+        'Issue types to warn on (comma-separated). Example: "unused-in-source"',
     },
     failOnLevel: {
-      type: "string",
+      type: 'string',
       toKebab: true,
       description:
         'Fail (exit code 1) if health level is at or below this threshold: "critical", "warning", "healthy". Evaluated OR with --fail-on.',
     },
     format: {
-      type: "string",
-      short: "f",
+      type: 'string',
+      short: 'f',
       description: 'Output format: "json", "summary". Default: "summary"',
-      default: "summary",
+      default: 'summary',
     },
     output: {
-      type: "string",
-      short: "o",
-      description: "Output file path. If omitted, writes to stdout",
+      type: 'string',
+      short: 'o',
+      description: 'Output file path. If omitted, writes to stdout',
     },
     history: {
-      type: "string",
-      short: "H",
-      description: "Directory containing ReportResult JSON files for trend analysis",
+      type: 'string',
+      short: 'H',
+      description:
+        'Directory containing ReportResult JSON files for trend analysis',
     },
     snapshot: {
-      type: "string",
-      short: "s",
-      description: "Directory to save the current ReportResult JSON for future trend analysis",
+      type: 'string',
+      short: 's',
+      description:
+        'Directory to save the current ReportResult JSON for future trend analysis',
     },
     cwd: {
-      type: "string",
-      description: "Working directory. Default: process.cwd()",
+      type: 'string',
+      description: 'Working directory. Default: process.cwd()',
     },
     config: {
-      type: "string",
-      short: "c",
+      type: 'string',
+      short: 'c',
       description:
-        "Path to config directory (YAML/JSON auto-detected). Default: <cwd>/.config/shiori",
+        'Path to config directory (YAML/JSON auto-detected). Default: <cwd>/.config/shiori',
     },
     expiringThreshold: {
-      type: "string",
+      type: 'string',
       toKebab: true,
       description:
-        "Days before expiration to trigger expiring-soon warning. Overrides config. Default: 14",
+        'Days before expiration to trigger expiring-soon warning. Overrides config. Default: 14',
     },
     triage: {
-      type: "boolean",
-      short: "t",
-      description: "Also run triage and append a prioritized action list after health output",
+      type: 'boolean',
+      short: 't',
+      description:
+        'Also run triage and append a prioritized action list after health output',
     },
     triageFormat: {
-      type: "string",
+      type: 'string',
       toKebab: true,
       description:
         'Output format for triage section: "json", "markdown". Default: "markdown" (for summary) or "json" (for json)',
     },
     fix: {
-      type: "boolean",
-      description: "Auto-fix the top-priority automatable prescription (dry-run by default)",
+      type: 'boolean',
+      description:
+        'Auto-fix the top-priority automatable prescription (dry-run by default)',
     },
     apply: {
-      type: "boolean",
-      short: "a",
-      description: "With --fix, actually execute the action (default: dry-run preview)",
+      type: 'boolean',
+      short: 'a',
+      description:
+        'With --fix, actually execute the action (default: dry-run preview)',
     },
   },
   run: async (ctx) => {
     // Validate options early
-    const failOn = parseAndValidateIssueTypes(ctx.values.failOn, "--fail-on");
+    const failOn = parseAndValidateIssueTypes(ctx.values.failOn, '--fail-on');
     if (failOn === null) return;
-    const warnOn = parseAndValidateIssueTypes(ctx.values.warnOn, "--warn-on");
+    const warnOn = parseAndValidateIssueTypes(ctx.values.warnOn, '--warn-on');
     if (warnOn === null) return;
 
     const format = validateHealthFormat(ctx.values.format);
@@ -173,7 +190,9 @@ export const healthCommand = define({
 
     // Validate --apply requires --fix
     if (ctx.values.apply && !ctx.values.fix) {
-      console.error("Error: --apply requires --fix. Use --fix --apply to execute fixes.");
+      console.error(
+        'Error: --apply requires --fix. Use --fix --apply to execute fixes.',
+      );
       process.exitCode = 1;
       return;
     }
@@ -183,7 +202,7 @@ export const healthCommand = define({
     if (failOnLevelValue !== undefined) {
       if (!VALID_FAIL_ON_LEVELS.includes(failOnLevelValue)) {
         console.error(
-          `Error: Invalid --fail-on-level value "${failOnLevelValue}". Valid values: ${VALID_FAIL_ON_LEVELS.join(", ")}`,
+          `Error: Invalid --fail-on-level value "${failOnLevelValue}". Valid values: ${VALID_FAIL_ON_LEVELS.join(', ')}`,
         );
         process.exitCode = 1;
         return;
@@ -236,7 +255,11 @@ export const healthCommand = define({
 
     // Save snapshot if requested
     if (ctx.values.snapshot) {
-      const result = await saveSnapshot(reportResult, ctx.values.snapshot, base.cwd);
+      const result = await saveSnapshot(
+        reportResult,
+        ctx.values.snapshot,
+        base.cwd,
+      );
       if (!result.ok) {
         console.error(`Error: ${result.error}`);
         process.exitCode = 1;
@@ -250,8 +273,10 @@ export const healthCommand = define({
     if (ctx.values.history) {
       const reports = await loadSnapshots(ctx.values.history, base.cwd, {
         onDirectoryError: (msg) => console.error(`Warning: ${msg}`),
-        onNoFiles: (dir) => console.error(`Warning: No JSON files found in ${dir}`),
-        onLoaded: (count, dir) => console.error(`Loaded ${count} report(s) from ${dir}`),
+        onNoFiles: (dir) =>
+          console.error(`Warning: No JSON files found in ${dir}`),
+        onLoaded: (count, dir) =>
+          console.error(`Loaded ${count} report(s) from ${dir}`),
       });
       if (reports !== null) {
         trendResult = computeTrend(reports);
@@ -267,12 +292,12 @@ export const healthCommand = define({
     const written = await writeOutput(output, {
       outputPath: ctx.values.output,
       cwd: base.cwd,
-      label: "Health report",
+      label: 'Health report',
     });
     if (!written) return;
 
     // Always show summary box on stderr (for CI visibility)
-    if (format !== "summary") {
+    if (format !== 'summary') {
       console.error(formatHealthSummary(result));
     }
 
@@ -285,7 +310,7 @@ export const healthCommand = define({
         if (validated === null) return;
         triageFormat = validated;
       } else {
-        triageFormat = format === "json" ? "json" : "markdown";
+        triageFormat = format === 'json' ? 'json' : 'markdown';
       }
 
       const triageResult = triage({
@@ -302,7 +327,7 @@ export const healthCommand = define({
       const triageOutput = formatTriageOutput(triageResult, triageFormat);
 
       // Separator between health and triage output
-      console.log("");
+      console.log('');
       console.log(triageOutput);
 
       console.error(
@@ -316,10 +341,12 @@ export const healthCommand = define({
       const preview = planFix(prescriptions);
 
       if (!preview) {
-        console.error("No automatable fix available. All prescriptions require manual action.");
+        console.error(
+          'No automatable fix available. All prescriptions require manual action.',
+        );
       } else if (!ctx.values.apply) {
         // Dry-run: show preview only
-        console.error("");
+        console.error('');
         console.error(formatFixPreview(preview));
       } else {
         // Apply: execute the update logic
@@ -331,10 +358,12 @@ export const healthCommand = define({
         });
 
         // Count new entries
-        const newRefs = Object.keys(updatedRegistry).filter((ref) => !(ref in regCtx.registry));
+        const newRefs = Object.keys(updatedRegistry).filter(
+          (ref) => !(ref in regCtx.registry),
+        );
 
         if (newRefs.length === 0) {
-          console.error("Registry is already up to date (no new refs to add).");
+          console.error('Registry is already up to date (no new refs to add).');
         } else {
           // Save registry
           const saved = await saveRegistryRouted({
@@ -342,19 +371,19 @@ export const healthCommand = define({
             registryPath: regCtx.registryPath,
             cwd: base.cwd,
             refPatterns: regCtx.config.refPatterns,
-            label: "Fixed",
+            label: 'Fixed',
           });
           if (!saved) {
             // Structured error output for failed save
             const failResult: HealthFixApplyResult = {
               success: false,
               action: preview.target.actionType,
-              description: "Registry save failed (path boundary error)",
+              description: 'Registry save failed (path boundary error)',
               beforeScore,
               afterScore: beforeScore,
               scoreDelta: 0,
             };
-            console.error("");
+            console.error('');
             console.error(formatFixResult(failResult));
             return;
           }
@@ -362,7 +391,7 @@ export const healthCommand = define({
           // Journal event
           recordJournalEvent({
             cwd: base.cwd,
-            eventType: "cli.update",
+            eventType: 'cli.update',
             refs: newRefs,
             success: true,
             entriesAdded: newRefs.length,
@@ -391,7 +420,7 @@ export const healthCommand = define({
             scoreDelta: afterScore - beforeScore,
           };
 
-          console.error("");
+          console.error('');
           console.error(formatFixResult(fixResult));
         }
       }

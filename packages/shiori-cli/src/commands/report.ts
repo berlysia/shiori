@@ -1,4 +1,4 @@
-import { dirname } from "node:path/posix";
+import { dirname } from 'node:path/posix';
 import type {
   Registry,
   ScanResult,
@@ -12,9 +12,12 @@ import type {
   BreakdownEntry,
   FileBreakdownEntry,
   DirectoryBreakdownEntry,
-} from "../core/types.ts";
-import { verify, type VerifyOptions } from "./verify.ts";
-import { DEDUCTION_TIERS, type DeductionTier } from "../core/deduction-tiers.ts";
+} from '../core/types.ts';
+import { verify, type VerifyOptions } from './verify.ts';
+import {
+  DEDUCTION_TIERS,
+  type DeductionTier,
+} from '../core/deduction-tiers.ts';
 
 export type { DeductionTier };
 export { DEDUCTION_TIERS };
@@ -24,7 +27,7 @@ export { DEDUCTION_TIERS };
  * Derived from VerifyOptions — replaces `records` with `scanResult`
  * so that field additions to VerifyOptions automatically propagate.
  */
-export interface ReportOptions extends Omit<VerifyOptions, "records"> {
+export interface ReportOptions extends Omit<VerifyOptions, 'records'> {
   scanResult: ScanResult;
 }
 
@@ -88,29 +91,29 @@ function buildInsights(
   const insights: ReportInsight[] = [];
 
   // Expired entries need immediate attention
-  if (byType["expired"] > 0) {
+  if (byType['expired'] > 0) {
     insights.push({
-      level: "error",
-      label: "expired",
-      message: `${byType["expired"]} annotation(s) have expired. Resolve the underlying issues or extend the expiration dates.`,
+      level: 'error',
+      label: 'expired',
+      message: `${byType['expired']} annotation(s) have expired. Resolve the underlying issues or extend the expiration dates.`,
     });
   }
 
   // Missing in registry = untracked annotations
-  if (byType["missing-in-registry"] > 0) {
+  if (byType['missing-in-registry'] > 0) {
     insights.push({
-      level: "warning",
-      label: "unregistered",
-      message: `${byType["missing-in-registry"]} annotation(s) are not registered. Run "shiori update" to add them.`,
+      level: 'warning',
+      label: 'unregistered',
+      message: `${byType['missing-in-registry']} annotation(s) are not registered. Run "shiori update" to add them.`,
     });
   }
 
   // Unused in source = stale registry entries
-  if (byType["unused-in-source"] > 0) {
+  if (byType['unused-in-source'] > 0) {
     insights.push({
-      level: "warning",
-      label: "stale",
-      message: `${byType["unused-in-source"]} registry entry(ies) have no matching source annotation. Consider removing them.`,
+      level: 'warning',
+      label: 'stale',
+      message: `${byType['unused-in-source']} registry entry(ies) have no matching source annotation. Consider removing them.`,
     });
   }
 
@@ -118,48 +121,52 @@ function buildInsights(
   if (candidates.length > 0) {
     const ratio =
       annotations.length > 0
-        ? ((candidates.length / (annotations.length + candidates.length)) * 100).toFixed(0)
-        : "100";
+        ? (
+            (candidates.length / (annotations.length + candidates.length)) *
+            100
+          ).toFixed(0)
+        : '100';
     insights.push({
-      level: "info",
-      label: "candidates",
+      level: 'info',
+      label: 'candidates',
       message: `${candidates.length} lint disable comment(s) detected without shiori tracking (${ratio}% untracked). Run "shiori candidates" to review.`,
     });
   }
 
   // Syntax errors
-  if (byType["syntax-error"] > 0) {
+  if (byType['syntax-error'] > 0) {
     insights.push({
-      level: "error",
-      label: "syntax",
-      message: `${byType["syntax-error"]} annotation(s) have syntax errors. Fix annotation format: "shiori: <ref> [key=value ...]"`,
+      level: 'error',
+      label: 'syntax',
+      message: `${byType['syntax-error']} annotation(s) have syntax errors. Fix annotation format: "shiori: <ref> [key=value ...]"`,
     });
   }
 
   // Ref collisions
-  if (byType["ref-collision"] > 0) {
+  if (byType['ref-collision'] > 0) {
     insights.push({
-      level: "warning",
-      label: "collision",
-      message: `${byType["ref-collision"]} ref(s) are duplicated across registry files. Consolidate to a single registry per ref.`,
+      level: 'warning',
+      label: 'collision',
+      message: `${byType['ref-collision']} ref(s) are duplicated across registry files. Consolidate to a single registry per ref.`,
     });
   }
 
   // Expiring soon
-  if (byType["expiring-soon"] > 0) {
+  if (byType['expiring-soon'] > 0) {
     insights.push({
-      level: "warning",
-      label: "expiring",
-      message: `${byType["expiring-soon"]} annotation(s) are approaching expiration. Extend expires or resolve the underlying issues.`,
+      level: 'warning',
+      label: 'expiring',
+      message: `${byType['expiring-soon']} annotation(s) are approaching expiration. Extend expires or resolve the underlying issues.`,
     });
   }
 
   // All clear
   if (insights.length === 0) {
     insights.push({
-      level: "info",
-      label: "clean",
-      message: "All annotations are tracked, registered, and valid. No issues detected.",
+      level: 'info',
+      label: 'clean',
+      message:
+        'All annotations are tracked, registered, and valid. No issues detected.',
     });
   }
 
@@ -190,7 +197,8 @@ export function calculateScore(
 
   // Candidate ratio penalty (max 20)
   if (totalTracked + candidates.length > 0) {
-    const untrackedRatio = candidates.length / (totalTracked + candidates.length);
+    const untrackedRatio =
+      candidates.length / (totalTracked + candidates.length);
     score -= Math.round(untrackedRatio * 20);
   }
 
@@ -198,20 +206,24 @@ export function calculateScore(
 }
 
 function scoreToLevel(score: number): HealthLevel {
-  if (score >= 80) return "healthy";
-  if (score >= 50) return "warning";
-  return "critical";
+  if (score >= 80) return 'healthy';
+  if (score >= 50) return 'warning';
+  return 'critical';
 }
 
-function buildHealthSummary(level: HealthLevel, score: number, issueCount: number): string {
+function buildHealthSummary(
+  level: HealthLevel,
+  score: number,
+  issueCount: number,
+): string {
   switch (level) {
-    case "healthy":
+    case 'healthy':
       return issueCount === 0
         ? `Governance health: ${score}/100. All annotations are properly tracked.`
         : `Governance health: ${score}/100. ${issueCount} minor issue(s) detected.`;
-    case "warning":
+    case 'warning':
       return `Governance health: ${score}/100. ${issueCount} issue(s) require attention.`;
-    case "critical":
+    case 'critical':
       return `Governance health: ${score}/100. ${issueCount} issue(s) require immediate action.`;
   }
 }
@@ -232,9 +244,9 @@ function aggregateByFile(
   const expiredRefs = new Set<string>();
   const expiringRefs = new Set<string>();
   for (const issue of verifyResult.issues) {
-    if (issue.type === "expired") {
+    if (issue.type === 'expired') {
       expiredRefs.add(issue.ref);
-    } else if (issue.type === "expiring-soon") {
+    } else if (issue.type === 'expiring-soon') {
       expiringRefs.add(issue.ref);
     }
   }
@@ -275,7 +287,8 @@ function aggregateByFile(
 
   // Sort by annotationCount descending, then path ascending for stability
   return entries.sort(
-    (a, b) => b.annotationCount - a.annotationCount || a.path.localeCompare(b.path),
+    (a, b) =>
+      b.annotationCount - a.annotationCount || a.path.localeCompare(b.path),
   );
 }
 
@@ -283,7 +296,9 @@ function aggregateByFile(
  * Aggregate file-level breakdowns by directory.
  * Uses POSIX dirname for grouping. Sorted by annotationCount descending.
  */
-function aggregateByDirectory(byFile: FileBreakdownEntry[]): DirectoryBreakdownEntry[] {
+function aggregateByDirectory(
+  byFile: FileBreakdownEntry[],
+): DirectoryBreakdownEntry[] {
   const dirMap = new Map<
     string,
     {
@@ -322,7 +337,9 @@ function aggregateByDirectory(byFile: FileBreakdownEntry[]): DirectoryBreakdownE
 
   // Sort by annotationCount descending, then directory ascending for stability
   return entries.sort(
-    (a, b) => b.annotationCount - a.annotationCount || a.directory.localeCompare(b.directory),
+    (a, b) =>
+      b.annotationCount - a.annotationCount ||
+      a.directory.localeCompare(b.directory),
   );
 }
 

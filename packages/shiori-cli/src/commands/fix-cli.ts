@@ -1,42 +1,45 @@
-import { define } from "gunshi";
-import { scan } from "./scan.ts";
-import { CommentProvider } from "../core/providers/CommentProvider.ts";
-import { report } from "./report.ts";
-import { buildHealthResult } from "./health.ts";
-import { parseAndValidateIssueTypes, createFormatValidator } from "../core/cli-validation.ts";
+import { define } from 'gunshi';
+import { scan } from './scan.ts';
+import { CommentProvider } from '../core/providers/CommentProvider.ts';
+import { report } from './report.ts';
+import { buildHealthResult } from './health.ts';
+import {
+  parseAndValidateIssueTypes,
+  createFormatValidator,
+} from '../core/cli-validation.ts';
 import {
   createBaseContext,
   withRegistry,
   saveRegistryRouted,
   resolveScanPatterns,
   resolveExpiringThreshold,
-} from "../core/cli-context.ts";
-import { initRegistry } from "./registry-generator.ts";
-import { recordJournalEvent } from "../core/journal.ts";
-import { ExitCode } from "../core/exit-codes.ts";
-import { writeOutput } from "../core/cli-output.ts";
-import { planFixActions, type FixAction, type FixApplyResult } from "./fix.ts";
-import { formatOnboardingGuidance } from "../core/onboarding-guidance.ts";
+} from '../core/cli-context.ts';
+import { initRegistry } from './registry-generator.ts';
+import { recordJournalEvent } from '../core/journal.ts';
+import { ExitCode } from '../core/exit-codes.ts';
+import { writeOutput } from '../core/cli-output.ts';
+import { planFixActions, type FixAction, type FixApplyResult } from './fix.ts';
+import { formatOnboardingGuidance } from '../core/onboarding-guidance.ts';
 import {
   formatFixPlan,
   formatFixPlanJson,
   formatFixPlanMarkdown,
   formatFixApplyResult,
   formatFixApplyResultJson,
-} from "../formatters/fix-formatter.ts";
-import { promptFixAction, createFixReadline } from "./fix-interactive.ts";
+} from '../formatters/fix-formatter.ts';
+import { promptFixAction, createFixReadline } from './fix-interactive.ts';
 
 /** Output format for fix command */
-type FixFormat = "text" | "json" | "markdown";
+type FixFormat = 'text' | 'json' | 'markdown';
 
 const validateFixFormat = createFormatValidator<FixFormat>(
-  ["text", "json", "markdown"] as const,
-  "text",
+  ['text', 'json', 'markdown'] as const,
+  'text',
 );
 
 export const fixCommand = define({
-  name: "fix",
-  description: "Auto-fix governance issues (unified remediation command)",
+  name: 'fix',
+  description: 'Auto-fix governance issues (unified remediation command)',
   examples: `  # Dry-run: show what would be fixed
   shiori fix
 
@@ -60,83 +63,84 @@ export const fixCommand = define({
   rendering: { header: null },
   args: {
     patterns: {
-      type: "string",
-      short: "p",
+      type: 'string',
+      short: 'p',
       description:
         'Glob patterns to scan (comma-separated). Default: "**/*.{css,scss,pcss,js,ts,tsx,jsx}"',
     },
     ignore: {
-      type: "string",
-      short: "i",
+      type: 'string',
+      short: 'i',
       description:
         'Patterns to ignore (comma-separated). Default: "**/node_modules/**,**/dist/**,**/.git/**"',
     },
     registry: {
-      type: "string",
-      short: "r",
+      type: 'string',
+      short: 'r',
       description:
-        "Path to registry file (auto-detected from config or .config/shiori/registry.json)",
+        'Path to registry file (auto-detected from config or .config/shiori/registry.json)',
     },
     failOn: {
-      type: "string",
+      type: 'string',
       toKebab: true,
       description:
         'Issue types to fail on (comma-separated). Example: "expired,missing-in-registry"',
     },
     warnOn: {
-      type: "string",
+      type: 'string',
       toKebab: true,
-      description: 'Issue types to warn on (comma-separated). Example: "unused-in-source"',
+      description:
+        'Issue types to warn on (comma-separated). Example: "unused-in-source"',
     },
     format: {
-      type: "string",
-      short: "f",
+      type: 'string',
+      short: 'f',
       description: 'Output format: "text", "json", "markdown". Default: "text"',
-      default: "text",
+      default: 'text',
     },
     output: {
-      type: "string",
-      short: "o",
-      description: "Output file path. If omitted, writes to stdout",
+      type: 'string',
+      short: 'o',
+      description: 'Output file path. If omitted, writes to stdout',
     },
     apply: {
-      type: "boolean",
-      short: "a",
-      description: "Execute fixes (default: dry-run preview)",
+      type: 'boolean',
+      short: 'a',
+      description: 'Execute fixes (default: dry-run preview)',
     },
     interactive: {
-      type: "boolean",
-      short: "I",
-      description: "Interactively approve/skip each fix action (requires TTY)",
+      type: 'boolean',
+      short: 'I',
+      description: 'Interactively approve/skip each fix action (requires TTY)',
     },
     cwd: {
-      type: "string",
-      description: "Working directory. Default: process.cwd()",
+      type: 'string',
+      description: 'Working directory. Default: process.cwd()',
     },
     config: {
-      type: "string",
-      short: "c",
+      type: 'string',
+      short: 'c',
       description:
-        "Path to config directory (YAML/JSON auto-detected). Default: <cwd>/.config/shiori",
+        'Path to config directory (YAML/JSON auto-detected). Default: <cwd>/.config/shiori',
     },
     expiringThreshold: {
-      type: "string",
+      type: 'string',
       toKebab: true,
       description:
-        "Days before expiration to trigger expiring-soon warning. Overrides config. Default: 14",
+        'Days before expiration to trigger expiring-soon warning. Overrides config. Default: 14',
     },
     outputRefs: {
-      type: "string",
+      type: 'string',
       toKebab: true,
       description:
-        "Write applied refs (newline-delimited) to file. Requires --apply. For CI automation (EP-0124)",
+        'Write applied refs (newline-delimited) to file. Requires --apply. For CI automation (EP-0124)',
     },
   },
   run: async (ctx) => {
     // Validate options early
-    const failOn = parseAndValidateIssueTypes(ctx.values.failOn, "--fail-on");
+    const failOn = parseAndValidateIssueTypes(ctx.values.failOn, '--fail-on');
     if (failOn === null) return;
-    const warnOn = parseAndValidateIssueTypes(ctx.values.warnOn, "--warn-on");
+    const warnOn = parseAndValidateIssueTypes(ctx.values.warnOn, '--warn-on');
     if (warnOn === null) return;
 
     const format = validateFixFormat(ctx.values.format);
@@ -144,14 +148,16 @@ export const fixCommand = define({
 
     // Mutual exclusivity: --apply and --interactive cannot be used together
     if (ctx.values.apply && ctx.values.interactive) {
-      console.error("Error: --apply and --interactive are mutually exclusive.");
+      console.error('Error: --apply and --interactive are mutually exclusive.');
       process.exitCode = ExitCode.USAGE_ERROR;
       return;
     }
 
     // Interactive mode requires a TTY
     if (ctx.values.interactive && !process.stdin.isTTY) {
-      console.error("Error: --interactive requires a TTY (not available in this environment).");
+      console.error(
+        'Error: --interactive requires a TTY (not available in this environment).',
+      );
       process.exitCode = ExitCode.USAGE_ERROR;
       return;
     }
@@ -159,12 +165,14 @@ export const fixCommand = define({
     // --output-refs requires --apply (CI automation, not meaningful in dry-run or interactive)
     if (ctx.values.outputRefs) {
       if (!ctx.values.apply) {
-        console.error("Error: --output-refs requires --apply.");
+        console.error('Error: --output-refs requires --apply.');
         process.exitCode = ExitCode.USAGE_ERROR;
         return;
       }
       if (ctx.values.interactive) {
-        console.error("Error: --output-refs and --interactive are mutually exclusive.");
+        console.error(
+          'Error: --output-refs and --interactive are mutually exclusive.',
+        );
         process.exitCode = ExitCode.USAGE_ERROR;
         return;
       }
@@ -220,9 +228,9 @@ export const fixCommand = define({
     // Interactive mode (EP-0122): approve/skip each action individually
     if (ctx.values.interactive) {
       if (plan.actions.length === 0) {
-        console.error("No automatable fix actions available.");
+        console.error('No automatable fix actions available.');
       } else {
-        console.error("🔧 Interactive Fix:");
+        console.error('🔧 Interactive Fix:');
 
         const approvedActions: FixAction[] = [];
         let quit = false;
@@ -235,16 +243,16 @@ export const fixCommand = define({
           for (const action of plan.actions) {
             const choice = await promptFixAction(action, rl, process.stderr);
 
-            if (choice === "quit") {
-              console.error("\n  Quit. No further actions will be processed.");
+            if (choice === 'quit') {
+              console.error('\n  Quit. No further actions will be processed.');
               quit = true;
               break;
             }
 
-            if (choice === "approve") {
+            if (choice === 'approve') {
               approvedActions.push(action);
             } else {
-              console.error("  Skipped.");
+              console.error('  Skipped.');
             }
           }
 
@@ -258,7 +266,9 @@ export const fixCommand = define({
               existingRegistry: regCtx.registry,
             });
 
-            const newRefs = Object.keys(updatedRegistry).filter((ref) => !(ref in regCtx.registry));
+            const newRefs = Object.keys(updatedRegistry).filter(
+              (ref) => !(ref in regCtx.registry),
+            );
 
             if (newRefs.length > 0) {
               const saved = await saveRegistryRouted({
@@ -266,18 +276,20 @@ export const fixCommand = define({
                 registryPath: regCtx.registryPath,
                 cwd: base.cwd,
                 refPatterns: regCtx.config.refPatterns,
-                label: "Fixed (interactive)",
+                label: 'Fixed (interactive)',
               });
 
               if (!saved) {
-                console.error("Error: Registry save failed (path boundary error).");
+                console.error(
+                  'Error: Registry save failed (path boundary error).',
+                );
                 process.exitCode = ExitCode.ENVIRONMENT_ERROR;
                 return;
               }
 
               recordJournalEvent({
                 cwd: base.cwd,
-                eventType: "cli.fix",
+                eventType: 'cli.fix',
                 refs: newRefs,
                 success: true,
                 entriesAdded: newRefs.length,
@@ -306,10 +318,12 @@ export const fixCommand = define({
                 }),
               );
             } else {
-              console.error("Registry is already up to date (no new refs to add).");
+              console.error(
+                'Registry is already up to date (no new refs to add).',
+              );
             }
           } else if (!quit) {
-            console.error("\n  No actions were approved.");
+            console.error('\n  No actions were approved.');
           }
         } finally {
           rl.close();
@@ -318,8 +332,8 @@ export const fixCommand = define({
 
       // Show manual suggestions after interactive processing
       if (plan.manualSuggestions.length > 0) {
-        console.error("");
-        console.error("📋 Manual actions (not automatable):");
+        console.error('');
+        console.error('📋 Manual actions (not automatable):');
         for (const suggestion of plan.manualSuggestions) {
           console.error(`  - ${suggestion.command}: ${suggestion.message}`);
         }
@@ -330,19 +344,19 @@ export const fixCommand = define({
 
     // Dry-run mode (default)
     if (!ctx.values.apply) {
-      if (format === "json") {
+      if (format === 'json') {
         const written = await writeOutput(formatFixPlanJson(plan), {
           outputPath: ctx.values.output,
           cwd: base.cwd,
-          label: "Fix preview",
+          label: 'Fix preview',
         });
         if (!written) return;
-      } else if (format === "markdown") {
+      } else if (format === 'markdown') {
         const md = formatFixPlanMarkdown(plan);
         const written = await writeOutput(md, {
           outputPath: ctx.values.output,
           cwd: base.cwd,
-          label: "Fix preview",
+          label: 'Fix preview',
         });
         if (!written) return;
       } else {
@@ -354,7 +368,7 @@ export const fixCommand = define({
       for (const line of formatOnboardingGuidance({
         context: {
           totalUniqueRefs: uniqueRefs.size,
-          missingInRegistryCount: reportResult.byType["missing-in-registry"],
+          missingInRegistryCount: reportResult.byType['missing-in-registry'],
         },
         format,
         isTTY: process.stderr.isTTY ?? false,
@@ -369,10 +383,10 @@ export const fixCommand = define({
     if (plan.actions.length === 0) {
       // Write empty refs file even when no actions (downstream existence check)
       if (ctx.values.outputRefs) {
-        const refsWritten = await writeOutput("", {
+        const refsWritten = await writeOutput('', {
           outputPath: ctx.values.outputRefs,
           cwd: base.cwd,
-          label: "Applied refs",
+          label: 'Applied refs',
         });
         if (!refsWritten) {
           process.exitCode = ExitCode.ENVIRONMENT_ERROR;
@@ -380,26 +394,26 @@ export const fixCommand = define({
         }
       }
 
-      if (format === "json") {
+      if (format === 'json') {
         const written = await writeOutput(formatFixPlanJson(plan), {
           outputPath: ctx.values.output,
           cwd: base.cwd,
-          label: "Fix result",
+          label: 'Fix result',
         });
         if (!written) return;
-      } else if (format === "markdown") {
+      } else if (format === 'markdown') {
         const md = formatFixPlanMarkdown(plan);
         const written = await writeOutput(md, {
           outputPath: ctx.values.output,
           cwd: base.cwd,
-          label: "Fix result",
+          label: 'Fix result',
         });
         if (!written) return;
       } else {
-        console.error("No automatable fix actions to apply.");
+        console.error('No automatable fix actions to apply.');
         if (plan.manualSuggestions.length > 0) {
-          console.error("");
-          console.error("📋 Manual actions (not automatable):");
+          console.error('');
+          console.error('📋 Manual actions (not automatable):');
           for (const suggestion of plan.manualSuggestions) {
             console.error(`  - ${suggestion.command}: ${suggestion.message}`);
           }
@@ -418,15 +432,17 @@ export const fixCommand = define({
     });
 
     // Count new entries
-    const newRefs = Object.keys(updatedRegistry).filter((ref) => !(ref in regCtx.registry));
+    const newRefs = Object.keys(updatedRegistry).filter(
+      (ref) => !(ref in regCtx.registry),
+    );
 
     if (newRefs.length === 0) {
       // Write empty refs file even when no new refs (downstream existence check)
       if (ctx.values.outputRefs) {
-        const refsWritten = await writeOutput("", {
+        const refsWritten = await writeOutput('', {
           outputPath: ctx.values.outputRefs,
           cwd: base.cwd,
-          label: "Applied refs",
+          label: 'Applied refs',
         });
         if (!refsWritten) {
           process.exitCode = ExitCode.ENVIRONMENT_ERROR;
@@ -434,7 +450,7 @@ export const fixCommand = define({
         }
       }
 
-      if (format === "json" || format === "markdown") {
+      if (format === 'json' || format === 'markdown') {
         const result: FixApplyResult = {
           applied: [],
           registryChanges: { added: [] },
@@ -442,15 +458,17 @@ export const fixCommand = define({
           scoreAfter: beforeScore,
         };
         const content =
-          format === "json" ? formatFixApplyResultJson(result) : formatFixApplyResult(result);
+          format === 'json'
+            ? formatFixApplyResultJson(result)
+            : formatFixApplyResult(result);
         const written = await writeOutput(content, {
           outputPath: ctx.values.output,
           cwd: base.cwd,
-          label: "Fix result",
+          label: 'Fix result',
         });
         if (!written) return;
       } else {
-        console.error("Registry is already up to date (no new refs to add).");
+        console.error('Registry is already up to date (no new refs to add).');
       }
       return;
     }
@@ -461,11 +479,11 @@ export const fixCommand = define({
       registryPath: regCtx.registryPath,
       cwd: base.cwd,
       refPatterns: regCtx.config.refPatterns,
-      label: "Fixed",
+      label: 'Fixed',
     });
 
     if (!saved) {
-      console.error("Error: Registry save failed (path boundary error).");
+      console.error('Error: Registry save failed (path boundary error).');
       process.exitCode = ExitCode.ENVIRONMENT_ERROR;
       return;
     }
@@ -473,7 +491,7 @@ export const fixCommand = define({
     // Journal event
     recordJournalEvent({
       cwd: base.cwd,
-      eventType: "cli.fix",
+      eventType: 'cli.fix',
       refs: newRefs,
       success: true,
       entriesAdded: newRefs.length,
@@ -495,10 +513,10 @@ export const fixCommand = define({
 
     // Write applied refs to file for CI automation (EP-0124)
     if (ctx.values.outputRefs) {
-      const refsWritten = await writeOutput(newRefs.join("\n"), {
+      const refsWritten = await writeOutput(newRefs.join('\n'), {
         outputPath: ctx.values.outputRefs,
         cwd: base.cwd,
-        label: "Applied refs",
+        label: 'Applied refs',
       });
       if (!refsWritten) {
         process.exitCode = ExitCode.ENVIRONMENT_ERROR;
@@ -509,7 +527,7 @@ export const fixCommand = define({
     // Build applied actions from actual newRefs (not plan.actions.refs)
     // because initRegistry filters via isValidRef — some plan refs may be skipped.
     const appliedAction = {
-      type: "update" as const,
+      type: 'update' as const,
       description: `Added ${newRefs.length} ref(s) to registry`,
       refs: newRefs,
     };
@@ -521,11 +539,11 @@ export const fixCommand = define({
       scoreAfter: afterScore,
     };
 
-    if (format === "json") {
+    if (format === 'json') {
       const written = await writeOutput(formatFixApplyResultJson(fixResult), {
         outputPath: ctx.values.output,
         cwd: base.cwd,
-        label: "Fix result",
+        label: 'Fix result',
       });
       if (!written) return;
     } else {

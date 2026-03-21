@@ -1,34 +1,48 @@
-import { define } from "gunshi";
-import { resolve } from "node:path";
-import { scan } from "./scan.ts";
-import { CommentProvider } from "../core/providers/CommentProvider.ts";
-import { summary, formatSummary, type SummaryFormat } from "./summary.ts";
-import { parseAndValidateIssueTypes, createFormatValidator } from "../core/cli-validation.ts";
-import { writeOutput } from "../core/cli-output.ts";
-import { saveSnapshot, loadSnapshots } from "../core/snapshot.ts";
-import { loadScanResultFromFile, loadScanResult } from "../core/scan-result-loader.ts";
-import { isAtOrBelowLevel, type HealthLevel, type ScanResult } from "../core/types.ts";
-import { assertWithinCwd, PathBoundaryError } from "../core/path-boundary.ts";
-import { ScanResultNotFoundError } from "../core/errors.ts";
+import { define } from 'gunshi';
+import { resolve } from 'node:path';
+import { scan } from './scan.ts';
+import { CommentProvider } from '../core/providers/CommentProvider.ts';
+import { summary, formatSummary, type SummaryFormat } from './summary.ts';
+import {
+  parseAndValidateIssueTypes,
+  createFormatValidator,
+} from '../core/cli-validation.ts';
+import { writeOutput } from '../core/cli-output.ts';
+import { saveSnapshot, loadSnapshots } from '../core/snapshot.ts';
+import {
+  loadScanResultFromFile,
+  loadScanResult,
+} from '../core/scan-result-loader.ts';
+import {
+  isAtOrBelowLevel,
+  type HealthLevel,
+  type ScanResult,
+} from '../core/types.ts';
+import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
+import { ScanResultNotFoundError } from '../core/errors.ts';
 import {
   createBaseContext,
   withRegistry,
   resolveScanPatterns,
   resolveExpiringThreshold,
-} from "../core/cli-context.ts";
-import { ExitCode } from "../core/exit-codes.ts";
+} from '../core/cli-context.ts';
+import { ExitCode } from '../core/exit-codes.ts';
 
 const validateSummaryFormat = createFormatValidator<SummaryFormat>(
-  ["json", "markdown"] as const,
-  "json",
+  ['json', 'markdown'] as const,
+  'json',
 );
 
-const VALID_FAIL_ON_LEVELS: readonly string[] = ["critical", "warning", "healthy"];
+const VALID_FAIL_ON_LEVELS: readonly string[] = [
+  'critical',
+  'warning',
+  'healthy',
+];
 
 export const summaryCommand = define({
-  name: "summary",
+  name: 'summary',
   description:
-    "Aggregated governance summary combining health, delta, trend, and triage (for PR comments and dashboards)",
+    'Aggregated governance summary combining health, delta, trend, and triage (for PR comments and dashboards)',
   examples: `  # Generate governance summary as JSON (default)
   shiori summary
 
@@ -58,109 +72,113 @@ export const summaryCommand = define({
   rendering: { header: null },
   args: {
     scan: {
-      type: "string",
+      type: 'string',
       description:
         'Path to pre-computed scan result JSON. When provided, skips live scanning. Use "-" for stdin.',
     },
     patterns: {
-      type: "string",
-      short: "p",
+      type: 'string',
+      short: 'p',
       description:
         'Glob patterns to scan (comma-separated). Default: "**/*.{css,scss,pcss,js,ts,tsx,jsx}"',
     },
     ignore: {
-      type: "string",
-      short: "i",
+      type: 'string',
+      short: 'i',
       description:
         'Patterns to ignore (comma-separated). Default: "**/node_modules/**,**/dist/**,**/.git/**"',
     },
     registry: {
-      type: "string",
-      short: "r",
+      type: 'string',
+      short: 'r',
       description:
-        "Path to registry file (auto-detected from config or .config/shiori/registry.json)",
+        'Path to registry file (auto-detected from config or .config/shiori/registry.json)',
     },
     failOn: {
-      type: "string",
+      type: 'string',
       toKebab: true,
       description:
         'Issue types to fail on (comma-separated). Example: "expired,missing-in-registry"',
     },
     warnOn: {
-      type: "string",
+      type: 'string',
       toKebab: true,
-      description: 'Issue types to warn on (comma-separated). Example: "unused-in-source"',
+      description:
+        'Issue types to warn on (comma-separated). Example: "unused-in-source"',
     },
     failOnLevel: {
-      type: "string",
+      type: 'string',
       toKebab: true,
       description:
         'Fail (exit code 1) if health level is at or below this threshold: "critical", "warning", "healthy"',
     },
     format: {
-      type: "string",
-      short: "f",
+      type: 'string',
+      short: 'f',
       description: 'Output format: "json", "markdown". Default: "json"',
-      default: "json",
+      default: 'json',
     },
     output: {
-      type: "string",
-      short: "o",
-      description: "Output file path. If omitted, writes to stdout",
+      type: 'string',
+      short: 'o',
+      description: 'Output file path. If omitted, writes to stdout',
     },
     base: {
-      type: "string",
-      short: "b",
+      type: 'string',
+      short: 'b',
       description:
-        "Path to base scan result JSON for delta computation. If omitted, delta is skipped.",
+        'Path to base scan result JSON for delta computation. If omitted, delta is skipped.',
     },
     baseFallbackEmpty: {
-      type: "boolean",
+      type: 'boolean',
       toKebab: true,
       description:
-        "If the base file does not exist, treat it as an empty scan result instead of failing.",
+        'If the base file does not exist, treat it as an empty scan result instead of failing.',
     },
     history: {
-      type: "string",
-      short: "H",
-      description: "Directory containing ReportResult JSON files for trend analysis",
+      type: 'string',
+      short: 'H',
+      description:
+        'Directory containing ReportResult JSON files for trend analysis',
     },
     snapshot: {
-      type: "string",
-      short: "s",
-      description: "Directory to save the current ReportResult JSON for future trend analysis",
+      type: 'string',
+      short: 's',
+      description:
+        'Directory to save the current ReportResult JSON for future trend analysis',
     },
     repository: {
-      type: "string",
-      description: 'Repository identifier for multi-repo aggregation (e.g. "my-org/my-repo")',
+      type: 'string',
+      description:
+        'Repository identifier for multi-repo aggregation (e.g. "my-org/my-repo")',
     },
     skipTriage: {
-      type: "boolean",
+      type: 'boolean',
       toKebab: true,
-      description: "Skip triage computation even when issues exist",
+      description: 'Skip triage computation even when issues exist',
     },
     cwd: {
-      type: "string",
-      description: "Working directory. Default: process.cwd()",
+      type: 'string',
+      description: 'Working directory. Default: process.cwd()',
     },
     config: {
-      type: "string",
-      short: "c",
+      type: 'string',
+      short: 'c',
       description:
-        "Path to config directory (YAML/JSON auto-detected). Default: <cwd>/.config/shiori",
+        'Path to config directory (YAML/JSON auto-detected). Default: <cwd>/.config/shiori',
     },
     expiringThreshold: {
-      type: "string",
+      type: 'string',
       toKebab: true,
       description:
-        "Days before expiration to trigger expiring-soon warning. Overrides config. Default: 14",
+        'Days before expiration to trigger expiring-soon warning. Overrides config. Default: 14',
     },
   },
   run: async (ctx) => {
     // Validate options early
-    const failOn = parseAndValidateIssueTypes(ctx.values.failOn, "--fail-on");
+    const failOn = parseAndValidateIssueTypes(ctx.values.failOn, '--fail-on');
     if (failOn === null) return;
-    const warnOn = parseAndValidateIssueTypes(ctx.values.warnOn, "--warn-on");
+    const warnOn = parseAndValidateIssueTypes(ctx.values.warnOn, '--warn-on');
     if (warnOn === null) return;
 
     const format = validateSummaryFormat(ctx.values.format);
@@ -171,7 +189,7 @@ export const summaryCommand = define({
     if (failOnLevelValue !== undefined) {
       if (!VALID_FAIL_ON_LEVELS.includes(failOnLevelValue)) {
         console.error(
-          `Error: Invalid --fail-on-level value "${failOnLevelValue}". Valid values: ${VALID_FAIL_ON_LEVELS.join(", ")}`,
+          `Error: Invalid --fail-on-level value "${failOnLevelValue}". Valid values: ${VALID_FAIL_ON_LEVELS.join(', ')}`,
         );
         process.exitCode = 1;
         return;
@@ -253,9 +271,14 @@ export const summaryCommand = define({
       try {
         baseScanResult = await loadScanResultFromFile(basePath);
       } catch (err) {
-        if (ctx.values.baseFallbackEmpty && err instanceof ScanResultNotFoundError) {
+        if (
+          ctx.values.baseFallbackEmpty &&
+          err instanceof ScanResultNotFoundError
+        ) {
           baseScanResult = emptyScanResult;
-          console.error(`Base file not found: ${basePath} — using empty scan result as fallback`);
+          console.error(
+            `Base file not found: ${basePath} — using empty scan result as fallback`,
+          );
         } else {
           console.error(
             `Error loading base scan result: ${err instanceof Error ? err.message : String(err)}`,
@@ -271,8 +294,10 @@ export const summaryCommand = define({
     if (ctx.values.history) {
       const reports = await loadSnapshots(ctx.values.history, base.cwd, {
         onDirectoryError: (msg) => console.error(`Warning: ${msg}`),
-        onNoFiles: (dir) => console.error(`Warning: No JSON files found in ${dir}`),
-        onLoaded: (count, dir) => console.error(`Loaded ${count} report(s) from ${dir}`),
+        onNoFiles: (dir) =>
+          console.error(`Warning: No JSON files found in ${dir}`),
+        onLoaded: (count, dir) =>
+          console.error(`Loaded ${count} report(s) from ${dir}`),
       });
       if (reports !== null) {
         trendReports = reports;
@@ -316,24 +341,26 @@ export const summaryCommand = define({
     const written = await writeOutput(output, {
       outputPath: ctx.values.output,
       cwd: base.cwd,
-      label: "Governance summary",
+      label: 'Governance summary',
     });
     if (!written) return;
 
     // Log summary to stderr for CI visibility
     const emoji =
-      result.health.health.level === "healthy"
-        ? "🟢"
-        : result.health.health.level === "warning"
-          ? "🟡"
-          : "🔴";
+      result.health.health.level === 'healthy'
+        ? '🟢'
+        : result.health.health.level === 'warning'
+          ? '🟡'
+          : '🔴';
     console.error(
       `${emoji} Health: ${result.health.health.score}/100 (${result.health.health.level})` +
         (result.delta
           ? ` | Delta: +${result.delta.summary.added}/-${result.delta.summary.removed}`
-          : "") +
-        (result.trend ? ` | Trend: ${result.trend.summary.direction}` : "") +
-        (result.triage ? ` | Triage: ${result.triage.summary.total} items` : ""),
+          : '') +
+        (result.trend ? ` | Trend: ${result.trend.summary.direction}` : '') +
+        (result.triage
+          ? ` | Triage: ${result.triage.summary.total} items`
+          : ''),
     );
 
     // Exit code: --fail-on (errors > 0) OR --fail-on-level

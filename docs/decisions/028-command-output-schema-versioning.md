@@ -11,15 +11,15 @@ shiori CLI は 7 つの JSON 出力パスを持つが、出力構造に一貫性
 
 ### 現状
 
-| Formatter | Command | Envelope? | CLI version? | Schema version? |
-|-----------|---------|-----------|-------------|----------------|
-| fix-formatter | `fix --format json` (plan) | No | No | No |
-| fix-formatter | `fix --apply --format json` (result) | No | No | No |
-| resolve-formatter | `resolve --closed --format json` | Yes (`meta` + `data`) | Yes | No |
-| report-formatter | `report --format json` | No | No | No |
-| summary | `summary --format json` | No | No | No |
-| sarif | `verify --format sarif` | Yes (SARIF spec) | Yes | Yes (SARIF 2.1.0) |
-| annotate-formatter | `annotate --format json` | No | No | No |
+| Formatter          | Command                              | Envelope?             | CLI version? | Schema version?   |
+| ------------------ | ------------------------------------ | --------------------- | ------------ | ----------------- |
+| fix-formatter      | `fix --format json` (plan)           | No                    | No           | No                |
+| fix-formatter      | `fix --apply --format json` (result) | No                    | No           | No                |
+| resolve-formatter  | `resolve --closed --format json`     | Yes (`meta` + `data`) | Yes          | No                |
+| report-formatter   | `report --format json`               | No                    | No           | No                |
+| summary            | `summary --format json`              | No                    | No           | No                |
+| sarif              | `verify --format sarif`              | Yes (SARIF spec)      | Yes          | Yes (SARIF 2.1.0) |
+| annotate-formatter | `annotate --format json`             | No                    | No           | No                |
 
 問題点:
 
@@ -88,8 +88,8 @@ function parseFixOutput(raw: unknown): FixOutputV1 {
   if (output.meta?.schemaVersion > SUPPORTED_SCHEMA_VERSION) {
     throw new Error(
       `Unsupported schema version ${output.meta.schemaVersion}. ` +
-      `This tool supports schema version ${SUPPORTED_SCHEMA_VERSION}. ` +
-      `Update this tool or pin the shiori CLI version.`
+        `This tool supports schema version ${SUPPORTED_SCHEMA_VERSION}. ` +
+        `Update this tool or pin the shiori CLI version.`,
     );
   }
   return output.data;
@@ -101,6 +101,7 @@ function parseFixOutput(raw: unknown): FixOutputV1 {
 本 ADR は CLI コマンドの JSON 出力（`--format json`）のみを対象とする。
 
 **対象外**:
+
 - Registry / Config ファイルのスキーマバリデーション（ADR-011 の責務）
 - SARIF 出力（OASIS 標準スキーマに準拠、独自バージョニング不要）
 
@@ -108,13 +109,14 @@ function parseFixOutput(raw: unknown): FixOutputV1 {
 
 優先度基準: CI 自動化での機械消費頻度。
 
-| Phase | Commands | 根拠 |
-|-------|----------|------|
+| Phase   | Commands                                              | 根拠                                                                                                    |
+| ------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | Phase 1 | `fix --format json`, `resolve --closed --format json` | fix は EP-0124 で CI パイプライン連携が確立済み。resolve は既に envelope あり、`schemaVersion` 追加のみ |
-| Phase 2 | `verify --format json`, `report --format json` | CI ダッシュボード連携で機械消費される |
-| Phase 3 | `summary --format json`, `annotate --format json` | 人間向け使用が主、機械消費は低頻度 |
+| Phase 2 | `verify --format json`, `report --format json`        | CI ダッシュボード連携で機械消費される                                                                   |
+| Phase 3 | `summary --format json`, `annotate --format json`     | 人間向け使用が主、機械消費は低頻度                                                                      |
 
 各 Phase で:
+
 1. 対象コマンドの既存 JSON 出力を `meta` + `data` envelope で wrap
 2. `meta.schemaVersion` を `1` で初期化
 3. 既存の raw 出力は `data` フィールド内に配置（構造の変更なし）

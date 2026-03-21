@@ -1,31 +1,34 @@
-import { define } from "gunshi";
-import { watch as watchFs } from "node:fs";
-import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, relative, resolve, sep } from "node:path";
-import { execFileSync } from "node:child_process";
-import { loadConfig, resolveRegistryPath } from "../core/config.ts";
-import { CommentProvider } from "../core/providers/CommentProvider.ts";
-import { loadMultiRegistry } from "../core/registry.ts";
-import { scan } from "./scan.ts";
-import { watchReport } from "./watch.ts";
-import { initRegistry } from "./registry-generator.ts";
-import { saveRegistryRouted } from "../core/cli-context.ts";
-import { DEFAULT_SCAN_PATTERNS, DEFAULT_SCAN_IGNORE } from "../core/scan-defaults.ts";
-import { assertWithinCwd, PathBoundaryError } from "../core/path-boundary.ts";
-import { formatReportAsHtml } from "../formatters/report-html-formatter.ts";
-import { formatAsDiagnostic } from "../formatters/diagnostic.ts";
-import { computeDelta } from "./delta.ts";
-import { verify } from "./verify.ts";
-import type { ScanResult } from "../core/types.ts";
+import { define } from 'gunshi';
+import { watch as watchFs } from 'node:fs';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { dirname, relative, resolve, sep } from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { loadConfig, resolveRegistryPath } from '../core/config.ts';
+import { CommentProvider } from '../core/providers/CommentProvider.ts';
+import { loadMultiRegistry } from '../core/registry.ts';
+import { scan } from './scan.ts';
+import { watchReport } from './watch.ts';
+import { initRegistry } from './registry-generator.ts';
+import { saveRegistryRouted } from '../core/cli-context.ts';
+import {
+  DEFAULT_SCAN_PATTERNS,
+  DEFAULT_SCAN_IGNORE,
+} from '../core/scan-defaults.ts';
+import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
+import { formatReportAsHtml } from '../formatters/report-html-formatter.ts';
+import { formatAsDiagnostic } from '../formatters/diagnostic.ts';
+import { computeDelta } from './delta.ts';
+import { verify } from './verify.ts';
+import type { ScanResult } from '../core/types.ts';
 
 function parseList(value: string | undefined, fallback: string[]): string[] {
   if (!value) return fallback;
-  return value.split(",").map((s) => s.trim());
+  return value.split(',').map((s) => s.trim());
 }
 
 function asRelativeNormalized(cwd: string, filePath: string): string {
   const rel = relative(cwd, resolve(cwd, filePath));
-  return rel.split(sep).join("/");
+  return rel.split(sep).join('/');
 }
 
 function now(): string {
@@ -33,7 +36,7 @@ function now(): string {
 }
 
 /** Default dashboard HTML output path (relative to cwd) */
-const DEFAULT_DASHBOARD_PATH = ".config/shiori/dashboard.html";
+const DEFAULT_DASHBOARD_PATH = '.config/shiori/dashboard.html';
 
 /** Auto-refresh interval for dashboard (seconds) */
 const DASHBOARD_REFRESH_SECONDS = 3;
@@ -47,15 +50,19 @@ const DASHBOARD_REFRESH_SECONDS = 3;
 function openInBrowser(filePath: string): void {
   try {
     const platform = process.platform;
-    if (platform === "darwin") {
-      execFileSync("open", [filePath], { stdio: "ignore" });
-    } else if (platform === "win32") {
+    if (platform === 'darwin') {
+      execFileSync('open', [filePath], { stdio: 'ignore' });
+    } else if (platform === 'win32') {
       // Windows: cmd.exe /c start requires shell, use powershell Start-Process instead
-      execFileSync("powershell", ["-NoProfile", "-Command", "Start-Process", filePath], {
-        stdio: "ignore",
-      });
+      execFileSync(
+        'powershell',
+        ['-NoProfile', '-Command', 'Start-Process', filePath],
+        {
+          stdio: 'ignore',
+        },
+      );
     } else {
-      execFileSync("xdg-open", [filePath], { stdio: "ignore" });
+      execFileSync('xdg-open', [filePath], { stdio: 'ignore' });
     }
   } catch {
     // Best-effort: ignore errors on headless environments
@@ -63,8 +70,8 @@ function openInBrowser(filePath: string): void {
 }
 
 export const watchCommand = define({
-  name: "watch",
-  description: "Watch files and refresh scan result on each save",
+  name: 'watch',
+  description: 'Watch files and refresh scan result on each save',
   examples: `  # Watch and keep scan result fresh
   shiori watch
 
@@ -79,72 +86,74 @@ export const watchCommand = define({
   rendering: { header: null },
   args: {
     patterns: {
-      type: "string",
-      short: "p",
+      type: 'string',
+      short: 'p',
       description:
         'Glob patterns to scan (comma-separated). Default: "**/*.{css,scss,pcss,js,ts,tsx,jsx}"',
     },
     ignore: {
-      type: "string",
-      short: "i",
+      type: 'string',
+      short: 'i',
       description:
         'Patterns to ignore (comma-separated). Default: "**/node_modules/**,**/dist/**,**/.git/**"',
     },
     output: {
-      type: "string",
-      short: "o",
+      type: 'string',
+      short: 'o',
       description:
-        "Output scan-result path. Default: config.paths.scanResult (.config/shiori/scan-result.json)",
+        'Output scan-result path. Default: config.paths.scanResult (.config/shiori/scan-result.json)',
     },
     syncRegistry: {
-      type: "boolean",
+      type: 'boolean',
       toKebab: true,
-      description: "Also merge refs into registry on each refresh",
+      description: 'Also merge refs into registry on each refresh',
     },
     registry: {
-      type: "string",
-      short: "r",
-      description: "Path to registry file (used with --sync-registry or --dashboard)",
+      type: 'string',
+      short: 'r',
+      description:
+        'Path to registry file (used with --sync-registry or --dashboard)',
     },
     debounceMs: {
-      type: "string",
+      type: 'string',
       toKebab: true,
-      description: "Debounce interval in milliseconds. Default: 250",
+      description: 'Debounce interval in milliseconds. Default: 250',
     },
     once: {
-      type: "boolean",
-      description: "Run one refresh and exit (no watcher)",
+      type: 'boolean',
+      description: 'Run one refresh and exit (no watcher)',
     },
     dashboard: {
-      type: "boolean",
+      type: 'boolean',
       description:
-        "Generate live HTML governance dashboard (auto-refreshing). Implies registry loading",
+        'Generate live HTML governance dashboard (auto-refreshing). Implies registry loading',
     },
     dashboardOutput: {
-      type: "string",
+      type: 'string',
       toKebab: true,
-      description: "Dashboard HTML output path. Default: .config/shiori/dashboard.html",
+      description:
+        'Dashboard HTML output path. Default: .config/shiori/dashboard.html',
     },
     open: {
-      type: "boolean",
-      description: "Open dashboard in default browser (requires --dashboard)",
+      type: 'boolean',
+      description: 'Open dashboard in default browser (requires --dashboard)',
     },
     format: {
-      type: "string",
-      short: "f",
+      type: 'string',
+      short: 'f',
       description:
         'Output format: "pretty" (default) or "diagnostic" (one-issue-per-line, GCC-compatible)',
-      default: "pretty",
+      default: 'pretty',
     },
     cwd: {
-      type: "string",
-      description: "Working directory. Default: process.cwd()",
+      type: 'string',
+      description: 'Working directory. Default: process.cwd()',
     },
     config: {
-      type: "string",
-      short: "c",
+      type: 'string',
+      short: 'c',
       description:
-        "Path to config directory (YAML/JSON auto-detected). Default: <cwd>/.config/shiori",
+        'Path to config directory (YAML/JSON auto-detected). Default: <cwd>/.config/shiori',
     },
   },
   run: async (ctx) => {
@@ -152,29 +161,37 @@ export const watchCommand = define({
     const config = await loadConfig(cwd, ctx.values.config);
     const provider = new CommentProvider();
 
-    const patterns = parseList(ctx.values.patterns, config.scanPatterns ?? DEFAULT_SCAN_PATTERNS);
+    const patterns = parseList(
+      ctx.values.patterns,
+      config.scanPatterns ?? DEFAULT_SCAN_PATTERNS,
+    );
     const ignore = parseList(ctx.values.ignore, [
       ...DEFAULT_SCAN_IGNORE,
       ...(config.scanIgnore ?? []),
     ]);
 
-    const outputPath = resolve(cwd, ctx.values.output ?? config.paths.scanResult);
+    const outputPath = resolve(
+      cwd,
+      ctx.values.output ?? config.paths.scanResult,
+    );
     const outputRel = asRelativeNormalized(cwd, outputPath);
 
-    const debounceMsRaw = ctx.values.debounceMs ?? "250";
+    const debounceMsRaw = ctx.values.debounceMs ?? '250';
     const debounceMs = Number.parseInt(debounceMsRaw, 10);
     if (!Number.isFinite(debounceMs) || debounceMs < 0) {
       throw new Error(`Invalid --debounce-ms value: ${debounceMsRaw}`);
     }
 
-    const formatMode = ctx.values.format ?? "pretty";
-    if (formatMode !== "pretty" && formatMode !== "diagnostic") {
-      console.error(`Error: --format must be "pretty" or "diagnostic" (got "${formatMode}")`);
+    const formatMode = ctx.values.format ?? 'pretty';
+    if (formatMode !== 'pretty' && formatMode !== 'diagnostic') {
+      console.error(
+        `Error: --format must be "pretty" or "diagnostic" (got "${formatMode}")`,
+      );
       process.exitCode = 1;
       return;
     }
 
-    const diagnosticMode = formatMode === "diagnostic";
+    const diagnosticMode = formatMode === 'diagnostic';
 
     const syncRegistry = Boolean(ctx.values.syncRegistry);
     const dashboardMode = Boolean(ctx.values.dashboard);
@@ -182,13 +199,15 @@ export const watchCommand = define({
 
     // --format diagnostic and --dashboard are mutually exclusive
     if (diagnosticMode && dashboardMode) {
-      console.error("Error: --format diagnostic and --dashboard are mutually exclusive");
+      console.error(
+        'Error: --format diagnostic and --dashboard are mutually exclusive',
+      );
       process.exitCode = 1;
       return;
     }
 
     if (openBrowser && !dashboardMode) {
-      console.error("Warning: --open requires --dashboard. Ignoring --open.");
+      console.error('Warning: --open requires --dashboard. Ignoring --open.');
     }
 
     // Registry is needed for --sync-registry, --dashboard, or --format diagnostic
@@ -196,13 +215,17 @@ export const watchCommand = define({
     const registryPath = needsRegistry
       ? await resolveRegistryPath(ctx.values.registry, config, cwd)
       : undefined;
-    const registryRel = registryPath ? asRelativeNormalized(cwd, registryPath) : undefined;
+    const registryRel = registryPath
+      ? asRelativeNormalized(cwd, registryPath)
+      : undefined;
 
     // Dashboard output path
     const dashboardPath = dashboardMode
       ? resolve(cwd, ctx.values.dashboardOutput ?? DEFAULT_DASHBOARD_PATH)
       : undefined;
-    const dashboardRel = dashboardPath ? asRelativeNormalized(cwd, dashboardPath) : undefined;
+    const dashboardRel = dashboardPath
+      ? asRelativeNormalized(cwd, dashboardPath)
+      : undefined;
 
     // Validate all write targets are within cwd before any I/O
     try {
@@ -216,7 +239,10 @@ export const watchCommand = define({
           const basePath = dirname(resolve(registryPath));
           for (const pattern of config.refPatterns) {
             if (pattern.registryFile) {
-              await assertWithinCwd(resolve(basePath, pattern.registryFile), cwd);
+              await assertWithinCwd(
+                resolve(basePath, pattern.registryFile),
+                cwd,
+              );
             }
           }
         }
@@ -244,7 +270,11 @@ export const watchCommand = define({
       });
 
       await mkdir(dirname(outputPath), { recursive: true });
-      await writeFile(outputPath, JSON.stringify(result, null, 2) + "\n", "utf-8");
+      await writeFile(
+        outputPath,
+        JSON.stringify(result, null, 2) + '\n',
+        'utf-8',
+      );
 
       if (syncRegistry && registryPath) {
         const { registry: existingRegistry } = await loadMultiRegistry(
@@ -257,7 +287,9 @@ export const watchCommand = define({
           records: result.annotations,
           existingRegistry,
         });
-        const newRefs = Object.keys(merged).filter((ref) => !(ref in existingRegistry));
+        const newRefs = Object.keys(merged).filter(
+          (ref) => !(ref in existingRegistry),
+        );
 
         await saveRegistryRouted({
           registry: merged,
@@ -313,9 +345,11 @@ export const watchCommand = define({
         });
 
         await mkdir(dirname(dashboardPath), { recursive: true });
-        await writeFile(dashboardPath, html, "utf-8");
+        await writeFile(dashboardPath, html, 'utf-8');
 
-        const deltaInfo = delta ? ` delta=+${delta.summary.added}/-${delta.summary.removed}` : "";
+        const deltaInfo = delta
+          ? ` delta=+${delta.summary.added}/-${delta.summary.removed}`
+          : '';
         console.error(
           `[${now()}] dashboard updated - health=${reportResult.health.level} score=${reportResult.health.score}/100${deltaInfo}`,
         );
@@ -358,7 +392,7 @@ export const watchCommand = define({
       ignoreEventsUntil = Date.now() + Math.max(300, debounceMs);
     };
 
-    await refresh("initial");
+    await refresh('initial');
     if (ctx.values.once) {
       console.error(`Saved scan result to ${outputRel}`);
       if (dashboardRel) {
@@ -367,35 +401,48 @@ export const watchCommand = define({
       return;
     }
 
-    console.error(`Watching ${cwd} (recursive). Writing scan result to ${outputRel}`);
+    console.error(
+      `Watching ${cwd} (recursive). Writing scan result to ${outputRel}`,
+    );
     if (registryRel) {
       console.error(`Registry sync enabled: ${registryRel}`);
     }
     if (dashboardRel) {
-      console.error(`Dashboard: ${dashboardRel} (auto-refresh: ${DASHBOARD_REFRESH_SECONDS}s)`);
+      console.error(
+        `Dashboard: ${dashboardRel} (auto-refresh: ${DASHBOARD_REFRESH_SECONDS}s)`,
+      );
     }
 
     await new Promise<void>((resolvePromise) => {
       let timer: ReturnType<typeof setTimeout> | undefined;
-      const watcher = watchFs(cwd, { recursive: true }, (_eventType, filename) => {
-        if (Date.now() < ignoreEventsUntil) return;
+      const watcher = watchFs(
+        cwd,
+        { recursive: true },
+        (_eventType, filename) => {
+          if (Date.now() < ignoreEventsUntil) return;
 
-        const changed = typeof filename === "string" ? filename : "";
-        const normalized = changed.split(sep).join("/");
-        if (normalized !== "") {
-          if (normalized === outputRel) return;
-          if (registryRel && normalized === registryRel) return;
-          if (dashboardRel && normalized === dashboardRel) return;
-        }
+          const changed = typeof filename === 'string' ? filename : '';
+          const normalized = changed.split(sep).join('/');
+          if (normalized !== '') {
+            if (normalized === outputRel) return;
+            if (registryRel && normalized === registryRel) return;
+            if (dashboardRel && normalized === dashboardRel) return;
+          }
 
-        if (timer) clearTimeout(timer);
-        timer = setTimeout(() => {
-          void refresh(normalized === "" ? "fs-event" : normalized).catch((err: unknown) => {
-            const message = err instanceof Error ? (err.stack ?? err.message) : String(err);
-            console.error(message);
-          });
-        }, debounceMs);
-      });
+          if (timer) clearTimeout(timer);
+          timer = setTimeout(() => {
+            void refresh(normalized === '' ? 'fs-event' : normalized).catch(
+              (err: unknown) => {
+                const message =
+                  err instanceof Error
+                    ? (err.stack ?? err.message)
+                    : String(err);
+                console.error(message);
+              },
+            );
+          }, debounceMs);
+        },
+      );
 
       const shutdown = (): void => {
         if (timer) clearTimeout(timer);
@@ -403,8 +450,8 @@ export const watchCommand = define({
         resolvePromise();
       };
 
-      process.once("SIGINT", shutdown);
-      process.once("SIGTERM", shutdown);
+      process.once('SIGINT', shutdown);
+      process.once('SIGTERM', shutdown);
     });
   },
 });

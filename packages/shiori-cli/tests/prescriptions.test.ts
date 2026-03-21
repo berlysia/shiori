@@ -1,30 +1,34 @@
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
 import type {
   ScanResult,
   RegistryEntry,
   ShioriAnnotation,
   ShioriCandidate,
   ReportResult,
-} from "../src/core/types.ts";
-import { buildPrescriptions } from "../src/core/prescriptions.ts";
-import { report } from "../src/commands/report.ts";
+} from '../src/core/types.ts';
+import { buildPrescriptions } from '../src/core/prescriptions.ts';
+import { report } from '../src/commands/report.ts';
 
-function makeAnnotation(overrides: Partial<ShioriAnnotation> = {}): ShioriAnnotation {
+function makeAnnotation(
+  overrides: Partial<ShioriAnnotation> = {},
+): ShioriAnnotation {
   return {
-    ref: "TEST-001",
-    rule: "no-console",
+    ref: 'TEST-001',
+    rule: 'no-console',
     tagged: true,
     ignored: false,
-    location: { file: "test.ts", line: 1 },
+    location: { file: 'test.ts', line: 1 },
     ...overrides,
   };
 }
 
-function makeRegistryEntry(overrides: Partial<RegistryEntry> = {}): RegistryEntry {
+function makeRegistryEntry(
+  overrides: Partial<RegistryEntry> = {},
+): RegistryEntry {
   return {
-    reason: "test reason",
-    target: "test.ts",
+    reason: 'test reason',
+    target: 'test.ts',
     expires: undefined,
     ticket: undefined,
     owner: undefined,
@@ -52,7 +56,10 @@ function makeReport(options: {
   now?: Date;
 }): ReportResult {
   return report({
-    scanResult: makeScanResult(options.annotations ?? [], options.candidates ?? []),
+    scanResult: makeScanResult(
+      options.annotations ?? [],
+      options.candidates ?? [],
+    ),
     registry: options.registry ?? {},
     failOn: [],
     warnOn: [],
@@ -60,79 +67,83 @@ function makeReport(options: {
   });
 }
 
-describe("buildPrescriptions", () => {
-  it("returns empty array for healthy codebase", () => {
+describe('buildPrescriptions', () => {
+  it('returns empty array for healthy codebase', () => {
     const reportResult = makeReport({
-      annotations: [makeAnnotation({ ref: "TEST-001" })],
-      registry: { "TEST-001": makeRegistryEntry() },
+      annotations: [makeAnnotation({ ref: 'TEST-001' })],
+      registry: { 'TEST-001': makeRegistryEntry() },
     });
 
     const prescriptions = buildPrescriptions(reportResult);
     assert.equal(prescriptions.length, 0);
   });
 
-  it("generates critical prescription for expired annotations", () => {
+  it('generates critical prescription for expired annotations', () => {
     const reportResult = makeReport({
-      annotations: [makeAnnotation({ ref: "EXP-001" })],
-      registry: { "EXP-001": makeRegistryEntry({ expires: "2020-01-01" }) },
+      annotations: [makeAnnotation({ ref: 'EXP-001' })],
+      registry: { 'EXP-001': makeRegistryEntry({ expires: '2020-01-01' }) },
     });
 
     const prescriptions = buildPrescriptions(reportResult);
     assert.ok(prescriptions.length > 0);
 
-    const expired = prescriptions.find((p) => p.message.includes("expired"));
-    assert.ok(expired, "should have expired prescription");
-    assert.equal(expired.urgency, "critical");
+    const expired = prescriptions.find((p) => p.message.includes('expired'));
+    assert.ok(expired, 'should have expired prescription');
+    assert.equal(expired.urgency, 'critical');
     assert.ok(expired.scoreImpact > 0);
     assert.ok(expired.command.length > 0);
-    assert.equal(expired.actionType, "triage");
+    assert.equal(expired.actionType, 'triage');
   });
 
-  it("generates recommended prescription for missing-in-registry", () => {
+  it('generates recommended prescription for missing-in-registry', () => {
     const reportResult = makeReport({
-      annotations: [makeAnnotation({ ref: "MISS-001" })],
+      annotations: [makeAnnotation({ ref: 'MISS-001' })],
       registry: {},
     });
 
     const prescriptions = buildPrescriptions(reportResult);
-    const missing = prescriptions.find((p) => p.message.includes("missing-in-registry"));
-    assert.ok(missing, "should have missing-in-registry prescription");
-    assert.equal(missing.urgency, "recommended");
-    assert.equal(missing.command, "shiori update");
-    assert.equal(missing.actionType, "update");
+    const missing = prescriptions.find((p) =>
+      p.message.includes('missing-in-registry'),
+    );
+    assert.ok(missing, 'should have missing-in-registry prescription');
+    assert.equal(missing.urgency, 'recommended');
+    assert.equal(missing.command, 'shiori update');
+    assert.equal(missing.actionType, 'update');
   });
 
-  it("generates suggestion for candidates", () => {
+  it('generates suggestion for candidates', () => {
     const reportResult = makeReport({
-      annotations: [makeAnnotation({ ref: "TEST-001" })],
+      annotations: [makeAnnotation({ ref: 'TEST-001' })],
       candidates: [
         {
-          pattern: "eslint",
-          rule: "no-unused-vars",
-          location: { file: "a.ts", line: 1 },
-          directive: "eslint-disable-next-line",
+          pattern: 'eslint',
+          rule: 'no-unused-vars',
+          location: { file: 'a.ts', line: 1 },
+          directive: 'eslint-disable-next-line',
         },
       ],
-      registry: { "TEST-001": makeRegistryEntry() },
+      registry: { 'TEST-001': makeRegistryEntry() },
     });
 
     const prescriptions = buildPrescriptions(reportResult);
-    const candidateRx = prescriptions.find((p) => p.message.includes("untracked"));
-    assert.ok(candidateRx, "should have candidate prescription");
-    assert.equal(candidateRx.urgency, "suggestion");
-    assert.equal(candidateRx.command, "shiori candidates");
-    assert.equal(candidateRx.actionType, "candidates");
+    const candidateRx = prescriptions.find((p) =>
+      p.message.includes('untracked'),
+    );
+    assert.ok(candidateRx, 'should have candidate prescription');
+    assert.equal(candidateRx.urgency, 'suggestion');
+    assert.equal(candidateRx.command, 'shiori candidates');
+    assert.equal(candidateRx.actionType, 'candidates');
   });
 
-  it("sorts prescriptions by score impact descending", () => {
+  it('sorts prescriptions by score impact descending', () => {
     const reportResult = makeReport({
       annotations: [
-        makeAnnotation({ ref: "EXP-001" }),
-        makeAnnotation({ ref: "MISS-001" }),
-        makeAnnotation({ ref: "MISS-002" }),
+        makeAnnotation({ ref: 'EXP-001' }),
+        makeAnnotation({ ref: 'MISS-001' }),
+        makeAnnotation({ ref: 'MISS-002' }),
       ],
       registry: {
-        "EXP-001": makeRegistryEntry({ expires: "2020-01-01" }),
+        'EXP-001': makeRegistryEntry({ expires: '2020-01-01' }),
       },
     });
 
@@ -148,32 +159,36 @@ describe("buildPrescriptions", () => {
     }
   });
 
-  it("generates suggestion for expiring-soon", () => {
+  it('generates suggestion for expiring-soon', () => {
     const reportResult = makeReport({
-      annotations: [makeAnnotation({ ref: "SOON-001" })],
+      annotations: [makeAnnotation({ ref: 'SOON-001' })],
       registry: {
-        "SOON-001": makeRegistryEntry({ expires: "2026-02-20" }),
+        'SOON-001': makeRegistryEntry({ expires: '2026-02-20' }),
       },
-      now: new Date("2026-02-11T00:00:00Z"),
+      now: new Date('2026-02-11T00:00:00Z'),
     });
 
     const prescriptions = buildPrescriptions(reportResult);
-    const expiringSoon = prescriptions.find((p) => p.message.includes("expiring-soon"));
-    assert.ok(expiringSoon, "should have expiring-soon prescription");
-    assert.equal(expiringSoon.urgency, "suggestion");
+    const expiringSoon = prescriptions.find((p) =>
+      p.message.includes('expiring-soon'),
+    );
+    assert.ok(expiringSoon, 'should have expiring-soon prescription');
+    assert.equal(expiringSoon.urgency, 'suggestion');
   });
 
-  it("caps score impact at tier maximum", () => {
+  it('caps score impact at tier maximum', () => {
     // 5 expired annotations → 50 raw deduction, capped at 40
-    const annotations = Array.from({ length: 5 }, (_, i) => makeAnnotation({ ref: `EXP-${i}` }));
+    const annotations = Array.from({ length: 5 }, (_, i) =>
+      makeAnnotation({ ref: `EXP-${i}` }),
+    );
     const registry: Record<string, RegistryEntry> = {};
     for (const a of annotations) {
-      registry[a.ref] = makeRegistryEntry({ expires: "2020-01-01" });
+      registry[a.ref] = makeRegistryEntry({ expires: '2020-01-01' });
     }
 
     const reportResult = makeReport({ annotations, registry });
     const prescriptions = buildPrescriptions(reportResult);
-    const expired = prescriptions.find((p) => p.message.includes("expired"));
+    const expired = prescriptions.find((p) => p.message.includes('expired'));
     assert.ok(expired);
     // Impact should be capped at 40 (the tier max)
     assert.ok(expired.scoreImpact <= 40);

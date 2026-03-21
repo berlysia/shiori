@@ -1,10 +1,10 @@
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
 import {
   formatOnboardingGuidance,
   shouldShowOnboardingGuidance,
   type OnboardingGuidanceOptions,
-} from "../src/core/onboarding-guidance.ts";
+} from '../src/core/onboarding-guidance.ts';
 
 /** Base options: high unregistered rate, text format, TTY — should trigger guidance */
 const baseOptions: OnboardingGuidanceOptions = {
@@ -12,16 +12,16 @@ const baseOptions: OnboardingGuidanceOptions = {
     totalUniqueRefs: 10,
     missingInRegistryCount: 8,
   },
-  format: "text",
+  format: 'text',
   isTTY: true,
 };
 
-describe("shouldShowOnboardingGuidance", () => {
-  it("returns true when unregistered rate >= 50%, TTY, human-readable format", () => {
+describe('shouldShowOnboardingGuidance', () => {
+  it('returns true when unregistered rate >= 50%, TTY, human-readable format', () => {
     assert.equal(shouldShowOnboardingGuidance(baseOptions), true);
   });
 
-  it("returns false when totalUniqueRefs is 0 (no annotations)", () => {
+  it('returns false when totalUniqueRefs is 0 (no annotations)', () => {
     assert.equal(
       shouldShowOnboardingGuidance({
         ...baseOptions,
@@ -31,7 +31,7 @@ describe("shouldShowOnboardingGuidance", () => {
     );
   });
 
-  it("returns false when unregistered rate < 50%", () => {
+  it('returns false when unregistered rate < 50%', () => {
     assert.equal(
       shouldShowOnboardingGuidance({
         ...baseOptions,
@@ -41,35 +41,56 @@ describe("shouldShowOnboardingGuidance", () => {
     );
   });
 
-  it("returns false for json format", () => {
-    assert.equal(shouldShowOnboardingGuidance({ ...baseOptions, format: "json" }), false);
+  it('returns false for json format', () => {
+    assert.equal(
+      shouldShowOnboardingGuidance({ ...baseOptions, format: 'json' }),
+      false,
+    );
   });
 
-  it("returns false for sarif format", () => {
-    assert.equal(shouldShowOnboardingGuidance({ ...baseOptions, format: "sarif" }), false);
+  it('returns false for sarif format', () => {
+    assert.equal(
+      shouldShowOnboardingGuidance({ ...baseOptions, format: 'sarif' }),
+      false,
+    );
   });
 
-  it("returns false for jsonl format", () => {
-    assert.equal(shouldShowOnboardingGuidance({ ...baseOptions, format: "jsonl" }), false);
+  it('returns false for jsonl format', () => {
+    assert.equal(
+      shouldShowOnboardingGuidance({ ...baseOptions, format: 'jsonl' }),
+      false,
+    );
   });
 
-  it("returns false for summary format", () => {
-    assert.equal(shouldShowOnboardingGuidance({ ...baseOptions, format: "summary" }), false);
+  it('returns false for summary format', () => {
+    assert.equal(
+      shouldShowOnboardingGuidance({ ...baseOptions, format: 'summary' }),
+      false,
+    );
   });
 
-  it("returns true for markdown format (human-readable)", () => {
-    assert.equal(shouldShowOnboardingGuidance({ ...baseOptions, format: "markdown" }), true);
+  it('returns true for markdown format (human-readable)', () => {
+    assert.equal(
+      shouldShowOnboardingGuidance({ ...baseOptions, format: 'markdown' }),
+      true,
+    );
   });
 
-  it("returns true for diagnostic format (human-readable)", () => {
-    assert.equal(shouldShowOnboardingGuidance({ ...baseOptions, format: "diagnostic" }), true);
+  it('returns true for diagnostic format (human-readable)', () => {
+    assert.equal(
+      shouldShowOnboardingGuidance({ ...baseOptions, format: 'diagnostic' }),
+      true,
+    );
   });
 
-  it("returns false when stderr is not a TTY", () => {
-    assert.equal(shouldShowOnboardingGuidance({ ...baseOptions, isTTY: false }), false);
+  it('returns false when stderr is not a TTY', () => {
+    assert.equal(
+      shouldShowOnboardingGuidance({ ...baseOptions, isTTY: false }),
+      false,
+    );
   });
 
-  it("returns true at exactly 50% threshold", () => {
+  it('returns true at exactly 50% threshold', () => {
     assert.equal(
       shouldShowOnboardingGuidance({
         ...baseOptions,
@@ -79,7 +100,7 @@ describe("shouldShowOnboardingGuidance", () => {
     );
   });
 
-  it("returns false just below 50% threshold", () => {
+  it('returns false just below 50% threshold', () => {
     assert.equal(
       shouldShowOnboardingGuidance({
         ...baseOptions,
@@ -90,14 +111,14 @@ describe("shouldShowOnboardingGuidance", () => {
   });
 });
 
-describe("formatOnboardingGuidance", () => {
-  it("returns guidance lines when conditions are met", () => {
+describe('formatOnboardingGuidance', () => {
+  it('returns guidance lines when conditions are met', () => {
     const lines = formatOnboardingGuidance(baseOptions);
 
-    assert.ok(lines.length > 0, "Expected non-empty guidance lines");
+    assert.ok(lines.length > 0, 'Expected non-empty guidance lines');
   });
 
-  it("returns empty array when suppressed", () => {
+  it('returns empty array when suppressed', () => {
     const lines = formatOnboardingGuidance({
       ...baseOptions,
       context: { totalUniqueRefs: 10, missingInRegistryCount: 2 },
@@ -106,28 +127,28 @@ describe("formatOnboardingGuidance", () => {
     assert.deepEqual(lines, []);
   });
 
-  it("includes adopt, health, and triage in guidance content", () => {
+  it('includes adopt, health, and triage in guidance content', () => {
     const lines = formatOnboardingGuidance(baseOptions);
-    const text = lines.join("\n");
+    const text = lines.join('\n');
 
-    assert.ok(text.includes("adopt"), "Expected guidance to mention adopt");
-    assert.ok(text.includes("health"), "Expected guidance to mention health");
-    assert.ok(text.includes("triage"), "Expected guidance to mention triage");
+    assert.ok(text.includes('adopt'), 'Expected guidance to mention adopt');
+    assert.ok(text.includes('health'), 'Expected guidance to mention health');
+    assert.ok(text.includes('triage'), 'Expected guidance to mention triage');
   });
 
-  it("includes step numbers for progressive workflow", () => {
+  it('includes step numbers for progressive workflow', () => {
     const lines = formatOnboardingGuidance(baseOptions);
-    const text = lines.join("\n");
+    const text = lines.join('\n');
 
-    assert.ok(text.includes("Step 1"), "Expected Step 1");
-    assert.ok(text.includes("Step 2"), "Expected Step 2");
-    assert.ok(text.includes("Step 3"), "Expected Step 3");
+    assert.ok(text.includes('Step 1'), 'Expected Step 1');
+    assert.ok(text.includes('Step 2'), 'Expected Step 2');
+    assert.ok(text.includes('Step 3'), 'Expected Step 3');
   });
 
-  it("includes guide command reference", () => {
+  it('includes guide command reference', () => {
     const lines = formatOnboardingGuidance(baseOptions);
-    const text = lines.join("\n");
+    const text = lines.join('\n');
 
-    assert.ok(text.includes("shiori guide"), "Expected shiori guide reference");
+    assert.ok(text.includes('shiori guide'), 'Expected shiori guide reference');
   });
 });

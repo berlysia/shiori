@@ -34,12 +34,12 @@ export const ExitCode = {
 } as const;
 ```
 
-| Code | Name | Meaning |
-|------|------|---------|
-| 0 | SUCCESS | 正常終了 |
-| 1 | GOVERNANCE_VIOLATION | ガバナンス問題の検出（verify errors, health threshold, doctor failures） |
-| 2 | USAGE_ERROR | CLI 引数の誤り（無効なフォーマット、不正なオプション） |
-| 3 | ENVIRONMENT_ERROR | 環境の問題（ファイル未発見、パス境界違反） |
+| Code | Name                 | Meaning                                                                  |
+| ---- | -------------------- | ------------------------------------------------------------------------ |
+| 0    | SUCCESS              | 正常終了                                                                 |
+| 1    | GOVERNANCE_VIOLATION | ガバナンス問題の検出（verify errors, health threshold, doctor failures） |
+| 2    | USAGE_ERROR          | CLI 引数の誤り（無効なフォーマット、不正なオプション）                   |
+| 3    | ENVIRONMENT_ERROR    | 環境の問題（ファイル未発見、パス境界違反）                               |
 
 ### Phase 1: 定数定義とポリシーメタデータ（本 ADR のスコープ）
 
@@ -58,6 +58,7 @@ Phase 2 は2段階で進める:
 governance カテゴリのコマンドにおいて、ガバナンス違反検出時の `process.exitCode = 1` を `process.exitCode = ExitCode.GOVERNANCE_VIOLATION`（値は同じ `1`）に置き換える。passthrough カテゴリのコマンドから誤って設定されていた `process.exitCode = 1` を除去する。この段階では exit code の実際の値は変わらないため、破壊的変更は発生しない。
 
 対象:
+
 - governance コマンド（verify, check, triage, health, report, doctor, delta, summary）の governance trigger → `ExitCode.GOVERNANCE_VIOLATION`
 - passthrough コマンド（watch, journal, guide）の不正な `process.exitCode = 1` → 除去
 
@@ -67,34 +68,34 @@ usage カテゴリのコマンドの `process.exitCode = 1` を `ExitCode.USAGE_
 
 ### コマンド別ポリシー
 
-| Command | Exit 1 Trigger | Category |
-|---------|---------------|----------|
-| verify | `summary.errors > 0` | governance |
-| check | `summary.errors > 0` | governance |
-| triage | `summary.errors > 0` | governance |
-| health | `summary.errors > 0` OR health level threshold | governance |
-| report | `summary.errors > 0` | governance |
-| doctor | `summary.fail > 0` | governance |
-| scan | validation failures | usage |
-| init | validation failures | usage |
-| update | (none — always 0) | passthrough |
-| candidates | (none — always 0) | passthrough |
-| resolve | validation failures, missing provider | usage |
-| adopt | file write failures, no candidates | usage |
-| show | ref not found | usage |
-| why | ref not found | usage |
-| jump | ref not found | usage |
-| annotate | validation failures | usage |
-| draft | validation failures | usage |
-| migrate | validation failures | usage |
-| watch | (none — long-running) | passthrough |
-| delta | `summary.errors > 0` | governance |
-| weekly-report | output failures | usage |
-| journal | (none — query only) | passthrough |
-| docs | (none — display only) | passthrough |
-| summary | `summary.errors > 0` OR health level threshold | governance |
-| aggregate | validation failures, missing input files | usage |
-| guide | (none — interactive navigator) | passthrough |
+| Command       | Exit 1 Trigger                                 | Category    |
+| ------------- | ---------------------------------------------- | ----------- |
+| verify        | `summary.errors > 0`                           | governance  |
+| check         | `summary.errors > 0`                           | governance  |
+| triage        | `summary.errors > 0`                           | governance  |
+| health        | `summary.errors > 0` OR health level threshold | governance  |
+| report        | `summary.errors > 0`                           | governance  |
+| doctor        | `summary.fail > 0`                             | governance  |
+| scan          | validation failures                            | usage       |
+| init          | validation failures                            | usage       |
+| update        | (none — always 0)                              | passthrough |
+| candidates    | (none — always 0)                              | passthrough |
+| resolve       | validation failures, missing provider          | usage       |
+| adopt         | file write failures, no candidates             | usage       |
+| show          | ref not found                                  | usage       |
+| why           | ref not found                                  | usage       |
+| jump          | ref not found                                  | usage       |
+| annotate      | validation failures                            | usage       |
+| draft         | validation failures                            | usage       |
+| migrate       | validation failures                            | usage       |
+| watch         | (none — long-running)                          | passthrough |
+| delta         | `summary.errors > 0`                           | governance  |
+| weekly-report | output failures                                | usage       |
+| journal       | (none — query only)                            | passthrough |
+| docs          | (none — display only)                          | passthrough |
+| summary       | `summary.errors > 0` OR health level threshold | governance  |
+| aggregate     | validation failures, missing input files       | usage       |
+| guide         | (none — interactive navigator)                 | passthrough |
 
 ## Consequences
 

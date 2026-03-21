@@ -1,28 +1,31 @@
-import { define } from "gunshi";
-import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
-import { scan } from "./scan.ts";
-import { CommentProvider } from "../core/providers/CommentProvider.ts";
-import { check } from "./check.ts";
-import { formatActionHints } from "./verify.ts";
-import { formatVerifyOutput } from "../formatters/index.ts";
-import { parseAndValidateIssueTypes, validateOutputFormat } from "../core/cli-validation.ts";
-import { assertWithinCwd, PathBoundaryError } from "../core/path-boundary.ts";
-import { writeOutput } from "../core/cli-output.ts";
-import { detectWorkspaces } from "../core/workspace.ts";
-import { scanWorkspaces, type PackageScanResult } from "./scan-workspaces.ts";
-import { resolveRefStatusMap } from "../core/ref-status-providers/index.ts";
+import { define } from 'gunshi';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { dirname, resolve } from 'node:path';
+import { scan } from './scan.ts';
+import { CommentProvider } from '../core/providers/CommentProvider.ts';
+import { check } from './check.ts';
+import { formatActionHints } from './verify.ts';
+import { formatVerifyOutput } from '../formatters/index.ts';
+import {
+  parseAndValidateIssueTypes,
+  validateOutputFormat,
+} from '../core/cli-validation.ts';
+import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
+import { writeOutput } from '../core/cli-output.ts';
+import { detectWorkspaces } from '../core/workspace.ts';
+import { scanWorkspaces, type PackageScanResult } from './scan-workspaces.ts';
+import { resolveRefStatusMap } from '../core/ref-status-providers/index.ts';
 import {
   createBaseContext,
   withRegistry,
   resolveScanPatterns,
   resolveExpiringThreshold,
-} from "../core/cli-context.ts";
-import { ExitCode } from "../core/exit-codes.ts";
+} from '../core/cli-context.ts';
+import { ExitCode } from '../core/exit-codes.ts';
 
 export const checkCommand = define({
-  name: "check",
-  description: "Scan and verify in one step (no intermediate files)",
+  name: 'check',
+  description: 'Scan and verify in one step (no intermediate files)',
   examples: `  # One-shot scan + verify
   shiori check
 
@@ -40,84 +43,87 @@ export const checkCommand = define({
   rendering: { header: null },
   args: {
     patterns: {
-      type: "string",
-      short: "p",
+      type: 'string',
+      short: 'p',
       description:
         'Glob patterns to scan (comma-separated). Default: "**/*.{css,scss,pcss,js,ts,tsx,jsx}"',
     },
     ignore: {
-      type: "string",
-      short: "i",
+      type: 'string',
+      short: 'i',
       description:
         'Patterns to ignore (comma-separated). Default: "**/node_modules/**,**/dist/**,**/.git/**"',
     },
     registry: {
-      type: "string",
-      short: "r",
+      type: 'string',
+      short: 'r',
       description:
-        "Path to registry file (auto-detected from config or .config/shiori/registry.json)",
+        'Path to registry file (auto-detected from config or .config/shiori/registry.json)',
     },
     failOn: {
-      type: "string",
+      type: 'string',
       toKebab: true,
       description:
         'Issue types to fail on (comma-separated). Example: "missing-in-registry,expired"',
     },
     warnOn: {
-      type: "string",
+      type: 'string',
       toKebab: true,
-      description: 'Issue types to warn on (comma-separated). Example: "unused-in-source"',
+      description:
+        'Issue types to warn on (comma-separated). Example: "unused-in-source"',
     },
     format: {
-      type: "string",
-      short: "f",
+      type: 'string',
+      short: 'f',
       description:
         'Output format: "json", "markdown", "sarif", "summary", "jsonl", "diagnostic". Default: "json"',
-      default: "json",
+      default: 'json',
     },
     output: {
-      type: "string",
-      short: "o",
-      description: "Output file path. If omitted, writes to stdout",
+      type: 'string',
+      short: 'o',
+      description: 'Output file path. If omitted, writes to stdout',
     },
     saveScan: {
-      type: "boolean",
+      type: 'boolean',
       toKebab: true,
-      description: "Also save scan result to .config/shiori/scan-result.json (or config path)",
+      description:
+        'Also save scan result to .config/shiori/scan-result.json (or config path)',
     },
     cwd: {
-      type: "string",
-      description: "Working directory. Default: process.cwd()",
+      type: 'string',
+      description: 'Working directory. Default: process.cwd()',
     },
     config: {
-      type: "string",
-      short: "c",
+      type: 'string',
+      short: 'c',
       description:
-        "Path to config directory (YAML/JSON auto-detected). Default: <cwd>/.config/shiori",
+        'Path to config directory (YAML/JSON auto-detected). Default: <cwd>/.config/shiori',
     },
     workspace: {
-      type: "boolean",
+      type: 'boolean',
       toKebab: true,
-      description: "Scan all packages in monorepo workspace (pnpm/npm workspaces)",
+      description:
+        'Scan all packages in monorepo workspace (pnpm/npm workspaces)',
     },
     expiringThreshold: {
-      type: "string",
+      type: 'string',
       toKebab: true,
       description:
-        "Days before expiration to trigger expiring-soon warning. Overrides config. Default: 14",
+        'Days before expiration to trigger expiring-soon warning. Overrides config. Default: 14',
     },
     refStatusCommand: {
-      type: "string",
+      type: 'string',
       toKebab: true,
       description:
-        "External command to check ref statuses. Receives refs on stdin (newline-delimited), returns JSONL with {ref, status} on stdout. Note: command path must not contain spaces",
+        'External command to check ref statuses. Receives refs on stdin (newline-delimited), returns JSONL with {ref, status} on stdout. Note: command path must not contain spaces',
     },
   },
   run: async (ctx) => {
     // Validate options early
-    const failOn = parseAndValidateIssueTypes(ctx.values.failOn, "--fail-on");
+    const failOn = parseAndValidateIssueTypes(ctx.values.failOn, '--fail-on');
     if (failOn === null) return;
-    const warnOn = parseAndValidateIssueTypes(ctx.values.warnOn, "--warn-on");
+    const warnOn = parseAndValidateIssueTypes(ctx.values.warnOn, '--warn-on');
     if (warnOn === null) return;
     const format = validateOutputFormat(ctx.values.format);
     if (format === null) return;
@@ -146,14 +152,14 @@ export const checkCommand = define({
       providerOptions: { candidatePatterns: regCtx.config.candidatePatterns },
     };
 
-    let scanResult: import("../core/types.ts").ScanResult;
+    let scanResult: import('../core/types.ts').ScanResult;
     let packageResults: PackageScanResult[] | undefined;
 
     if (isWorkspaceMode) {
       const detection = await detectWorkspaces(base.cwd);
       if (!detection) {
         console.error(
-          "Error: No workspace configuration found. Ensure pnpm-workspace.yaml or package.json#workspaces exists.",
+          'Error: No workspace configuration found. Ensure pnpm-workspace.yaml or package.json#workspaces exists.',
         );
         process.exitCode = 1;
         return;
@@ -163,7 +169,11 @@ export const checkCommand = define({
         `Workspace detected (${detection.source}): ${detection.packages.length} package(s)`,
       );
 
-      const workspaceResult = await scanWorkspaces(detection.packages, base.cwd, scanOptions);
+      const workspaceResult = await scanWorkspaces(
+        detection.packages,
+        base.cwd,
+        scanOptions,
+      );
       scanResult = workspaceResult.merged;
       packageResults = workspaceResult.packages;
 
@@ -195,7 +205,11 @@ export const checkCommand = define({
         throw err;
       }
       await mkdir(dirname(scanOutputPath), { recursive: true });
-      await writeFile(scanOutputPath, JSON.stringify(scanResult, null, 2) + "\n", "utf-8");
+      await writeFile(
+        scanOutputPath,
+        JSON.stringify(scanResult, null, 2) + '\n',
+        'utf-8',
+      );
       console.error(`Scan result saved to ${regCtx.config.paths.scanResult}`);
     }
 
@@ -230,17 +244,19 @@ export const checkCommand = define({
     // Format output — workspace mode wraps verifyResult with package breakdown
     let output: string;
 
-    if (isWorkspaceMode && packageResults && format === "json") {
+    if (isWorkspaceMode && packageResults && format === 'json') {
       // Build per-package issue summary by matching issue file paths to package dirs
       const packageSummaries = packageResults.map((pkg) => {
-        const prefix = pkg.dir + "/";
-        const pkgIssues = verifyResult.issues.filter((issue) => issue.file?.startsWith(prefix));
+        const prefix = pkg.dir + '/';
+        const pkgIssues = verifyResult.issues.filter((issue) =>
+          issue.file?.startsWith(prefix),
+        );
         return {
           name: pkg.package,
           dir: pkg.dir,
           issues: pkgIssues.length,
-          errors: pkgIssues.filter((i) => i.severity === "error").length,
-          warnings: pkgIssues.filter((i) => i.severity === "warning").length,
+          errors: pkgIssues.filter((i) => i.severity === 'error').length,
+          warnings: pkgIssues.filter((i) => i.severity === 'warning').length,
         };
       });
 
@@ -263,7 +279,7 @@ export const checkCommand = define({
     const written = await writeOutput(output, {
       outputPath: ctx.values.output,
       cwd: base.cwd,
-      label: "Report",
+      label: 'Report',
     });
     if (!written) return;
 

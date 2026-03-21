@@ -1,6 +1,6 @@
-import type { ShioriCandidate, Registry } from "../core/types.ts";
-import type { MigrateResult } from "./migrate.ts";
-import { planMigration, groupActionsByFile } from "./migrate.ts";
+import type { ShioriCandidate, Registry } from '../core/types.ts';
+import type { MigrateResult } from './migrate.ts';
+import { planMigration, groupActionsByFile } from './migrate.ts';
 
 /** Options for adopt planning */
 export interface AdoptOptions {
@@ -67,7 +67,9 @@ export function planAdoption(options: AdoptOptions): AdoptResult {
  * Build the group key for a candidate or group summary (pattern/directive or pattern alone).
  * Used by planAdoption grouping, filterCandidatesByGroups, and wizard group selection.
  */
-export function buildGroupKey(item: Pick<ShioriCandidate, "pattern" | "directive">): string {
+export function buildGroupKey(
+  item: Pick<ShioriCandidate, 'pattern' | 'directive'>,
+): string {
   return item.directive ? `${item.pattern}/${item.directive}` : item.pattern;
 }
 
@@ -75,7 +77,9 @@ export function buildGroupKey(item: Pick<ShioriCandidate, "pattern" | "directive
  * Build group summaries from candidates.
  * Extracted for reuse between planAdoption and wizard flow.
  */
-export function buildGroupSummaries(candidates: ShioriCandidate[]): AdoptGroupSummary[] {
+export function buildGroupSummaries(
+  candidates: ShioriCandidate[],
+): AdoptGroupSummary[] {
   const groupMap = new Map<string, AdoptGroupSummary>();
   for (const candidate of candidates) {
     const key = buildGroupKey(candidate);
@@ -112,32 +116,35 @@ export function formatAdoptPreview(result: AdoptResult): string {
   const { migrate, groups, filesAffected } = result;
 
   if (migrate.actions.length === 0) {
-    lines.push("No candidates to adopt.");
-    return lines.join("\n");
+    lines.push('No candidates to adopt.');
+    return lines.join('\n');
   }
 
-  lines.push(`Found ${migrate.actions.length} candidate(s) across ${filesAffected} file(s).`);
-  lines.push("");
+  lines.push(
+    `Found ${migrate.actions.length} candidate(s) across ${filesAffected} file(s).`,
+  );
+  lines.push('');
 
   // Group summary
-  lines.push("By pattern:");
+  lines.push('By pattern:');
   for (const group of groups) {
     const label = group.directive
       ? `  ${group.pattern} / ${group.directive}`
       : `  ${group.pattern}`;
     lines.push(`${label}: ${group.count}`);
   }
-  lines.push("");
+  lines.push('');
 
   // File-by-file detail
   const byFile = groupActionsByFile(migrate.actions);
   for (const [file, actions] of byFile) {
     lines.push(`${file} (${actions.length}):`);
     for (const action of actions) {
-      const rule = action.rules.length > 0 ? ` [${action.rules.join(", ")}]` : "";
+      const rule =
+        action.rules.length > 0 ? ` [${action.rules.join(', ')}]` : '';
       lines.push(`  L${action.line}: ${action.ref}${rule}`);
     }
   }
 
-  return lines.join("\n");
+  return lines.join('\n');
 }

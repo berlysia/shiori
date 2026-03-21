@@ -1,5 +1,5 @@
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
 import type {
   ScanResult,
   Registry,
@@ -7,31 +7,35 @@ import type {
   ShioriAnnotation,
   ShioriCandidate,
   TrendResult,
-} from "../src/core/types.ts";
+} from '../src/core/types.ts';
 import {
   health,
   buildHealthResult,
   formatHealth,
   formatHealthSummary,
-} from "../src/commands/health.ts";
-import { isAtOrBelowLevel } from "../src/core/types.ts";
-import { report } from "../src/commands/report.ts";
+} from '../src/commands/health.ts';
+import { isAtOrBelowLevel } from '../src/core/types.ts';
+import { report } from '../src/commands/report.ts';
 
-function makeAnnotation(overrides: Partial<ShioriAnnotation> = {}): ShioriAnnotation {
+function makeAnnotation(
+  overrides: Partial<ShioriAnnotation> = {},
+): ShioriAnnotation {
   return {
-    ref: "TEST-001",
-    rule: "no-console",
+    ref: 'TEST-001',
+    rule: 'no-console',
     tagged: true,
     ignored: false,
-    location: { file: "test.ts", line: 1 },
+    location: { file: 'test.ts', line: 1 },
     ...overrides,
   };
 }
 
-function makeRegistryEntry(overrides: Partial<RegistryEntry> = {}): RegistryEntry {
+function makeRegistryEntry(
+  overrides: Partial<RegistryEntry> = {},
+): RegistryEntry {
   return {
-    reason: "test reason",
-    target: "test.ts",
+    reason: 'test reason',
+    target: 'test.ts',
     expires: undefined,
     ticket: undefined,
     owner: undefined,
@@ -52,22 +56,24 @@ function makeScanResult(
   };
 }
 
-function makeTrendResult(overrides: Partial<TrendResult["summary"]> = {}): TrendResult {
+function makeTrendResult(
+  overrides: Partial<TrendResult['summary']> = {},
+): TrendResult {
   return {
     points: [
       {
-        timestamp: "2026-01-01T00:00:00.000Z",
+        timestamp: '2026-01-01T00:00:00.000Z',
         score: 80,
-        level: "healthy",
+        level: 'healthy',
         issues: 2,
         annotations: 5,
         candidates: 1,
         registryEntries: 5,
       },
       {
-        timestamp: "2026-02-01T00:00:00.000Z",
+        timestamp: '2026-02-01T00:00:00.000Z',
         score: 90,
-        level: "healthy",
+        level: 'healthy',
         issues: 1,
         annotations: 5,
         candidates: 0,
@@ -76,11 +82,11 @@ function makeTrendResult(overrides: Partial<TrendResult["summary"]> = {}): Trend
     ],
     summary: {
       count: 2,
-      oldest: "2026-01-01T00:00:00.000Z",
-      newest: "2026-02-01T00:00:00.000Z",
+      oldest: '2026-01-01T00:00:00.000Z',
+      newest: '2026-02-01T00:00:00.000Z',
       latestScore: 90,
       scoreChange: 10,
-      direction: "improving",
+      direction: 'improving',
       minScore: 80,
       maxScore: 90,
       ...overrides,
@@ -88,20 +94,20 @@ function makeTrendResult(overrides: Partial<TrendResult["summary"]> = {}): Trend
   };
 }
 
-describe("health", () => {
-  describe("basic result", () => {
-    it("returns healthy result for clean codebase", () => {
+describe('health', () => {
+  describe('basic result', () => {
+    it('returns healthy result for clean codebase', () => {
       const result = health({
-        scanResult: makeScanResult([makeAnnotation({ ref: "TEST-001" })]),
+        scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
         registry: {
-          "TEST-001": makeRegistryEntry(),
+          'TEST-001': makeRegistryEntry(),
         },
         failOn: [],
         warnOn: [],
       });
 
       assert.equal(result.health.score, 100);
-      assert.equal(result.health.level, "healthy");
+      assert.equal(result.health.level, 'healthy');
       assert.equal(result.issues.total, 0);
       assert.equal(result.issues.errors, 0);
       assert.equal(result.issues.warnings, 0);
@@ -111,33 +117,33 @@ describe("health", () => {
       assert.equal(result.trend, undefined);
     });
 
-    it("includes expired and expiring-soon counts", () => {
+    it('includes expired and expiring-soon counts', () => {
       const result = health({
         scanResult: makeScanResult([
-          makeAnnotation({ ref: "EXP-001" }),
-          makeAnnotation({ ref: "SOON-001" }),
+          makeAnnotation({ ref: 'EXP-001' }),
+          makeAnnotation({ ref: 'SOON-001' }),
         ]),
         registry: {
-          "EXP-001": makeRegistryEntry({ expires: "2020-01-01" }),
-          "SOON-001": makeRegistryEntry({ expires: "2026-02-20" }),
+          'EXP-001': makeRegistryEntry({ expires: '2020-01-01' }),
+          'SOON-001': makeRegistryEntry({ expires: '2026-02-20' }),
         },
         failOn: [],
         warnOn: [],
-        now: new Date("2026-02-11T00:00:00Z"),
+        now: new Date('2026-02-11T00:00:00Z'),
       });
 
       assert.equal(result.expiring.expired, 1);
       assert.equal(result.expiring.expiringSoon, 1);
     });
 
-    it("includes issue counts", () => {
+    it('includes issue counts', () => {
       const result = health({
         scanResult: makeScanResult([
-          makeAnnotation({ ref: "MISSING-001" }),
-          makeAnnotation({ ref: "MISSING-002" }),
+          makeAnnotation({ ref: 'MISSING-001' }),
+          makeAnnotation({ ref: 'MISSING-002' }),
         ]),
         registry: {},
-        failOn: ["missing-in-registry"],
+        failOn: ['missing-in-registry'],
         warnOn: [],
       });
 
@@ -147,10 +153,10 @@ describe("health", () => {
     });
   });
 
-  describe("triage suggestion", () => {
-    it("appends triage insight when issues exist", () => {
+  describe('triage suggestion', () => {
+    it('appends triage insight when issues exist', () => {
       const result = health({
-        scanResult: makeScanResult([makeAnnotation({ ref: "MISS-001" })]),
+        scanResult: makeScanResult([makeAnnotation({ ref: 'MISS-001' })]),
         registry: {},
         failOn: [],
         warnOn: [],
@@ -158,36 +164,36 @@ describe("health", () => {
 
       // Has issues (missing-in-registry), so triage insight should exist
       assert.ok(result.issues.total > 0);
-      const triageInsight = result.insights.find((i) => i.label === "triage");
-      assert.ok(triageInsight, "triage insight should be present");
-      assert.equal(triageInsight.level, "info");
-      assert.ok(triageInsight.message.includes("shiori triage"));
-      assert.ok(triageInsight.message.includes("--triage"));
+      const triageInsight = result.insights.find((i) => i.label === 'triage');
+      assert.ok(triageInsight, 'triage insight should be present');
+      assert.equal(triageInsight.level, 'info');
+      assert.ok(triageInsight.message.includes('shiori triage'));
+      assert.ok(triageInsight.message.includes('--triage'));
     });
 
-    it("does not append triage insight when no issues exist", () => {
+    it('does not append triage insight when no issues exist', () => {
       const result = health({
-        scanResult: makeScanResult([makeAnnotation({ ref: "TEST-001" })]),
+        scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
         registry: {
-          "TEST-001": makeRegistryEntry(),
+          'TEST-001': makeRegistryEntry(),
         },
         failOn: [],
         warnOn: [],
       });
 
       assert.equal(result.issues.total, 0);
-      const triageInsight = result.insights.find((i) => i.label === "triage");
+      const triageInsight = result.insights.find((i) => i.label === 'triage');
       assert.equal(triageInsight, undefined);
     });
   });
 
-  describe("trend integration", () => {
-    it("includes trend summary when trendResult is provided", () => {
+  describe('trend integration', () => {
+    it('includes trend summary when trendResult is provided', () => {
       const trendResult = makeTrendResult();
       const result = health({
-        scanResult: makeScanResult([makeAnnotation({ ref: "TEST-001" })]),
+        scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
         registry: {
-          "TEST-001": makeRegistryEntry(),
+          'TEST-001': makeRegistryEntry(),
         },
         failOn: [],
         warnOn: [],
@@ -195,30 +201,30 @@ describe("health", () => {
       });
 
       assert.ok(result.trend);
-      assert.equal(result.trend.direction, "improving");
+      assert.equal(result.trend.direction, 'improving');
       assert.equal(result.trend.scoreChange, 10);
       assert.equal(result.trend.latestScore, 90);
     });
 
-    it("excludes trend when trendResult has no points", () => {
+    it('excludes trend when trendResult has no points', () => {
       const emptyTrend: TrendResult = {
         points: [],
         summary: {
           count: 0,
-          oldest: "",
-          newest: "",
+          oldest: '',
+          newest: '',
           latestScore: 0,
           scoreChange: 0,
-          direction: "stable",
+          direction: 'stable',
           minScore: 0,
           maxScore: 0,
         },
       };
 
       const result = health({
-        scanResult: makeScanResult([makeAnnotation({ ref: "TEST-001" })]),
+        scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
         registry: {
-          "TEST-001": makeRegistryEntry(),
+          'TEST-001': makeRegistryEntry(),
         },
         failOn: [],
         warnOn: [],
@@ -230,12 +236,12 @@ describe("health", () => {
   });
 });
 
-describe("buildHealthResult", () => {
-  it("builds result from ReportResult without trend", () => {
+describe('buildHealthResult', () => {
+  it('builds result from ReportResult without trend', () => {
     const reportResult = report({
-      scanResult: makeScanResult([makeAnnotation({ ref: "TEST-001" })]),
+      scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
       registry: {
-        "TEST-001": makeRegistryEntry(),
+        'TEST-001': makeRegistryEntry(),
       },
       failOn: [],
       warnOn: [],
@@ -249,105 +255,105 @@ describe("buildHealthResult", () => {
     assert.equal(result.trend, undefined);
   });
 
-  it("builds result from ReportResult with trend", () => {
+  it('builds result from ReportResult with trend', () => {
     const reportResult = report({
-      scanResult: makeScanResult([makeAnnotation({ ref: "TEST-001" })]),
+      scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
       registry: {
-        "TEST-001": makeRegistryEntry(),
+        'TEST-001': makeRegistryEntry(),
       },
       failOn: [],
       warnOn: [],
     });
 
     const trendResult = makeTrendResult({
-      direction: "declining",
+      direction: 'declining',
       scoreChange: -5,
     });
     const result = buildHealthResult(reportResult, trendResult);
 
     assert.ok(result.trend);
-    assert.equal(result.trend.direction, "declining");
+    assert.equal(result.trend.direction, 'declining');
     assert.equal(result.trend.scoreChange, -5);
   });
 });
 
-describe("formatHealth", () => {
-  it("formats as JSON", () => {
+describe('formatHealth', () => {
+  it('formats as JSON', () => {
     const result = health({
-      scanResult: makeScanResult([makeAnnotation({ ref: "TEST-001" })]),
+      scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
       registry: {
-        "TEST-001": makeRegistryEntry(),
+        'TEST-001': makeRegistryEntry(),
       },
       failOn: [],
       warnOn: [],
     });
 
-    const output = formatHealth(result, "json");
+    const output = formatHealth(result, 'json');
     const parsed = JSON.parse(output);
     assert.equal(parsed.health.score, 100);
-    assert.equal(parsed.health.level, "healthy");
+    assert.equal(parsed.health.level, 'healthy');
     assert.equal(parsed.issues.total, 0);
     assert.equal(parsed.expiring.expired, 0);
   });
 
-  it("formats as summary", () => {
+  it('formats as summary', () => {
     const result = health({
-      scanResult: makeScanResult([makeAnnotation({ ref: "TEST-001" })]),
+      scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
       registry: {
-        "TEST-001": makeRegistryEntry(),
+        'TEST-001': makeRegistryEntry(),
       },
       failOn: [],
       warnOn: [],
     });
 
-    const output = formatHealth(result, "summary");
-    assert.ok(output.includes("Health:"));
-    assert.ok(output.includes("100/100"));
-    assert.ok(output.includes("healthy"));
+    const output = formatHealth(result, 'summary');
+    assert.ok(output.includes('Health:'));
+    assert.ok(output.includes('100/100'));
+    assert.ok(output.includes('healthy'));
   });
 });
 
-describe("formatHealthSummary", () => {
-  it("shows box with health info", () => {
+describe('formatHealthSummary', () => {
+  it('shows box with health info', () => {
     const result = health({
-      scanResult: makeScanResult([makeAnnotation({ ref: "TEST-001" })]),
+      scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
       registry: {
-        "TEST-001": makeRegistryEntry(),
+        'TEST-001': makeRegistryEntry(),
       },
       failOn: [],
       warnOn: [],
     });
 
     const output = formatHealthSummary(result);
-    assert.ok(output.includes("┌"));
-    assert.ok(output.includes("┘"));
-    assert.ok(output.includes("Health:"));
-    assert.ok(output.includes("Issues:"));
+    assert.ok(output.includes('┌'));
+    assert.ok(output.includes('┘'));
+    assert.ok(output.includes('Health:'));
+    assert.ok(output.includes('Issues:'));
   });
 
-  it("shows expiring info when present", () => {
+  it('shows expiring info when present', () => {
     const result = health({
-      scanResult: makeScanResult([makeAnnotation({ ref: "EXP-001" })]),
+      scanResult: makeScanResult([makeAnnotation({ ref: 'EXP-001' })]),
       registry: {
-        "EXP-001": makeRegistryEntry({ expires: "2020-01-01" }),
+        'EXP-001': makeRegistryEntry({ expires: '2020-01-01' }),
       },
       failOn: [],
       warnOn: [],
     });
 
     const output = formatHealthSummary(result);
-    assert.ok(output.includes("Expired:"));
+    assert.ok(output.includes('Expired:'));
   });
 
-  it("shows trend when present", () => {
+  it('shows trend when present', () => {
     const trendResult = makeTrendResult({
-      direction: "improving",
+      direction: 'improving',
       scoreChange: 5,
     });
     const result = health({
-      scanResult: makeScanResult([makeAnnotation({ ref: "TEST-001" })]),
+      scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
       registry: {
-        "TEST-001": makeRegistryEntry(),
+        'TEST-001': makeRegistryEntry(),
       },
       failOn: [],
       warnOn: [],
@@ -355,55 +361,57 @@ describe("formatHealthSummary", () => {
     });
 
     const output = formatHealthSummary(result);
-    assert.ok(output.includes("Trend:"));
-    assert.ok(output.includes("improving"));
+    assert.ok(output.includes('Trend:'));
+    assert.ok(output.includes('improving'));
   });
 
-  it("omits expiring line when counts are zero", () => {
+  it('omits expiring line when counts are zero', () => {
     const result = health({
-      scanResult: makeScanResult([makeAnnotation({ ref: "TEST-001" })]),
+      scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
       registry: {
-        "TEST-001": makeRegistryEntry(),
+        'TEST-001': makeRegistryEntry(),
       },
       failOn: [],
       warnOn: [],
     });
 
     const output = formatHealthSummary(result);
-    assert.ok(!output.includes("Expired:"));
+    assert.ok(!output.includes('Expired:'));
   });
 
-  it("shows triage suggestion when issues exist", () => {
+  it('shows triage suggestion when issues exist', () => {
     const result = health({
-      scanResult: makeScanResult([makeAnnotation({ ref: "MISS-001" })]),
+      scanResult: makeScanResult([makeAnnotation({ ref: 'MISS-001' })]),
       registry: {},
       failOn: [],
       warnOn: [],
     });
 
     const output = formatHealthSummary(result);
-    assert.ok(output.includes("shiori health --triage"));
+    assert.ok(output.includes('shiori health --triage'));
   });
 
-  it("omits triage suggestion when no issues", () => {
+  it('omits triage suggestion when no issues', () => {
     const result = health({
-      scanResult: makeScanResult([makeAnnotation({ ref: "TEST-001" })]),
+      scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
       registry: {
-        "TEST-001": makeRegistryEntry(),
+        'TEST-001': makeRegistryEntry(),
       },
       failOn: [],
       warnOn: [],
     });
 
     const output = formatHealthSummary(result);
-    assert.ok(!output.includes("--triage"));
+    assert.ok(!output.includes('--triage'));
   });
 
-  it("shows critical emoji for critical health", () => {
-    const annotations = Array.from({ length: 10 }, (_, i) => makeAnnotation({ ref: `MISS-${i}` }));
+  it('shows critical emoji for critical health', () => {
+    const annotations = Array.from({ length: 10 }, (_, i) =>
+      makeAnnotation({ ref: `MISS-${i}` }),
+    );
     const registry: Registry = {};
     for (const a of annotations) {
-      registry[a.ref] = makeRegistryEntry({ expires: "2020-01-01" });
+      registry[a.ref] = makeRegistryEntry({ expires: '2020-01-01' });
     }
 
     const result = health({
@@ -415,22 +423,25 @@ describe("formatHealthSummary", () => {
 
     const output = formatHealthSummary(result);
     // Should show warning or critical emoji
-    assert.ok(output.includes("🟡") || output.includes("🔴"));
+    assert.ok(output.includes('🟡') || output.includes('🔴'));
   });
 
-  it("produces consistent box width across all lines including prescriptions", () => {
-    const annotations = [makeAnnotation({ ref: "EXP-001" }), makeAnnotation({ ref: "MISS-001" })];
+  it('produces consistent box width across all lines including prescriptions', () => {
+    const annotations = [
+      makeAnnotation({ ref: 'EXP-001' }),
+      makeAnnotation({ ref: 'MISS-001' }),
+    ];
     const registry: Registry = {
-      "EXP-001": makeRegistryEntry({ expires: "2020-01-01" }),
+      'EXP-001': makeRegistryEntry({ expires: '2020-01-01' }),
     };
 
     const result = health({
       scanResult: makeScanResult(annotations, [
         {
-          pattern: "eslint",
-          rule: "no-unused-vars",
-          location: { file: "a.ts", line: 1 },
-          directive: "eslint-disable-next-line",
+          pattern: 'eslint',
+          rule: 'no-unused-vars',
+          location: { file: 'a.ts', line: 1 },
+          directive: 'eslint-disable-next-line',
         },
       ]),
       registry,
@@ -439,7 +450,7 @@ describe("formatHealthSummary", () => {
     });
 
     const output = formatHealthSummary(result);
-    const lines = output.split("\n");
+    const lines = output.split('\n');
 
     // All lines should have the same character length for the box border characters
     // Top and bottom lines use ┌─┐ and └─┘, middle separators use ├─┤
@@ -448,16 +459,25 @@ describe("formatHealthSummary", () => {
     const bottomLine = lines[lines.length - 1]!;
 
     // Top line starts with ┌ and ends with ┐
-    assert.ok(topLine.startsWith("┌"), `top line should start with ┌: ${topLine}`);
-    assert.ok(topLine.endsWith("┐"), `top line should end with ┐: ${topLine}`);
+    assert.ok(
+      topLine.startsWith('┌'),
+      `top line should start with ┌: ${topLine}`,
+    );
+    assert.ok(topLine.endsWith('┐'), `top line should end with ┐: ${topLine}`);
 
     // Bottom line starts with └ and ends with ┘
-    assert.ok(bottomLine.startsWith("└"), `bottom line should start with └: ${bottomLine}`);
-    assert.ok(bottomLine.endsWith("┘"), `bottom line should end with ┘: ${bottomLine}`);
+    assert.ok(
+      bottomLine.startsWith('└'),
+      `bottom line should start with └: ${bottomLine}`,
+    );
+    assert.ok(
+      bottomLine.endsWith('┘'),
+      `bottom line should end with ┘: ${bottomLine}`,
+    );
 
     // All border lines (┌/├/└) should have the same length
     const borderLines = lines.filter(
-      (l) => l.startsWith("┌") || l.startsWith("├") || l.startsWith("└"),
+      (l) => l.startsWith('┌') || l.startsWith('├') || l.startsWith('└'),
     );
     const borderLength = borderLines[0]!.length;
     for (const bl of borderLines) {
@@ -469,48 +489,48 @@ describe("formatHealthSummary", () => {
     }
 
     // All content lines should start with │ and end with │
-    const contentLines = lines.filter((l) => l.startsWith("│"));
+    const contentLines = lines.filter((l) => l.startsWith('│'));
     for (const cl of contentLines) {
-      assert.ok(cl.startsWith("│"), `content line should start with │: ${cl}`);
-      assert.ok(cl.endsWith("│"), `content line should end with │: ${cl}`);
+      assert.ok(cl.startsWith('│'), `content line should start with │: ${cl}`);
+      assert.ok(cl.endsWith('│'), `content line should end with │: ${cl}`);
     }
   });
 });
 
-describe("isAtOrBelowLevel", () => {
-  it("critical is at or below critical", () => {
-    assert.equal(isAtOrBelowLevel("critical", "critical"), true);
+describe('isAtOrBelowLevel', () => {
+  it('critical is at or below critical', () => {
+    assert.equal(isAtOrBelowLevel('critical', 'critical'), true);
   });
 
-  it("critical is at or below warning", () => {
-    assert.equal(isAtOrBelowLevel("critical", "warning"), true);
+  it('critical is at or below warning', () => {
+    assert.equal(isAtOrBelowLevel('critical', 'warning'), true);
   });
 
-  it("critical is at or below healthy", () => {
-    assert.equal(isAtOrBelowLevel("critical", "healthy"), true);
+  it('critical is at or below healthy', () => {
+    assert.equal(isAtOrBelowLevel('critical', 'healthy'), true);
   });
 
-  it("warning is not at or below critical", () => {
-    assert.equal(isAtOrBelowLevel("warning", "critical"), false);
+  it('warning is not at or below critical', () => {
+    assert.equal(isAtOrBelowLevel('warning', 'critical'), false);
   });
 
-  it("warning is at or below warning", () => {
-    assert.equal(isAtOrBelowLevel("warning", "warning"), true);
+  it('warning is at or below warning', () => {
+    assert.equal(isAtOrBelowLevel('warning', 'warning'), true);
   });
 
-  it("warning is at or below healthy", () => {
-    assert.equal(isAtOrBelowLevel("warning", "healthy"), true);
+  it('warning is at or below healthy', () => {
+    assert.equal(isAtOrBelowLevel('warning', 'healthy'), true);
   });
 
-  it("healthy is not at or below critical", () => {
-    assert.equal(isAtOrBelowLevel("healthy", "critical"), false);
+  it('healthy is not at or below critical', () => {
+    assert.equal(isAtOrBelowLevel('healthy', 'critical'), false);
   });
 
-  it("healthy is not at or below warning", () => {
-    assert.equal(isAtOrBelowLevel("healthy", "warning"), false);
+  it('healthy is not at or below warning', () => {
+    assert.equal(isAtOrBelowLevel('healthy', 'warning'), false);
   });
 
-  it("healthy is at or below healthy", () => {
-    assert.equal(isAtOrBelowLevel("healthy", "healthy"), true);
+  it('healthy is at or below healthy', () => {
+    assert.equal(isAtOrBelowLevel('healthy', 'healthy'), true);
   });
 });

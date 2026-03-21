@@ -1,7 +1,7 @@
-import type { RefStatusProvider } from "./types.ts";
-import { CommandRefStatusProvider } from "./command-provider.ts";
-import { GitHubIssuesRefStatusProvider } from "./github-issues-provider.ts";
-import { GhCliRefStatusProvider, isGhCliAvailable } from "./gh-cli-provider.ts";
+import type { RefStatusProvider } from './types.ts';
+import { CommandRefStatusProvider } from './command-provider.ts';
+import { GitHubIssuesRefStatusProvider } from './github-issues-provider.ts';
+import { GhCliRefStatusProvider, isGhCliAvailable } from './gh-cli-provider.ts';
 
 /** Options for selecting the appropriate ref status provider */
 export interface SelectProviderOptions {

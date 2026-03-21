@@ -86,23 +86,23 @@ export type Registry = Record<string, RegistryEntry>;
  * Single source of truth — VerifyIssueType is derived from this array.
  */
 export const VERIFY_ISSUE_TYPES = [
-  "missing-in-registry",
-  "unused-in-source",
-  "expired",
-  "syntax-error",
-  "ref-format",
-  "ref-collision",
-  "unrouted-ref",
-  "registry-routing-mismatch",
-  "expiring-soon",
-  "ref-status-closed",
+  'missing-in-registry',
+  'unused-in-source',
+  'expired',
+  'syntax-error',
+  'ref-format',
+  'ref-collision',
+  'unrouted-ref',
+  'registry-routing-mismatch',
+  'expiring-soon',
+  'ref-status-closed',
 ] as const;
 
 /** Verify issue type (derived from VERIFY_ISSUE_TYPES) */
 export type VerifyIssueType = (typeof VERIFY_ISSUE_TYPES)[number];
 
 /** Issue severity */
-export type IssueSeverity = "error" | "warning";
+export type IssueSeverity = 'error' | 'warning';
 
 /** A single verification issue */
 export interface VerifyIssue {
@@ -115,7 +115,13 @@ export interface VerifyIssue {
 }
 
 /** Output format for verify/scan commands */
-export type OutputFormat = "json" | "markdown" | "sarif" | "summary" | "jsonl" | "diagnostic";
+export type OutputFormat =
+  | 'json'
+  | 'markdown'
+  | 'sarif'
+  | 'summary'
+  | 'jsonl'
+  | 'diagnostic';
 
 /** Verify command output */
 export interface VerifyResult {
@@ -134,7 +140,7 @@ export interface VerifyResult {
 // ── Delta types ──────────────────────────────────────────────
 
 /** How an annotation changed between base and head */
-export type DeltaKind = "added" | "removed" | "unchanged";
+export type DeltaKind = 'added' | 'removed' | 'unchanged';
 
 /** A single annotation's delta record */
 export interface AnnotationDelta {
@@ -188,7 +194,7 @@ export interface TrendPoint {
 }
 
 /** Score change direction */
-export type TrendDirection = "improving" | "declining" | "stable";
+export type TrendDirection = 'improving' | 'declining' | 'stable';
 
 /** Result of computing a governance score trend */
 export interface TrendResult {
@@ -216,7 +222,7 @@ export interface TrendResult {
 }
 
 /** Health level for report */
-export type HealthLevel = "healthy" | "warning" | "critical";
+export type HealthLevel = 'healthy' | 'warning' | 'critical';
 
 /** Numeric ordering for HealthLevel (lower = worse) */
 const HEALTH_LEVEL_ORDER: Record<HealthLevel, number> = {
@@ -229,7 +235,10 @@ const HEALTH_LEVEL_ORDER: Record<HealthLevel, number> = {
  * Check if actual level is at or below the threshold level.
  * Level ordering: critical < warning < healthy
  */
-export function isAtOrBelowLevel(actual: HealthLevel, threshold: HealthLevel): boolean {
+export function isAtOrBelowLevel(
+  actual: HealthLevel,
+  threshold: HealthLevel,
+): boolean {
   return HEALTH_LEVEL_ORDER[actual] <= HEALTH_LEVEL_ORDER[threshold];
 }
 
@@ -238,7 +247,7 @@ export function isAtOrBelowLevel(actual: HealthLevel, threshold: HealthLevel): b
 /** A single governance insight */
 export interface ReportInsight {
   /** Severity of the insight */
-  level: "info" | "warning" | "error";
+  level: 'info' | 'warning' | 'error';
   /** Short label for the insight */
   label: string;
   /** Descriptive message */
@@ -321,34 +330,34 @@ export interface ReportResult {
 }
 
 /** Report output format */
-export type ReportFormat = "json" | "markdown" | "badge" | "html";
+export type ReportFormat = 'json' | 'markdown' | 'badge' | 'html';
 
 /** Output format for trend command */
-export type TrendFormat = "json" | "markdown" | "csv" | "spark";
+export type TrendFormat = 'json' | 'markdown' | 'csv' | 'spark';
 
 // ── CI template types ────────────────────────────────────────
 
 /** Available CI template kinds */
 export type CiTemplateKind =
-  | "basic"
-  | "sarif"
-  | "delta-pr-comment"
-  | "checks-gate"
-  | "badge"
-  | "badge-gist";
+  | 'basic'
+  | 'sarif'
+  | 'delta-pr-comment'
+  | 'checks-gate'
+  | 'badge'
+  | 'badge-gist';
 
 // ── Upgrade types (promoted from commands/doctor/upgrade.ts) ─
 
 /** Kind of upgrade action that maps to an executable operation */
 export type UpgradeActionKind =
-  | "init"
-  | "ci-workflow"
-  | "badge-workflow"
-  | "snapshot-setup"
-  | "scheduled-workflow";
+  | 'init'
+  | 'ci-workflow'
+  | 'badge-workflow'
+  | 'snapshot-setup'
+  | 'scheduled-workflow';
 
 /** Badge workflow mode: artifacts-only (no secrets) or gist (requires PAT + Gist ID) */
-export type BadgeMode = "artifacts" | "gist";
+export type BadgeMode = 'artifacts' | 'gist';
 
 /** A concrete upgrade step the wizard can execute */
 export interface UpgradeAction {
@@ -400,7 +409,7 @@ export interface UpgradeResult {
 // ── Doctor types (EP-0026) ───────────────────────────────────
 
 /** Status of a single doctor diagnostic check */
-export type DoctorCheckStatus = "pass" | "warn" | "fail";
+export type DoctorCheckStatus = 'pass' | 'warn' | 'fail';
 
 /** A single diagnostic check result */
 export interface DoctorCheck {
@@ -433,7 +442,7 @@ export interface DoctorResult {
 }
 
 /** Output format for doctor command */
-export type DoctorFormat = "text" | "json";
+export type DoctorFormat = 'text' | 'json';
 
 // ── Maturity types (EP-0040) ─────────────────────────────────
 
@@ -442,11 +451,11 @@ export type MaturityLevel = 0 | 1 | 2 | 3 | 4;
 
 /** Description for each maturity level */
 export const MATURITY_LEVEL_LABELS: Record<MaturityLevel, string> = {
-  0: "Not initialized",
-  1: "Basic setup",
-  2: "CI integrated",
-  3: "Visible governance",
-  4: "Continuous monitoring",
+  0: 'Not initialized',
+  1: 'Basic setup',
+  2: 'CI integrated',
+  3: 'Visible governance',
+  4: 'Continuous monitoring',
 };
 
 /** A signal detected (or not) contributing to maturity level assessment */
@@ -489,7 +498,7 @@ export interface MaturityResult {
  * High-level governance maturity stage derived from MaturityLevel.
  * Reduces the 5-level scale to 3 actionable stages for badge display.
  */
-export type MaturityStage = "Discover" | "Adopt" | "Enforce";
+export type MaturityStage = 'Discover' | 'Adopt' | 'Enforce';
 
 /**
  * Map a MaturityLevel (0-4) to a MaturityStage.
@@ -499,9 +508,9 @@ export type MaturityStage = "Discover" | "Adopt" | "Enforce";
  * - Level 3-4 → Enforce: visible governance or continuous monitoring
  */
 export function maturityStageFromLevel(level: MaturityLevel): MaturityStage {
-  if (level === 0) return "Discover";
-  if (level <= 2) return "Adopt";
-  return "Enforce";
+  if (level === 0) return 'Discover';
+  if (level <= 2) return 'Adopt';
+  return 'Enforce';
 }
 
 // ── Chronicle types (EP-0048) ────────────────────────────────
@@ -513,7 +522,11 @@ export function maturityStageFromLevel(level: MaturityLevel): MaturityStage {
  * - 'expired': When the annotation's expiration date has passed
  * - 'status-closed': When the referenced ticket/issue was closed (from ref-status)
  */
-export type ChronicleEventType = "introduced" | "expires" | "expired" | "status-closed";
+export type ChronicleEventType =
+  | 'introduced'
+  | 'expires'
+  | 'expired'
+  | 'status-closed';
 
 /** A single event in an annotation's timeline */
 export interface ChronicleEvent {
@@ -542,7 +555,7 @@ export interface ChronicleEntry {
 }
 
 /** Ref status values (re-exported from ref-status for convenience) */
-export type RefStatusValue = "open" | "closed" | "unknown";
+export type RefStatusValue = 'open' | 'closed' | 'unknown';
 
 /** Options for building a chronicle */
 export interface BuildChronicleOptions {
@@ -576,7 +589,7 @@ export interface ChronicleResult {
 // ── Annotate types (EP-0058) ─────────────────────────────────
 
 /** Output format for annotate command */
-export type AnnotateFormat = "text" | "json";
+export type AnnotateFormat = 'text' | 'json';
 
 /** Options for planning an annotation */
 export interface AnnotateOptions {
@@ -625,7 +638,7 @@ export interface ResolveAction {
   /** Line number in source file */
   line: number;
   /** Action type: remove annotation portion or entire line */
-  type: "remove-annotation" | "remove-line";
+  type: 'remove-annotation' | 'remove-line';
   /** Original line content */
   originalLine: string;
   /** Modified line content (null = remove entire line) */
@@ -692,13 +705,13 @@ export interface FileEditResult {
 
 /** CLI operation types that generate journal entries */
 export type CliOperationType =
-  | "cli.resolve"
-  | "cli.resolve.bulk"
-  | "cli.adopt"
-  | "cli.update"
-  | "cli.fix"
-  | "cli.annotate"
-  | "cli.migrate";
+  | 'cli.resolve'
+  | 'cli.resolve.bulk'
+  | 'cli.adopt'
+  | 'cli.update'
+  | 'cli.fix'
+  | 'cli.annotate'
+  | 'cli.migrate';
 
 /**
  * CLI journal entry for tracking registry-modifying operations.
@@ -710,7 +723,7 @@ export interface CliJournalEntry {
   /** ISO 8601 timestamp */
   timestamp: string;
   /** Discriminant for CLI vs daemon journal entries */
-  source: "cli";
+  source: 'cli';
   /** Operation type in `cli.*` namespace */
   event_type: CliOperationType;
   /** Refs affected by this operation */
@@ -726,7 +739,7 @@ export interface CliJournalEntry {
 // ── Journal Velocity types (EP-0080) ─────────────────────────
 
 /** Time bucket granularity for journal velocity aggregation */
-export type VelocityBucket = "hour" | "day" | "week";
+export type VelocityBucket = 'hour' | 'day' | 'week';
 
 /**
  * A single data point in a journal-derived velocity trend.
@@ -754,7 +767,7 @@ export interface JournalVelocityPoint {
 }
 
 /** Velocity direction derived from net change trend */
-export type VelocityDirection = "growing" | "shrinking" | "neutral";
+export type VelocityDirection = 'growing' | 'shrinking' | 'neutral';
 
 /** Result of computing a journal velocity trend */
 export interface JournalVelocityResult {
@@ -782,10 +795,10 @@ export interface JournalVelocityResult {
 // ── Weekly Report types (EP-0084) ────────────────────────────
 
 /** Report preset determines the data scope and time range */
-export type WeeklyReportPreset = "weekly" | "health" | "custom";
+export type WeeklyReportPreset = 'weekly' | 'health' | 'custom';
 
 /** Output format for generated reports */
-export type WeeklyReportFormat = "markdown" | "html" | "json";
+export type WeeklyReportFormat = 'markdown' | 'html' | 'json';
 
 /**
  * Options for the report generation pipeline.
@@ -875,19 +888,19 @@ export interface AnalyzedReportMetrics {
   /** Key insights from governance report */
   insights: ReportInsight[];
   /** Velocity summary */
-  velocity: JournalVelocityResult["summary"];
+  velocity: JournalVelocityResult['summary'];
 }
 
 // ── Summary types (EP-0090) ──────────────────────────────────
 
 /** Output format for summary command */
-export type SummaryFormat = "json" | "markdown";
+export type SummaryFormat = 'json' | 'markdown';
 
 /** Health output format */
-export type HealthFormat = "json" | "summary";
+export type HealthFormat = 'json' | 'summary';
 
 /** Triage output format */
-export type TriageFormat = "json" | "markdown";
+export type TriageFormat = 'json' | 'markdown';
 
 /** Health command result — synthesises report + optional trend */
 export interface HealthResult {
@@ -913,16 +926,21 @@ export interface HealthResult {
   /** Key governance insights (from report) */
   insights: ReportInsight[];
   /** Trend summary (present when --history is supplied) */
-  trend?: TrendResult["summary"];
+  trend?: TrendResult['summary'];
   /** Actionable prescriptions derived from health analysis (EP-0104) */
   prescriptions?: HealthPrescription[];
 }
 
 /** Urgency level for health prescriptions */
-export type PrescriptionUrgency = "critical" | "recommended" | "suggestion";
+export type PrescriptionUrgency = 'critical' | 'recommended' | 'suggestion';
 
 /** Action type for programmatic dispatch of prescriptions (EP-0112) */
-export type PrescriptionActionType = "update" | "triage" | "verify" | "doctor" | "candidates";
+export type PrescriptionActionType =
+  | 'update'
+  | 'triage'
+  | 'verify'
+  | 'doctor'
+  | 'candidates';
 
 /** A single actionable prescription for improving governance health (EP-0104) */
 export interface HealthPrescription {
@@ -941,7 +959,7 @@ export interface HealthPrescription {
 // ── Aggregate types (EP-0093) ─────────────────────────────────
 
 /** Output format for aggregate command */
-export type AggregateFormat = "json" | "markdown" | "html";
+export type AggregateFormat = 'json' | 'markdown' | 'html';
 
 /** Per-repository row in the aggregate report */
 export interface AggregateRepositoryEntry {
@@ -968,7 +986,7 @@ export interface AggregateRepositoryEntry {
 /** A single automatable fix action */
 export interface FixAction {
   /** Action type. Phase 1: "update" only; extensible for future actions */
-  type: "update";
+  type: 'update';
   /** Human-readable description of what this action does */
   description: string;
   /** Refs affected by this action */

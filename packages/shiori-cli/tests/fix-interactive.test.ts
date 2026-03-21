@@ -1,16 +1,19 @@
-import { describe, it } from "node:test";
-import assert from "node:assert/strict";
-import { PassThrough, Writable } from "node:stream";
-import { promptFixAction, createFixReadline } from "../src/commands/fix-interactive.ts";
-import type { FixAction } from "../src/commands/fix.ts";
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { PassThrough, Writable } from 'node:stream';
+import {
+  promptFixAction,
+  createFixReadline,
+} from '../src/commands/fix-interactive.ts';
+import type { FixAction } from '../src/commands/fix.ts';
 
 // ── Helpers ──────────────────────────────────────────────────
 
 function makeAction(overrides: Partial<FixAction> = {}): FixAction {
   return {
-    type: "update",
-    description: "Add 2 missing ref(s) to registry",
-    refs: ["TEST-001", "TEST-002"],
+    type: 'update',
+    description: 'Add 2 missing ref(s) to registry',
+    refs: ['TEST-001', 'TEST-002'],
     ...overrides,
   };
 }
@@ -39,7 +42,7 @@ function createMockSession() {
 
   /** Write a single line to the input stream */
   function feedLine(line: string) {
-    input.write(line + "\n");
+    input.write(line + '\n');
   }
 
   /**
@@ -58,13 +61,13 @@ function createMockSession() {
 
 // ── promptFixAction ─────────────────────────────────────────
 
-describe("promptFixAction", () => {
+describe('promptFixAction', () => {
   it("returns approve for 'a' input", async () => {
     const { rl, output, feedLine } = createMockSession();
     try {
-      setImmediate(() => feedLine("a"));
+      setImmediate(() => feedLine('a'));
       const choice = await promptFixAction(makeAction(), rl, output);
-      assert.equal(choice, "approve");
+      assert.equal(choice, 'approve');
     } finally {
       rl.close();
     }
@@ -73,9 +76,9 @@ describe("promptFixAction", () => {
   it("returns approve for 'approve' input", async () => {
     const { rl, output, feedLine } = createMockSession();
     try {
-      setImmediate(() => feedLine("approve"));
+      setImmediate(() => feedLine('approve'));
       const choice = await promptFixAction(makeAction(), rl, output);
-      assert.equal(choice, "approve");
+      assert.equal(choice, 'approve');
     } finally {
       rl.close();
     }
@@ -84,9 +87,9 @@ describe("promptFixAction", () => {
   it("returns skip for 's' input", async () => {
     const { rl, output, feedLine } = createMockSession();
     try {
-      setImmediate(() => feedLine("s"));
+      setImmediate(() => feedLine('s'));
       const choice = await promptFixAction(makeAction(), rl, output);
-      assert.equal(choice, "skip");
+      assert.equal(choice, 'skip');
     } finally {
       rl.close();
     }
@@ -95,9 +98,9 @@ describe("promptFixAction", () => {
   it("returns skip for 'skip' input", async () => {
     const { rl, output, feedLine } = createMockSession();
     try {
-      setImmediate(() => feedLine("skip"));
+      setImmediate(() => feedLine('skip'));
       const choice = await promptFixAction(makeAction(), rl, output);
-      assert.equal(choice, "skip");
+      assert.equal(choice, 'skip');
     } finally {
       rl.close();
     }
@@ -106,9 +109,9 @@ describe("promptFixAction", () => {
   it("returns quit for 'q' input", async () => {
     const { rl, output, feedLine } = createMockSession();
     try {
-      setImmediate(() => feedLine("q"));
+      setImmediate(() => feedLine('q'));
       const choice = await promptFixAction(makeAction(), rl, output);
-      assert.equal(choice, "quit");
+      assert.equal(choice, 'quit');
     } finally {
       rl.close();
     }
@@ -117,46 +120,53 @@ describe("promptFixAction", () => {
   it("returns quit for 'quit' input", async () => {
     const { rl, output, feedLine } = createMockSession();
     try {
-      setImmediate(() => feedLine("quit"));
+      setImmediate(() => feedLine('quit'));
       const choice = await promptFixAction(makeAction(), rl, output);
-      assert.equal(choice, "quit");
+      assert.equal(choice, 'quit');
     } finally {
       rl.close();
     }
   });
 
-  it("handles case-insensitive input", async () => {
+  it('handles case-insensitive input', async () => {
     const { rl, output, feedLine } = createMockSession();
     try {
-      setImmediate(() => feedLine("A"));
+      setImmediate(() => feedLine('A'));
       const choice = await promptFixAction(makeAction(), rl, output);
-      assert.equal(choice, "approve");
+      assert.equal(choice, 'approve');
     } finally {
       rl.close();
     }
   });
 
-  it("re-prompts on invalid input then accepts valid input", async () => {
+  it('re-prompts on invalid input then accepts valid input', async () => {
     const { rl, output, feedLinesWithDelay } = createMockSession();
     try {
-      feedLinesWithDelay(["x", "invalid", "a"]);
+      feedLinesWithDelay(['x', 'invalid', 'a']);
       const choice = await promptFixAction(makeAction(), rl, output);
-      assert.equal(choice, "approve");
+      assert.equal(choice, 'approve');
     } finally {
       rl.close();
     }
   });
 
-  it("displays action details in output", async () => {
+  it('displays action details in output', async () => {
     const { rl, output, chunks, feedLine } = createMockSession();
     try {
-      setImmediate(() => feedLine("a"));
-      await promptFixAction(makeAction({ description: "Test action desc" }), rl, output);
+      setImmediate(() => feedLine('a'));
+      await promptFixAction(
+        makeAction({ description: 'Test action desc' }),
+        rl,
+        output,
+      );
 
-      const allOutput = chunks.join("");
-      assert.ok(allOutput.includes("update"), "should show action type");
-      assert.ok(allOutput.includes("Test action desc"), "should show description");
-      assert.ok(allOutput.includes("2 ref(s)"), "should show refs count");
+      const allOutput = chunks.join('');
+      assert.ok(allOutput.includes('update'), 'should show action type');
+      assert.ok(
+        allOutput.includes('Test action desc'),
+        'should show description',
+      );
+      assert.ok(allOutput.includes('2 ref(s)'), 'should show refs count');
     } finally {
       rl.close();
     }

@@ -3,9 +3,9 @@ import type {
   HealthPrescription,
   VerifyIssueType,
   PrescriptionActionType,
-} from "./types.ts";
-import { ACTION_HINTS } from "./action-hints.ts";
-import { DEDUCTION_TIERS } from "./deduction-tiers.ts";
+} from './types.ts';
+import { ACTION_HINTS } from './action-hints.ts';
+import { DEDUCTION_TIERS } from './deduction-tiers.ts';
 
 /**
  * Estimate score impact for resolving all issues of a given type.
@@ -21,11 +21,17 @@ function estimateScoreImpact(
 
     // Current total deduction for this tier
     const totalInTier = tier.types.reduce((sum, t) => sum + byType[t], 0);
-    const currentDeduction = Math.min(totalInTier * tier.perIssue, tier.maxDeduction);
+    const currentDeduction = Math.min(
+      totalInTier * tier.perIssue,
+      tier.maxDeduction,
+    );
 
     // Deduction after removing this issue type
     const afterRemoval = totalInTier - count;
-    const newDeduction = Math.min(Math.max(0, afterRemoval) * tier.perIssue, tier.maxDeduction);
+    const newDeduction = Math.min(
+      Math.max(0, afterRemoval) * tier.perIssue,
+      tier.maxDeduction,
+    );
 
     return currentDeduction - newDeduction;
   }
@@ -38,20 +44,20 @@ function estimateScoreImpact(
  */
 function buildActionType(issueType: VerifyIssueType): PrescriptionActionType {
   switch (issueType) {
-    case "missing-in-registry":
-      return "update";
-    case "expired":
-    case "expiring-soon":
-    case "ref-status-closed":
-      return "triage";
-    case "syntax-error":
-    case "unused-in-source":
-    case "ref-format":
-    case "ref-collision":
-      return "verify";
-    case "unrouted-ref":
-    case "registry-routing-mismatch":
-      return "doctor";
+    case 'missing-in-registry':
+      return 'update';
+    case 'expired':
+    case 'expiring-soon':
+    case 'ref-status-closed':
+      return 'triage';
+    case 'syntax-error':
+    case 'unused-in-source':
+    case 'ref-format':
+    case 'ref-collision':
+      return 'verify';
+    case 'unrouted-ref':
+    case 'registry-routing-mismatch':
+      return 'doctor';
   }
 }
 
@@ -62,26 +68,26 @@ function buildActionType(issueType: VerifyIssueType): PrescriptionActionType {
 function buildCommand(issueType: VerifyIssueType): string {
   // Map issue types to specific CLI commands
   switch (issueType) {
-    case "expired":
-      return "shiori triage --expired-only";
-    case "expiring-soon":
-      return "shiori triage";
-    case "missing-in-registry":
-      return "shiori update";
-    case "syntax-error":
-      return "shiori verify";
-    case "unused-in-source":
-      return "shiori verify";
-    case "ref-format":
-      return "shiori verify";
-    case "ref-collision":
-      return "shiori verify";
-    case "unrouted-ref":
-      return "shiori doctor";
-    case "registry-routing-mismatch":
-      return "shiori doctor";
-    case "ref-status-closed":
-      return "shiori triage";
+    case 'expired':
+      return 'shiori triage --expired-only';
+    case 'expiring-soon':
+      return 'shiori triage';
+    case 'missing-in-registry':
+      return 'shiori update';
+    case 'syntax-error':
+      return 'shiori verify';
+    case 'unused-in-source':
+      return 'shiori verify';
+    case 'ref-format':
+      return 'shiori verify';
+    case 'ref-collision':
+      return 'shiori verify';
+    case 'unrouted-ref':
+      return 'shiori doctor';
+    case 'registry-routing-mismatch':
+      return 'shiori doctor';
+    case 'ref-status-closed':
+      return 'shiori triage';
   }
 }
 
@@ -102,7 +108,9 @@ function buildMessage(issueType: VerifyIssueType, count: number): string {
  *
  * Pure function — no I/O.
  */
-export function buildPrescriptions(reportResult: ReportResult): HealthPrescription[] {
+export function buildPrescriptions(
+  reportResult: ReportResult,
+): HealthPrescription[] {
   const { byType } = reportResult;
   const prescriptions: HealthPrescription[] = [];
 
@@ -128,15 +136,16 @@ export function buildPrescriptions(reportResult: ReportResult): HealthPrescripti
   // Add candidate ratio prescription if applicable
   const { totals } = reportResult;
   if (totals.candidates > 0 && totals.annotations + totals.candidates > 0) {
-    const untrackedRatio = totals.candidates / (totals.annotations + totals.candidates);
+    const untrackedRatio =
+      totals.candidates / (totals.annotations + totals.candidates);
     const candidateImpact = Math.round(untrackedRatio * 20);
     if (candidateImpact > 0) {
       prescriptions.push({
-        urgency: "suggestion",
+        urgency: 'suggestion',
         message: `${totals.candidates} untracked lint disable comment(s) found. Track them to improve coverage.`,
-        command: "shiori candidates",
+        command: 'shiori candidates',
         scoreImpact: candidateImpact,
-        actionType: "candidates",
+        actionType: 'candidates',
       });
     }
   }

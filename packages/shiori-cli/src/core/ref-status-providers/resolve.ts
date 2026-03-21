@@ -1,7 +1,10 @@
-import type { RefStatus } from "../ref-status.ts";
-import { collectUniqueRefs } from "../ref-status.ts";
-import { selectRefStatusProvider, type SelectProviderOptions } from "./select-provider.ts";
-import type { RefStatusProvider } from "./types.ts";
+import type { RefStatus } from '../ref-status.ts';
+import { collectUniqueRefs } from '../ref-status.ts';
+import {
+  selectRefStatusProvider,
+  type SelectProviderOptions,
+} from './select-provider.ts';
+import type { RefStatusProvider } from './types.ts';
 
 /**
  * Result of ref-status resolution.
@@ -50,8 +53,12 @@ export async function resolveRefStatusMap(
 
   try {
     const entries = await provider.resolve(uniqueRefs);
-    const refStatuses = new Map<string, RefStatus>(entries.map((e) => [e.ref, e.status]));
-    const closedCount = [...refStatuses.values()].filter((s) => s === "closed").length;
+    const refStatuses = new Map<string, RefStatus>(
+      entries.map((e) => [e.ref, e.status]),
+    );
+    const closedCount = [...refStatuses.values()].filter(
+      (s) => s === 'closed',
+    ).length;
     console.error(
       `Ref status (${provider.name}): ${refStatuses.size} ref(s) resolved, ${closedCount} closed`,
     );

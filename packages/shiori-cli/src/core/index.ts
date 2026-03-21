@@ -7,23 +7,26 @@
  */
 
 // ── Registry ────────────────────────────────────────────────
-export { loadRegistry } from "./registry.ts";
-export type { RegistryLoadResult, RegistryValidationError } from "./registry.ts";
+export { loadRegistry } from './registry.ts';
+export type {
+  RegistryLoadResult,
+  RegistryValidationError,
+} from './registry.ts';
 
 // ── Parser ──────────────────────────────────────────────────
-export { parseShioriFields } from "./parser.ts";
-export type { ParsedShioriFields } from "./parser.ts";
+export { parseShioriFields } from './parser.ts';
+export type { ParsedShioriFields } from './parser.ts';
 
 // ── Config ──────────────────────────────────────────────────
-export { loadConfig, resolveConfig } from "./config.ts";
-export type { ShioriConfig, ResolvedConfig } from "./config.ts";
+export { loadConfig, resolveConfig } from './config.ts';
+export type { ShioriConfig, ResolvedConfig } from './config.ts';
 
 // ── Ref Pattern ────────────────────────────────────────────
-export { resolveRefUrl, matchRefPattern } from "./ref-pattern.ts";
-export type { RefPatternConfig, RefPatternMatch } from "./ref-pattern.ts";
+export { resolveRefUrl, matchRefPattern } from './ref-pattern.ts';
+export type { RefPatternConfig, RefPatternMatch } from './ref-pattern.ts';
 
 // ── Ref Validation ──────────────────────────────────────────
-export { isValidRef, REF_PATTERN } from "./ref-validation.ts";
+export { isValidRef, REF_PATTERN } from './ref-validation.ts';
 
 // ── Exit Codes ─────────────────────────────────────────────
 export {
@@ -33,11 +36,15 @@ export {
   getExitCodePolicy,
   findMissingPolicies,
   findStalePolicies,
-} from "./exit-codes.ts";
-export type { ExitCodeValue, ExitCodeCategory, ExitCodePolicy } from "./exit-codes.ts";
+} from './exit-codes.ts';
+export type {
+  ExitCodeValue,
+  ExitCodeCategory,
+  ExitCodePolicy,
+} from './exit-codes.ts';
 
 // ── Types ───────────────────────────────────────────────────
-export { isAtOrBelowLevel } from "./types.ts";
+export { isAtOrBelowLevel } from './types.ts';
 export type {
   ShioriAnnotation,
   ShioriCandidate,
@@ -51,4 +58,4 @@ export type {
   HealthLevel,
   FileBreakdownEntry,
   DirectoryBreakdownEntry,
-} from "./types.ts";
+} from './types.ts';

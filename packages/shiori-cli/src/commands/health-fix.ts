@@ -6,7 +6,10 @@
  * to keep this module I/O-free.
  */
 
-import type { HealthPrescription, PrescriptionActionType } from "../core/types.ts";
+import type {
+  HealthPrescription,
+  PrescriptionActionType,
+} from '../core/types.ts';
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -47,18 +50,26 @@ export interface HealthFixApplyResult {
  * Both express "what can be auto-fixed" at different abstraction layers.
  * EP-0118 Phase 2 should unify these into a single automatability definition.
  */
-const AUTOMATABLE_ACTIONS: ReadonlySet<PrescriptionActionType> = new Set(["update"]);
+const AUTOMATABLE_ACTIONS: ReadonlySet<PrescriptionActionType> = new Set([
+  'update',
+]);
 
 /**
  * Find the first automatable prescription and build a fix preview.
  * Returns null when no automatable action exists.
  */
-export function planFix(prescriptions: HealthPrescription[]): FixPreview | null {
-  const automatable = prescriptions.find((p) => AUTOMATABLE_ACTIONS.has(p.actionType));
+export function planFix(
+  prescriptions: HealthPrescription[],
+): FixPreview | null {
+  const automatable = prescriptions.find((p) =>
+    AUTOMATABLE_ACTIONS.has(p.actionType),
+  );
 
   if (!automatable) return null;
 
-  const manualPrescriptions = prescriptions.filter((p) => !AUTOMATABLE_ACTIONS.has(p.actionType));
+  const manualPrescriptions = prescriptions.filter(
+    (p) => !AUTOMATABLE_ACTIONS.has(p.actionType),
+  );
 
   return {
     target: automatable,
@@ -75,22 +86,22 @@ export function planFix(prescriptions: HealthPrescription[]): FixPreview | null 
  */
 export function formatFixPreview(preview: FixPreview): string {
   const lines: string[] = [];
-  lines.push("🔧 Fix Preview (dry-run):");
+  lines.push('🔧 Fix Preview (dry-run):');
   lines.push(`  Action: ${preview.target.command}`);
   lines.push(`  Impact: +${preview.target.scoreImpact}pt estimated`);
   lines.push(`  Detail: ${preview.target.message}`);
-  lines.push("");
-  lines.push("  Run with --fix --apply to execute.");
+  lines.push('');
+  lines.push('  Run with --fix --apply to execute.');
 
   if (preview.manualPrescriptions.length > 0) {
-    lines.push("");
-    lines.push("📋 Manual actions (not automatable):");
+    lines.push('');
+    lines.push('📋 Manual actions (not automatable):');
     for (const rx of preview.manualPrescriptions) {
       lines.push(`  - ${rx.command}: ${rx.message}`);
     }
   }
 
-  return lines.join("\n");
+  return lines.join('\n');
 }
 
 /**
@@ -100,16 +111,16 @@ export function formatFixResult(result: HealthFixApplyResult): string {
   const lines: string[] = [];
 
   if (result.success) {
-    const sign = result.scoreDelta >= 0 ? "+" : "";
-    lines.push("✅ Fix applied:");
+    const sign = result.scoreDelta >= 0 ? '+' : '';
+    lines.push('✅ Fix applied:');
     lines.push(`  ${result.description}`);
     lines.push(
       `  Score: ${result.beforeScore} → ${result.afterScore} (${sign}${result.scoreDelta})`,
     );
   } else {
-    lines.push("❌ Fix failed:");
+    lines.push('❌ Fix failed:');
     lines.push(`  ${result.description}`);
   }
 
-  return lines.join("\n");
+  return lines.join('\n');
 }

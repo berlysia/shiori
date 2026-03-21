@@ -5,8 +5,11 @@
  * streams so tests can simulate user responses without a real TTY.
  */
 
-import { createInterface, type Interface as ReadlineInterface } from "node:readline/promises";
-import type { FixAction } from "../core/types.ts";
+import {
+  createInterface,
+  type Interface as ReadlineInterface,
+} from 'node:readline/promises';
+import type { FixAction } from '../core/types.ts';
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -17,22 +20,22 @@ export interface InteractiveFixContext {
 }
 
 /** User's choice for a fix action */
-export type InteractiveChoice = "approve" | "skip" | "quit";
+export type InteractiveChoice = 'approve' | 'skip' | 'quit';
 
 // ── Internal helpers ─────────────────────────────────────────
 
 function parseChoice(input: string): InteractiveChoice | null {
   const normalized = input.trim().toLowerCase();
   switch (normalized) {
-    case "a":
-    case "approve":
-      return "approve";
-    case "s":
-    case "skip":
-      return "skip";
-    case "q":
-    case "quit":
-      return "quit";
+    case 'a':
+    case 'approve':
+      return 'approve';
+    case 's':
+    case 'skip':
+      return 'skip';
+    case 'q':
+    case 'quit':
+      return 'quit';
     default:
       return null;
   }
@@ -74,7 +77,7 @@ export async function promptFixAction(
 
   // Prompt loop until valid input
   while (true) {
-    const answer = await rl.question("  [a]pprove / [s]kip / [q]uit? ");
+    const answer = await rl.question('  [a]pprove / [s]kip / [q]uit? ');
     const choice = parseChoice(answer);
     if (choice !== null) {
       return choice;
@@ -87,7 +90,9 @@ export async function promptFixAction(
  * Create a readline interface for interactive fix prompts.
  * The caller is responsible for closing the interface when done.
  */
-export function createFixReadline(ctx: InteractiveFixContext): ReadlineInterface {
+export function createFixReadline(
+  ctx: InteractiveFixContext,
+): ReadlineInterface {
   return createInterface({
     input: ctx.input,
     output: ctx.output,

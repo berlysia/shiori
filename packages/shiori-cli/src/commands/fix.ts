@@ -13,12 +13,17 @@ import type {
   FixAction,
   ManualSuggestion,
   FixPlan,
-} from "../core/types.ts";
-import { VERIFY_ISSUE_TYPES } from "../core/types.ts";
-import { ACTION_HINTS } from "../core/action-hints.ts";
+} from '../core/types.ts';
+import { VERIFY_ISSUE_TYPES } from '../core/types.ts';
+import { ACTION_HINTS } from '../core/action-hints.ts';
 
 // Re-export fix types from core for backward compatibility
-export type { FixAction, ManualSuggestion, FixPlan, FixApplyResult } from "../core/types.ts";
+export type {
+  FixAction,
+  ManualSuggestion,
+  FixPlan,
+  FixApplyResult,
+} from '../core/types.ts';
 
 /**
  * Issue types that are handled by automatable fix actions.
@@ -28,7 +33,9 @@ export type { FixAction, ManualSuggestion, FixPlan, FixApplyResult } from "../co
  * Both express "what can be auto-fixed" at different abstraction layers.
  * EP-0118 Phase 2 should unify these into a single automatability definition.
  */
-const AUTOMATABLE_ISSUE_TYPES: ReadonlySet<VerifyIssueType> = new Set(["missing-in-registry"]);
+const AUTOMATABLE_ISSUE_TYPES: ReadonlySet<VerifyIssueType> = new Set([
+  'missing-in-registry',
+]);
 
 // ── Manual suggestion command mapping ────────────────────────
 
@@ -38,23 +45,23 @@ const AUTOMATABLE_ISSUE_TYPES: ReadonlySet<VerifyIssueType> = new Set(["missing-
  */
 function buildSuggestionCommand(issueType: VerifyIssueType): string {
   switch (issueType) {
-    case "unused-in-source":
-      return "shiori resolve --ref <ref>";
-    case "expired":
-      return "shiori triage --expired-only";
-    case "expiring-soon":
-      return "shiori triage";
-    case "ref-status-closed":
-      return "shiori resolve --closed";
-    case "syntax-error":
-    case "ref-format":
-    case "ref-collision":
-      return "shiori verify";
-    case "unrouted-ref":
-    case "registry-routing-mismatch":
-      return "shiori doctor";
-    case "missing-in-registry":
-      return "shiori update";
+    case 'unused-in-source':
+      return 'shiori resolve --ref <ref>';
+    case 'expired':
+      return 'shiori triage --expired-only';
+    case 'expiring-soon':
+      return 'shiori triage';
+    case 'ref-status-closed':
+      return 'shiori resolve --closed';
+    case 'syntax-error':
+    case 'ref-format':
+    case 'ref-collision':
+      return 'shiori verify';
+    case 'unrouted-ref':
+    case 'registry-routing-mismatch':
+      return 'shiori doctor';
+    case 'missing-in-registry':
+      return 'shiori update';
   }
 }
 
@@ -75,18 +82,18 @@ export function planFixActions(reportResult: ReportResult): FixPlan {
   const manualSuggestions: ManualSuggestion[] = [];
 
   // Check for missing-in-registry issues (automatable via update)
-  const missingCount = byType["missing-in-registry"];
+  const missingCount = byType['missing-in-registry'];
   if (missingCount > 0) {
     // Collect refs with missing-in-registry issues
     const missingRefs = verifyResult.issues
-      .filter((issue) => issue.type === "missing-in-registry")
+      .filter((issue) => issue.type === 'missing-in-registry')
       .map((issue) => issue.ref);
 
     // Deduplicate refs
     const uniqueRefs = [...new Set(missingRefs)];
 
     actions.push({
-      type: "update",
+      type: 'update',
       description: `Add ${uniqueRefs.length} missing ref(s) to registry`,
       refs: uniqueRefs,
     });

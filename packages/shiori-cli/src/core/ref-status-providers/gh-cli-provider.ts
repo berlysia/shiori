@@ -1,8 +1,8 @@
-import { execFile } from "node:child_process";
-import type { RefStatusEntry } from "../ref-status.ts";
-import type { RefStatus } from "../ref-status.ts";
-import type { RefStatusProvider } from "./types.ts";
-import { parseGitHubRef } from "./github-issues-provider.ts";
+import { execFile } from 'node:child_process';
+import type { RefStatusEntry } from '../ref-status.ts';
+import type { RefStatus } from '../ref-status.ts';
+import type { RefStatusProvider } from './types.ts';
+import { parseGitHubRef } from './github-issues-provider.ts';
 
 /** Options for configuring the gh CLI provider */
 export interface GhCliProviderOptions {
@@ -32,7 +32,7 @@ export interface GhCliProviderOptions {
  */
 export function isGhCliAvailable(): Promise<boolean> {
   return new Promise((resolve) => {
-    execFile("gh", ["auth", "token"], { timeout: 5000 }, (error, stdout) => {
+    execFile('gh', ['auth', 'token'], { timeout: 5000 }, (error, stdout) => {
       if (error) {
         resolve(false);
         return;
@@ -60,29 +60,29 @@ function fetchIssueStatusViaGh(
 ): Promise<RefStatus> {
   return new Promise((resolve) => {
     execFile(
-      "gh",
-      ["api", `repos/${owner}/${repo}/issues/${issueNumber}`, "--jq", ".state"],
+      'gh',
+      ['api', `repos/${owner}/${repo}/issues/${issueNumber}`, '--jq', '.state'],
       { timeout: 15000 },
       (error, stdout, stderr) => {
         if (error) {
           // gh api exits non-zero for HTTP errors.
           // Match GitHubIssuesRefStatusProvider behavior: 410 Gone → 'closed'
           if (stderr && /\b410\b/.test(stderr)) {
-            resolve("closed");
+            resolve('closed');
             return;
           }
           // 404, 401, 403, network errors → unknown (graceful degradation)
-          resolve("unknown");
+          resolve('unknown');
           return;
         }
 
         const state = stdout.trim();
-        if (state === "closed") {
-          resolve("closed");
-        } else if (state === "open") {
-          resolve("open");
+        if (state === 'closed') {
+          resolve('closed');
+        } else if (state === 'open') {
+          resolve('open');
         } else {
-          resolve("unknown");
+          resolve('unknown');
         }
       },
     );
@@ -92,7 +92,10 @@ function fetchIssueStatusViaGh(
 /**
  * Execute promises with limited concurrency.
  */
-async function withConcurrency<T>(tasks: Array<() => Promise<T>>, limit: number): Promise<T[]> {
+async function withConcurrency<T>(
+  tasks: Array<() => Promise<T>>,
+  limit: number,
+): Promise<T[]> {
   const results: T[] = Array.from<T>({ length: tasks.length });
   let nextIndex = 0;
 
@@ -106,7 +109,9 @@ async function withConcurrency<T>(tasks: Array<() => Promise<T>>, limit: number)
     }
   }
 
-  const workers = Array.from({ length: Math.min(limit, tasks.length) }, () => worker());
+  const workers = Array.from({ length: Math.min(limit, tasks.length) }, () =>
+    worker(),
+  );
   await Promise.all(workers);
   return results;
 }
@@ -122,13 +127,14 @@ async function withConcurrency<T>(tasks: Array<() => Promise<T>>, limit: number)
  * GITHUB_TOKEN-based provider (ADR 025 extension).
  */
 export class GhCliRefStatusProvider implements RefStatusProvider {
-  readonly name = "gh-cli";
+  readonly name = 'gh-cli';
 
   private readonly repository: string | undefined;
   private readonly concurrency: number;
 
   constructor(options?: GhCliProviderOptions) {
-    this.repository = options?.repository ?? process.env.GITHUB_REPOSITORY ?? undefined;
+    this.repository =
+      options?.repository ?? process.env.GITHUB_REPOSITORY ?? undefined;
     this.concurrency = options?.concurrency ?? 10;
   }
 
@@ -150,10 +156,17 @@ export class GhCliRefStatusProvider implements RefStatusProvider {
     if (parsed.length === 0) return [];
 
     // Fetch statuses with concurrency limit
-    const tasks = parsed.map(({ ref, parsed: p }) => async (): Promise<RefStatusEntry> => {
-      const status = await fetchIssueStatusViaGh(p.owner, p.repo, p.issueNumber);
-      return { ref, status };
-    });
+    const tasks = parsed.map(
+      ({ ref, parsed: p }) =>
+        async (): Promise<RefStatusEntry> => {
+          const status = await fetchIssueStatusViaGh(
+            p.owner,
+            p.repo,
+            p.issueNumber,
+          );
+          return { ref, status };
+        },
+    );
 
     return withConcurrency(tasks, this.concurrency);
   }
