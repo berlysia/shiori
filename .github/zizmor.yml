@@ -9,3 +9,7 @@ rules:
       # Composite action uses ${{ inputs.* }} and ${{ steps.*.outputs.* }} in run: blocks,
       # which is standard practice. Inputs are controlled by the calling workflow, not external actors.
       - action.yml
+  secrets-outside-env:
+    ignore:
+      # GIST_TOKEN has gist-only write scope; environment protection is unnecessary overhead.
+      - shiori-badge.yml

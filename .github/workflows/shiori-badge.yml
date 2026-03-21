@@ -19,7 +19,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
@@ -44,14 +44,11 @@ jobs:
           overwrite: true
 
       # Upload to Gist for live README badge (requires GIST_TOKEN secret)
-      # secrets context is not available in step-level if; use env variable instead
+      # secrets-outside-env: GIST_TOKEN has gist-only scope, environment protection not needed
       - name: Upload to Gist
         if: env.GIST_TOKEN != ''
         env:
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
-        uses: exuanbo/actions-deploy-gist@47697fceaeea2006a90594ee24eb9cd0a1121ef8 # v1
-        with:
-          token: ${{ secrets.GIST_TOKEN }}
-          gist_id: ${{ vars.SHIORI_BADGE_GIST_ID }}
-          file_path: .tmp/shiori-badge.json
-          file_type: text
+          GIST_ID: ${{ vars.SHIORI_BADGE_GIST_ID }}
+        run: |
+          GH_TOKEN="$GIST_TOKEN" gh gist edit "$GIST_ID" --add .tmp/shiori-badge.json
