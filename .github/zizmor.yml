@@ -4,3 +4,8 @@ rules:
       # actions/setup-node does not enable caching by default (cache input defaults to '').
       # This is a false positive from zizmor detecting pnpm/action-setup in the same job.
       - release.yml
+  template-injection:
+    ignore:
+      # Composite action uses ${{ inputs.* }} and ${{ steps.*.outputs.* }} in run: blocks,
+      # which is standard practice. Inputs are controlled by the calling workflow, not external actors.
+      - actions/shiori-action/action.yml
