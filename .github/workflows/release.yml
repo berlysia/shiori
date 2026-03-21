@@ -29,6 +29,8 @@ jobs:
       - run: pnpm test
       - run: npm install -g npm@latest
       - run: cd packages/shiori-cli && npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   github-release:
     runs-on: ubuntu-latest
