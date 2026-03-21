@@ -25,6 +25,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm build
       - run: pnpm typecheck
         if: matrix.node-version == 22
       - run: pnpm lint
@@ -35,7 +36,6 @@ jobs:
         if: matrix.node-version == 22
       - run: pnpm test
         if: matrix.node-version == 22
-      - run: pnpm build
       - run: node packages/shiori-cli/dist/src/cli.js --help
 
       # Dogfooding: verify shiori's own annotations against registry
