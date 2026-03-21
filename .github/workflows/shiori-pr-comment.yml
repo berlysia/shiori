@@ -19,7 +19,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: pnpm/action-setup@41ff72655975bd51cab0327fa583b6e92b6d3061 # v4
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4
 
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
@@ -206,14 +206,27 @@ jobs:
             fs.mkdirSync('.tmp', { recursive: true });
             fs.writeFileSync('.tmp/shiori-comment.md', body);
 
-      # Post assembled comment to PR
+      # Post assembled comment to PR (create or update existing shiori comment)
       - name: Post PR comment
-        uses: peter-evans/create-or-update-comment@71345be0265236311c031f5c7866368bd1eff043 # v4
-        with:
-          issue-number: ${{ github.event.pull_request.number }}
-          body-path: .tmp/shiori-comment.md
-          comment-author: 'github-actions[bot]'
-          body-includes: '<!-- shiori-delta -->'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          BODY="<!-- shiori-delta -->
+          $(cat .tmp/shiori-comment.md)"
+
+          # Find existing shiori comment by marker
+          COMMENT_ID=$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" \
+            --jq '.[] | select(.user.login == "github-actions[bot]") | select(.body | contains("<!-- shiori-delta -->")) | .id' \
+            | head -1)
+
+          if [ -n "$COMMENT_ID" ]; then
+            gh api "repos/${REPO}/issues/comments/${COMMENT_ID}" \
+              -X PATCH -f body="$BODY"
+          else
+            gh pr comment "$PR_NUMBER" --body "$BODY"
+          fi
 
       # Fail CI if annotation count exceeded threshold
       - name: Fail if annotation count increased
