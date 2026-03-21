@@ -7,7 +7,7 @@ import type {
   ShioriCandidate,
   ReportResult,
 } from "../src/core/types.ts";
-import { buildPrescriptions } from "../src/commands/prescriptions.ts";
+import { buildPrescriptions } from "../src/core/prescriptions.ts";
 import { report } from "../src/commands/report.ts";
 
 function makeAnnotation(overrides: Partial<ShioriAnnotation> = {}): ShioriAnnotation {

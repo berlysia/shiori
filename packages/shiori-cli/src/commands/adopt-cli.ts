@@ -1,28 +1,25 @@
-import { createInterface } from 'node:readline/promises';
-import { define } from 'gunshi';
-import { readFile, writeFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { loadConfigAndRegistry } from '../core/registry-loader.ts';
-import { loadScanResult } from '../core/scan-result-loader.ts';
-import type { ResolvedConfig } from '../core/config.ts';
-import {
-  assertAllWithinCwd,
-  PathBoundaryError,
-} from '../core/path-boundary.ts';
-import { warnIfGitDirty, saveRegistryRouted } from '../core/cli-context.ts';
-import { recordJournalEvent } from '../core/journal.ts';
-import { isValidRef } from '../core/ref-validation.ts';
-import { applyMigrateToFile, groupActionsByFile } from './migrate.ts';
+import { createInterface } from "node:readline/promises";
+import { define } from "gunshi";
+import { readFile, writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
+import { loadConfigAndRegistry } from "../core/registry-loader.ts";
+import { loadScanResult } from "../core/scan-result-loader.ts";
+import type { ResolvedConfig } from "../core/config.ts";
+import { assertAllWithinCwd, PathBoundaryError } from "../core/path-boundary.ts";
+import { warnIfGitDirty, saveRegistryRouted } from "../core/cli-context.ts";
+import { recordJournalEvent } from "../core/journal.ts";
+import { isValidRef } from "../core/ref-validation.ts";
+import { applyMigrateToFile, groupActionsByFile } from "./migrate.ts";
 import {
   planAdoption,
   formatAdoptPreview,
   buildGroupKey,
   buildGroupSummaries,
   filterCandidatesByGroups,
-  formatGroupLabel,
   type AdoptGroupSummary,
-} from './adopt.ts';
-import type { ShioriCandidate, Registry } from '../core/types.ts';
+} from "./adopt.ts";
+import { formatGroupLabel } from "../core/format-utils.ts";
+import type { ShioriCandidate, Registry } from "../core/types.ts";
 
 /**
  * Wizard Step 1: Interactive group selection.
@@ -39,10 +36,10 @@ async function wizardSelectGroups(
 
   try {
     const lines: string[] = [];
-    lines.push('');
-    lines.push('shiori adopt --wizard — Select groups to adopt');
-    lines.push('');
-    lines.push('Available candidate groups:');
+    lines.push("");
+    lines.push("shiori adopt --wizard — Select groups to adopt");
+    lines.push("");
+    lines.push("Available candidate groups:");
 
     for (let i = 0; i < groups.length; i++) {
       const g = groups[i]!;
@@ -50,26 +47,26 @@ async function wizardSelectGroups(
       lines.push(`  ${i + 1}. ${label} (${g.count} candidate(s))`);
     }
 
-    lines.push('');
+    lines.push("");
     lines.push(
       `Enter numbers to adopt (comma-separated, e.g. "1,3"), "all" for all, or "q" to quit:`,
     );
 
-    console.error(lines.join('\n'));
+    console.error(lines.join("\n"));
 
-    const answer = await rl.question('> ');
+    const answer = await rl.question("> ");
     const trimmed = answer.trim().toLowerCase();
 
-    if (trimmed === 'q' || trimmed === 'quit' || trimmed === '') {
+    if (trimmed === "q" || trimmed === "quit" || trimmed === "") {
       return undefined;
     }
 
-    if (trimmed === 'all' || trimmed === 'a') {
+    if (trimmed === "all" || trimmed === "a") {
       return groups;
     }
 
     // Parse comma-separated numbers
-    const parts = trimmed.split(',').map((s) => s.trim());
+    const parts = trimmed.split(",").map((s) => s.trim());
     const selected: AdoptGroupSummary[] = [];
 
     for (const part of parts) {
@@ -101,8 +98,7 @@ async function wizardConfirmOptions(opts: {
   selectedCount: number;
   totalCount: number;
 }): Promise<
-  | { prefix: string; reason: string; kind: string; confirmed: true }
-  | { confirmed: false }
+  { prefix: string; reason: string; kind: string; confirmed: true } | { confirmed: false }
 > {
   const rl = createInterface({
     input: process.stdin,
@@ -111,40 +107,38 @@ async function wizardConfirmOptions(opts: {
 
   try {
     const lines: string[] = [];
-    lines.push('');
-    lines.push(
-      `Selected ${opts.selectedCount} of ${opts.totalCount} candidate(s)`,
-    );
-    lines.push('');
+    lines.push("");
+    lines.push(`Selected ${opts.selectedCount} of ${opts.totalCount} candidate(s)`);
+    lines.push("");
     lines.push(`  Prefix: ${opts.prefix}`);
     lines.push(`  Reason: ${opts.reason}`);
     lines.push(`  Kind:   ${opts.kind}`);
-    lines.push('');
+    lines.push("");
     lines.push(
       'Press Enter to confirm, or type "prefix=<NEW>" / "reason=<NEW>" / "kind=<NEW>" to override:',
     );
-    console.error(lines.join('\n'));
+    console.error(lines.join("\n"));
 
-    const answer = await rl.question('> ');
+    const answer = await rl.question("> ");
     const trimmed = answer.trim();
 
-    if (trimmed === 'q' || trimmed === 'quit') {
+    if (trimmed === "q" || trimmed === "quit") {
       return { confirmed: false };
     }
 
     let { prefix, reason, kind } = opts;
 
-    if (trimmed !== '') {
+    if (trimmed !== "") {
       // Parse key=value overrides
       const overrides = trimmed.split(/\s+/);
       for (const override of overrides) {
-        const eqIdx = override.indexOf('=');
+        const eqIdx = override.indexOf("=");
         if (eqIdx === -1) continue;
         const key = override.slice(0, eqIdx).toLowerCase();
         const value = override.slice(eqIdx + 1);
-        if (key === 'prefix' && value) prefix = value;
-        else if (key === 'reason' && value) reason = value;
-        else if (key === 'kind' && value) kind = value;
+        if (key === "prefix" && value) prefix = value;
+        else if (key === "reason" && value) reason = value;
+        else if (key === "kind" && value) kind = value;
       }
     }
 
@@ -165,28 +159,22 @@ async function wizardConfirmApply(previewText: string): Promise<boolean> {
   });
 
   try {
-    console.error('');
-    console.error('--- Adoption Preview ---');
+    console.error("");
+    console.error("--- Adoption Preview ---");
     console.error(previewText);
-    console.error('--- End Preview ---');
-    console.error('');
+    console.error("--- End Preview ---");
+    console.error("");
 
-    const answer = await rl.question(
-      'Apply these changes to source files and registry? [y/N] ',
-    );
-    return (
-      answer.trim().toLowerCase() === 'y' ||
-      answer.trim().toLowerCase() === 'yes'
-    );
+    const answer = await rl.question("Apply these changes to source files and registry? [y/N] ");
+    return answer.trim().toLowerCase() === "y" || answer.trim().toLowerCase() === "yes";
   } finally {
     rl.close();
   }
 }
 
 export const adoptCommand = define({
-  name: 'adopt',
-  description:
-    'Adopt existing lint disable comments into shiori tracking (onboarding wizard)',
+  name: "adopt",
+  description: "Adopt existing lint disable comments into shiori tracking (onboarding wizard)",
   examples: `  # Interactive wizard (recommended for first-time adoption)
   shiori scan && shiori adopt --wizard
 
@@ -204,68 +192,64 @@ export const adoptCommand = define({
   rendering: { header: null },
   args: {
     scan: {
-      type: 'string',
-      short: 's',
-      description:
-        'Path to scan result JSON (default: .config/shiori/scan-result.json or stdin)',
+      type: "string",
+      short: "s",
+      description: "Path to scan result JSON (default: .config/shiori/scan-result.json or stdin)",
     },
     registry: {
-      type: 'string',
-      short: 'r',
+      type: "string",
+      short: "r",
       description:
-        'Path to registry file (auto-detected from config or .config/shiori/registry.json)',
+        "Path to registry file (auto-detected from config or .config/shiori/registry.json)",
     },
     prefix: {
-      type: 'string',
+      type: "string",
       description: 'Ref prefix for generated refs. Default: "ADOPT"',
-      default: 'ADOPT',
+      default: "ADOPT",
     },
     reason: {
-      type: 'string',
-      description:
-        'Default reason for registry entries. Default: "adopted by shiori adopt"',
-      default: 'adopted by shiori adopt',
+      type: "string",
+      description: 'Default reason for registry entries. Default: "adopted by shiori adopt"',
+      default: "adopted by shiori adopt",
     },
     kind: {
-      type: 'string',
+      type: "string",
       description: 'Default kind for registry entries. Default: "adoption"',
-      default: 'adoption',
+      default: "adoption",
     },
     apply: {
-      type: 'boolean',
-      short: 'a',
-      description:
-        'Actually write changes to source files and registry (default: dry-run preview)',
+      type: "boolean",
+      short: "a",
+      description: "Actually write changes to source files and registry (default: dry-run preview)",
     },
     wizard: {
-      type: 'boolean',
-      short: 'w',
-      description:
-        'Interactive wizard for selective adoption — choose which groups to adopt',
+      type: "boolean",
+      short: "w",
+      description: "Interactive wizard for selective adoption — choose which groups to adopt",
     },
     cwd: {
-      type: 'string',
-      description: 'Working directory. Default: process.cwd()',
+      type: "string",
+      description: "Working directory. Default: process.cwd()",
     },
     config: {
-      type: 'string',
-      short: 'c',
+      type: "string",
+      short: "c",
       description:
-        'Path to config directory (YAML/JSON auto-detected). Default: <cwd>/.config/shiori',
+        "Path to config directory (YAML/JSON auto-detected). Default: <cwd>/.config/shiori",
     },
   },
   run: async (ctx) => {
     const cwd = ctx.values.cwd ?? process.cwd();
     const apply = ctx.values.apply ?? false;
     const wizard = ctx.values.wizard ?? false;
-    let prefix = ctx.values.prefix ?? 'ADOPT';
-    let reason = ctx.values.reason ?? 'adopted by shiori adopt';
-    let kind = ctx.values.kind ?? 'adoption';
+    let prefix = ctx.values.prefix ?? "ADOPT";
+    let reason = ctx.values.reason ?? "adopted by shiori adopt";
+    let kind = ctx.values.kind ?? "adoption";
 
     // --wizard and --apply are mutually exclusive
     if (wizard && apply) {
       console.error(
-        'Error: --wizard and --apply are mutually exclusive. --wizard includes its own apply confirmation step.',
+        "Error: --wizard and --apply are mutually exclusive. --wizard includes its own apply confirmation step.",
       );
       process.exitCode = 1;
       return;
@@ -274,7 +258,7 @@ export const adoptCommand = define({
     // Wizard requires TTY; fall back to dry-run for non-TTY
     if (wizard && !process.stdin.isTTY) {
       console.error(
-        'Warning: --wizard requires an interactive terminal. Falling back to dry-run mode.',
+        "Warning: --wizard requires an interactive terminal. Falling back to dry-run mode.",
       );
     }
 
@@ -305,8 +289,8 @@ export const adoptCommand = define({
     });
 
     if (scanResult.candidates.length === 0) {
-      console.error('No candidates found. Nothing to adopt.');
-      console.error('All lint disable comments are already tracked by shiori.');
+      console.error("No candidates found. Nothing to adopt.");
+      console.error("All lint disable comments are already tracked by shiori.");
       return;
     }
 
@@ -323,7 +307,7 @@ export const adoptCommand = define({
 
       const selectedGroups = await wizardSelectGroups(allGroups);
       if (!selectedGroups) {
-        console.error('Adoption cancelled.');
+        console.error("Adoption cancelled.");
         return;
       }
 
@@ -332,7 +316,7 @@ export const adoptCommand = define({
       candidates = filterCandidatesByGroups(candidates, selectedKeys);
 
       if (candidates.length === 0) {
-        console.error('No candidates in selected groups.');
+        console.error("No candidates in selected groups.");
         return;
       }
 
@@ -346,7 +330,7 @@ export const adoptCommand = define({
       });
 
       if (!optResult.confirmed) {
-        console.error('Adoption cancelled.');
+        console.error("Adoption cancelled.");
         return;
       }
 
@@ -376,9 +360,7 @@ export const adoptCommand = define({
     // Validate generated refs
     for (const action of result.migrate.actions) {
       if (!isValidRef(action.ref)) {
-        console.error(
-          `Error: Generated ref "${action.ref}" is invalid. Try a different --prefix.`,
-        );
+        console.error(`Error: Generated ref "${action.ref}" is invalid. Try a different --prefix.`);
         process.exitCode = 1;
         return;
       }
@@ -389,7 +371,7 @@ export const adoptCommand = define({
       const previewText = formatAdoptPreview(result);
       const confirmed = await wizardConfirmApply(previewText);
       if (!confirmed) {
-        console.error('Adoption cancelled.');
+        console.error("Adoption cancelled.");
         return;
       }
 
@@ -407,10 +389,8 @@ export const adoptCommand = define({
     if (!apply) {
       // Dry-run: show preview
       console.log(formatAdoptPreview(result));
-      console.error('');
-      console.error(
-        'Run with --apply to write changes to source files and registry.',
-      );
+      console.error("");
+      console.error("Run with --apply to write changes to source files and registry.");
       return;
     }
 
@@ -464,16 +444,14 @@ async function applyAdoption(opts: {
   for (const [file, actions] of byFile) {
     const filePath = resolve(cwd, file);
     try {
-      const content = await readFile(filePath, 'utf-8');
+      const content = await readFile(filePath, "utf-8");
       const editResult = applyMigrateToFile(content, actions);
-      await writeFile(filePath, editResult.content, 'utf-8');
+      await writeFile(filePath, editResult.content, "utf-8");
       writtenFiles.push(file);
       totalModified += editResult.modifiedLines;
       allWarnings.push(...editResult.warnings);
     } catch (err) {
-      console.error(
-        `Error writing ${file}: ${err instanceof Error ? err.message : String(err)}`,
-      );
+      console.error(`Error writing ${file}: ${err instanceof Error ? err.message : String(err)}`);
       if (writtenFiles.length > 0) {
         console.error(
           `Warning: ${writtenFiles.length} file(s) were already modified before the error:`,
@@ -481,9 +459,7 @@ async function applyAdoption(opts: {
         for (const f of writtenFiles) {
           console.error(`  ${f}`);
         }
-        console.error(
-          'Use "git checkout" or "git stash" to revert partial changes.',
-        );
+        console.error('Use "git checkout" or "git stash" to revert partial changes.');
       }
       process.exitCode = 1;
       return;
@@ -501,7 +477,7 @@ async function applyAdoption(opts: {
     registryPath,
     cwd,
     refPatterns: config.refPatterns,
-    label: 'Adopted',
+    label: "Adopted",
   });
   if (!saved) return;
 
@@ -509,7 +485,7 @@ async function applyAdoption(opts: {
   const adoptedRefs = Object.keys(result.migrate.registry);
   recordJournalEvent({
     cwd,
-    eventType: 'cli.adopt',
+    eventType: "cli.adopt",
     refs: adoptedRefs,
     success: true,
     entriesAdded: adoptedRefs.length,
@@ -524,15 +500,13 @@ async function applyAdoption(opts: {
   );
 
   if (allWarnings.length > 0) {
-    console.error('');
-    console.error('Warnings:');
+    console.error("");
+    console.error("Warnings:");
     for (const w of allWarnings) {
       console.error(`  ${w}`);
     }
   }
 
-  console.error('');
-  console.error(
-    'Run "shiori check" to verify all adopted annotations are valid.',
-  );
+  console.error("");
+  console.error('Run "shiori check" to verify all adopted annotations are valid.');
 }

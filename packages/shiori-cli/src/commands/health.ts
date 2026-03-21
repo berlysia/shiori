@@ -1,7 +1,7 @@
 import type { HealthResult, HealthFormat, ReportResult, TrendResult } from "../core/types.ts";
 import { healthEmoji, trendArrow } from "../core/emoji.ts";
 import { report, type ReportOptions } from "./report.ts";
-import { buildPrescriptions } from "./prescriptions.ts";
+import { buildPrescriptions } from "../core/prescriptions.ts";
 
 export type { HealthResult, HealthFormat };
 

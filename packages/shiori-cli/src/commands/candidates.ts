@@ -1,7 +1,7 @@
-import type { ShioriCandidate } from '../core/types.ts';
-import { formatGroupLabel } from './adopt.ts';
+import type { ShioriCandidate } from "../core/types.ts";
+import { formatGroupLabel } from "../core/format-utils.ts";
 
-export type CandidatesOutputFormat = 'json' | 'markdown';
+export type CandidatesOutputFormat = "json" | "markdown";
 
 export interface CandidatesResult {
   candidates: ShioriCandidate[];
@@ -11,9 +11,7 @@ export interface CandidatesResult {
 /**
  * List candidates from scan results.
  */
-export function listCandidates(
-  candidates: ShioriCandidate[],
-): CandidatesResult {
+export function listCandidates(candidates: ShioriCandidate[]): CandidatesResult {
   return { candidates, count: candidates.length };
 }
 
@@ -22,16 +20,16 @@ export function listCandidates(
  */
 export function formatCandidatesAsMarkdown(result: CandidatesResult): string {
   const lines: string[] = [];
-  lines.push('# Candidate Report');
-  lines.push('');
+  lines.push("# Candidate Report");
+  lines.push("");
 
   if (result.count === 0) {
-    lines.push('No candidates found.');
-    return lines.join('\n');
+    lines.push("No candidates found.");
+    return lines.join("\n");
   }
 
   lines.push(`Found **${result.count}** candidate(s).`);
-  lines.push('');
+  lines.push("");
 
   // Group by pattern + directive
   const byGroup = new Map<string, ShioriCandidate[]>();
@@ -44,15 +42,15 @@ export function formatCandidatesAsMarkdown(result: CandidatesResult): string {
 
   for (const [groupKey, items] of byGroup) {
     lines.push(`## ${groupKey} (${items.length})`);
-    lines.push('');
+    lines.push("");
     for (const item of items) {
       const parts = [`- \`${item.location.file}:${item.location.line}\``];
       if (item.rule) parts.push(`rule: \`${item.rule}\``);
       if (item.text) parts.push(`"${item.text}"`);
-      lines.push(parts.join(' — '));
+      lines.push(parts.join(" — "));
     }
-    lines.push('');
+    lines.push("");
   }
 
-  return lines.join('\n');
+  return lines.join("\n");
 }

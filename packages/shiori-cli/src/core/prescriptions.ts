@@ -3,9 +3,9 @@ import type {
   HealthPrescription,
   VerifyIssueType,
   PrescriptionActionType,
-} from "../core/types.ts";
-import { ACTION_HINTS } from "../core/action-hints.ts";
-import { DEDUCTION_TIERS } from "./report.ts";
+} from "./types.ts";
+import { ACTION_HINTS } from "./action-hints.ts";
+import { DEDUCTION_TIERS } from "./deduction-tiers.ts";
 
 /**
  * Estimate score impact for resolving all issues of a given type.
