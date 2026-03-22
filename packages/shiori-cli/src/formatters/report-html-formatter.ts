@@ -1,6 +1,5 @@
 import type {
   ReportResult,
-  HealthLevel,
   ReportInsight,
   BreakdownEntry,
   VerifyIssueType,
@@ -15,34 +14,11 @@ import type {
   FileBreakdownEntry,
   DirectoryBreakdownEntry,
 } from '../core/types.ts';
-
-/**
- * Map health level to CSS color variable value.
- */
-function healthColor(level: HealthLevel): string {
-  switch (level) {
-    case 'healthy':
-      return '#22c55e';
-    case 'warning':
-      return '#eab308';
-    case 'critical':
-      return '#ef4444';
-  }
-}
-
-/**
- * Map health level to emoji indicator.
- */
-function healthIndicator(level: HealthLevel): string {
-  switch (level) {
-    case 'healthy':
-      return '\u{1F7E2}'; // green circle
-    case 'warning':
-      return '\u{1F7E1}'; // yellow circle
-    case 'critical':
-      return '\u{1F534}'; // red circle
-  }
-}
+import {
+  escapeHtml,
+  healthColorCss as healthColor,
+  healthIndicator,
+} from '../core/html-utils.ts';
 
 /**
  * Map insight level to icon.
@@ -56,18 +32,6 @@ function insightLevelIcon(level: ReportInsight['level']): string {
     case 'info':
       return '\u2139\uFE0F'; // info
   }
-}
-
-/**
- * Escape HTML special characters to prevent XSS.
- */
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
 }
 
 /**

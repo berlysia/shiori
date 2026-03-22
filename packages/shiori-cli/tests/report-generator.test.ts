@@ -15,9 +15,11 @@ import {
   computeActivitySummary,
   analyzeReportData,
   formatWeeklyReportAsMarkdown,
+} from '../src/core/report-generator.ts';
+import {
   formatWeeklyReportAsHtml,
   formatWeeklyReport,
-} from '../src/core/report-generator.ts';
+} from '../src/formatters/weekly-report-html-formatter.ts';
 
 // ── Test helpers ─────────────────────────────────────────────
 

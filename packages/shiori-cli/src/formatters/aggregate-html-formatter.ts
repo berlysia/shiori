@@ -3,46 +3,11 @@ import type {
   AggregateRepositoryEntry,
   HealthLevel,
 } from '../core/types.ts';
-
-/**
- * Map health level to CSS color value.
- */
-function healthColor(level: HealthLevel): string {
-  switch (level) {
-    case 'healthy':
-      return '#22c55e';
-    case 'warning':
-      return '#eab308';
-    case 'critical':
-      return '#ef4444';
-  }
-}
-
-/**
- * Map health level to emoji indicator.
- */
-function healthIndicator(level: HealthLevel): string {
-  switch (level) {
-    case 'healthy':
-      return '\u{1F7E2}'; // green circle
-    case 'warning':
-      return '\u{1F7E1}'; // yellow circle
-    case 'critical':
-      return '\u{1F534}'; // red circle
-  }
-}
-
-/**
- * Escape HTML special characters to prevent XSS.
- */
-function escapeHtml(text: string): string {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
+import {
+  escapeHtml,
+  healthColorCss as healthColor,
+  healthIndicator,
+} from '../core/html-utils.ts';
 
 /**
  * Map overall score to a health level for color coding.

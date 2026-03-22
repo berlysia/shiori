@@ -11,8 +11,8 @@ import { computeJournalVelocity } from './journal-velocity.ts';
 import {
   collectReportData,
   analyzeReportData,
-  formatWeeklyReport,
 } from '../core/report-generator.ts';
+import { formatWeeklyReport } from '../formatters/weekly-report-html-formatter.ts';
 import {
   WEEKLY_REPORT_FORMATS,
   type WeeklyReportPreset,
