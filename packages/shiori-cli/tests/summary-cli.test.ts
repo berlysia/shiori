@@ -202,7 +202,7 @@ describe('summary-cli: --scan option', () => {
       join(dir, 'nonexistent.json'),
     ]);
 
-    assert.equal(exitCode, 1);
+    assert.equal(exitCode, 3);
     assert.ok(stderr.includes('Error loading scan result'));
   });
 });

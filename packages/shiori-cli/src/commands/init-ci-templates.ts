@@ -243,7 +243,7 @@ jobs:
             });
             fs.mkdirSync('.tmp', { recursive: true });
             fs.writeFileSync('.tmp/shiori-base-scan.zip', Buffer.from(download.data));
-            require('child_process').execSync('unzip -o .tmp/shiori-base-scan.zip -d .tmp/');
+            require('child_process').execFileSync('unzip', ['-o', '.tmp/shiori-base-scan.zip', '-d', '.tmp/']);
         continue-on-error: true
 
       - name: Scan (PR head)

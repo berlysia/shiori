@@ -5,6 +5,7 @@ import { loadConfig } from '../core/config.ts';
 import { loadScanResult } from '../core/scan-result-loader.ts';
 import { listDrafts } from './draft.ts';
 import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
+import { ExitCode } from '../core/exit-codes.ts';
 
 export const draftCommand = define({
   name: 'draft',
@@ -61,7 +62,7 @@ export const draftCommand = define({
       } catch (err) {
         if (err instanceof PathBoundaryError) {
           console.error(`Error: ${err.message}`);
-          process.exitCode = 1;
+          process.exitCode = ExitCode.ENVIRONMENT_ERROR;
           return;
         }
         throw err;

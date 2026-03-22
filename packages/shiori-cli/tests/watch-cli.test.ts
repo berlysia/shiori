@@ -45,7 +45,7 @@ describe('watch-cli: argument validation and error paths', () => {
   });
 
   describe('--debounce-ms validation', () => {
-    it('exits 1 for non-numeric value', async () => {
+    it('exits 3 for non-numeric value', async () => {
       const { exitCode, stderr } = await runCli([
         'watch',
         '--once',
@@ -56,7 +56,7 @@ describe('watch-cli: argument validation and error paths', () => {
         '--debounce-ms',
         'abc',
       ]);
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 3);
       assert.ok(stderr.includes('Invalid --debounce-ms'));
     });
 
@@ -84,7 +84,7 @@ describe('watch-cli: argument validation and error paths', () => {
       assert.equal(exitCode, 0);
     });
 
-    it('exits 1 for floating point value', async () => {
+    it('exits 3 for floating point value', async () => {
       // parseInt('3.14', 10) returns 3 which is valid,
       // but 'abc' or NaN-producing values should fail
       const { exitCode, stderr } = await runCli([
@@ -97,7 +97,7 @@ describe('watch-cli: argument validation and error paths', () => {
         '--debounce-ms',
         'not-a-number',
       ]);
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 3);
       assert.ok(stderr.includes('Invalid --debounce-ms'));
     });
 
@@ -570,7 +570,7 @@ describe('watch-cli: argument validation and error paths', () => {
         outputPath,
       ]);
 
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 2);
       assert.ok(
         stderr.includes('--format must be'),
         'stderr reports invalid format',
@@ -598,7 +598,7 @@ describe('watch-cli: argument validation and error paths', () => {
         registryPath,
       ]);
 
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 2);
       assert.ok(
         stderr.includes('mutually exclusive'),
         'stderr reports mutual exclusion',

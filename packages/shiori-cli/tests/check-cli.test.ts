@@ -21,7 +21,7 @@ describe('check-cli: argument validation and error paths', () => {
   });
 
   describe('--fail-on validation', () => {
-    it('rejects invalid --fail-on value with exit code 1', async () => {
+    it('rejects invalid --fail-on value with exit code 2', async () => {
       const dir = await createFixtureDir(baseDir, 'failon', {
         sourceFiles: {
           'src/sample.ts':
@@ -41,14 +41,14 @@ describe('check-cli: argument validation and error paths', () => {
         'bogus-type',
       ]);
 
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 2);
       assert.ok(stderr.includes('Invalid --fail-on'));
       assert.ok(stderr.includes('"bogus-type"'));
     });
   });
 
   describe('--warn-on validation', () => {
-    it('rejects invalid --warn-on value with exit code 1', async () => {
+    it('rejects invalid --warn-on value with exit code 2', async () => {
       const dir = await createFixtureDir(baseDir, 'warnon', {
         sourceFiles: {
           'src/sample.ts':
@@ -68,14 +68,14 @@ describe('check-cli: argument validation and error paths', () => {
         'invalid-issue',
       ]);
 
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 2);
       assert.ok(stderr.includes('Invalid --warn-on'));
       assert.ok(stderr.includes('"invalid-issue"'));
     });
   });
 
   describe('--format validation', () => {
-    it('rejects invalid --format value with exit code 1', async () => {
+    it('rejects invalid --format value with exit code 2', async () => {
       const dir = await createFixtureDir(baseDir, 'format', {
         sourceFiles: {
           'src/sample.ts':
@@ -95,7 +95,7 @@ describe('check-cli: argument validation and error paths', () => {
         'xml',
       ]);
 
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 2);
       assert.ok(stderr.includes('Invalid --format'));
       assert.ok(stderr.includes('"xml"'));
     });
@@ -118,7 +118,7 @@ describe('check-cli: argument validation and error paths', () => {
         'src/**/*.ts',
       ]);
 
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 3);
       assert.ok(stderr.includes('No registry file found'));
     });
   });

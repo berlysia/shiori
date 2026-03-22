@@ -161,7 +161,7 @@ export const checkCommand = define({
         console.error(
           'Error: No workspace configuration found. Ensure pnpm-workspace.yaml or package.json#workspaces exists.',
         );
-        process.exitCode = 1;
+        process.exitCode = ExitCode.ENVIRONMENT_ERROR;
         return;
       }
 
@@ -199,7 +199,7 @@ export const checkCommand = define({
       } catch (err) {
         if (err instanceof PathBoundaryError) {
           console.error(`Error: ${err.message}`);
-          process.exitCode = 1;
+          process.exitCode = ExitCode.ENVIRONMENT_ERROR;
           return;
         }
         throw err;

@@ -15,6 +15,7 @@ import {
   AnnotateError,
 } from './annotate.ts';
 import { formatAnnotateAsJson } from '../formatters/annotate-formatter.ts';
+import { ExitCode } from '../core/exit-codes.ts';
 
 const validateAnnotateFormat = createFormatValidator<AnnotateFormat>(
   ['text', 'json'] as const,
@@ -136,7 +137,7 @@ export const annotateCommand = define({
     const targetValue = ctx.values.target;
     if (!targetValue) {
       console.error('Error: --target is required. Expected <file>:<line>');
-      process.exitCode = 1;
+      process.exitCode = ExitCode.USAGE_ERROR;
       return;
     }
 
@@ -147,7 +148,7 @@ export const annotateCommand = define({
     } catch (err) {
       if (err instanceof AnnotateError) {
         console.error(`Error: ${err.message}`);
-        process.exitCode = 1;
+        process.exitCode = ExitCode.USAGE_ERROR;
         return;
       }
       throw err;
@@ -157,7 +158,7 @@ export const annotateCommand = define({
     const ref = ctx.values.ref;
     if (!ref) {
       console.error('Error: --ref is required.');
-      process.exitCode = 1;
+      process.exitCode = ExitCode.USAGE_ERROR;
       return;
     }
 
@@ -166,7 +167,7 @@ export const annotateCommand = define({
       console.error(
         `Error: Invalid ref "${ref}". Must match pattern: start with uppercase letter, e.g. "SUP-1234", "ADR:0007"`,
       );
-      process.exitCode = 1;
+      process.exitCode = ExitCode.USAGE_ERROR;
       return;
     }
 
@@ -176,7 +177,7 @@ export const annotateCommand = define({
     } catch (err) {
       if (err instanceof PathBoundaryError) {
         console.error(`Error: ${err.message}`);
-        process.exitCode = 1;
+        process.exitCode = ExitCode.ENVIRONMENT_ERROR;
         return;
       }
       throw err;
@@ -200,7 +201,7 @@ export const annotateCommand = define({
       content = await readFile(filePath, 'utf-8');
     } catch {
       console.error(`Error: File not found: ${file}`);
-      process.exitCode = 1;
+      process.exitCode = ExitCode.ENVIRONMENT_ERROR;
       return;
     }
 
@@ -220,7 +221,7 @@ export const annotateCommand = define({
     } catch (err) {
       if (err instanceof AnnotateError) {
         console.error(`Error: ${err.message}`);
-        process.exitCode = 1;
+        process.exitCode = ExitCode.USAGE_ERROR;
         return;
       }
       throw err;

@@ -15,6 +15,7 @@ import type {
 import { createFormatValidator } from '../core/cli-validation.ts';
 import { writeOutput } from '../core/cli-output.ts';
 import { trendArrow } from '../core/emoji.ts';
+import { ExitCode } from '../core/exit-codes.ts';
 
 const validateTrendFormat = createFormatValidator<TrendFormat>([
   'json',
@@ -113,7 +114,7 @@ export const trendCommand = define({
       console.error(
         'Error: --from-journal and --history are mutually exclusive',
       );
-      process.exitCode = 1;
+      process.exitCode = ExitCode.USAGE_ERROR;
       return;
     }
 
@@ -122,7 +123,7 @@ export const trendCommand = define({
       console.error(
         'Error: Either --history <dir> or --from-journal is required',
       );
-      process.exitCode = 1;
+      process.exitCode = ExitCode.USAGE_ERROR;
       return;
     }
 
@@ -138,7 +139,7 @@ export const trendCommand = define({
         console.error(
           `Error: --last must be a positive integer, got "${ctx.values.last}"`,
         );
-        process.exitCode = 1;
+        process.exitCode = ExitCode.USAGE_ERROR;
         return;
       }
     }
@@ -152,7 +153,7 @@ export const trendCommand = define({
           console.error(
             `Error: Invalid --bucket value "${ctx.values.bucket}". Valid values: ${VALID_BUCKETS.join(', ')}`,
           );
-          process.exitCode = 1;
+          process.exitCode = ExitCode.USAGE_ERROR;
           return;
         }
         bucket = ctx.values.bucket as VelocityBucket;
@@ -164,7 +165,7 @@ export const trendCommand = define({
         console.error(
           'Error: Journal is disabled (SHIORI_JOURNAL_DISABLE is set)',
         );
-        process.exitCode = 1;
+        process.exitCode = ExitCode.ENVIRONMENT_ERROR;
         return;
       }
 
@@ -177,7 +178,7 @@ export const trendCommand = define({
 
       if (entries.length === 0) {
         console.error('Error: No valid journal entries found');
-        process.exitCode = 1;
+        process.exitCode = ExitCode.ENVIRONMENT_ERROR;
         return;
       }
 
@@ -217,13 +218,13 @@ export const trendCommand = define({
       console.error(
         `Error: Cannot read history directory: ${err instanceof Error ? err.message : String(err)}`,
       );
-      process.exitCode = 1;
+      process.exitCode = ExitCode.ENVIRONMENT_ERROR;
       return;
     }
 
     if (files.length === 0) {
       console.error(`Error: No JSON files found in ${historyDir}`);
-      process.exitCode = 1;
+      process.exitCode = ExitCode.ENVIRONMENT_ERROR;
       return;
     }
 
@@ -263,7 +264,7 @@ export const trendCommand = define({
 
     if (reports.length === 0) {
       console.error('Error: No valid ReportResult files found');
-      process.exitCode = 1;
+      process.exitCode = ExitCode.ENVIRONMENT_ERROR;
       return;
     }
 

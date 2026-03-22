@@ -1,5 +1,6 @@
 import { VERIFY_ISSUE_TYPES } from './types.ts';
 import type { OutputFormat, VerifyIssueType } from './types.ts';
+import { ExitCode } from './exit-codes.ts';
 
 const VALID_OUTPUT_FORMATS: readonly string[] = [
   'json',
@@ -14,7 +15,7 @@ const VALID_PROVIDERS: readonly string[] = ['comment'];
 
 /**
  * Parse a comma-separated issue type string and validate each value.
- * Prints an error and sets exitCode=1 on invalid values.
+ * Prints an error and sets ExitCode.USAGE_ERROR on invalid values.
  *
  * @param value - Comma-separated issue types (e.g. "expired,syntax-error"), or undefined
  * @param flag - CLI flag name for error messages (e.g. "--fail-on")
@@ -32,7 +33,7 @@ export function parseAndValidateIssueTypes(
     console.error(
       `Error: Invalid ${flag} value: ${invalid.map((v) => `"${v}"`).join(', ')}. Valid values: ${VERIFY_ISSUE_TYPES.join(', ')}`,
     );
-    process.exitCode = 1;
+    process.exitCode = ExitCode.USAGE_ERROR;
     return null;
   }
   // shiori: DEV-013 reason="string[] narrowed to VerifyIssueType[] after filtering against VERIFY_ISSUE_TYPES; TS cannot infer this from .includes() guard"
@@ -54,7 +55,7 @@ export function validateOutputFormat(
     console.error(
       `Error: Invalid --format value "${format}". Valid values: ${VALID_OUTPUT_FORMATS.join(', ')}`,
     );
-    process.exitCode = 1;
+    process.exitCode = ExitCode.USAGE_ERROR;
     return null;
   }
   // shiori: DEV-014 reason="string narrowed to OutputFormat after VALID_OUTPUT_FORMATS.includes() check; TS cannot infer this from .includes() guard"
@@ -74,7 +75,7 @@ export function validateProvider(value: string | undefined): string | null {
     console.error(
       `Error: Unknown --provider "${provider}". Valid values: ${VALID_PROVIDERS.join(', ')}`,
     );
-    process.exitCode = 1;
+    process.exitCode = ExitCode.USAGE_ERROR;
     return null;
   }
   return provider;
@@ -101,7 +102,7 @@ export function createFormatValidator<T extends string>(
       console.error(
         `Error: Invalid --format value "${format}". Valid values: ${validFormats.join(', ')}`,
       );
-      process.exitCode = 1;
+      process.exitCode = ExitCode.USAGE_ERROR;
       return null;
     }
     return format as T;

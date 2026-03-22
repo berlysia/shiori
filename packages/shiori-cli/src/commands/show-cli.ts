@@ -5,6 +5,7 @@ import {
 } from '../core/registry-loader.ts';
 import { loadScanResult } from '../core/scan-result-loader.ts';
 import { show, isFound } from './show.ts';
+import { ExitCode } from '../core/exit-codes.ts';
 
 export const showCommand = define({
   name: 'show',
@@ -71,7 +72,7 @@ export const showCommand = define({
     console.log(JSON.stringify(result, null, 2));
 
     if (!isFound(result)) {
-      process.exitCode = 1;
+      process.exitCode = ExitCode.USAGE_ERROR;
     }
   },
 });

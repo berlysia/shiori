@@ -18,6 +18,7 @@ import {
   type StarterKind,
 } from './init-steps.ts';
 import { DEFAULT_REGISTRY_PATH } from '../core/config.ts';
+import { ExitCode } from '../core/exit-codes.ts';
 
 export const initCommand = define({
   name: 'init',
@@ -113,7 +114,7 @@ export const initCommand = define({
     const ciError = validateCiKind(ciKind);
     if (ciError) {
       console.error(ciError);
-      process.exitCode = 1;
+      process.exitCode = ExitCode.USAGE_ERROR;
       return;
     }
 
@@ -121,21 +122,21 @@ export const initCommand = define({
     const starterError = validateStarterKind(starterKind);
     if (starterError) {
       console.error(starterError);
-      process.exitCode = 1;
+      process.exitCode = ExitCode.USAGE_ERROR;
       return;
     }
 
     // --ci-only requires --ci
     if (ctx.values.ciOnly && !ciKind) {
       console.error('Error: --ci-only requires --ci <template>');
-      process.exitCode = 1;
+      process.exitCode = ExitCode.USAGE_ERROR;
       return;
     }
 
     // --vscode-only requires --vscode
     if (ctx.values.vscodeOnly && !ctx.values.vscode) {
       console.error('Error: --vscode-only requires --vscode');
-      process.exitCode = 1;
+      process.exitCode = ExitCode.USAGE_ERROR;
       return;
     }
 
@@ -158,7 +159,7 @@ export const initCommand = define({
       } catch (err) {
         if (err instanceof PathBoundaryError) {
           console.error(`Error: ${err.message}`);
-          process.exitCode = 1;
+          process.exitCode = ExitCode.ENVIRONMENT_ERROR;
           return;
         }
         throw err;
@@ -194,7 +195,7 @@ export const initCommand = define({
       } catch (err) {
         if (err instanceof PathBoundaryError) {
           console.error(`Error: ${err.message}`);
-          process.exitCode = 1;
+          process.exitCode = ExitCode.ENVIRONMENT_ERROR;
           return;
         }
         throw err;
@@ -208,7 +209,7 @@ export const initCommand = define({
       } catch (err) {
         if (err instanceof PathBoundaryError) {
           console.error(`Error: ${err.message}`);
-          process.exitCode = 1;
+          process.exitCode = ExitCode.ENVIRONMENT_ERROR;
           return;
         }
         throw err;

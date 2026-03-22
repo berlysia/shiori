@@ -91,12 +91,12 @@ export const deltaCommand = define({
 
     if (!ctx.values.base) {
       console.error('Error: --base is required');
-      process.exitCode = 1;
+      process.exitCode = ExitCode.USAGE_ERROR;
       return;
     }
     if (!ctx.values.head) {
       console.error('Error: --head is required');
-      process.exitCode = 1;
+      process.exitCode = ExitCode.USAGE_ERROR;
       return;
     }
 
@@ -112,7 +112,7 @@ export const deltaCommand = define({
         console.error(
           `Error: --max-increase must be a non-negative integer, got "${ctx.values.maxIncrease}"`,
         );
-        process.exitCode = 1;
+        process.exitCode = ExitCode.USAGE_ERROR;
         return;
       }
     }
@@ -128,7 +128,7 @@ export const deltaCommand = define({
     } catch (err) {
       if (err instanceof PathBoundaryError) {
         console.error(`Error: ${err.message}`);
-        process.exitCode = 1;
+        process.exitCode = ExitCode.ENVIRONMENT_ERROR;
         return;
       }
       throw err;
@@ -157,7 +157,7 @@ export const deltaCommand = define({
         console.error(
           `Error loading base scan result: ${err instanceof Error ? err.message : String(err)}`,
         );
-        process.exitCode = 1;
+        process.exitCode = ExitCode.ENVIRONMENT_ERROR;
         return;
       }
     }
@@ -168,7 +168,7 @@ export const deltaCommand = define({
       console.error(
         `Error loading head scan result: ${err instanceof Error ? err.message : String(err)}`,
       );
-      process.exitCode = 1;
+      process.exitCode = ExitCode.ENVIRONMENT_ERROR;
       return;
     }
 

@@ -46,7 +46,7 @@ describe('update-cli: error paths and behavior', () => {
         scanPath,
       ]);
 
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 3);
       assert.ok(stderr.includes('No registry file found'));
     });
   });
@@ -70,7 +70,7 @@ describe('update-cli: error paths and behavior', () => {
         missingPath,
       ]);
 
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 3);
       assert.ok(stderr.includes('Scan result file not found'));
     });
   });

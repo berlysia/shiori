@@ -27,7 +27,7 @@ describe('init --starter CLI integration', () => {
         '--starter',
         'nonexistent',
       ]);
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 2);
       assert.ok(stderr.includes('Invalid --starter value'));
       assert.ok(stderr.includes('nonexistent'));
     });

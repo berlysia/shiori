@@ -17,6 +17,7 @@ import {
 import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
 import { formatReportAsHtml } from '../formatters/report-html-formatter.ts';
 import { formatAsDiagnostic } from '../formatters/diagnostic.ts';
+import { ExitCode } from '../core/exit-codes.ts';
 import { computeDelta } from './delta.ts';
 import { verify } from './verify.ts';
 import type { ScanResult } from '../core/types.ts';
@@ -187,7 +188,7 @@ export const watchCommand = define({
       console.error(
         `Error: --format must be "pretty" or "diagnostic" (got "${formatMode}")`,
       );
-      process.exitCode = 1;
+      process.exitCode = ExitCode.USAGE_ERROR;
       return;
     }
 
@@ -202,7 +203,7 @@ export const watchCommand = define({
       console.error(
         'Error: --format diagnostic and --dashboard are mutually exclusive',
       );
-      process.exitCode = 1;
+      process.exitCode = ExitCode.USAGE_ERROR;
       return;
     }
 
@@ -250,7 +251,7 @@ export const watchCommand = define({
     } catch (err) {
       if (err instanceof PathBoundaryError) {
         console.error(`Error: ${err.message}`);
-        process.exitCode = 1;
+        process.exitCode = ExitCode.ENVIRONMENT_ERROR;
         return;
       }
       throw err;

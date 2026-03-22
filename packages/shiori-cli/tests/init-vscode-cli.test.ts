@@ -98,7 +98,7 @@ describe('init --vscode: VS Code tasks.json generation', () => {
         '--vscode-only',
       ]);
 
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 2);
       assert.ok(stderr.includes('--vscode-only requires --vscode'));
     });
   });

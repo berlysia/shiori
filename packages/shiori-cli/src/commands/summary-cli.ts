@@ -191,7 +191,7 @@ export const summaryCommand = define({
         console.error(
           `Error: Invalid --fail-on-level value "${failOnLevelValue}". Valid values: ${VALID_FAIL_ON_LEVELS.join(', ')}`,
         );
-        process.exitCode = 1;
+        process.exitCode = ExitCode.USAGE_ERROR;
         return;
       }
     }
@@ -225,7 +225,7 @@ export const summaryCommand = define({
         console.error(
           `Error loading scan result: ${err instanceof Error ? err.message : String(err)}`,
         );
-        process.exitCode = 1;
+        process.exitCode = ExitCode.ENVIRONMENT_ERROR;
         return;
       }
     } else {
@@ -256,7 +256,7 @@ export const summaryCommand = define({
       } catch (err) {
         if (err instanceof PathBoundaryError) {
           console.error(`Error: ${err.message}`);
-          process.exitCode = 1;
+          process.exitCode = ExitCode.ENVIRONMENT_ERROR;
           return;
         }
         throw err;
@@ -283,7 +283,7 @@ export const summaryCommand = define({
           console.error(
             `Error loading base scan result: ${err instanceof Error ? err.message : String(err)}`,
           );
-          process.exitCode = 1;
+          process.exitCode = ExitCode.ENVIRONMENT_ERROR;
           return;
         }
       }
@@ -329,7 +329,7 @@ export const summaryCommand = define({
       );
       if (!snapshotResult.ok) {
         console.error(`Error: ${snapshotResult.error}`);
-        process.exitCode = 1;
+        process.exitCode = ExitCode.ENVIRONMENT_ERROR;
         return;
       }
       console.error(`Snapshot saved to ${snapshotResult.path}`);

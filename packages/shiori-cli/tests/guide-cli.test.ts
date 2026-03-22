@@ -138,14 +138,14 @@ describe('guide-cli: --use-case (valid)', () => {
 // ── --use-case (invalid ID) ────────────────────────────────────
 
 describe('guide-cli: --use-case (invalid)', () => {
-  it('exits 1 with error message for unknown use-case ID', async () => {
+  it('exits 2 with error message for unknown use-case ID', async () => {
     const { exitCode, stderr, stdout } = await runCli([
       'guide',
       '--use-case',
       'nonexistent-use-case',
     ]);
 
-    assert.equal(exitCode, 1);
+    assert.equal(exitCode, 2);
     assert.ok(
       stderr.includes('Unknown use-case'),
       'error message mentions unknown',

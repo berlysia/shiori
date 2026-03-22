@@ -49,7 +49,7 @@ describe('adopt-cli: argument validation', () => {
         'invalid',
       ]);
 
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 2);
       assert.ok(stderr.includes('Invalid --prefix'));
     });
 
@@ -78,7 +78,7 @@ describe('adopt-cli: argument validation', () => {
         '123BAD',
       ]);
 
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 2);
       assert.ok(stderr.includes('Invalid --prefix'));
     });
 
@@ -421,7 +421,7 @@ describe('adopt-cli: --wizard flag', () => {
       '--apply',
     ]);
 
-    assert.equal(exitCode, 1);
+    assert.equal(exitCode, 2);
     assert.ok(
       stderr.includes('--wizard and --apply are mutually exclusive'),
       'Should report mutually exclusive error',

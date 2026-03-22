@@ -29,6 +29,7 @@ import { aggregateCommand } from './commands/aggregate-cli.ts';
 import { guideCommand } from './commands/guide-cli.ts';
 import { fixCommand } from './commands/fix-cli.ts';
 import { VERSION } from './core/version.ts';
+import { ExitCode } from './core/exit-codes.ts';
 
 const main = define({
   name: 'shiori',
@@ -131,5 +132,5 @@ try {
 } catch (err) {
   const message = err instanceof Error ? err.message : String(err);
   console.error(`Error: ${message}`);
-  process.exitCode = 1;
+  process.exitCode = ExitCode.ENVIRONMENT_ERROR;
 }

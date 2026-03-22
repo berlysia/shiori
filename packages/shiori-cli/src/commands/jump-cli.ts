@@ -1,6 +1,7 @@
 import { define } from 'gunshi';
 import { loadConfig } from '../core/config.ts';
 import { loadScanResult } from '../core/scan-result-loader.ts';
+import { ExitCode } from '../core/exit-codes.ts';
 
 function toLocationKey(file: string, line: number): string {
   return `${file}:${line}`;
@@ -64,7 +65,7 @@ export const jumpCommand = define({
 
     if (locations.length === 0) {
       console.error(`No source location found for ref: ${ctx.values.ref}`);
-      process.exitCode = 1;
+      process.exitCode = ExitCode.USAGE_ERROR;
       return;
     }
 

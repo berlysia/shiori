@@ -267,7 +267,7 @@ describe('delta-cli: --base-fallback-empty', () => {
       headPath,
     ]);
 
-    assert.equal(exitCode, 1);
+    assert.equal(exitCode, 3);
     assert.match(stderr, /Error loading base scan result/);
   });
 
@@ -336,7 +336,7 @@ describe('delta-cli: --base-fallback-empty', () => {
       '--base-fallback-empty',
     ]);
 
-    assert.equal(exitCode, 1);
+    assert.equal(exitCode, 3);
     assert.match(stderr, /Error loading base scan result/);
   });
 });

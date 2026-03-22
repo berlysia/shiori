@@ -24,6 +24,7 @@ import {
   withRegistry,
   resolveScanPatterns,
 } from '../core/cli-context.ts';
+import { ExitCode } from '../core/exit-codes.ts';
 
 /**
  * Extract project context for wizard-mode ranking.
@@ -269,7 +270,7 @@ export const guideCommand = define({
             console.error(`  ${uc.id}`);
           }
         }
-        process.exitCode = 1;
+        process.exitCode = ExitCode.USAGE_ERROR;
         return;
       }
       console.error(formatUseCase(useCase));

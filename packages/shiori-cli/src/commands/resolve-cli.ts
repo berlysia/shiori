@@ -28,6 +28,7 @@ import {
   formatResolvePreview,
   formatBulkResolvePreview,
 } from './resolve.ts';
+import { ExitCode } from '../core/exit-codes.ts';
 
 const validateResolveFormat = createFormatValidator<ResolveOutputFormat>(
   ['text', 'json'] as const,
@@ -145,19 +146,19 @@ export const resolveCommand = define({
       console.error(
         'Use --ref to resolve a single ref, or --closed to auto-detect closed refs.',
       );
-      process.exitCode = 1;
+      process.exitCode = ExitCode.USAGE_ERROR;
       return;
     }
 
     if (!ref && !closed) {
       console.error('Error: either --ref <ref> or --closed is required.');
-      process.exitCode = 1;
+      process.exitCode = ExitCode.USAGE_ERROR;
       return;
     }
 
     if (yes && !(apply && closed)) {
       console.error('Error: --yes is only valid with --closed --apply.');
-      process.exitCode = 1;
+      process.exitCode = ExitCode.USAGE_ERROR;
       return;
     }
 
@@ -167,7 +168,7 @@ export const resolveCommand = define({
 
     if (format !== 'text' && !closed) {
       console.error('Error: --format is only supported with --closed.');
-      process.exitCode = 1;
+      process.exitCode = ExitCode.USAGE_ERROR;
       return;
     }
 
@@ -202,7 +203,7 @@ export const resolveCommand = define({
         console.error(
           'Set GITHUB_TOKEN environment variable, install gh CLI, or use --ref-status-command.',
         );
-        process.exitCode = 1;
+        process.exitCode = ExitCode.ENVIRONMENT_ERROR;
         return;
       }
 
@@ -220,7 +221,7 @@ export const resolveCommand = define({
       if (!refStatuses) {
         // Provider exists but resolution failed (error already logged by resolveRefStatusMap)
         console.error('Could not resolve ref statuses. Aborting.');
-        process.exitCode = 1;
+        process.exitCode = ExitCode.ENVIRONMENT_ERROR;
         return;
       }
 
@@ -275,7 +276,7 @@ export const resolveCommand = define({
           console.error(
             'Run "shiori scan" to refresh, or use --force to skip this check.',
           );
-          process.exitCode = 1;
+          process.exitCode = ExitCode.ENVIRONMENT_ERROR;
           return;
         }
       }
@@ -348,7 +349,7 @@ export const resolveCommand = define({
       } catch (err) {
         if (err instanceof PathBoundaryError) {
           console.error(`Error: ${err.message}`);
-          process.exitCode = 1;
+          process.exitCode = ExitCode.ENVIRONMENT_ERROR;
           return;
         }
         throw err;
@@ -455,7 +456,7 @@ export const resolveCommand = define({
 
     if (!ref) {
       console.error('Error: --ref is required in single-ref mode.');
-      process.exitCode = 1;
+      process.exitCode = ExitCode.USAGE_ERROR;
       return;
     }
 
@@ -496,7 +497,7 @@ export const resolveCommand = define({
         console.error(
           'Run "shiori scan" to refresh, or use --force to skip this check.',
         );
-        process.exitCode = 1;
+        process.exitCode = ExitCode.ENVIRONMENT_ERROR;
         return;
       }
     }
@@ -535,7 +536,7 @@ export const resolveCommand = define({
     } catch (err) {
       if (err instanceof PathBoundaryError) {
         console.error(`Error: ${err.message}`);
-        process.exitCode = 1;
+        process.exitCode = ExitCode.ENVIRONMENT_ERROR;
         return;
       }
       throw err;

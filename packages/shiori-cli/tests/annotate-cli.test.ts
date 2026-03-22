@@ -186,7 +186,7 @@ describe('annotate-cli: error handling', () => {
       dir,
     ]);
 
-    assert.equal(exitCode, 1);
+    assert.equal(exitCode, 2);
     assert.ok(stderr.includes('Invalid --target format'));
   });
 
@@ -205,7 +205,7 @@ describe('annotate-cli: error handling', () => {
       dir,
     ]);
 
-    assert.equal(exitCode, 1);
+    assert.equal(exitCode, 2);
     assert.ok(stderr.includes('Invalid ref'));
   });
 
@@ -222,7 +222,7 @@ describe('annotate-cli: error handling', () => {
       dir,
     ]);
 
-    assert.equal(exitCode, 1);
+    assert.equal(exitCode, 3);
     assert.ok(stderr.includes('File not found'));
   });
 
@@ -241,7 +241,7 @@ describe('annotate-cli: error handling', () => {
       dir,
     ]);
 
-    assert.equal(exitCode, 1);
+    assert.equal(exitCode, 2);
     assert.ok(stderr.includes('out of range'));
   });
 
@@ -271,7 +271,7 @@ describe('annotate-cli: error handling', () => {
       dir,
     ]);
 
-    assert.equal(exitCode, 1);
+    assert.equal(exitCode, 2);
     assert.ok(stderr.includes('already exists in registry'));
   });
 });
@@ -402,7 +402,7 @@ describe('annotate-cli: --format json (EP-0058)', () => {
       dir,
     ]);
 
-    assert.equal(exitCode, 1);
+    assert.equal(exitCode, 2);
     assert.ok(stderr.includes('Invalid --format'));
   });
 

@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { assertWithinCwd, PathBoundaryError } from './path-boundary.ts';
+import { ExitCode } from './exit-codes.ts';
 
 /**
  * Write formatted output to a file or stdout.
@@ -35,7 +36,7 @@ export async function writeOutput(
     } catch (err) {
       if (err instanceof PathBoundaryError) {
         console.error(`Error: ${err.message}`);
-        process.exitCode = 1;
+        process.exitCode = ExitCode.ENVIRONMENT_ERROR;
         return false;
       }
       throw err;

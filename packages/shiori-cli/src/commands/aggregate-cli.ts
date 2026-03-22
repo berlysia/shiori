@@ -16,6 +16,7 @@ import {
   type AggregateResult,
   type HealthLevel,
 } from '../core/types.ts';
+import { ExitCode } from '../core/exit-codes.ts';
 
 /**
  * Format AggregateResult based on output format.
@@ -128,7 +129,7 @@ export const aggregateCommand = define({
       console.error(
         'Error: --files is required. Provide a glob pattern or comma-separated file paths.',
       );
-      process.exitCode = 1;
+      process.exitCode = ExitCode.USAGE_ERROR;
       return;
     }
 
@@ -143,7 +144,7 @@ export const aggregateCommand = define({
         console.error(
           `Error: Invalid --fail-on-level value "${failOnLevelValue}". Valid values: ${VALID_FAIL_ON_LEVELS.join(', ')}`,
         );
-        process.exitCode = 1;
+        process.exitCode = ExitCode.USAGE_ERROR;
         return;
       }
     }
@@ -164,7 +165,7 @@ export const aggregateCommand = define({
       console.error(
         `Error: No input files found matching "${filesArg}". Provide valid file paths or glob patterns.`,
       );
-      process.exitCode = 1;
+      process.exitCode = ExitCode.ENVIRONMENT_ERROR;
       return;
     }
 
@@ -181,7 +182,7 @@ export const aggregateCommand = define({
         console.error(
           `Error: Cannot read file "${filePath}": ${err instanceof Error ? err.message : String(err)}`,
         );
-        process.exitCode = 1;
+        process.exitCode = ExitCode.ENVIRONMENT_ERROR;
         return;
       }
 
@@ -192,7 +193,7 @@ export const aggregateCommand = define({
         console.error(
           `Error: Invalid JSON in "${filePath}": ${err instanceof Error ? err.message : String(err)}`,
         );
-        process.exitCode = 1;
+        process.exitCode = ExitCode.ENVIRONMENT_ERROR;
         return;
       }
 
@@ -200,7 +201,7 @@ export const aggregateCommand = define({
         console.error(
           `Error: File "${filePath}" does not contain a valid SummaryResult JSON.`,
         );
-        process.exitCode = 1;
+        process.exitCode = ExitCode.ENVIRONMENT_ERROR;
         return;
       }
 
@@ -221,7 +222,7 @@ export const aggregateCommand = define({
         console.error(
           `Error: Duplicate repository "${key}". Each summary must have a unique repository identifier.`,
         );
-        process.exitCode = 1;
+        process.exitCode = ExitCode.USAGE_ERROR;
         return;
       }
       seen.add(key);
@@ -262,7 +263,7 @@ export const aggregateCommand = define({
         console.error(
           `Failing: Repository "${worstEntry.repository}" health level "${worstEntry.level}" is at or below threshold "${failOnLevel}"`,
         );
-        process.exitCode = 1;
+        process.exitCode = ExitCode.GOVERNANCE_VIOLATION;
       }
     }
   },

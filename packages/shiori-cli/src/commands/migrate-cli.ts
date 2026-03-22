@@ -16,6 +16,7 @@ import {
   groupActionsByFile,
   formatMigratePreview,
 } from './migrate.ts';
+import { ExitCode } from '../core/exit-codes.ts';
 
 export const migrateCommand = define({
   name: 'migrate',
@@ -78,7 +79,7 @@ export const migrateCommand = define({
       console.error(
         `Error: Invalid --prefix "${prefix}". Must start with uppercase letter, e.g. "MIG", "DEBT", "JIRA:PROJ"`,
       );
-      process.exitCode = 1;
+      process.exitCode = ExitCode.USAGE_ERROR;
       return;
     }
 
@@ -117,7 +118,7 @@ export const migrateCommand = define({
         console.error(
           `Error: Generated ref "${action.ref}" is invalid. Try a different --prefix.`,
         );
-        process.exitCode = 1;
+        process.exitCode = ExitCode.USAGE_ERROR;
         return;
       }
     }
@@ -145,7 +146,7 @@ export const migrateCommand = define({
     } catch (err) {
       if (err instanceof PathBoundaryError) {
         console.error(`Error: ${err.message}`);
-        process.exitCode = 1;
+        process.exitCode = ExitCode.ENVIRONMENT_ERROR;
         return;
       }
       throw err;

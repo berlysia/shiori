@@ -199,7 +199,7 @@ describe('check --workspace: error when no workspace config', () => {
     await rm(tempDir, { recursive: true, force: true });
   });
 
-  it('exits 1 with error message when workspace config is missing', async () => {
+  it('exits 3 with error message when workspace config is missing', async () => {
     const { exitCode, stderr } = await runCli([
       'check',
       '--workspace',
@@ -207,7 +207,7 @@ describe('check --workspace: error when no workspace config', () => {
       tempDir,
     ]);
 
-    assert.equal(exitCode, 1);
+    assert.equal(exitCode, 3);
     assert.ok(
       stderr.includes('No workspace configuration found'),
       'should report missing workspace configuration',

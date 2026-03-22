@@ -261,7 +261,7 @@ export const doctorCommand = define({
     // --yes without --upgrade is meaningless
     if (yes && !upgrade) {
       console.error('Error: --yes can only be used with --upgrade');
-      process.exitCode = 1;
+      process.exitCode = ExitCode.USAGE_ERROR;
       return;
     }
 

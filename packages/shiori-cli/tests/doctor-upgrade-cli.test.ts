@@ -44,7 +44,7 @@ describe('doctor --upgrade CLI', () => {
       ['doctor', '--cwd', dir, '--yes'],
       { baseDir },
     );
-    assert.equal(exitCode, 1);
+    assert.equal(exitCode, 2);
     assert.ok(stderr.includes('--yes can only be used with --upgrade'));
   });
 

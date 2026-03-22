@@ -152,7 +152,7 @@ describe('init --ci: CI workflow generation', () => {
         '--ci-only',
       ]);
 
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 2);
       assert.ok(stderr.includes('--ci-only requires --ci'));
     });
   });
@@ -169,7 +169,7 @@ describe('init --ci: CI workflow generation', () => {
         'nonexistent',
       ]);
 
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 2);
       assert.ok(stderr.includes('Invalid --ci value'));
       assert.ok(stderr.includes('basic'));
       assert.ok(stderr.includes('sarif'));

@@ -21,6 +21,7 @@ import {
   DEFAULT_SCAN_PATTERNS,
   DEFAULT_SCAN_IGNORE,
 } from '../core/scan-defaults.ts';
+import { ExitCode } from '../core/exit-codes.ts';
 
 const VALID_PRESETS: readonly WeeklyReportPreset[] = [
   'weekly',
@@ -109,7 +110,7 @@ export const weeklyReportCommand = define({
       console.error(
         `Error: Invalid --preset value "${preset}". Valid values: ${VALID_PRESETS.join(', ')}`,
       );
-      process.exitCode = 1;
+      process.exitCode = ExitCode.USAGE_ERROR;
       return;
     }
     const validatedPreset = preset as WeeklyReportPreset;

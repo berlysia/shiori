@@ -5,6 +5,7 @@ import {
 } from '../core/registry-loader.ts';
 import { loadScanResult } from '../core/scan-result-loader.ts';
 import { why, isFound } from './why.ts';
+import { ExitCode } from '../core/exit-codes.ts';
 
 export const whyCommand = define({
   name: 'why',
@@ -85,7 +86,7 @@ export const whyCommand = define({
     }
 
     if (!isFound(result)) {
-      process.exitCode = 1;
+      process.exitCode = ExitCode.USAGE_ERROR;
     }
   },
 });

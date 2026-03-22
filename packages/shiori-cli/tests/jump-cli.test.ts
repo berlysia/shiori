@@ -17,7 +17,7 @@ describe('jump-cli: error paths and behavior', () => {
   });
 
   describe('ref not found in scan result', () => {
-    it('exits 1 with error message when ref has no source location', async () => {
+    it('exits 2 with error message when ref has no source location', async () => {
       const dir = await mkdtemp(join(baseDir, 'not-found-'));
       await mkdir(join(dir, '.config', 'shiori'), { recursive: true });
       await writeFile(
@@ -37,7 +37,7 @@ describe('jump-cli: error paths and behavior', () => {
         scanPath,
       ]);
 
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 2);
       assert.ok(stderr.includes('No source location found'));
       assert.ok(stderr.includes('MISSING-REF'));
       assert.equal(stdout, '');

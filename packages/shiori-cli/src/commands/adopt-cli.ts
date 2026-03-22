@@ -22,6 +22,7 @@ import {
   type AdoptGroupSummary,
 } from './adopt.ts';
 import { formatGroupLabel } from '../core/format-utils.ts';
+import { ExitCode } from '../core/exit-codes.ts';
 import type { ShioriCandidate, Registry } from '../core/types.ts';
 
 /**
@@ -267,7 +268,7 @@ export const adoptCommand = define({
       console.error(
         'Error: --wizard and --apply are mutually exclusive. --wizard includes its own apply confirmation step.',
       );
-      process.exitCode = 1;
+      process.exitCode = ExitCode.USAGE_ERROR;
       return;
     }
 
@@ -283,7 +284,7 @@ export const adoptCommand = define({
       console.error(
         `Error: Invalid --prefix "${prefix}". Must start with uppercase letter, e.g. "ADOPT", "DEBT", "JIRA:PROJ"`,
       );
-      process.exitCode = 1;
+      process.exitCode = ExitCode.USAGE_ERROR;
       return;
     }
 
@@ -359,7 +360,7 @@ export const adoptCommand = define({
         console.error(
           `Error: Invalid prefix "${prefix}". Must start with uppercase letter, e.g. "ADOPT", "DEBT", "JIRA:PROJ"`,
         );
-        process.exitCode = 1;
+        process.exitCode = ExitCode.USAGE_ERROR;
         return;
       }
     }
@@ -379,7 +380,7 @@ export const adoptCommand = define({
         console.error(
           `Error: Generated ref "${action.ref}" is invalid. Try a different --prefix.`,
         );
-        process.exitCode = 1;
+        process.exitCode = ExitCode.USAGE_ERROR;
         return;
       }
     }
@@ -449,7 +450,7 @@ async function applyAdoption(opts: {
   } catch (err) {
     if (err instanceof PathBoundaryError) {
       console.error(`Error: ${err.message}`);
-      process.exitCode = 1;
+      process.exitCode = ExitCode.ENVIRONMENT_ERROR;
       return;
     }
     throw err;
@@ -485,7 +486,7 @@ async function applyAdoption(opts: {
           'Use "git checkout" or "git stash" to revert partial changes.',
         );
       }
-      process.exitCode = 1;
+      process.exitCode = ExitCode.ENVIRONMENT_ERROR;
       return;
     }
   }

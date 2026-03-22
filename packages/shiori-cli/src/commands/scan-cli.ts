@@ -16,6 +16,7 @@ import {
   DEFAULT_SCAN_IGNORE,
 } from '../core/scan-defaults.ts';
 import { loadConfigAndRegistry } from '../core/registry-loader.ts';
+import { ExitCode } from '../core/exit-codes.ts';
 
 export const scanCommand = define({
   name: 'scan',
@@ -102,7 +103,7 @@ export const scanCommand = define({
       } catch (err) {
         if (err instanceof PathBoundaryError) {
           console.error(`Error: ${err.message}`);
-          process.exitCode = 1;
+          process.exitCode = ExitCode.ENVIRONMENT_ERROR;
           return;
         }
         throw err;

@@ -136,7 +136,7 @@ describe('triage-cli: exit code behavior', () => {
   });
 
   describe('argument validation', () => {
-    it('rejects invalid --fail-on value with exit code 1', async () => {
+    it('rejects invalid --fail-on value with exit code 2', async () => {
       const dir = await createFixtureDir(baseDir, 'invalid-failon', {
         sourceFiles: {
           'src/sample.ts':
@@ -156,11 +156,11 @@ describe('triage-cli: exit code behavior', () => {
         'bogus-type',
       ]);
 
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 2);
       assert.ok(stderr.includes('Invalid --fail-on'));
     });
 
-    it('rejects invalid --format value with exit code 1', async () => {
+    it('rejects invalid --format value with exit code 2', async () => {
       const dir = await createFixtureDir(baseDir, 'invalid-format', {
         sourceFiles: {
           'src/sample.ts':
@@ -180,7 +180,7 @@ describe('triage-cli: exit code behavior', () => {
         'xml',
       ]);
 
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 2);
       assert.ok(stderr.includes('Invalid --format'));
     });
   });

@@ -193,7 +193,7 @@ export const healthCommand = define({
       console.error(
         'Error: --apply requires --fix. Use --fix --apply to execute fixes.',
       );
-      process.exitCode = 1;
+      process.exitCode = ExitCode.USAGE_ERROR;
       return;
     }
 
@@ -204,7 +204,7 @@ export const healthCommand = define({
         console.error(
           `Error: Invalid --fail-on-level value "${failOnLevelValue}". Valid values: ${VALID_FAIL_ON_LEVELS.join(', ')}`,
         );
-        process.exitCode = 1;
+        process.exitCode = ExitCode.USAGE_ERROR;
         return;
       }
     }
@@ -262,7 +262,7 @@ export const healthCommand = define({
       );
       if (!result.ok) {
         console.error(`Error: ${result.error}`);
-        process.exitCode = 1;
+        process.exitCode = ExitCode.ENVIRONMENT_ERROR;
         return;
       }
       console.error(`Snapshot saved to ${result.path}`);

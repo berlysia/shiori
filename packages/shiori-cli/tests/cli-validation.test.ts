@@ -7,6 +7,7 @@ import {
   createFormatValidator,
 } from '../src/core/cli-validation.ts';
 import { VERIFY_ISSUE_TYPES } from '../src/core/types.ts';
+import { ExitCode } from '../src/core/exit-codes.ts';
 
 describe('parseAndValidateIssueTypes', () => {
   let originalExitCode: typeof process.exitCode;
@@ -62,7 +63,7 @@ describe('parseAndValidateIssueTypes', () => {
   it('returns null and sets exitCode for invalid value', () => {
     const result = parseAndValidateIssueTypes('typo', '--fail-on');
     assert.equal(result, null);
-    assert.equal(process.exitCode, 1);
+    assert.equal(process.exitCode, ExitCode.USAGE_ERROR);
     assert.ok(stderrOutput.some((s) => s.includes('"typo"')));
     assert.ok(stderrOutput.some((s) => s.includes('Valid values:')));
   });
@@ -73,7 +74,7 @@ describe('parseAndValidateIssueTypes', () => {
       '--fail-on',
     );
     assert.equal(result, null);
-    assert.equal(process.exitCode, 1);
+    assert.equal(process.exitCode, ExitCode.USAGE_ERROR);
     assert.ok(stderrOutput.some((s) => s.includes('"invalid-type"')));
   });
 
@@ -129,7 +130,7 @@ describe('validateOutputFormat', () => {
   it('returns null and sets exitCode for invalid format', () => {
     const result = validateOutputFormat('xml');
     assert.equal(result, null);
-    assert.equal(process.exitCode, 1);
+    assert.equal(process.exitCode, ExitCode.USAGE_ERROR);
     assert.ok(stderrOutput.some((s) => s.includes('"xml"')));
     assert.ok(stderrOutput.some((s) => s.includes('Valid values:')));
   });
@@ -171,7 +172,7 @@ describe('validateProvider', () => {
   it('returns null and sets exitCode for unknown provider', () => {
     const result = validateProvider('foo');
     assert.equal(result, null);
-    assert.equal(process.exitCode, 1);
+    assert.equal(process.exitCode, ExitCode.USAGE_ERROR);
     assert.ok(stderrOutput.some((s) => s.includes('"foo"')));
     assert.ok(stderrOutput.some((s) => s.includes('Valid values:')));
   });
@@ -233,7 +234,7 @@ describe('createFormatValidator', () => {
     const validate = createFormatValidator(['json', 'markdown'] as const);
     const result = validate('xml');
     assert.equal(result, null);
-    assert.equal(process.exitCode, 1);
+    assert.equal(process.exitCode, ExitCode.USAGE_ERROR);
     assert.ok(stderrOutput.some((s) => s.includes('"xml"')));
     assert.ok(stderrOutput.some((s) => s.includes('Valid values:')));
     assert.ok(stderrOutput.some((s) => s.includes('json, markdown')));

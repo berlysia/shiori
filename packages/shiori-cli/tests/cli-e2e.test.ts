@@ -594,7 +594,7 @@ describe('CLI E2E', () => {
   });
 
   describe('option validation', () => {
-    it('exits 1 for invalid --fail-on value in verify', async () => {
+    it('exits 2 for invalid --fail-on value in verify', async () => {
       const { exitCode, stderr } = await runCli([
         'verify',
         '--scan',
@@ -604,12 +604,12 @@ describe('CLI E2E', () => {
         '--fail-on',
         'typo',
       ]);
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 2);
       assert.ok(stderr.includes('"typo"'));
       assert.ok(stderr.includes('Valid values:'));
     });
 
-    it('exits 1 for invalid --warn-on value in verify', async () => {
+    it('exits 2 for invalid --warn-on value in verify', async () => {
       const { exitCode, stderr } = await runCli([
         'verify',
         '--scan',
@@ -619,11 +619,11 @@ describe('CLI E2E', () => {
         '--warn-on',
         'not-a-type',
       ]);
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 2);
       assert.ok(stderr.includes('"not-a-type"'));
     });
 
-    it('exits 1 for invalid --format value in verify', async () => {
+    it('exits 2 for invalid --format value in verify', async () => {
       const { exitCode, stderr } = await runCli([
         'verify',
         '--scan',
@@ -633,12 +633,12 @@ describe('CLI E2E', () => {
         '--format',
         'xml',
       ]);
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 2);
       assert.ok(stderr.includes('"xml"'));
       assert.ok(stderr.includes('Valid values:'));
     });
 
-    it('exits 1 for invalid --fail-on value in check', async () => {
+    it('exits 2 for invalid --fail-on value in check', async () => {
       const { exitCode, stderr } = await runCli([
         'check',
         '--patterns',
@@ -650,11 +650,11 @@ describe('CLI E2E', () => {
         '--fail-on',
         'bad-value',
       ]);
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 2);
       assert.ok(stderr.includes('"bad-value"'));
     });
 
-    it('exits 1 for invalid --format value in check', async () => {
+    it('exits 2 for invalid --format value in check', async () => {
       const { exitCode, stderr } = await runCli([
         'check',
         '--patterns',
@@ -666,11 +666,11 @@ describe('CLI E2E', () => {
         '--format',
         'html',
       ]);
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 2);
       assert.ok(stderr.includes('"html"'));
     });
 
-    it('exits 1 for unknown --provider in scan', async () => {
+    it('exits 2 for unknown --provider in scan', async () => {
       const { exitCode, stderr } = await runCli([
         'scan',
         '--patterns',
@@ -680,7 +680,7 @@ describe('CLI E2E', () => {
         '--provider',
         'foo',
       ]);
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 2);
       assert.ok(stderr.includes('"foo"'));
       assert.ok(stderr.includes('Valid values:'));
     });
@@ -695,7 +695,7 @@ describe('CLI E2E', () => {
         '--registry',
         join(PROJECT_ROOT, REGISTRY_PATH),
       ]);
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 3);
       assert.ok(stderr.includes('Scan result file not found'));
       assert.ok(stderr.includes('/nonexistent/scan-result.json'));
       // Should not contain raw stack trace
@@ -713,7 +713,7 @@ describe('CLI E2E', () => {
         '--registry',
         join(PROJECT_ROOT, REGISTRY_PATH),
       ]);
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 3);
       assert.ok(stderr.includes('Failed to parse scan result as JSON'));
       assert.ok(!stderr.includes('    at '));
     });
@@ -726,13 +726,13 @@ describe('CLI E2E', () => {
         '--registry',
         '/nonexistent/registry.json',
       ]);
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 3);
       assert.ok(!stderr.includes('    at '));
     });
   });
 
   describe('watch command errors', () => {
-    it('exits 1 for non-numeric --debounce-ms', async () => {
+    it('exits 3 for non-numeric --debounce-ms', async () => {
       const { exitCode, stderr } = await runCli([
         'watch',
         '--once',
@@ -743,7 +743,7 @@ describe('CLI E2E', () => {
         '--debounce-ms',
         'abc',
       ]);
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 3);
       assert.ok(stderr.includes('Invalid --debounce-ms'));
     });
   });

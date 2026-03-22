@@ -3,8 +3,8 @@
  *
  * ADR 027: CLI Exit Code Policy Matrix
  *
- * Phase 1: Constants and policy metadata only.
- * Phase 2: Gradual replacement of inline `process.exitCode = 1` with named constants.
+ * Phase 1: Constants and policy metadata only. ✅ Done
+ * Phase 2: All `process.exitCode = 1` replaced with named constants. ✅ Done
  */
 
 // ---------------------------------------------------------------------------
@@ -33,7 +33,7 @@ export type ExitCodeValue = (typeof ExitCode)[keyof typeof ExitCode];
  * Exit code policy category.
  *
  * - governance: exit 1 when governance issues are detected
- * - usage: exit 1 (future: 2) on invalid CLI arguments
+ * - usage: exit 2 on invalid CLI arguments, exit 3 on environment errors
  * - passthrough: always exit 0 (informational or long-running commands)
  */
 export type ExitCodeCategory = 'governance' | 'usage' | 'passthrough';
@@ -42,7 +42,7 @@ export type ExitCodeCategory = 'governance' | 'usage' | 'passthrough';
 export interface ExitCodePolicy {
   /** Policy category */
   category: ExitCodeCategory;
-  /** Human-readable description of exit 1 trigger condition (null if passthrough) */
+  /** Human-readable description of non-zero exit trigger condition (null if passthrough) */
   failCondition: string | null;
 }
 
@@ -131,7 +131,7 @@ export const EXIT_CODE_POLICIES: Record<string, ExitCodePolicy> = {
     failCondition: 'summary.errors > 0',
   },
 
-  // -- Usage commands (exit 1 on validation failures) --
+  // -- Usage commands (exit 2 on validation failures, exit 3 on environment errors) --
   scan: {
     category: 'usage',
     failCondition: 'validation failures (invalid options, path boundary)',
@@ -186,6 +186,23 @@ export const EXIT_CODE_POLICIES: Record<string, ExitCodePolicy> = {
     failCondition: 'validation failures, missing snapshot data',
   },
 
+  // -- Usage commands that were previously classified as passthrough --
+  // These commands validate CLI arguments and set USAGE_ERROR / ENVIRONMENT_ERROR.
+  watch: {
+    category: 'usage',
+    failCondition:
+      'invalid --format value, mutually exclusive options, path boundary violations',
+  },
+  guide: {
+    category: 'usage',
+    failCondition: 'unknown --use-case ID',
+  },
+  fix: {
+    category: 'usage',
+    failCondition:
+      'invalid options (--fail-on, --warn-on, --format), mutually exclusive flags, path boundary violations',
+  },
+
   // -- Passthrough commands (always exit 0) --
   update: {
     category: 'passthrough',
@@ -195,23 +212,11 @@ export const EXIT_CODE_POLICIES: Record<string, ExitCodePolicy> = {
     category: 'passthrough',
     failCondition: null,
   },
-  watch: {
-    category: 'passthrough',
-    failCondition: null,
-  },
   journal: {
     category: 'passthrough',
     failCondition: null,
   },
   docs: {
-    category: 'passthrough',
-    failCondition: null,
-  },
-  guide: {
-    category: 'passthrough',
-    failCondition: null,
-  },
-  fix: {
     category: 'passthrough',
     failCondition: null,
   },

@@ -4,6 +4,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { writeOutput } from '../src/core/cli-output.ts';
+import { ExitCode } from '../src/core/exit-codes.ts';
 
 describe('writeOutput', () => {
   let tempDir: string;
@@ -91,7 +92,7 @@ describe('writeOutput', () => {
       cwd: tempDir,
     });
     assert.equal(result, false);
-    assert.equal(process.exitCode, 1);
+    assert.equal(process.exitCode, ExitCode.ENVIRONMENT_ERROR);
     assert.ok(stderrOutput.some((s) => s.includes('Error:')));
   });
 });

@@ -17,7 +17,7 @@ describe('show-cli: error paths and behavior', () => {
   });
 
   describe('ref not found', () => {
-    it('exits 1 when ref is not in registry or scan result', async () => {
+    it('exits 2 when ref is not in registry or scan result', async () => {
       const dir = await mkdtemp(join(baseDir, 'not-found-'));
       await mkdir(join(dir, '.config', 'shiori'), { recursive: true });
       await writeFile(
@@ -42,7 +42,7 @@ describe('show-cli: error paths and behavior', () => {
         scanPath,
       ]);
 
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 2);
       // ShowResult: no registryEntry and empty sourceLocations
       const result = JSON.parse(stdout) as {
         ref: string;

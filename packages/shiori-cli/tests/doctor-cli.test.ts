@@ -77,9 +77,11 @@ describe('doctor-cli', () => {
     const dir = await createFixtureDir(baseDir, 'doctor-bad-fmt');
     const { exitCode, stderr } = await runCli(
       ['doctor', '--cwd', dir, '-f', 'invalid'],
-      { baseDir },
+      {
+        baseDir,
+      },
     );
-    assert.equal(exitCode, 1);
+    assert.equal(exitCode, 2);
     assert.ok(stderr.includes('Invalid'));
   });
 

@@ -825,7 +825,7 @@ describe('CLI path resolution: relative paths resolved against --cwd', () => {
         '/tmp/outside-boundary.json',
       ]);
 
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 3);
       assert.ok(stderr.includes('outside'));
     });
 
@@ -841,7 +841,7 @@ describe('CLI path resolution: relative paths resolved against --cwd', () => {
         '/tmp/outside-boundary.json',
       ]);
 
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 3);
       assert.ok(stderr.includes('outside'));
     });
 
@@ -867,7 +867,7 @@ describe('CLI path resolution: relative paths resolved against --cwd', () => {
         '/tmp/outside-boundary.json',
       ]);
 
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 3);
       assert.ok(stderr.includes('outside'));
     });
 
@@ -887,7 +887,7 @@ describe('CLI path resolution: relative paths resolved against --cwd', () => {
         '/tmp/outside-boundary.json',
       ]);
 
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 3);
       assert.ok(stderr.includes('outside'));
     });
 
@@ -908,7 +908,7 @@ describe('CLI path resolution: relative paths resolved against --cwd', () => {
         '/tmp/outside-boundary.json',
       ]);
 
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 3);
       assert.ok(stderr.includes('outside'));
     });
 
@@ -929,7 +929,7 @@ describe('CLI path resolution: relative paths resolved against --cwd', () => {
         '/tmp/outside-boundary.json',
       ]);
 
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 3);
       assert.ok(stderr.includes('outside'));
     });
 
@@ -969,7 +969,7 @@ describe('CLI path resolution: relative paths resolved against --cwd', () => {
         'missing-in-registry,unused-in-source,expired,syntax-error',
       ]);
 
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 3);
       assert.ok(stderr.includes('outside'));
     });
   });

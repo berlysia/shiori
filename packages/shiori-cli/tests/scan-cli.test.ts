@@ -17,7 +17,7 @@ describe('scan-cli: argument validation and error paths', () => {
   });
 
   describe('--provider validation', () => {
-    it('rejects invalid --provider value with exit code 1', async () => {
+    it('rejects invalid --provider value with exit code 2', async () => {
       const dir = await mkdtemp(join(baseDir, 'provider-'));
       await mkdir(join(dir, 'src'), { recursive: true });
       await writeFile(
@@ -36,7 +36,7 @@ describe('scan-cli: argument validation and error paths', () => {
         'nonexistent',
       ]);
 
-      assert.equal(exitCode, 1);
+      assert.equal(exitCode, 2);
       assert.ok(stderr.includes('Unknown --provider'));
       assert.ok(stderr.includes('"nonexistent"'));
     });
