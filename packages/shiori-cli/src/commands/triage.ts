@@ -1,4 +1,5 @@
 import {
+  assertNever,
   TRIAGE_FORMATS,
   type RegistryEntry,
   type ScanResult,
@@ -302,7 +303,9 @@ export function formatTriageOutput(
   switch (format) {
     case 'markdown':
       return formatTriageAsMarkdown(result);
-    default:
+    case 'json':
       return JSON.stringify(result, null, 2);
+    default:
+      return assertNever(format);
   }
 }

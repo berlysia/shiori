@@ -1,5 +1,9 @@
-import type { VerifyResult, ReportResult } from '../core/types.ts';
-import { healthEmoji, insightIcon } from '../core/emoji.ts';
+import type {
+  VerifyResult,
+  ReportResult,
+  HealthResult,
+} from '../core/types.ts';
+import { healthEmoji, insightIcon, trendArrow } from '../core/emoji.ts';
 
 /**
  * Format VerifyResult as GitHub Actions Step Summary markdown.
@@ -151,6 +155,86 @@ export function formatReportAsGitHubSummary(result: ReportResult): string {
     lines.push('|------|-------|');
     for (const { key, count } of result.byRule) {
       lines.push(`| \`${key}\` | ${count} |`);
+    }
+    lines.push('');
+    lines.push('</details>');
+    lines.push('');
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Format HealthResult as GitHub Actions Step Summary markdown.
+ *
+ * Renders a compact health card with score, issue counts, expiration
+ * warnings, trend, prescriptions, and insights — optimised for
+ * $GITHUB_STEP_SUMMARY rendering.
+ */
+export function formatHealthAsGitHubSummary(result: HealthResult): string {
+  const lines: string[] = [];
+
+  // Health score header
+  const emoji = healthEmoji(result.health.level);
+  lines.push(
+    `### ${emoji} Shiori Health: ${result.health.score}/100 (${result.health.level})`,
+  );
+  lines.push('');
+  lines.push(`> ${result.health.summary}`);
+  lines.push('');
+
+  // Issue and expiration overview table
+  lines.push('| Metric | Value |');
+  lines.push('|--------|-------|');
+  lines.push(`| Issues | ${result.issues.total} |`);
+  lines.push(`| Errors | ${result.issues.errors} |`);
+  lines.push(`| Warnings | ${result.issues.warnings} |`);
+
+  if (result.expiring.expired > 0 || result.expiring.expiringSoon > 0) {
+    lines.push(`| Expired | ${result.expiring.expired} |`);
+    lines.push(`| Expiring soon | ${result.expiring.expiringSoon} |`);
+  }
+  lines.push('');
+
+  // Trend (when history is available)
+  if (result.trend) {
+    const arrow = trendArrow(result.trend.direction);
+    const sign = result.trend.scoreChange >= 0 ? '+' : '';
+    lines.push(
+      `**Trend:** ${arrow} ${result.trend.direction} (${sign}${result.trend.scoreChange}) over ${result.trend.count} snapshot(s)`,
+    );
+    lines.push('');
+  }
+
+  // Insights
+  if (result.insights.length > 0) {
+    lines.push('#### Insights');
+    lines.push('');
+    for (const insight of result.insights) {
+      const icon = insightIcon(insight.level);
+      lines.push(`- ${icon} **${insight.label}**: ${insight.message}`);
+    }
+    lines.push('');
+  }
+
+  // Prescriptions (collapsible when present)
+  if (result.prescriptions && result.prescriptions.length > 0) {
+    lines.push(
+      `<details><summary>💊 Prescriptions (${result.prescriptions.length})</summary>`,
+    );
+    lines.push('');
+    lines.push('| Urgency | Impact | Command |');
+    lines.push('|---------|--------|---------|');
+    for (const rx of result.prescriptions) {
+      const urgencyMark =
+        rx.urgency === 'critical'
+          ? '🔴'
+          : rx.urgency === 'recommended'
+            ? '🟡'
+            : '⚪';
+      lines.push(
+        `| ${urgencyMark} ${rx.urgency} | +${rx.scoreImpact}pt | \`${rx.command}\` |`,
+      );
     }
     lines.push('');
     lines.push('</details>');

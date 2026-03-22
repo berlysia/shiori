@@ -13,6 +13,7 @@ import type { SummaryResult } from './summary.ts';
 import { createFormatValidator } from '../core/cli-validation.ts';
 import { writeOutput } from '../core/cli-output.ts';
 import {
+  assertNever,
   isAtOrBelowLevel,
   type AggregateResult,
   type HealthLevel,
@@ -32,8 +33,10 @@ function formatAggregate(
       return formatAggregateAsMarkdown(result);
     case 'html':
       return formatAggregateAsHtml(result);
-    default:
+    case 'json':
       return JSON.stringify(result, null, 2);
+    default:
+      return assertNever(format);
   }
 }
 

@@ -122,7 +122,8 @@ export const healthCommand = define({
     format: {
       type: 'string',
       short: 'f',
-      description: 'Output format: "json", "summary". Default: "summary"',
+      description:
+        'Output format: "json", "summary", "github-summary". Default: "summary"',
       default: 'summary',
     },
     output: {

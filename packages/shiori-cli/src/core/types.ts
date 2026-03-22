@@ -1,3 +1,13 @@
+/**
+ * Exhaustive check helper for switch statements.
+ * Ensures all cases of a discriminated union are handled at compile time.
+ * If a new variant is added to the union, TypeScript will report an error
+ * at every switch that doesn't handle it.
+ */
+export function assertNever(value: never): never {
+  throw new Error(`Unexpected value: ${String(value)}`);
+}
+
 /** Git blame provenance information for an annotation */
 export interface ProvenanceInfo {
   /** Author name from git blame */
@@ -180,6 +190,12 @@ export interface ComputeDeltaOptions {
   base: ScanResult;
   head: ScanResult;
 }
+
+/** Canonical list of all delta output formats (derived → DeltaOutputFormat) */
+export const DELTA_OUTPUT_FORMATS = ['json', 'markdown'] as const;
+
+/** Delta output format (derived from DELTA_OUTPUT_FORMATS) */
+export type DeltaOutputFormat = (typeof DELTA_OUTPUT_FORMATS)[number];
 
 // ── Trend types ──────────────────────────────────────────────
 
@@ -715,6 +731,12 @@ export interface BulkResolveResult {
   allSkipped: SkippedAnnotation[];
 }
 
+/** Canonical list of all resolve output formats (derived → ResolveOutputFormat) */
+export const RESOLVE_OUTPUT_FORMATS = ['text', 'json'] as const;
+
+/** Output format for resolve --closed (derived from RESOLVE_OUTPUT_FORMATS) */
+export type ResolveOutputFormat = (typeof RESOLVE_OUTPUT_FORMATS)[number];
+
 // ── File edit types ──────────────────────────────────────────
 
 /** Result of applying edits to file content (shared by resolve/migrate) */
@@ -761,6 +783,12 @@ export interface CliJournalEntry {
   /** Number of registry entries removed (null on failure or N/A) */
   entries_removed: number | null;
 }
+
+/** Canonical list of all journal output formats (derived → JournalFormat) */
+export const JOURNAL_FORMATS = ['json', 'table'] as const;
+
+/** Output format for journal command (derived from JOURNAL_FORMATS) */
+export type JournalFormat = (typeof JOURNAL_FORMATS)[number];
 
 // ── Journal Velocity types (EP-0080) ─────────────────────────
 
@@ -929,7 +957,7 @@ export const SUMMARY_FORMATS = ['json', 'markdown'] as const;
 export type SummaryFormat = (typeof SUMMARY_FORMATS)[number];
 
 /** Canonical list of all health output formats (derived → HealthFormat) */
-export const HEALTH_FORMATS = ['json', 'summary'] as const;
+export const HEALTH_FORMATS = ['json', 'summary', 'github-summary'] as const;
 
 /** Health output format (derived from HEALTH_FORMATS) */
 export type HealthFormat = (typeof HEALTH_FORMATS)[number];
@@ -1067,6 +1095,20 @@ export interface FixApplyResult {
   /** Health score after fix */
   scoreAfter: number;
 }
+
+/** Canonical list of all fix output formats (derived → FixFormat) */
+export const FIX_FORMATS = ['text', 'json', 'markdown'] as const;
+
+/** Output format for fix command (derived from FIX_FORMATS) */
+export type FixFormat = (typeof FIX_FORMATS)[number];
+
+// ── Candidates types ─────────────────────────────────────────
+
+/** Canonical list of all candidates output formats (derived → CandidatesOutputFormat) */
+export const CANDIDATES_OUTPUT_FORMATS = ['json', 'markdown'] as const;
+
+/** Candidates output format (derived from CANDIDATES_OUTPUT_FORMATS) */
+export type CandidatesOutputFormat = (typeof CANDIDATES_OUTPUT_FORMATS)[number];
 
 /** Result of aggregating multiple repository summaries */
 export interface AggregateResult {

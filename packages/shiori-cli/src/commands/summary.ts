@@ -1,4 +1,5 @@
 import {
+  assertNever,
   SUMMARY_FORMATS,
   type HealthResult,
   type DeltaResult,
@@ -246,10 +247,12 @@ export function formatSummary(
   switch (format) {
     case 'markdown':
       return formatSummaryAsMarkdown(result);
-    default: {
+    case 'json': {
       // Exclude internal _reportResult from JSON serialization
       const { _reportResult: _, ...serializable } = result;
       return JSON.stringify(serializable, null, 2);
     }
+    default:
+      return assertNever(format);
   }
 }

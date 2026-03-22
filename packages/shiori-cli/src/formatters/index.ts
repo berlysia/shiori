@@ -1,9 +1,11 @@
-import type {
-  DeltaResult,
-  Registry,
-  ShioriAnnotation,
-  ShioriCandidate,
-  VerifyResult,
+import {
+  assertNever,
+  type DeltaOutputFormat,
+  type DeltaResult,
+  type Registry,
+  type ShioriAnnotation,
+  type ShioriCandidate,
+  type VerifyResult,
 } from '../core/types.ts';
 import { formatVerifyResultAsMarkdown } from './markdown.ts';
 import { formatDeltaAsMarkdown } from './delta-markdown.ts';
@@ -78,16 +80,14 @@ export function formatVerifyOutput(options: FormatVerifyOutputOptions): string {
       return formatAsDiagnostic(verifyResult);
     case 'github-summary':
       return formatVerifyAsGitHubSummary(verifyResult);
-    default:
+    case 'json':
       return JSON.stringify(verifyResult, null, 2);
+    default:
+      return assertNever(format);
   }
 }
 
-/** Canonical list of all delta output formats (derived → DeltaOutputFormat) */
-export const DELTA_OUTPUT_FORMATS = ['json', 'markdown'] as const;
-
-/** Delta output format (derived from DELTA_OUTPUT_FORMATS) */
-export type DeltaOutputFormat = (typeof DELTA_OUTPUT_FORMATS)[number];
+export { DELTA_OUTPUT_FORMATS, type DeltaOutputFormat } from '../core/types.ts';
 
 export interface FormatDeltaOutputOptions {
   format: DeltaOutputFormat;
@@ -100,7 +100,9 @@ export function formatDeltaOutput(options: FormatDeltaOutputOptions): string {
   switch (format) {
     case 'markdown':
       return formatDeltaAsMarkdown(deltaResult, { maxIncrease });
-    default:
+    case 'json':
       return JSON.stringify(deltaResult, null, 2);
+    default:
+      return assertNever(format);
   }
 }

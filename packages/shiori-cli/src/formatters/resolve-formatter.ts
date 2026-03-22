@@ -1,11 +1,11 @@
-import type { BulkResolveResult } from '../core/types.ts';
+import { assertNever } from '../core/types.ts';
+import type { BulkResolveResult, ResolveOutputFormat } from '../core/types.ts';
 import { VERSION } from '../core/version.ts';
 
-/** Canonical list of all resolve output formats (derived → ResolveOutputFormat) */
-export const RESOLVE_OUTPUT_FORMATS = ['text', 'json'] as const;
-
-/** Output format for resolve --closed (derived from RESOLVE_OUTPUT_FORMATS) */
-export type ResolveOutputFormat = (typeof RESOLVE_OUTPUT_FORMATS)[number];
+export {
+  RESOLVE_OUTPUT_FORMATS,
+  type ResolveOutputFormat,
+} from '../core/types.ts';
 
 /** JSON output schema for resolve --closed (EP-0075) */
 export interface ResolveJsonOutput {
@@ -67,8 +67,10 @@ export function formatResolveOutput(
   switch (format) {
     case 'json':
       return formatResolveAsJson(bulkResult, applied);
-    default:
+    case 'text':
       return textOutput;
+    default:
+      return assertNever(format);
   }
 }
 

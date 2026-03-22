@@ -1,3 +1,4 @@
+import { assertNever, maturityStageFromLevel } from '../core/types.ts';
 import type {
   ReportResult,
   ReportFormat,
@@ -5,7 +6,6 @@ import type {
   MaturityLevel,
   MaturityStage,
 } from '../core/types.ts';
-import { maturityStageFromLevel } from '../core/types.ts';
 import { healthEmoji, insightIcon } from '../core/emoji.ts';
 import {
   formatReportAsHtml,
@@ -186,7 +186,9 @@ export function formatReportOutput(
       return formatReportAsHtml(result, options);
     case 'github-summary':
       return formatReportAsGitHubSummary(result);
-    default:
+    case 'json':
       return JSON.stringify(result, null, 2);
+    default:
+      return assertNever(format);
   }
 }

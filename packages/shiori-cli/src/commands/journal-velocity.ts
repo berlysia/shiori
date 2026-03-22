@@ -9,6 +9,7 @@
  * @see EP-0080 for design rationale
  */
 
+import { assertNever } from '../core/types.ts';
 import type {
   CliJournalEntry,
   JournalVelocityPoint,
@@ -308,7 +309,9 @@ export function formatJournalVelocity(
       return formatVelocityAsCsv(result);
     case 'spark':
       return formatVelocityAsSpark(result);
-    default:
+    case 'json':
       return JSON.stringify(result, null, 2);
+    default:
+      return assertNever(format);
   }
 }

@@ -1,4 +1,5 @@
 import {
+  assertNever,
   DOCTOR_FORMATS,
   type DoctorCheck,
   type DoctorCheckStatus,
@@ -215,8 +216,10 @@ export function formatDoctor(
   switch (format) {
     case 'json':
       return JSON.stringify(result, null, 2);
-    default:
+    case 'text':
       return formatDoctorText(result, showFix);
+    default:
+      return assertNever(format);
   }
 }
 

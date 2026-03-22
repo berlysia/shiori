@@ -6,7 +6,11 @@
  * @see EP-0082 for design rationale
  */
 
-import type { CliJournalEntry, CliOperationType } from '../core/types.ts';
+import type {
+  CliJournalEntry,
+  CliOperationType,
+  JournalFormat,
+} from '../core/types.ts';
 
 /** Options for filtering journal entries */
 export interface JournalFilterOptions {
@@ -151,11 +155,7 @@ export function formatJournalAsJson(result: JournalFilterResult): string {
   );
 }
 
-/** Canonical list of all journal output formats (derived → JournalFormat) */
-export const JOURNAL_FORMATS = ['json', 'table'] as const;
-
-/** Output format for journal command (derived from JOURNAL_FORMATS) */
-export type JournalFormat = (typeof JOURNAL_FORMATS)[number];
+export { JOURNAL_FORMATS, type JournalFormat } from '../core/types.ts';
 
 /**
  * Format journal filter result for output.

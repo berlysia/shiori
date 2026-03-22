@@ -28,12 +28,7 @@ import {
   formatFixApplyResultJson,
 } from '../formatters/fix-formatter.ts';
 import { promptFixAction, createFixReadline } from './fix-interactive.ts';
-
-/** Canonical list of all fix output formats (derived → FixFormat) */
-const FIX_FORMATS = ['text', 'json', 'markdown'] as const;
-
-/** Output format for fix command (derived from FIX_FORMATS) */
-type FixFormat = (typeof FIX_FORMATS)[number];
+import { FIX_FORMATS, type FixFormat } from '../core/types.ts';
 
 const validateFixFormat = createFormatValidator<FixFormat>(FIX_FORMATS, 'text');
 

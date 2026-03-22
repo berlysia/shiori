@@ -1,3 +1,4 @@
+import { assertNever } from '../core/types.ts';
 import type {
   TrendPoint,
   TrendDirection,
@@ -236,7 +237,9 @@ export function formatTrend(result: TrendResult, format: TrendFormat): string {
       return formatTrendAsCsv(result);
     case 'spark':
       return formatTrendAsSpark(result);
-    default:
+    case 'json':
       return JSON.stringify(result, null, 2);
+    default:
+      return assertNever(format);
   }
 }

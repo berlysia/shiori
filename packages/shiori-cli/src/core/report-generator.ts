@@ -11,6 +11,7 @@
  * @see EP-0084 for design rationale
  */
 
+import { assertNever } from './types.ts';
 import type {
   CollectedReportData,
   AnalyzedReportMetrics,
@@ -432,7 +433,9 @@ export function formatWeeklyReport(
       return formatWeeklyReportAsMarkdown(metrics, preset);
     case 'html':
       return formatWeeklyReportAsHtml(metrics, preset);
-    default:
+    case 'json':
       return JSON.stringify(metrics, null, 2);
+    default:
+      return assertNever(format);
   }
 }
