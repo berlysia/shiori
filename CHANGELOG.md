@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Changed
 
 - **Exit code constants** (ADR 027): All commands now use named `ExitCode` constants (`SUCCESS`, `GOVERNANCE_VIOLATION`, `USAGE_ERROR`, `ENVIRONMENT_ERROR`) instead of raw `process.exitCode = 1`
-- Exit code policy metadata declared per command with `doctor --check-exit-policies` self-verification
+- Exit code policy metadata declared per command with `doctor` self-verification (automatic on every `shiori doctor` run)
 - Passthrough commands (`watch`, `journal`, `guide`) no longer set non-zero exit codes for non-governance conditions
 
 ### Fixed

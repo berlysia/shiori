@@ -15,7 +15,7 @@ Verify every shipped feature/fix has a CHANGELOG entry under `## [0.2.0]`:
 
 - [ ] **Breaking Changes**: Exit code values changed (ADR 027 Phase 2b) — `1` → `2` for usage errors, `1` → `3` for environment errors
 - [ ] **Changed**: Exit code constants (`ExitCode.SUCCESS`, `GOVERNANCE_VIOLATION`, `USAGE_ERROR`, `ENVIRONMENT_ERROR`)
-- [ ] **Changed**: Exit code policy metadata with `doctor --check-exit-policies` self-verification
+- [ ] **Changed**: Exit code policy metadata with `doctor` self-verification (automatic on every run)
 - [ ] **Changed**: Passthrough commands no longer set non-zero exit codes for non-governance conditions
 - [ ] **Fixed**: Passthrough command exit code correction (ADR 027 Phase 2a)
 - [ ] **Fixed**: Unzip injection prevention hardening
@@ -41,7 +41,7 @@ Verify every shipped feature/fix has a CHANGELOG entry under `## [0.2.0]`:
 - [ ] `pnpm build && shiori verify` passes against `.config/shiori/registry.json`
 - [ ] `shiori health` score is acceptable (no unexpected regressions)
 - [ ] `shiori doctor` reports no diagnostic failures
-- [ ] `shiori doctor --check-exit-policies` confirms all commands have consistent exit code policies
+- [ ] `shiori doctor` confirms all commands have consistent exit code policies (included automatically)
 
 ## Package Publishing
 

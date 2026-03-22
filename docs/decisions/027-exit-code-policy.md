@@ -68,41 +68,41 @@ usage カテゴリのコマンドの `process.exitCode = 1` を `ExitCode.USAGE_
 
 ### コマンド別ポリシー
 
-| Command       | Exit 1 Trigger                                 | Category    |
-| ------------- | ---------------------------------------------- | ----------- |
-| verify        | `summary.errors > 0`                           | governance  |
-| check         | `summary.errors > 0`                           | governance  |
-| triage        | `summary.errors > 0`                           | governance  |
-| health        | `summary.errors > 0` OR health level threshold | governance  |
-| report        | `summary.errors > 0`                           | governance  |
-| doctor        | `summary.fail > 0`                             | governance  |
-| scan          | validation failures                            | usage       |
-| init          | validation failures                            | usage       |
-| update        | (none — always 0)                              | passthrough |
-| candidates    | (none — always 0)                              | passthrough |
-| resolve       | validation failures, missing provider          | usage       |
-| adopt         | file write failures, no candidates             | usage       |
-| show          | ref not found                                  | usage       |
-| why           | ref not found                                  | usage       |
-| jump          | ref not found                                  | usage       |
-| annotate      | validation failures                            | usage       |
-| draft         | validation failures                            | usage       |
-| migrate       | validation failures                            | usage       |
-| watch         | (none — long-running)                          | passthrough |
-| delta         | `summary.errors > 0`                           | governance  |
-| weekly-report | output failures                                | usage       |
-| journal       | (none — query only)                            | passthrough |
-| docs          | (none — display only)                          | passthrough |
-| summary       | `summary.errors > 0` OR health level threshold | governance  |
-| aggregate     | validation failures, missing input files       | usage       |
-| guide         | (none — interactive navigator)                 | passthrough |
+| Command       | Exit 1 Trigger                                           | Category    |
+| ------------- | -------------------------------------------------------- | ----------- |
+| verify        | `summary.errors > 0`                                     | governance  |
+| check         | `summary.errors > 0`                                     | governance  |
+| triage        | `summary.errors > 0`                                     | governance  |
+| health        | `summary.errors > 0` OR health level threshold           | governance  |
+| report        | `summary.errors > 0`                                     | governance  |
+| doctor        | `summary.fail > 0`                                       | governance  |
+| scan          | validation failures                                      | usage       |
+| init          | validation failures                                      | usage       |
+| update        | (none — always 0)                                        | passthrough |
+| candidates    | (none — always 0)                                        | passthrough |
+| resolve       | validation failures, missing provider                    | usage       |
+| adopt         | file write failures, no candidates                       | usage       |
+| show          | ref not found                                            | usage       |
+| why           | ref not found                                            | usage       |
+| jump          | ref not found                                            | usage       |
+| annotate      | validation failures                                      | usage       |
+| draft         | validation failures                                      | usage       |
+| migrate       | validation failures                                      | usage       |
+| watch         | invalid options, mutually exclusive flags, path boundary | usage       |
+| delta         | `summary.errors > 0`                                     | governance  |
+| weekly-report | output failures                                          | usage       |
+| journal       | (none — query only)                                      | passthrough |
+| docs          | (none — display only)                                    | passthrough |
+| summary       | `summary.errors > 0` OR health level threshold           | governance  |
+| aggregate     | validation failures, missing input files                 | usage       |
+| guide         | unknown `--use-case` ID                                  | usage       |
 
 ## Consequences
 
 ### Positive
 
 - CI 統合者が各コマンドの exit code 動作を事前に把握可能
-- `doctor --check-exit-policies` による自己検証で exit code 設定漏れを検出
+- `doctor` 実行時の自動自己検証で exit code 設定漏れを検出
 - 段階的な exit code 細分化（code 2, 3）への移行パスが明確
 
 ### Negative
