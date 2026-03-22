@@ -7,27 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-03-23
+
+### Breaking Changes
+
+- **Exit code values changed** (ADR 027 Phase 2b): Usage errors (invalid arguments, missing files) now return exit code `2` instead of `1`. Environment errors (path boundary violations) now return exit code `3` instead of `1`. Governance violation exit code remains `1` — CI gates using `shiori check` or `shiori verify` are unaffected. Scripts that rely on specific non-zero exit code values for other commands may need updating.
+
+### Changed
+
+- **Exit code constants** (ADR 027): All commands now use named `ExitCode` constants (`SUCCESS`, `GOVERNANCE_VIOLATION`, `USAGE_ERROR`, `ENVIRONMENT_ERROR`) instead of raw `process.exitCode = 1`
+- Exit code policy metadata declared per command with `doctor --check-exit-policies` self-verification
+- Passthrough commands (`watch`, `journal`, `guide`) no longer set non-zero exit codes for non-governance conditions
+
+### Fixed
+
+- Passthrough commands incorrectly returned exit code `1` for non-governance conditions (ADR 027 Phase 2a)
+- Unzip injection prevention hardened in init-ci-templates
+- Command injection risk in GH Actions workflow templates (`execSync` → `execFileSync` with array arguments)
+
+### Security
+
+- `execSync` with template literals replaced by `execFileSync` with array arguments in CI workflow templates (`shiori-pr-comment.yml`, `shiori-pr-description.yml`) to prevent command injection
+
+## [0.1.2] - 2026-03-22
+
 ### Added
 
-#### `shiori fix` — Unified Remediation Command (EP-0118)
+#### New Commands (5)
 
-- `shiori fix` — Plan and execute automatable governance issue remediation in a single command
+- `shiori fix` — Plan and execute automatable governance issue remediation in a single command (EP-0118)
   - Dry-run mode (default): show what would be fixed with `--format text|json|markdown`
   - `--apply` flag to execute fixes (adds missing refs to registry, records journal events)
   - `--interactive` mode (EP-0122) with per-action approve/skip/quit prompts and before/after health score comparison
   - `--output <path>` to write results to file
   - Automatic derivation of manual suggestions from non-automatable issue types with contextual CLI commands
-- Phase 1 scope: automated `missing-in-registry` issue resolution with `AUTOMATABLE_ISSUE_TYPES` set for Phase 2 extensibility
+  - Phase 1 scope: automated `missing-in-registry` issue resolution with `AUTOMATABLE_ISSUE_TYPES` set for Phase 2 extensibility
+- `shiori guide` — Interactive command navigator for finding the right shiori command for your goal (EP-0098), with `--use-case` flag for non-interactive lookup and `--json` for machine-readable output
+- `shiori summary` — Aggregated governance summary combining health, delta, trend, and triage for PR comments and dashboards
+- `shiori aggregate` — Aggregate multiple repository summary JSONs into an organization-level governance report with `--format json|markdown|html`
+- `shiori weekly-report` — Generate periodic governance reports (weekly/health/custom preset) with Markdown or JSON output
 
 #### CI Trust Bridge: Fix Preview in PR Comments (EP-0121)
 
 - Fix preview step integrated into `shiori-pr-comment.yml` workflow — `shiori fix --format markdown` generates a collapsed `<details>` block in PR comments showing automatable fixes and manual suggestions
 - Zero-click visibility: governance repair candidates appear directly in PR reviews without manual commands
 
+#### Onboarding Guidance (EP-0127)
+
+- Automatic detection of "initial setup" state (≥50% unregistered annotation rate) in `verify` and `fix` commands
+- Step-by-step guidance output on stderr: adopt → health → triage workflow recommendation
+- Suppressed for machine-readable formats (json, sarif, jsonl, summary) and non-TTY environments
+
 #### Output Formats
 
 - `--format markdown` for `fix` command — GitHub-flavored Markdown with collapsed `<details>` wrapper for PR comment integration
 - `--format json` for `fix` command — Machine-readable fix plan and apply result for CI pipelines
+
+#### Workspace Structure
+
+- pnpm workspace monorepo migration: CLI + core library moved to `packages/shiori-cli`, daemon to `packages/shiori-daemon`, VSCode extension to `packages/shiori-vscode`
 
 ### Changed
 

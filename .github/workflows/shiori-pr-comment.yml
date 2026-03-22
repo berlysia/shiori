@@ -90,8 +90,7 @@ jobs:
             const zipPath = '.tmp/shiori-base-scan.zip';
             fs.writeFileSync(zipPath, Buffer.from(download.data));
 
-            const { execSync } = require('child_process');
-            execSync(`unzip -o ${zipPath} -d .tmp/`);
+            require('child_process').execFileSync('unzip', ['-o', zipPath, '-d', '.tmp/']);
             console.log('Baseline scan artifact downloaded successfully');
         continue-on-error: true
 

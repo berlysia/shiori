@@ -4,4 +4,4 @@
  * All modules that need the version string should import from here
  * instead of hardcoding the value.
  */
-export const VERSION = '0.1.1';
+export const VERSION = '0.2.0';
