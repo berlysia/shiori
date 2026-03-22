@@ -50,6 +50,15 @@ jobs:
         if: matrix.node-version == 22
         run: node packages/shiori-cli/dist/src/cli.js health
 
+      # Dogfooding: GitHub Actions Step Summary (EP-0132)
+      # continue-on-error: verify may exit 1 on governance violations; step summary
+      # should still be written and subsequent steps (HTML report, artifact upload)
+      # must not be skipped. CI pass/fail is determined by `shiori check` above.
+      - name: shiori verify --format github-summary >> $GITHUB_STEP_SUMMARY
+        if: matrix.node-version == 22
+        continue-on-error: true
+        run: node packages/shiori-cli/dist/src/cli.js verify --format github-summary >> "$GITHUB_STEP_SUMMARY"
+
       # Dogfooding: generate HTML governance dashboard
       - name: shiori report --format html (dogfooding)
         if: matrix.node-version == 22

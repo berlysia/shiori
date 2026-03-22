@@ -11,6 +11,7 @@ import { formatAsDiagnostic } from './diagnostic.ts';
 import { formatAsJsonl } from './jsonl.ts';
 import { formatAsSarif } from './sarif.ts';
 import { formatAsSummary } from './summary.ts';
+import { formatVerifyAsGitHubSummary } from './github-summary-formatter.ts';
 import type { OutputFormat } from './types.ts';
 
 export type { OutputFormat } from './types.ts';
@@ -26,6 +27,10 @@ export {
   type ShieldsBadge,
   type FormatReportOptions,
 } from './report-formatter.ts';
+export {
+  formatVerifyAsGitHubSummary,
+  formatReportAsGitHubSummary,
+} from './github-summary-formatter.ts';
 export {
   formatAnnotateAsJson,
   type AnnotateJsonOutput,
@@ -71,6 +76,8 @@ export function formatVerifyOutput(options: FormatVerifyOutputOptions): string {
       return formatAsJsonl(verifyResult);
     case 'diagnostic':
       return formatAsDiagnostic(verifyResult);
+    case 'github-summary':
+      return formatVerifyAsGitHubSummary(verifyResult);
     default:
       return JSON.stringify(verifyResult, null, 2);
   }

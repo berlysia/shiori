@@ -9,6 +9,7 @@ const VALID_OUTPUT_FORMATS: readonly string[] = [
   'summary',
   'jsonl',
   'diagnostic',
+  'github-summary',
 ];
 
 const VALID_PROVIDERS: readonly string[] = ['comment'];

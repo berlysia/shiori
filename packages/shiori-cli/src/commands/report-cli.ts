@@ -31,6 +31,7 @@ const validateReportFormat = createFormatValidator<ReportFormat>([
   'markdown',
   'badge',
   'html',
+  'github-summary',
 ] as const);
 
 export const reportCommand = define({
@@ -98,7 +99,7 @@ export const reportCommand = define({
       type: 'string',
       short: 'f',
       description:
-        'Output format: "json", "markdown", "badge" (shields.io endpoint), "html" (self-contained dashboard). Default: "json"',
+        'Output format: "json", "markdown", "badge" (shields.io endpoint), "html" (self-contained dashboard), "github-summary" (GitHub Actions step summary). Default: "json"',
       default: 'json',
     },
     output: {

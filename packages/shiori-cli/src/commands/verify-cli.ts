@@ -48,7 +48,7 @@ export const verifyCommand = define({
       type: 'string',
       short: 'f',
       description:
-        'Output format: "json", "markdown", "sarif", "summary", "jsonl", "diagnostic". Default: "json"',
+        'Output format: "json", "markdown", "sarif", "summary", "jsonl", "diagnostic", "github-summary". Default: "json"',
       default: 'json',
     },
     failOn: {

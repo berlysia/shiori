@@ -121,7 +121,8 @@ export type OutputFormat =
   | 'sarif'
   | 'summary'
   | 'jsonl'
-  | 'diagnostic';
+  | 'diagnostic'
+  | 'github-summary';
 
 /** Verify command output */
 export interface VerifyResult {
@@ -330,7 +331,12 @@ export interface ReportResult {
 }
 
 /** Report output format */
-export type ReportFormat = 'json' | 'markdown' | 'badge' | 'html';
+export type ReportFormat =
+  | 'json'
+  | 'markdown'
+  | 'badge'
+  | 'html'
+  | 'github-summary';
 
 /** Output format for trend command */
 export type TrendFormat = 'json' | 'markdown' | 'csv' | 'spark';

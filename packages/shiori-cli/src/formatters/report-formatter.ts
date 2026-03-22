@@ -11,6 +11,7 @@ import {
   formatReportAsHtml,
   type HtmlReportOptions,
 } from './report-html-formatter.ts';
+import { formatReportAsGitHubSummary } from './github-summary-formatter.ts';
 
 /**
  * Shields.io endpoint badge JSON structure.
@@ -183,6 +184,8 @@ export function formatReportOutput(
       return formatReportAsBadge(result, options?.maturityLevel);
     case 'html':
       return formatReportAsHtml(result, options);
+    case 'github-summary':
+      return formatReportAsGitHubSummary(result);
     default:
       return JSON.stringify(result, null, 2);
   }
