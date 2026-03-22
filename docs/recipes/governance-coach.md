@@ -228,6 +228,8 @@ jobs:
             -d "$(jq -n --arg text "$SUMMARY" '{ text: $text }')"
 ````
 
+> **Anthropic API を使う場合:** `Generate coaching advice` ステップの `OPENAI_API_KEY` を `ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}` に替え、curl コマンドを [Anthropic API（Claude）](#anthropic-apiclaude) セクションのスクリプトと同じ形式にしてください。
+
 ### ローカル LLM（Ollama）
 
 ```bash
@@ -242,6 +244,35 @@ curl -s http://localhost:11434/api/generate \
     stream: false
   }')" | jq -r '.response'
 ```
+
+### Anthropic API（Claude）
+
+````bash
+#!/bin/bash
+# scripts/governance-coach-anthropic.sh
+# Usage: ANTHROPIC_API_KEY=sk-ant-... ./scripts/governance-coach-anthropic.sh
+
+set -euo pipefail
+
+TRIAGE_JSON=$(npx shiori triage --format json)
+WEEKLY_JSON=$(npx shiori weekly-report --preset weekly --format json)
+
+curl -s https://api.anthropic.com/v1/messages \
+  -H "Content-Type: application/json" \
+  -H "x-api-key: ${ANTHROPIC_API_KEY}" \
+  -H "anthropic-version: 2023-06-01" \
+  -d "$(jq -n \
+    --arg triage "$TRIAGE_JSON" \
+    --arg weekly "$WEEKLY_JSON" \
+    '{
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 1024,
+      messages: [{
+        role: "user",
+        content: ("あなたはソフトウェアガバナンスの専門家です。shiori の2つのレポートを総合的に分析し、改善提案を作成してください。\n\n## Triage レポート\n```json\n" + $triage + "\n```\n\n## 週次レポート\n```json\n" + $weekly + "\n```\n\n出力形式:\n1. 現状の要約（2-3文）\n2. 今週の最優先アクション（1件、shiori コマンド付き）\n3. 中期的な改善提案（1件）")
+      }]
+    }')" | jq -r '.content[0].text'
+````
 
 ### Claude Code との統合
 
@@ -340,6 +371,121 @@ curl -s https://api.openai.com/v1/chat/completions \
 | 4     | **Coached** | **LLM がデータ駆動で改善を提案** | **このレシピ**                                           |
 
 Level 4 は、蓄積されたガバナンスデータを元に LLM が文脈を理解した改善提案を行い、チームの意思決定を支援する状態です。
+
+## Dogfooding: shiori 自身での実行例
+
+shiori プロジェクト自体が `.config/shiori/registry.json` でアノテーションを自己追跡しています。以下は shiori の開発レジストリに対して Governance Coach を実行した場合の入出力例です。
+
+### 入力例: triage JSON（抜粋）
+
+```json
+{
+  "timestamp": "2026-03-23T00:00:00.000Z",
+  "items": [
+    {
+      "ref": "DEV-002",
+      "priority": "high",
+      "issues": [
+        {
+          "type": "expiring-soon",
+          "ref": "DEV-002",
+          "message": "expires 2026-06"
+        }
+      ],
+      "registryEntry": {
+        "reason": "Type assertion for runtime-validated JSON parsed as ReportResult",
+        "target": "src/commands/trend-cli.ts",
+        "expires": "2026-06",
+        "ticket": "EP-0011",
+        "owner": "berlysia",
+        "kind": "type-assertion"
+      },
+      "sourceLocations": [{ "file": "src/commands/trend-cli.ts", "line": 25 }],
+      "action": "extend expires or resolve"
+    },
+    {
+      "ref": "DEV-007",
+      "priority": "high",
+      "issues": [
+        {
+          "type": "expiring-soon",
+          "ref": "DEV-007",
+          "message": "expires 2026-06"
+        }
+      ],
+      "registryEntry": {
+        "reason": "Config file parsed from JSON/YAML cast to ShioriConfig without schema validation",
+        "target": "src/core/config.ts",
+        "expires": "2026-06",
+        "ticket": "EP-0011",
+        "owner": "berlysia",
+        "kind": "type-assertion"
+      },
+      "sourceLocations": [{ "file": "src/core/config.ts", "line": 42 }],
+      "action": "extend expires or resolve"
+    }
+  ],
+  "summary": {
+    "total": 2,
+    "byPriority": { "critical": 0, "high": 2, "medium": 0, "low": 0 }
+  }
+}
+```
+
+### 入力例: weekly-report JSON（抜粋）
+
+```json
+{
+  "timestamp": "2026-03-23T00:00:00.000Z",
+  "period": { "since": "2026-03-16", "until": "2026-03-23" },
+  "activity": {
+    "totalOperations": 3,
+    "successfulOperations": 3,
+    "failedOperations": 0,
+    "successRate": 100,
+    "netChange": 0,
+    "uniqueRefs": ["DEV-018", "DEV-019"],
+    "byEventType": { "scan": 2, "verify": 1 }
+  },
+  "health": {
+    "level": "warning",
+    "score": 72,
+    "summary": "2 entries expiring soon (EP-0011 type assertions)"
+  },
+  "registryOverview": {
+    "totalEntries": 11,
+    "totalAnnotations": 11,
+    "totalCandidates": 0,
+    "totalIssues": 2
+  },
+  "insights": [
+    {
+      "category": "warning",
+      "message": "2 type-assertion entries expire in 2026-06; resolve via EP-0011 JSON Schema validation"
+    }
+  ]
+}
+```
+
+### LLM 出力例
+
+上記を Governance Coach テンプレートに渡した場合の出力例:
+
+> **現状の要約:** shiori プロジェクトは 11 件のアノテーションを自己追跡しており、全体的な運用は安定しています。ただし、EP-0011（JSON Schema バリデーション）に紐づく type-assertion 系の抑制 2 件（DEV-002, DEV-007）が 2026-06 に期限切れを迎えるため、対応が必要です。
+>
+> **今週の最優先アクション:** EP-0011 の進捗を確認し、期限内に完了できるなら `shiori resolve --ref DEV-002 --apply` と `shiori resolve --ref DEV-007 --apply` で解消。完了が間に合わない場合は `shiori update` で expires を延長。
+>
+> **中期的な改善提案:** type-assertion 系の抑制がレジストリの過半数を占めるため、EP-0011 の JSON Schema バリデーション実装を優先し、構造的に type assertion を不要にすることでレジストリの健全性スコアを改善できます。
+
+### 再現手順
+
+```bash
+# shiori プロジェクトルートで実行
+npx shiori triage --format json > /tmp/triage.json
+npx shiori weekly-report --preset health --format json > /tmp/weekly.json
+
+# 任意の LLM API で Coach を実行（上記のシェルスクリプト例を参照）
+```
 
 ---
 

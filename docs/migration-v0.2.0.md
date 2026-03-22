@@ -65,6 +65,31 @@ esac
 
 `watch`、`journal`、`guide` コマンドは v0.1.x で非ガバナンス条件でも exit `1` を返すことがありましたが、v0.2.0 では適切な exit code を返すようになりました。これらのコマンドの exit code に依存する処理がある場合は確認してください。
 
+#### 4. 手動で exit code を確認する
+
+アップグレード後、CI で使用しているコマンドの exit code が期待どおりか手動で確認できます:
+
+```bash
+# ガバナンス違反がある状態で check を実行し、exit code 1 を確認
+shiori check --fail-on missing-in-registry; echo "exit: $?"
+# → exit: 1（違反あり）/ exit: 0（違反なし）
+
+# 存在しないオプションで usage error (exit 2) を確認
+shiori check --nonexistent-flag; echo "exit: $?"
+# → exit: 2
+
+# 存在しないディレクトリで environment error (exit 3) を確認
+shiori check --cwd /nonexistent/path; echo "exit: $?"
+# → exit: 3
+```
+
+`shiori doctor` を実行すると、exit code ポリシーの整合性も自動的に検証されます:
+
+```bash
+shiori doctor
+# ✓ Exit code policies: All N commands have exit code policies defined
+```
+
 ## その他の変更
 
 ### セキュリティ修正
@@ -77,11 +102,7 @@ shiori init --ci delta-pr-comment  # 安全なテンプレートで上書き
 
 ### doctor の新チェック
 
-`shiori doctor` に exit code ポリシー整合性の自己検証チェックが追加されました。通常の `shiori doctor` 実行で自動的に検証されます:
-
-```bash
-shiori doctor
-```
+`shiori doctor` に exit code ポリシー整合性の自己検証チェックが追加されました（[移行手順 Step 4](#4-手動で-exit-code-を確認する) 参照）。
 
 ## バージョン確認
 
@@ -92,5 +113,6 @@ npx @berlysia/shiori --version
 
 ## 関連ドキュメント
 
+- [Getting Started](./getting-started.md) — 新規ユーザー向け 5 分体験フロー
 - [ADR 027: CLI Exit Code Policy Matrix](./decisions/027-exit-code-policy.md)
 - [CHANGELOG](../CHANGELOG.md)

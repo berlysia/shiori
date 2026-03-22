@@ -56,6 +56,8 @@ shiori check
 
 That's it. Three commands to go from zero to CI-enforced annotation governance.
 
+> **Want a guided walkthrough?** See [Getting Started — 5 Minutes to Governed Code](docs/getting-started.md) for a step-by-step tutorial that explains what each command does.
+
 > **Already have lint disables scattered across your codebase?** `shiori adopt` converts them in one step:
 >
 > ```bash
@@ -631,6 +633,10 @@ shiori report -f markdown   # Detailed health report
 shiori delta --base <old-scan> --head <new-scan>   # Compare across commits
 shiori trend --history <reports-dir>               # Score over time
 ```
+
+## Upgrading from v0.1.x
+
+v0.2.0 includes a breaking change to exit codes. See [Migration Guide](docs/migration-v0.2.0.md) for the exit code mapping table, CI script examples, and step-by-step upgrade instructions.
 
 ## Requirements
 
