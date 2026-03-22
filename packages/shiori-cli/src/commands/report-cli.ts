@@ -7,7 +7,7 @@ import {
 import { scan } from './scan.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
 import { report } from './report.ts';
-import type { ReportFormat } from '../core/types.ts';
+import { REPORT_FORMATS, type ReportFormat } from '../core/types.ts';
 import { formatReportOutput } from '../formatters/report-formatter.ts';
 import {
   parseAndValidateIssueTypes,
@@ -26,13 +26,8 @@ import { buildChronicle } from '../core/chronicle.ts';
 import { resolveRefStatusMap } from '../core/ref-status-providers/index.ts';
 import { ExitCode } from '../core/exit-codes.ts';
 
-const validateReportFormat = createFormatValidator<ReportFormat>([
-  'json',
-  'markdown',
-  'badge',
-  'html',
-  'github-summary',
-] as const);
+const validateReportFormat =
+  createFormatValidator<ReportFormat>(REPORT_FORMATS);
 
 export const reportCommand = define({
   name: 'report',

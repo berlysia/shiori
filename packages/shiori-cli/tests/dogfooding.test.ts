@@ -32,7 +32,7 @@ const DOGFOODING_ANNOTATIONS: {
   { ref: 'DEV-011', file: 'src/commands/verify.ts' },
   { ref: 'DEV-012', file: 'src/core/registry.ts' },
   { ref: 'DEV-013', file: 'src/core/cli-validation.ts' },
-  { ref: 'DEV-014', file: 'src/core/cli-validation.ts' },
+  // DEV-014: resolved by EP-0134 — VALID_OUTPUT_FORMATS eliminated, format validation now uses OUTPUT_FORMATS via createFormatValidator()
   { ref: 'DEV-015', file: 'src/core/scan-result-loader.ts' },
   // DEV-016: resolved by assertScanResultShape() — shape validation added to readFromStdin()
   // DEV-017: resolved by loadScanResultFromFile() — delta-cli now uses shared loader with isNodeError()

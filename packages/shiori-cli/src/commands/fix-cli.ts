@@ -29,13 +29,13 @@ import {
 } from '../formatters/fix-formatter.ts';
 import { promptFixAction, createFixReadline } from './fix-interactive.ts';
 
-/** Output format for fix command */
-type FixFormat = 'text' | 'json' | 'markdown';
+/** Canonical list of all fix output formats (derived → FixFormat) */
+const FIX_FORMATS = ['text', 'json', 'markdown'] as const;
 
-const validateFixFormat = createFormatValidator<FixFormat>(
-  ['text', 'json', 'markdown'] as const,
-  'text',
-);
+/** Output format for fix command (derived from FIX_FORMATS) */
+type FixFormat = (typeof FIX_FORMATS)[number];
+
+const validateFixFormat = createFormatValidator<FixFormat>(FIX_FORMATS, 'text');
 
 export const fixCommand = define({
   name: 'fix',

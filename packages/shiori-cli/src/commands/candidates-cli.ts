@@ -4,15 +4,15 @@ import { loadScanResult } from '../core/scan-result-loader.ts';
 import {
   listCandidates,
   formatCandidatesAsMarkdown,
+  CANDIDATES_OUTPUT_FORMATS,
   type CandidatesOutputFormat,
 } from './candidates.ts';
 import { createFormatValidator } from '../core/cli-validation.ts';
 import { writeOutput } from '../core/cli-output.ts';
 
-const validateCandidatesFormat = createFormatValidator<CandidatesOutputFormat>([
-  'json',
-  'markdown',
-] as const);
+const validateCandidatesFormat = createFormatValidator<CandidatesOutputFormat>(
+  CANDIDATES_OUTPUT_FORMATS,
+);
 
 export const candidatesCommand = define({
   name: 'candidates',

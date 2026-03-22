@@ -6,7 +6,12 @@ import {
 import { scan } from './scan.ts';
 import { verify } from './verify.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
-import { triage, formatTriageOutput, type TriageFormat } from './triage.ts';
+import {
+  triage,
+  formatTriageOutput,
+  TRIAGE_FORMATS,
+  type TriageFormat,
+} from './triage.ts';
 import {
   parseAndValidateIssueTypes,
   createFormatValidator,
@@ -20,7 +25,7 @@ import { resolveExpiringThreshold } from '../core/cli-context.ts';
 import { ExitCode } from '../core/exit-codes.ts';
 
 const validateTriageFormat = createFormatValidator<TriageFormat>(
-  ['json', 'markdown'] as const,
+  TRIAGE_FORMATS,
   'json',
 );
 

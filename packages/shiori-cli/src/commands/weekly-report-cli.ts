@@ -13,7 +13,11 @@ import {
   analyzeReportData,
   formatWeeklyReport,
 } from '../core/report-generator.ts';
-import type { WeeklyReportPreset, WeeklyReportFormat } from '../core/types.ts';
+import {
+  WEEKLY_REPORT_FORMATS,
+  type WeeklyReportPreset,
+  type WeeklyReportFormat,
+} from '../core/types.ts';
 import { createFormatValidator } from '../core/cli-validation.ts';
 import { writeOutput } from '../core/cli-output.ts';
 import { resolveExpiringThreshold } from '../core/cli-context.ts';
@@ -29,11 +33,9 @@ const VALID_PRESETS: readonly WeeklyReportPreset[] = [
   'custom',
 ] as const;
 
-const validateFormat = createFormatValidator<WeeklyReportFormat>([
-  'markdown',
-  'html',
-  'json',
-] as const);
+const validateFormat = createFormatValidator<WeeklyReportFormat>(
+  WEEKLY_REPORT_FORMATS,
+);
 
 export const weeklyReportCommand = define({
   name: 'weekly-report',

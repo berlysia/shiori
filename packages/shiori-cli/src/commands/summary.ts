@@ -1,10 +1,11 @@
-import type {
-  HealthResult,
-  DeltaResult,
-  TrendResult,
-  SummaryFormat,
-  ScanResult,
-  ReportResult,
+import {
+  SUMMARY_FORMATS,
+  type HealthResult,
+  type DeltaResult,
+  type TrendResult,
+  type SummaryFormat,
+  type ScanResult,
+  type ReportResult,
 } from '../core/types.ts';
 import { healthEmoji, trendArrow } from '../core/emoji.ts';
 import { report, type ReportOptions } from './report.ts';
@@ -13,6 +14,7 @@ import { computeDelta } from './delta.ts';
 import { computeTrend } from './trend.ts';
 import { triage, type TriageResult } from './triage.ts';
 
+export { SUMMARY_FORMATS };
 export type { SummaryFormat };
 
 // ── Types ────────────────────────────────────────────────────

@@ -1,7 +1,11 @@
 import type { ShioriCandidate } from '../core/types.ts';
 import { formatGroupLabel } from '../core/format-utils.ts';
 
-export type CandidatesOutputFormat = 'json' | 'markdown';
+/** Canonical list of all candidates output formats (derived → CandidatesOutputFormat) */
+export const CANDIDATES_OUTPUT_FORMATS = ['json', 'markdown'] as const;
+
+/** Candidates output format (derived from CANDIDATES_OUTPUT_FORMATS) */
+export type CandidatesOutputFormat = (typeof CANDIDATES_OUTPUT_FORMATS)[number];
 
 export interface CandidatesResult {
   candidates: ShioriCandidate[];

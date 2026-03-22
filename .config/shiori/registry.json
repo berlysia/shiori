@@ -56,14 +56,7 @@
     "reason": "Array.includes() guard filters invalid types but TS cannot narrow string[] to VerifyIssueType[]",
     "target": "src/core/cli-validation.ts",
     "owner": "berlysia",
-    "notes": "Validated by filtering against VERIFY_ISSUE_TYPES; shared pattern with DEV-014",
-    "kind": "type-assertion"
-  },
-  "DEV-014": {
-    "reason": "VALID_OUTPUT_FORMATS.includes() guard validates format but TS cannot narrow string to OutputFormat",
-    "target": "src/core/cli-validation.ts",
-    "owner": "berlysia",
-    "notes": "Validated by includes() check above; shared pattern with DEV-013",
+    "notes": "Validated by filtering against VERIFY_ISSUE_TYPES",
     "kind": "type-assertion"
   },
   "DEV-015": {

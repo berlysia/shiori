@@ -6,6 +6,7 @@ import {
   buildUpgradePlan,
   formatUpgradePlan,
   formatUpgradeResult,
+  DOCTOR_FORMATS,
   type DoctorFormat,
   type UpgradeActionResult,
   type UpgradeResult,
@@ -26,7 +27,7 @@ import type { UpgradeAction, BadgeMode } from './doctor/upgrade.ts';
 import { ExitCode } from '../core/exit-codes.ts';
 
 const validateDoctorFormat = createFormatValidator<DoctorFormat>(
-  ['text', 'json'] as const,
+  DOCTOR_FORMATS,
   'text',
 );
 

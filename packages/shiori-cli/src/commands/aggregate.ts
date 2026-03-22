@@ -1,11 +1,13 @@
-import type {
-  AggregateFormat,
-  AggregateRepositoryEntry,
-  AggregateResult,
+import {
+  AGGREGATE_FORMATS,
+  type AggregateFormat,
+  type AggregateRepositoryEntry,
+  type AggregateResult,
 } from '../core/types.ts';
 import { healthEmoji } from '../core/emoji.ts';
 import type { SummaryResult } from './summary.ts';
 
+export { AGGREGATE_FORMATS };
 export type { AggregateFormat, AggregateResult };
 
 // ── Types ────────────────────────────────────────────────────

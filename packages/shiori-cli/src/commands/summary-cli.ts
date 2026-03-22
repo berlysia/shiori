@@ -2,7 +2,12 @@ import { define } from 'gunshi';
 import { resolve } from 'node:path';
 import { scan } from './scan.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
-import { summary, formatSummary, type SummaryFormat } from './summary.ts';
+import {
+  summary,
+  formatSummary,
+  SUMMARY_FORMATS,
+  type SummaryFormat,
+} from './summary.ts';
 import {
   parseAndValidateIssueTypes,
   createFormatValidator,
@@ -29,7 +34,7 @@ import {
 import { ExitCode } from '../core/exit-codes.ts';
 
 const validateSummaryFormat = createFormatValidator<SummaryFormat>(
-  ['json', 'markdown'] as const,
+  SUMMARY_FORMATS,
   'json',
 );
 

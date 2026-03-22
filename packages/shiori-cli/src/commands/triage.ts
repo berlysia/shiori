@@ -1,15 +1,17 @@
-import type {
-  RegistryEntry,
-  ScanResult,
-  VerifyIssue,
-  VerifyIssueType,
-  VerifyResult,
-  TriageFormat,
+import {
+  TRIAGE_FORMATS,
+  type RegistryEntry,
+  type ScanResult,
+  type VerifyIssue,
+  type VerifyIssueType,
+  type VerifyResult,
+  type TriageFormat,
 } from '../core/types.ts';
 import { resolveRefUrl } from '../core/ref-pattern.ts';
 import { verify, type VerifyOptions } from './verify.ts';
 import { ACTION_HINTS } from '../core/action-hints.ts';
 
+export { TRIAGE_FORMATS };
 export type { TriageFormat };
 
 // ── Types ────────────────────────────────────────────────────

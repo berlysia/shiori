@@ -6,6 +6,7 @@ import { writeOutput } from '../core/cli-output.ts';
 import {
   filterJournalEntries,
   formatJournal,
+  JOURNAL_FORMATS,
   type JournalFormat,
 } from './journal.ts';
 
@@ -18,10 +19,8 @@ const VALID_EVENT_TYPES: readonly CliOperationType[] = [
   'cli.migrate',
 ] as const;
 
-const validateJournalFormat = createFormatValidator<JournalFormat>([
-  'json',
-  'table',
-] as const);
+const validateJournalFormat =
+  createFormatValidator<JournalFormat>(JOURNAL_FORMATS);
 
 export const journalCommand = define({
   name: 'journal',

@@ -114,15 +114,22 @@ export interface VerifyIssue {
   line: number | undefined;
 }
 
-/** Output format for verify/scan commands */
-export type OutputFormat =
-  | 'json'
-  | 'markdown'
-  | 'sarif'
-  | 'summary'
-  | 'jsonl'
-  | 'diagnostic'
-  | 'github-summary';
+/**
+ * Canonical list of all output formats for verify/scan commands.
+ * Single source of truth — OutputFormat is derived from this array.
+ */
+export const OUTPUT_FORMATS = [
+  'json',
+  'markdown',
+  'sarif',
+  'summary',
+  'jsonl',
+  'diagnostic',
+  'github-summary',
+] as const;
+
+/** Output format for verify/scan commands (derived from OUTPUT_FORMATS) */
+export type OutputFormat = (typeof OUTPUT_FORMATS)[number];
 
 /** Verify command output */
 export interface VerifyResult {
@@ -330,16 +337,23 @@ export interface ReportResult {
   byDirectory?: DirectoryBreakdownEntry[];
 }
 
-/** Report output format */
-export type ReportFormat =
-  | 'json'
-  | 'markdown'
-  | 'badge'
-  | 'html'
-  | 'github-summary';
+/** Canonical list of all report output formats (derived → ReportFormat) */
+export const REPORT_FORMATS = [
+  'json',
+  'markdown',
+  'badge',
+  'html',
+  'github-summary',
+] as const;
 
-/** Output format for trend command */
-export type TrendFormat = 'json' | 'markdown' | 'csv' | 'spark';
+/** Report output format (derived from REPORT_FORMATS) */
+export type ReportFormat = (typeof REPORT_FORMATS)[number];
+
+/** Canonical list of all trend output formats (derived → TrendFormat) */
+export const TREND_FORMATS = ['json', 'markdown', 'csv', 'spark'] as const;
+
+/** Output format for trend command (derived from TREND_FORMATS) */
+export type TrendFormat = (typeof TREND_FORMATS)[number];
 
 // ── CI template types ────────────────────────────────────────
 
@@ -447,8 +461,11 @@ export interface DoctorResult {
   upgrade?: UpgradeResult;
 }
 
-/** Output format for doctor command */
-export type DoctorFormat = 'text' | 'json';
+/** Canonical list of all doctor output formats (derived → DoctorFormat) */
+export const DOCTOR_FORMATS = ['text', 'json'] as const;
+
+/** Output format for doctor command (derived from DOCTOR_FORMATS) */
+export type DoctorFormat = (typeof DOCTOR_FORMATS)[number];
 
 // ── Maturity types (EP-0040) ─────────────────────────────────
 
@@ -594,8 +611,11 @@ export interface ChronicleResult {
 
 // ── Annotate types (EP-0058) ─────────────────────────────────
 
-/** Output format for annotate command */
-export type AnnotateFormat = 'text' | 'json';
+/** Canonical list of all annotate output formats (derived → AnnotateFormat) */
+export const ANNOTATE_FORMATS = ['text', 'json'] as const;
+
+/** Output format for annotate command (derived from ANNOTATE_FORMATS) */
+export type AnnotateFormat = (typeof ANNOTATE_FORMATS)[number];
 
 /** Options for planning an annotation */
 export interface AnnotateOptions {
@@ -803,8 +823,11 @@ export interface JournalVelocityResult {
 /** Report preset determines the data scope and time range */
 export type WeeklyReportPreset = 'weekly' | 'health' | 'custom';
 
-/** Output format for generated reports */
-export type WeeklyReportFormat = 'markdown' | 'html' | 'json';
+/** Canonical list of all weekly report output formats (derived → WeeklyReportFormat) */
+export const WEEKLY_REPORT_FORMATS = ['markdown', 'html', 'json'] as const;
+
+/** Output format for generated reports (derived from WEEKLY_REPORT_FORMATS) */
+export type WeeklyReportFormat = (typeof WEEKLY_REPORT_FORMATS)[number];
 
 /**
  * Options for the report generation pipeline.
@@ -899,14 +922,23 @@ export interface AnalyzedReportMetrics {
 
 // ── Summary types (EP-0090) ──────────────────────────────────
 
-/** Output format for summary command */
-export type SummaryFormat = 'json' | 'markdown';
+/** Canonical list of all summary output formats (derived → SummaryFormat) */
+export const SUMMARY_FORMATS = ['json', 'markdown'] as const;
 
-/** Health output format */
-export type HealthFormat = 'json' | 'summary';
+/** Output format for summary command (derived from SUMMARY_FORMATS) */
+export type SummaryFormat = (typeof SUMMARY_FORMATS)[number];
 
-/** Triage output format */
-export type TriageFormat = 'json' | 'markdown';
+/** Canonical list of all health output formats (derived → HealthFormat) */
+export const HEALTH_FORMATS = ['json', 'summary'] as const;
+
+/** Health output format (derived from HEALTH_FORMATS) */
+export type HealthFormat = (typeof HEALTH_FORMATS)[number];
+
+/** Canonical list of all triage output formats (derived → TriageFormat) */
+export const TRIAGE_FORMATS = ['json', 'markdown'] as const;
+
+/** Triage output format (derived from TRIAGE_FORMATS) */
+export type TriageFormat = (typeof TRIAGE_FORMATS)[number];
 
 /** Health command result — synthesises report + optional trend */
 export interface HealthResult {
@@ -964,8 +996,11 @@ export interface HealthPrescription {
 
 // ── Aggregate types (EP-0093) ─────────────────────────────────
 
-/** Output format for aggregate command */
-export type AggregateFormat = 'json' | 'markdown' | 'html';
+/** Canonical list of all aggregate output formats (derived → AggregateFormat) */
+export const AGGREGATE_FORMATS = ['json', 'markdown', 'html'] as const;
+
+/** Output format for aggregate command (derived from AGGREGATE_FORMATS) */
+export type AggregateFormat = (typeof AGGREGATE_FORMATS)[number];
 
 /** Per-repository row in the aggregate report */
 export interface AggregateRepositoryEntry {

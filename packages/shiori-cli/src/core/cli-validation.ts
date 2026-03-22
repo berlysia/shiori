@@ -1,16 +1,6 @@
-import { VERIFY_ISSUE_TYPES } from './types.ts';
+import { VERIFY_ISSUE_TYPES, OUTPUT_FORMATS } from './types.ts';
 import type { OutputFormat, VerifyIssueType } from './types.ts';
 import { ExitCode } from './exit-codes.ts';
-
-const VALID_OUTPUT_FORMATS: readonly string[] = [
-  'json',
-  'markdown',
-  'sarif',
-  'summary',
-  'jsonl',
-  'diagnostic',
-  'github-summary',
-];
 
 const VALID_PROVIDERS: readonly string[] = ['comment'];
 
@@ -42,26 +32,12 @@ export function parseAndValidateIssueTypes(
 }
 
 /**
- * Validate the output format flag value.
+ * Validate the output format flag value (derived from OUTPUT_FORMATS).
  * Defaults to "json" when undefined. Prints an error on invalid values.
- *
- * @param value - Format string from --format flag, or undefined
- * @returns Validated format, or null on validation failure
  */
-export function validateOutputFormat(
+export const validateOutputFormat: (
   value: string | undefined,
-): OutputFormat | null {
-  const format = value ?? 'json';
-  if (!VALID_OUTPUT_FORMATS.includes(format)) {
-    console.error(
-      `Error: Invalid --format value "${format}". Valid values: ${VALID_OUTPUT_FORMATS.join(', ')}`,
-    );
-    process.exitCode = ExitCode.USAGE_ERROR;
-    return null;
-  }
-  // shiori: DEV-014 reason="string narrowed to OutputFormat after VALID_OUTPUT_FORMATS.includes() check; TS cannot infer this from .includes() guard"
-  return format as OutputFormat;
-}
+) => OutputFormat | null = createFormatValidator<OutputFormat>(OUTPUT_FORMATS);
 
 /**
  * Validate the provider flag value.
@@ -89,8 +65,8 @@ export function validateProvider(value: string | undefined): string | null {
  *
  * Eliminates repeated inline validation + `as` casts across CLI commands.
  *
- * @param validFormats - List of valid format strings
- * @param defaultFormat - Default format when value is undefined (default: 'json')
+ * @param validFormats - List of valid format strings (use const assertion arrays from types.ts)
+ * @param defaultFormat - Default format when value is undefined (default: first element)
  * @returns Validator function: (value: string | undefined) => T | null
  */
 export function createFormatValidator<T extends string>(

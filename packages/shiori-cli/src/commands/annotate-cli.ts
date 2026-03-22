@@ -7,7 +7,7 @@ import { saveRegistryRouted } from '../core/cli-context.ts';
 import { recordJournalEvent } from '../core/journal.ts';
 import { createFormatValidator } from '../core/cli-validation.ts';
 import { writeOutput } from '../core/cli-output.ts';
-import type { AnnotateFormat } from '../core/types.ts';
+import { ANNOTATE_FORMATS, type AnnotateFormat } from '../core/types.ts';
 import { isValidRef } from '../core/ref-validation.ts';
 import {
   planAnnotation,
@@ -18,7 +18,7 @@ import { formatAnnotateAsJson } from '../formatters/annotate-formatter.ts';
 import { ExitCode } from '../core/exit-codes.ts';
 
 const validateAnnotateFormat = createFormatValidator<AnnotateFormat>(
-  ['text', 'json'] as const,
+  ANNOTATE_FORMATS,
   'text',
 );
 

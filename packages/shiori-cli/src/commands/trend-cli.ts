@@ -7,22 +7,18 @@ import {
   formatJournalVelocity,
 } from './journal-velocity.ts';
 import { readJournalEntries, resolveJournalPath } from '../core/journal.ts';
-import type {
-  ReportResult,
-  TrendFormat,
-  VelocityBucket,
+import {
+  TREND_FORMATS,
+  type ReportResult,
+  type TrendFormat,
+  type VelocityBucket,
 } from '../core/types.ts';
 import { createFormatValidator } from '../core/cli-validation.ts';
 import { writeOutput } from '../core/cli-output.ts';
 import { trendArrow } from '../core/emoji.ts';
 import { ExitCode } from '../core/exit-codes.ts';
 
-const validateTrendFormat = createFormatValidator<TrendFormat>([
-  'json',
-  'markdown',
-  'csv',
-  'spark',
-] as const);
+const validateTrendFormat = createFormatValidator<TrendFormat>(TREND_FORMATS);
 
 const VALID_BUCKETS: readonly VelocityBucket[] = [
   'hour',

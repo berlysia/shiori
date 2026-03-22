@@ -7,9 +7,15 @@ import {
   buildHealthResult,
   formatHealth,
   formatHealthSummary,
+  HEALTH_FORMATS,
   type HealthFormat,
 } from './health.ts';
-import { triage, formatTriageOutput, type TriageFormat } from './triage.ts';
+import {
+  triage,
+  formatTriageOutput,
+  TRIAGE_FORMATS,
+  type TriageFormat,
+} from './triage.ts';
 import {
   parseAndValidateIssueTypes,
   createFormatValidator,
@@ -35,14 +41,12 @@ import {
 } from './health-fix.ts';
 
 const validateHealthFormat = createFormatValidator<HealthFormat>(
-  ['json', 'summary'] as const,
+  HEALTH_FORMATS,
   'summary',
 );
 
-const validateTriageFormat = createFormatValidator<TriageFormat>([
-  'json',
-  'markdown',
-] as const);
+const validateTriageFormat =
+  createFormatValidator<TriageFormat>(TRIAGE_FORMATS);
 
 const VALID_FAIL_ON_LEVELS: readonly string[] = [
   'critical',

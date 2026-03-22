@@ -1,11 +1,12 @@
-import type {
-  DoctorCheck,
-  DoctorCheckStatus,
-  DoctorResult,
-  DoctorFormat,
-  MaturityResult,
+import {
+  DOCTOR_FORMATS,
+  type DoctorCheck,
+  type DoctorCheckStatus,
+  type DoctorResult,
+  type DoctorFormat,
+  type MaturityResult,
+  type MaturityLevel,
 } from '../core/types.ts';
-import type { MaturityLevel } from '../core/types.ts';
 import type { DoctorOptions } from './doctor/types.ts';
 import {
   loadConfigOnce,
@@ -219,4 +220,5 @@ export function formatDoctor(
   }
 }
 
+export { DOCTOR_FORMATS };
 export type { DoctorResult, DoctorFormat, MaturityResult };

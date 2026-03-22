@@ -83,8 +83,11 @@ export function formatVerifyOutput(options: FormatVerifyOutputOptions): string {
   }
 }
 
-/** Delta output format — currently json and markdown */
-export type DeltaOutputFormat = 'json' | 'markdown';
+/** Canonical list of all delta output formats (derived → DeltaOutputFormat) */
+export const DELTA_OUTPUT_FORMATS = ['json', 'markdown'] as const;
+
+/** Delta output format (derived from DELTA_OUTPUT_FORMATS) */
+export type DeltaOutputFormat = (typeof DELTA_OUTPUT_FORMATS)[number];
 
 export interface FormatDeltaOutputOptions {
   format: DeltaOutputFormat;

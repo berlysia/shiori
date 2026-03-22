@@ -5,6 +5,7 @@ import fg from 'fast-glob';
 import {
   aggregate,
   formatAggregateAsMarkdown,
+  AGGREGATE_FORMATS,
   type AggregateFormat,
 } from './aggregate.ts';
 import { formatAggregateAsHtml } from '../formatters/aggregate-html-formatter.ts';
@@ -37,7 +38,7 @@ function formatAggregate(
 }
 
 const validateAggregateFormat = createFormatValidator<AggregateFormat>(
-  ['json', 'markdown', 'html'] as const,
+  AGGREGATE_FORMATS,
   'json',
 );
 

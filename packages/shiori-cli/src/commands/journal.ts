@@ -151,8 +151,11 @@ export function formatJournalAsJson(result: JournalFilterResult): string {
   );
 }
 
-/** Output format for journal command */
-export type JournalFormat = 'json' | 'table';
+/** Canonical list of all journal output formats (derived → JournalFormat) */
+export const JOURNAL_FORMATS = ['json', 'table'] as const;
+
+/** Output format for journal command (derived from JOURNAL_FORMATS) */
+export type JournalFormat = (typeof JOURNAL_FORMATS)[number];
 
 /**
  * Format journal filter result for output.

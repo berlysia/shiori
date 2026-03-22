@@ -4,6 +4,7 @@ import { computeDelta, filterDelta } from './delta.ts';
 import type { ScanResult } from '../core/types.ts';
 import {
   formatDeltaOutput,
+  DELTA_OUTPUT_FORMATS,
   type DeltaOutputFormat,
 } from '../formatters/index.ts';
 import { createFormatValidator } from '../core/cli-validation.ts';
@@ -13,10 +14,8 @@ import { loadScanResultFromFile } from '../core/scan-result-loader.ts';
 import { ScanResultNotFoundError } from '../core/errors.ts';
 import { ExitCode } from '../core/exit-codes.ts';
 
-const validateDeltaFormat = createFormatValidator<DeltaOutputFormat>([
-  'json',
-  'markdown',
-] as const);
+const validateDeltaFormat =
+  createFormatValidator<DeltaOutputFormat>(DELTA_OUTPUT_FORMATS);
 
 export const deltaCommand = define({
   name: 'delta',

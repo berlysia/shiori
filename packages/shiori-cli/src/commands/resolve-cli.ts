@@ -18,6 +18,7 @@ import { writeOutput } from '../core/cli-output.ts';
 import { performScanFreshnessCheck } from '../core/scan-freshness.ts';
 import {
   formatResolveOutput,
+  RESOLVE_OUTPUT_FORMATS,
   type ResolveOutputFormat,
 } from '../formatters/resolve-formatter.ts';
 import {
@@ -31,7 +32,7 @@ import {
 import { ExitCode } from '../core/exit-codes.ts';
 
 const validateResolveFormat = createFormatValidator<ResolveOutputFormat>(
-  ['text', 'json'] as const,
+  RESOLVE_OUTPUT_FORMATS,
   'text',
 );
 

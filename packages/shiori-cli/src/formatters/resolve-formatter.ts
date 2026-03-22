@@ -1,8 +1,11 @@
 import type { BulkResolveResult } from '../core/types.ts';
 import { VERSION } from '../core/version.ts';
 
-/** Output format for resolve --closed */
-export type ResolveOutputFormat = 'text' | 'json';
+/** Canonical list of all resolve output formats (derived → ResolveOutputFormat) */
+export const RESOLVE_OUTPUT_FORMATS = ['text', 'json'] as const;
+
+/** Output format for resolve --closed (derived from RESOLVE_OUTPUT_FORMATS) */
+export type ResolveOutputFormat = (typeof RESOLVE_OUTPUT_FORMATS)[number];
 
 /** JSON output schema for resolve --closed (EP-0075) */
 export interface ResolveJsonOutput {
