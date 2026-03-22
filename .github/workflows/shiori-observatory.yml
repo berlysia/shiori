@@ -1,0 +1,77 @@
+name: shiori governance observatory
+
+on:
+  schedule:
+    # Weekly on Monday at 0:00 UTC
+    - cron: '0 0 * * 1'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build
+
+      # Generate weekly report JSON snapshot
+      - name: Generate weekly report snapshot
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          echo "DATE=${DATE}" >> "$GITHUB_ENV"
+          mkdir -p observatory/data
+          node packages/shiori-cli/dist/src/cli.js weekly-report \
+            --preset weekly \
+            --format json \
+            --output "observatory/data/${DATE}.json"
+
+      # Update snapshots manifest
+      - name: Update snapshots manifest
+        run: |
+          cd observatory/data
+          FILES=$(ls -1 *.json 2>/dev/null | grep -v snapshots.json | sort)
+          echo '{"files":[' > snapshots.json.tmp
+          FIRST=true
+          for f in $FILES; do
+            if [ "$FIRST" = true ]; then
+              FIRST=false
+            else
+              echo ',' >> snapshots.json.tmp
+            fi
+            echo "\"$f\"" >> snapshots.json.tmp
+          done
+          echo ']}' >> snapshots.json.tmp
+          mv snapshots.json.tmp snapshots.json
+
+      # Commit and push
+      - name: Commit snapshot
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add observatory/data/
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+          git commit -m "chore(observatory): add governance snapshot ${DATE}"
+          git push
+
+      # Add score to step summary
+      - name: Add score to summary
+        run: |
+          SCORE=$(jq '.health.score' "observatory/data/${DATE}.json")
+          LEVEL=$(jq -r '.health.level' "observatory/data/${DATE}.json")
+          echo "## 📡 Governance Observatory" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Score:** ${SCORE}/100 (${LEVEL})" >> "$GITHUB_STEP_SUMMARY"
+          echo "**Date:** ${DATE}" >> "$GITHUB_STEP_SUMMARY"

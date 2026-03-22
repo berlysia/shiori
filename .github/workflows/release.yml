@@ -28,6 +28,14 @@ jobs:
       - run: pnpm --filter @berlysia/shiori run lint:boundaries
       - run: pnpm format:check
       - run: pnpm test
+
+      # Dogfooding verification gate (release checklist: Dogfooding Verification)
+      - name: shiori verify
+        run: node packages/shiori-cli/dist/src/cli.js verify
+
+      - name: shiori doctor
+        run: node packages/shiori-cli/dist/src/cli.js doctor
+
       - run: npm install -g npm@latest
       - run: cd packages/shiori-cli && npm publish --access public
 
