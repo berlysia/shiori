@@ -24,6 +24,10 @@ import {
   DEFAULT_SCAN_PATTERNS,
   DEFAULT_SCAN_IGNORE,
 } from '../core/scan-defaults.ts';
+import {
+  DEFAULT_CANDIDATE_PATTERNS,
+  resolveCandidatePatterns,
+} from '../core/providers/AnnotationProvider.ts';
 import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
 import {
   CI_TEMPLATE_KINDS,
@@ -304,12 +308,21 @@ export async function stepStarter(
     ];
     const ignore = [...DEFAULT_SCAN_IGNORE, ...(ctx.config.scanIgnore ?? [])];
 
+    // Merge starter's candidatePatterns (e.g. typescript: true) with
+    // defaults so that Path A matchers detect starter annotations correctly.
+    const candidatePatterns = starter.candidatePatterns
+      ? resolveCandidatePatterns({
+          ...DEFAULT_CANDIDATE_PATTERNS,
+          ...starter.candidatePatterns,
+        })
+      : ctx.config.candidatePatterns;
+
     const freshScan = await scan({
       patterns,
       ignore,
       provider,
       cwd: ctx.cwd,
-      providerOptions: { candidatePatterns: ctx.config.candidatePatterns },
+      providerOptions: { candidatePatterns },
     });
     ctx.scanResult = freshScan;
   }

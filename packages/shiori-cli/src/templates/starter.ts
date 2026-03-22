@@ -7,6 +7,7 @@
  */
 
 import type { Registry } from '../core/types.ts';
+import type { CandidatePatternConfig } from '../core/providers/AnnotationProvider.ts';
 
 /** Available starter template kinds */
 export type StarterKind = 'eslint' | 'stylelint' | 'typescript' | 'minimal';
@@ -43,6 +44,8 @@ export interface StarterResult {
   registry: Registry;
   /** Scan patterns needed to pick up the sample files */
   scanPatterns: string[];
+  /** Additional candidate patterns required to detect annotations in sample files */
+  candidatePatterns?: CandidatePatternConfig;
 }
 
 /**
@@ -147,6 +150,7 @@ void value;
       },
     },
     scanPatterns: ['examples/**/*.ts'],
+    candidatePatterns: { typescript: true },
   };
 }
 
