@@ -106,7 +106,13 @@ describe('CommentProvider', () => {
       const input = makeInput(
         '// @ts-ignore shiori: SUP-TS01 reason="legacy code"',
       );
-      const records = provider.scan(input).annotations;
+      const records = provider.scan(input, {
+        candidatePatterns: makePatterns({
+          eslint: true,
+          stylelint: true,
+          typescript: true,
+        }),
+      }).annotations;
       assert.equal(records.length, 1);
       assert.equal(records[0]!.ref, 'SUP-TS01');
       assert.equal(records[0]!.reason, 'legacy code');
@@ -117,7 +123,13 @@ describe('CommentProvider', () => {
       const input = makeInput(
         '// @ts-expect-error shiori: SUP-TS02 expires=2026-06',
       );
-      const records = provider.scan(input).annotations;
+      const records = provider.scan(input, {
+        candidatePatterns: makePatterns({
+          eslint: true,
+          stylelint: true,
+          typescript: true,
+        }),
+      }).annotations;
       assert.equal(records.length, 1);
       assert.equal(records[0]!.ref, 'SUP-TS02');
       assert.equal(records[0]!.expires, '2026-06');
@@ -319,6 +331,52 @@ describe('CommentProvider', () => {
       );
       const records = provider.scan(input).annotations;
       assert.equal(records.length, 0);
+    });
+  });
+
+  describe('Path B false positive prevention', () => {
+    it('does not detect mid-text shiori: mention in line comment', () => {
+      const input = makeInput(
+        '// see shiori: documentation for annotation syntax',
+      );
+      const result = provider.scan(input);
+      assert.equal(result.annotations.length, 0);
+    });
+
+    it('does not detect mid-text shiori: mention in block comment', () => {
+      const input = makeInput('/* refer to shiori: tracking for details */');
+      const result = provider.scan(input);
+      assert.equal(result.annotations.length, 0);
+    });
+
+    it('does not detect shiori: after other text in hash comment', () => {
+      const input = makeInput(
+        '# use shiori: annotations to track suppressions',
+        'test.py',
+      );
+      const result = provider.scan(input);
+      assert.equal(result.annotations.length, 0);
+    });
+
+    it('still detects shiori: at start of comment text', () => {
+      const input = makeInput('// shiori: SUP-1234');
+      const result = provider.scan(input);
+      assert.equal(result.annotations.length, 1);
+      assert.equal(result.annotations[0]!.ref, 'SUP-1234');
+    });
+
+    it('still detects shiori: with leading whitespace in block comment', () => {
+      const input = makeInput('/*  shiori: ADR:0007  */');
+      const result = provider.scan(input);
+      assert.equal(result.annotations.length, 1);
+      assert.equal(result.annotations[0]!.ref, 'ADR:0007');
+    });
+
+    it('still detects shiori: after block comment decorator (*)', () => {
+      const input = makeInput('/*\n * shiori: ADR:0007\n */');
+      const result = provider.scan(input);
+      assert.equal(result.annotations.length, 1);
+      assert.equal(result.annotations[0]!.ref, 'ADR:0007');
     });
   });
 

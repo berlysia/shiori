@@ -19,6 +19,16 @@ import { escapeRegex } from '../regex-utils.ts';
 /** Annotation prefix detection (matches "shiori" followed by colon) */
 const SHIORI_PREFIX_RE = /\bshiori:\s*/;
 
+/**
+ * Path B standalone annotation prefix detection — anchored to line start.
+ * Unlike SHIORI_PREFIX_RE (used in Path A for metaPart search),
+ * this requires `shiori:` to appear at the beginning of the comment text
+ * (after optional leading whitespace / block-comment decorators like `*`).
+ * This prevents false positives from mid-text mentions like
+ * "see shiori: documentation for details".
+ */
+const SHIORI_STANDALONE_PREFIX_RE = /^[\s*]*shiori:\s*/;
+
 /** Ignore directive detection — must be checked before parseShioriFields */
 const SHIORI_IGNORE_RE = /\bshiori:ignore\b/;
 
@@ -315,7 +325,8 @@ export class CommentProvider implements AnnotationProvider {
       if (matched) continue;
 
       // Path B: standalone annotation prefix (no matcher matched)
-      const shioriMatch = text.match(SHIORI_PREFIX_RE);
+      // Use anchored regex to avoid false positives from mid-text mentions
+      const shioriMatch = text.match(SHIORI_STANDALONE_PREFIX_RE);
       if (shioriMatch) {
         // Check for ignore directive before parsing fields.
         // Only apply when the ignore marker co-occurs with another
