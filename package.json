@@ -8,6 +8,8 @@
     "lint": "pnpm -r run lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "link:local": "pnpm --filter @berlysia/shiori run link:local",
+    "unlink:local": "pnpm --filter @berlysia/shiori run unlink:local",
     "release": "pnpm typecheck && pnpm lint && pnpm --filter @berlysia/shiori run lint:boundaries && pnpm format:check && pnpm build && pnpm test && pnpm --filter @berlysia/shiori exec npm version",
     "prepare": "husky"
   },
