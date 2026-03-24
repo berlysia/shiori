@@ -60,6 +60,7 @@
     "lint:boundaries": "depcruise 'src/**/*.ts' --config .dependency-cruiser.cjs",
     "link:local": "pnpm build && pnpm link --global",
     "unlink:local": "pnpm unlink --global",
+    "build:bundle": "esbuild src/cli.ts --bundle --format=esm --target=es2022 --outfile=dist/shiori-bundle.mjs --platform=node --banner:js=\"import{createRequire}from'module';const require=createRequire(import.meta.url);\"",
     "build:playground": "esbuild src/playground/index.ts --bundle --format=esm --target=es2022 --outfile=playground/shiori-playground.js --minify --sourcemap --metafile=playground/meta.json --platform=browser && cp src/playground/index.html playground/index.html",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
