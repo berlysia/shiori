@@ -12,6 +12,11 @@ import {
 import { warnIfGitDirty, saveRegistryRouted } from '../core/cli-context.ts';
 import { recordJournalEvent } from '../core/journal.ts';
 import { isValidRef } from '../core/ref-validation.ts';
+import {
+  suggestPrefixes,
+  suggestNextRef,
+  type PrefixSuggestion,
+} from '../core/ref-suggestion.ts';
 import { applyMigrateToFile, groupActionsByFile } from './migrate.ts';
 import {
   planAdoption,
@@ -88,6 +93,91 @@ async function wizardSelectGroups(
     return selected.length > 0 ? selected : undefined;
   } finally {
     rl.close();
+  }
+}
+
+/**
+ * Wizard Step 1.5: Suggest ref prefix based on registry and config.
+ * Shows numbered suggestions from suggestPrefixes() and a next-ref preview.
+ * Returns selected prefix or undefined if cancelled.
+ */
+async function wizardSuggestPrefix(opts: {
+  registry: Registry;
+  refPatterns: import('../core/ref-pattern.ts').RefPatternConfig[] | undefined;
+  currentPrefix: string;
+}): Promise<string | undefined> {
+  const { registry, refPatterns, currentPrefix } = opts;
+  const { suggestions } = suggestPrefixes({ registry, refPatterns });
+
+  // Nothing to suggest — keep current prefix
+  if (suggestions.length === 0) {
+    return currentPrefix;
+  }
+
+  const rl = createInterface({
+    input: process.stdin,
+    output: process.stderr,
+  });
+
+  try {
+    const lines: string[] = [];
+    lines.push('');
+    lines.push('Suggested ref prefixes:');
+    lines.push('');
+
+    for (let i = 0; i < suggestions.length; i++) {
+      const s = suggestions[i]!;
+      const next = suggestNextRef(s.prefix, registry);
+      const sourceLabel = formatPrefixSource(s);
+      lines.push(
+        `  ${i + 1}. ${s.prefix} → next: ${next.ref}  (${sourceLabel})`,
+      );
+    }
+
+    lines.push('');
+    lines.push(
+      `Enter number to select, or type a custom prefix (Enter = ${suggestions[0]!.prefix}), "q" to quit:`,
+    );
+
+    console.error(lines.join('\n'));
+
+    const answer = await rl.question('> ');
+    const trimmed = answer.trim();
+
+    if (trimmed.toLowerCase() === 'q' || trimmed.toLowerCase() === 'quit') {
+      return undefined;
+    }
+
+    // Empty input → accept first suggestion
+    if (trimmed === '') {
+      return suggestions[0]!.prefix;
+    }
+
+    // Numeric selection
+    const num = parseInt(trimmed, 10);
+    if (!Number.isNaN(num) && num >= 1 && num <= suggestions.length) {
+      return suggestions[num - 1]!.prefix;
+    }
+
+    // Custom prefix input (uppercase)
+    return trimmed;
+  } finally {
+    rl.close();
+  }
+}
+
+/**
+ * Format a prefix suggestion source for display.
+ * Exported for testing.
+ */
+export function formatPrefixSource(s: PrefixSuggestion): string {
+  switch (s.source) {
+    case 'registry':
+      return `${s.usageCount} existing ref(s)`;
+    case 'refPattern':
+      return 'from config';
+    case 'default':
+      return s.reason;
   }
 }
 
@@ -336,6 +426,22 @@ export const adoptCommand = define({
         console.error('No candidates in selected groups.');
         return;
       }
+
+      // Step 1.5: Suggest ref prefix (from registry patterns and config)
+      const suggestedPrefix = await wizardSuggestPrefix({
+        registry: existingRegistry,
+        refPatterns: config.refPatterns,
+        currentPrefix: prefix,
+      });
+      if (suggestedPrefix === undefined) {
+        console.error('Adoption cancelled.');
+        return;
+      }
+      prefix = suggestedPrefix;
+
+      // Show next ref preview after prefix selection
+      const nextRef = suggestNextRef(prefix, existingRegistry);
+      console.error(`  → Next ref: ${nextRef.ref}`);
 
       // Step 2: Confirm/override options
       const optResult = await wizardConfirmOptions({
