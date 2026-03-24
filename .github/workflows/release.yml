@@ -28,8 +28,8 @@ jobs:
       - run: pnpm test
 
       # Dogfooding verification gate (release checklist: Dogfooding Verification)
-      - name: shiori verify
-        run: node packages/shiori-cli/dist/src/cli.js verify
+      - name: shiori check
+        run: node packages/shiori-cli/dist/src/cli.js check
 
       - name: shiori doctor
         run: node packages/shiori-cli/dist/src/cli.js doctor
