@@ -20,7 +20,7 @@
             "type": "command",
             "command": "if echo \"$TOOL_INPUT\" | grep -q '\"file_path\".*packages/shiori-cli/src/'; then pnpm --filter @berlysia/shiori run lint:boundaries 2>&1 | tail -5; fi",
             "timeout": 10000,
-            "run_in_background": true
+            "run_in_background": false
           }
         ]
       }
