@@ -53,11 +53,11 @@ jobs:
 
       - name: Package release archive
         run: |
-          mkdir -p bin
-          cp packages/shiori-cli/dist/shiori-bundle.mjs bin/shiori
-          chmod +x bin/shiori
-          tar czf "shiori-${GITHUB_REF_NAME}.tar.gz" bin/shiori
-          rm -rf bin
+          mkdir -p "shiori-${GITHUB_REF_NAME}/bin"
+          cp packages/shiori-cli/dist/shiori-bundle.mjs "shiori-${GITHUB_REF_NAME}/bin/shiori"
+          chmod +x "shiori-${GITHUB_REF_NAME}/bin/shiori"
+          tar czf "shiori-${GITHUB_REF_NAME}.tar.gz" "shiori-${GITHUB_REF_NAME}"
+          rm -rf "shiori-${GITHUB_REF_NAME}"
 
       - name: Create GitHub Release
         env:
