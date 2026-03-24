@@ -44,6 +44,7 @@ import {
 } from '../core/scan-defaults.ts';
 import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
 import { ExitCode } from '../core/exit-codes.ts';
+import { isNodeError } from '../core/errors.ts';
 
 const validateCoachFormat = createFormatValidator<CoachFormat>(
   COACH_FORMATS,
@@ -248,10 +249,16 @@ export const coachCommand = define({
       let templateContent: string;
       try {
         templateContent = await readFile(templatePath, 'utf-8');
-      } catch {
-        console.error(
-          `Error: Cannot read template file "${ctx.values.templateFile}"`,
-        );
+      } catch (err) {
+        if (isNodeError(err) && err.code === 'ENOENT') {
+          console.error(
+            `Error: Template file not found: "${ctx.values.templateFile}"`,
+          );
+        } else {
+          console.error(
+            `Error: Cannot read template file "${ctx.values.templateFile}"`,
+          );
+        }
         process.exitCode = ExitCode.ENVIRONMENT_ERROR;
         return;
       }

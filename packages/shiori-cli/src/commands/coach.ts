@@ -51,6 +51,15 @@ export interface CoachResult {
   };
 }
 
+// ── Placeholder Constants ────────────────────────────────────
+
+/** Template placeholder tokens for coach prompt generation. */
+export const COACH_PLACEHOLDERS = {
+  TRIAGE: '{{TRIAGE_JSON}}',
+  WEEKLY_REPORT: '{{WEEKLY_REPORT_JSON}}',
+  HEALTH: '{{HEALTH_JSON}}',
+} as const;
+
 // ── Prompt Templates ─────────────────────────────────────────
 
 const TRIAGE_PROMPT = `あなたはソフトウェアガバナンスの専門家です。
@@ -163,6 +172,33 @@ function getTemplate(template: Exclude<CoachTemplate, 'custom'>): string {
   }
 }
 
+/** Replace placeholder tokens in a template string with governance JSON data. */
+function replacePlaceholders(
+  templateStr: string,
+  input: CoachInput,
+): { prompt: string; sources: CoachResult['sources'] } {
+  let prompt = templateStr;
+  const sources: CoachResult['sources'] = {};
+
+  if (input.triageJson != null) {
+    prompt = prompt.replaceAll(COACH_PLACEHOLDERS.TRIAGE, input.triageJson);
+    sources.triage = input.triageJson;
+  }
+  if (input.weeklyReportJson != null) {
+    prompt = prompt.replaceAll(
+      COACH_PLACEHOLDERS.WEEKLY_REPORT,
+      input.weeklyReportJson,
+    );
+    sources.weeklyReport = input.weeklyReportJson;
+  }
+  if (input.healthJson != null) {
+    prompt = prompt.replaceAll(COACH_PLACEHOLDERS.HEALTH, input.healthJson);
+    sources.health = input.healthJson;
+  }
+
+  return { prompt, sources };
+}
+
 /**
  * Build a structured LLM prompt from governance data.
  * Pure function — no I/O, no LLM calls.
@@ -171,26 +207,7 @@ export function buildCoachPrompt(
   template: Exclude<CoachTemplate, 'custom'>,
   input: CoachInput,
 ): CoachResult {
-  let prompt = getTemplate(template);
-
-  const sources: CoachResult['sources'] = {};
-
-  if (input.triageJson) {
-    prompt = prompt.replaceAll('{{TRIAGE_JSON}}', input.triageJson);
-    sources.triage = input.triageJson;
-  }
-  if (input.weeklyReportJson) {
-    prompt = prompt.replaceAll(
-      '{{WEEKLY_REPORT_JSON}}',
-      input.weeklyReportJson,
-    );
-    sources.weeklyReport = input.weeklyReportJson;
-  }
-  if (input.healthJson) {
-    prompt = prompt.replaceAll('{{HEALTH_JSON}}', input.healthJson);
-    sources.health = input.healthJson;
-  }
-
+  const { prompt, sources } = replacePlaceholders(getTemplate(template), input);
   return { template, prompt, sources };
 }
 
@@ -201,25 +218,7 @@ export function buildCoachPromptFromCustomTemplate(
   templateContent: string,
   input: CoachInput,
 ): CoachResult {
-  let prompt = templateContent;
-  const sources: CoachResult['sources'] = {};
-
-  if (input.triageJson) {
-    prompt = prompt.replaceAll('{{TRIAGE_JSON}}', input.triageJson);
-    sources.triage = input.triageJson;
-  }
-  if (input.weeklyReportJson) {
-    prompt = prompt.replaceAll(
-      '{{WEEKLY_REPORT_JSON}}',
-      input.weeklyReportJson,
-    );
-    sources.weeklyReport = input.weeklyReportJson;
-  }
-  if (input.healthJson) {
-    prompt = prompt.replaceAll('{{HEALTH_JSON}}', input.healthJson);
-    sources.health = input.healthJson;
-  }
-
+  const { prompt, sources } = replacePlaceholders(templateContent, input);
   return { template: 'custom', prompt, sources };
 }
 

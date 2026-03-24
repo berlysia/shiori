@@ -6,6 +6,7 @@ import {
   formatCoachOutput,
   COACH_TEMPLATES,
   COACH_FORMATS,
+  COACH_PLACEHOLDERS,
 } from '../src/commands/coach.ts';
 
 describe('buildCoachPrompt', () => {
@@ -63,6 +64,13 @@ describe('buildCoachPrompt', () => {
 
     assert.ok(result.prompt.includes('{{TRIAGE_JSON}}'));
     assert.equal(result.sources.triage, undefined);
+  });
+
+  it('replaces placeholder even when value is empty string', () => {
+    const result = buildCoachPrompt('triage', { triageJson: '' });
+
+    assert.ok(!result.prompt.includes('{{TRIAGE_JSON}}'));
+    assert.equal(result.sources.triage, '');
   });
 });
 
@@ -124,5 +132,31 @@ describe('COACH_TEMPLATES and COACH_FORMATS', () => {
 
   it('has expected formats', () => {
     assert.deepEqual([...COACH_FORMATS], ['prompt', 'json', 'github-issue']);
+  });
+});
+
+describe('COACH_PLACEHOLDERS', () => {
+  it('has expected placeholder tokens', () => {
+    assert.equal(COACH_PLACEHOLDERS.TRIAGE, '{{TRIAGE_JSON}}');
+    assert.equal(COACH_PLACEHOLDERS.WEEKLY_REPORT, '{{WEEKLY_REPORT_JSON}}');
+    assert.equal(COACH_PLACEHOLDERS.HEALTH, '{{HEALTH_JSON}}');
+  });
+
+  it('built-in templates use only defined placeholders', () => {
+    const placeholderValues = Object.values(COACH_PLACEHOLDERS);
+    const placeholderPattern = /\{\{[A-Z_]+\}\}/g;
+
+    for (const tmpl of COACH_TEMPLATES) {
+      const result = buildCoachPrompt(tmpl, {});
+      const found = result.prompt.match(placeholderPattern) ?? [];
+      for (const token of found) {
+        assert.ok(
+          placeholderValues.includes(
+            token as (typeof placeholderValues)[number],
+          ),
+          `Template "${tmpl}" uses unknown placeholder: ${token}`,
+        );
+      }
+    }
   });
 });
