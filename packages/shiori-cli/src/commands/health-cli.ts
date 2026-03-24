@@ -5,11 +5,12 @@ import { report } from './report.ts';
 import { computeTrend } from './trend.ts';
 import {
   buildHealthResult,
-  formatHealth,
   formatHealthSummary,
   HEALTH_FORMATS,
   type HealthFormat,
 } from './health.ts';
+import { formatHealthAsGitHubSummary } from '../formatters/github-summary-formatter.ts';
+import { assertNever } from '../core/types.ts';
 import {
   triage,
   formatTriageOutput,
@@ -39,6 +40,22 @@ import {
   formatFixResult,
   type HealthFixApplyResult,
 } from './health-fix.ts';
+
+export function formatHealth(
+  result: import('../core/types.ts').HealthResult,
+  format: HealthFormat,
+): string {
+  switch (format) {
+    case 'summary':
+      return formatHealthSummary(result);
+    case 'github-summary':
+      return formatHealthAsGitHubSummary(result);
+    case 'json':
+      return JSON.stringify(result, null, 2);
+    default:
+      return assertNever(format);
+  }
+}
 
 const validateHealthFormat = createFormatValidator<HealthFormat>(
   HEALTH_FORMATS,

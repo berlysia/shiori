@@ -11,9 +11,9 @@ import type {
 import {
   health,
   buildHealthResult,
-  formatHealth,
   formatHealthSummary,
 } from '../src/commands/health.ts';
+import { formatHealth } from '../src/commands/health-cli.ts';
 import { isAtOrBelowLevel } from '../src/core/types.ts';
 import { report } from '../src/commands/report.ts';
 

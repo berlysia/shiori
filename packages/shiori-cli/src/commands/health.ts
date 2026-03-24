@@ -1,5 +1,4 @@
 import {
-  assertNever,
   HEALTH_FORMATS,
   type HealthResult,
   type HealthFormat,
@@ -9,7 +8,6 @@ import {
 import { healthEmoji, trendArrow } from '../core/emoji.ts';
 import { report, type ReportOptions } from './report.ts';
 import { buildPrescriptions } from '../core/prescriptions.ts';
-import { formatHealthAsGitHubSummary } from '../formatters/github-summary-formatter.ts';
 
 export { HEALTH_FORMATS };
 export type { HealthResult, HealthFormat };
@@ -208,23 +206,4 @@ export function formatHealthSummary(result: HealthResult): string {
   outputLines.push(`└${hBar}┘`);
 
   return outputLines.join('\n');
-}
-
-/**
- * Format HealthResult for output.
- */
-export function formatHealth(
-  result: HealthResult,
-  format: HealthFormat,
-): string {
-  switch (format) {
-    case 'summary':
-      return formatHealthSummary(result);
-    case 'github-summary':
-      return formatHealthAsGitHubSummary(result);
-    case 'json':
-      return JSON.stringify(result, null, 2);
-    default:
-      return assertNever(format);
-  }
 }
