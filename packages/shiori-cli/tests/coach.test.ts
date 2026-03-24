@@ -1,0 +1,128 @@
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import {
+  buildCoachPrompt,
+  buildCoachPromptFromCustomTemplate,
+  formatCoachOutput,
+  COACH_TEMPLATES,
+  COACH_FORMATS,
+} from '../src/commands/coach.ts';
+
+describe('buildCoachPrompt', () => {
+  it('builds triage prompt with JSON embedded', () => {
+    const triageJson = '{"items":[],"summary":{"total":0}}';
+    const result = buildCoachPrompt('triage', { triageJson });
+
+    assert.equal(result.template, 'triage');
+    assert.ok(result.prompt.includes(triageJson));
+    assert.ok(result.prompt.includes('ガバナンスの専門家'));
+    assert.ok(!result.prompt.includes('{{TRIAGE_JSON}}'));
+    assert.deepEqual(result.sources.triage, triageJson);
+  });
+
+  it('builds weekly prompt with JSON embedded', () => {
+    const weeklyReportJson = '{"health":{"score":85}}';
+    const result = buildCoachPrompt('weekly', { weeklyReportJson });
+
+    assert.equal(result.template, 'weekly');
+    assert.ok(result.prompt.includes(weeklyReportJson));
+    assert.ok(result.prompt.includes('ガバナンスコーチ'));
+    assert.ok(!result.prompt.includes('{{WEEKLY_REPORT_JSON}}'));
+    assert.deepEqual(result.sources.weeklyReport, weeklyReportJson);
+  });
+
+  it('builds health prompt with JSON embedded', () => {
+    const healthJson = '{"health":{"score":72,"level":"warning"}}';
+    const result = buildCoachPrompt('health', { healthJson });
+
+    assert.equal(result.template, 'health');
+    assert.ok(result.prompt.includes(healthJson));
+    assert.ok(result.prompt.includes('健全性を診断'));
+    assert.ok(!result.prompt.includes('{{HEALTH_JSON}}'));
+    assert.deepEqual(result.sources.health, healthJson);
+  });
+
+  it('builds combined prompt with triage and weekly JSON', () => {
+    const triageJson = '{"items":[]}';
+    const weeklyReportJson = '{"health":{"score":90}}';
+    const result = buildCoachPrompt('combined', {
+      triageJson,
+      weeklyReportJson,
+    });
+
+    assert.equal(result.template, 'combined');
+    assert.ok(result.prompt.includes(triageJson));
+    assert.ok(result.prompt.includes(weeklyReportJson));
+    assert.ok(!result.prompt.includes('{{TRIAGE_JSON}}'));
+    assert.ok(!result.prompt.includes('{{WEEKLY_REPORT_JSON}}'));
+  });
+
+  it('leaves unreplaced placeholders when data is missing', () => {
+    // triage template expects triageJson, but none provided
+    const result = buildCoachPrompt('triage', {});
+
+    assert.ok(result.prompt.includes('{{TRIAGE_JSON}}'));
+    assert.equal(result.sources.triage, undefined);
+  });
+});
+
+describe('buildCoachPromptFromCustomTemplate', () => {
+  it('replaces placeholders in custom template', () => {
+    const templateContent = 'Analyze: {{TRIAGE_JSON}} and {{HEALTH_JSON}}';
+    const triageJson = '{"data":"triage"}';
+    const healthJson = '{"data":"health"}';
+
+    const result = buildCoachPromptFromCustomTemplate(templateContent, {
+      triageJson,
+      healthJson,
+    });
+
+    assert.ok(result.prompt.includes('"data":"triage"'));
+    assert.ok(result.prompt.includes('"data":"health"'));
+    assert.ok(!result.prompt.includes('{{TRIAGE_JSON}}'));
+    assert.ok(!result.prompt.includes('{{HEALTH_JSON}}'));
+    assert.equal(result.template, 'custom');
+  });
+});
+
+describe('formatCoachOutput', () => {
+  const mockResult = buildCoachPrompt('triage', {
+    triageJson: '{"items":[]}',
+  });
+
+  it('returns raw prompt text for "prompt" format', () => {
+    const output = formatCoachOutput(mockResult, 'prompt');
+
+    assert.equal(output, mockResult.prompt);
+  });
+
+  it('returns valid JSON for "json" format', () => {
+    const output = formatCoachOutput(mockResult, 'json');
+    const parsed = JSON.parse(output) as { template: string; prompt: string };
+
+    assert.equal(parsed.template, 'triage');
+    assert.ok(typeof parsed.prompt === 'string');
+  });
+
+  it('returns GitHub issue format with collapsible details', () => {
+    const output = formatCoachOutput(mockResult, 'github-issue');
+
+    assert.ok(output.includes('Governance Coach Prompt'));
+    assert.ok(output.includes('<details>'));
+    assert.ok(output.includes('</details>'));
+    assert.ok(output.includes('shiori coach'));
+  });
+});
+
+describe('COACH_TEMPLATES and COACH_FORMATS', () => {
+  it('has expected templates', () => {
+    assert.deepEqual(
+      [...COACH_TEMPLATES],
+      ['triage', 'weekly', 'health', 'combined'],
+    );
+  });
+
+  it('has expected formats', () => {
+    assert.deepEqual([...COACH_FORMATS], ['prompt', 'json', 'github-issue']);
+  });
+});

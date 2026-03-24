@@ -9,6 +9,7 @@ import type {
 import {
   formatScanResultForDisplay,
   formatGovernanceReportCard,
+  formatNoRegistrySummary,
   type ScanResult,
 } from '../src/commands/scan.ts';
 import { report } from '../src/commands/report.ts';
@@ -342,6 +343,63 @@ describe('formatGovernanceReportCard', () => {
     const output = formatGovernanceReportCard(scanResult, reportResult);
 
     // Has header and footer borders
+    assert.ok(output.includes('──'));
+  });
+});
+
+describe('formatNoRegistrySummary', () => {
+  it('shows candidates count and next-step guidance', () => {
+    const scanResult = makeScanResult({
+      annotations: [],
+      candidates: [
+        makeCandidate(),
+        makeCandidate({ location: { file: 'src/b.ts', line: 1 } }),
+      ],
+      filesScanned: 10,
+    });
+
+    const output = formatNoRegistrySummary(scanResult);
+
+    assert.ok(output.includes('Quick Scan Summary'));
+    assert.ok(output.includes('2 untracked lint disable(s) found'));
+    assert.ok(output.includes('Annotations: 0'));
+    assert.ok(output.includes('shiori init'));
+    assert.ok(output.includes('shiori adopt --apply'));
+  });
+
+  it('shows annotations count when shiori: markers exist without registry', () => {
+    const scanResult = makeScanResult({
+      annotations: [makeAnnotation({ ref: 'TEST-001' })],
+      candidates: [makeCandidate()],
+      filesScanned: 5,
+    });
+
+    const output = formatNoRegistrySummary(scanResult);
+
+    assert.ok(output.includes('Candidates: 1 untracked lint disable(s) found'));
+    assert.ok(output.includes('Annotations: 1'));
+    assert.ok(output.includes('shiori: markers without registry'));
+  });
+
+  it('shows zero counts for empty scan', () => {
+    const scanResult = makeScanResult({
+      annotations: [],
+      candidates: [],
+      filesScanned: 3,
+    });
+
+    const output = formatNoRegistrySummary(scanResult);
+
+    assert.ok(output.includes('Candidates: 0 untracked lint disable(s) found'));
+    assert.ok(output.includes('Annotations: 0'));
+    assert.ok(output.includes('Get started:'));
+  });
+
+  it('has border lines', () => {
+    const scanResult = makeScanResult();
+
+    const output = formatNoRegistrySummary(scanResult);
+
     assert.ok(output.includes('──'));
   });
 });

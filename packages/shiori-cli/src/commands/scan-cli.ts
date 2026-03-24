@@ -5,6 +5,7 @@ import {
   scan,
   formatScanResultForDisplay,
   formatGovernanceReportCard,
+  formatNoRegistrySummary,
 } from './scan.ts';
 import { report } from './report.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
@@ -16,6 +17,7 @@ import {
   DEFAULT_SCAN_IGNORE,
 } from '../core/scan-defaults.ts';
 import { loadConfigAndRegistry } from '../core/registry-loader.ts';
+import { isNodeError } from '../core/errors.ts';
 import { ExitCode } from '../core/exit-codes.ts';
 
 export const scanCommand = define({
@@ -154,8 +156,13 @@ export const scanCommand = define({
             refOrigins: regResult.refOrigins,
           });
           console.log(formatGovernanceReportCard(result, reportResult));
-        } catch {
-          // Registry unavailable (e.g. not initialized) — skip report card silently
+        } catch (err) {
+          // Registry file missing (not initialized) — show quick summary with guidance
+          if (isNodeError(err) && err.code === 'ENOENT') {
+            console.log(formatNoRegistrySummary(result));
+          } else {
+            throw err;
+          }
         }
       }
     } else {

@@ -172,4 +172,63 @@ describe('scan-cli: argument validation and error paths', () => {
       assert.equal(result.filesScanned, 0);
     });
   });
+
+  describe('no-registry fallback (EP-0141)', () => {
+    it('succeeds without registry initialization (pipe mode)', async () => {
+      const dir = await mkdtemp(join(baseDir, 'no-init-'));
+      // Source file with candidate lint disable (no shiori init)
+      await mkdir(join(dir, 'src'), { recursive: true });
+      await writeFile(
+        join(dir, 'src', 'sample.ts'),
+        '// eslint-disable-next-line no-console\nconsole.log("test");\n',
+        'utf-8',
+      );
+
+      // No .config/shiori/ directory — registry not initialized
+      const { exitCode, stdout, stderr } = await runCli([
+        'scan',
+        '--cwd',
+        dir,
+        '--patterns',
+        'src/**/*.ts',
+      ]);
+
+      // Should succeed even without registry
+      assert.equal(exitCode, 0);
+      // Pipe mode outputs JSON to stdout
+      const result = JSON.parse(stdout) as {
+        annotations: unknown[];
+        candidates: Array<{ pattern: string }>;
+        filesScanned: number;
+      };
+      assert.equal(result.filesScanned, 1);
+      assert.ok(result.candidates.length > 0);
+      assert.ok(stderr.includes('Scanned'));
+    });
+
+    it('succeeds with shiori: annotations but no registry', async () => {
+      const dir = await mkdtemp(join(baseDir, 'no-init-anno-'));
+      await mkdir(join(dir, 'src'), { recursive: true });
+      await writeFile(
+        join(dir, 'src', 'sample.ts'),
+        '// eslint-disable-next-line no-console -- shiori: NOINIT-001\nconsole.log("test");\n',
+        'utf-8',
+      );
+
+      const { exitCode, stdout } = await runCli([
+        'scan',
+        '--cwd',
+        dir,
+        '--patterns',
+        'src/**/*.ts',
+      ]);
+
+      assert.equal(exitCode, 0);
+      const result = JSON.parse(stdout) as {
+        annotations: Array<{ ref: string }>;
+        filesScanned: number;
+      };
+      assert.ok(result.annotations.some((a) => a.ref === 'NOINIT-001'));
+    });
+  });
 });

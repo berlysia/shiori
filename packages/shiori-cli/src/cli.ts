@@ -28,6 +28,7 @@ import { summaryCommand } from './commands/summary-cli.ts';
 import { aggregateCommand } from './commands/aggregate-cli.ts';
 import { guideCommand } from './commands/guide-cli.ts';
 import { fixCommand } from './commands/fix-cli.ts';
+import { coachCommand } from './commands/coach-cli.ts';
 import { VERSION } from './core/version.ts';
 import { ExitCode } from './core/exit-codes.ts';
 
@@ -74,6 +75,9 @@ Workflow:
   shiori journal                 Browse CLI operation journal
   shiori aggregate               Aggregate multi-repo summaries
   shiori check --fail-on ...     Enforce governance in CI
+
+Coaching:
+  shiori coach                   Generate LLM prompts for governance coaching
 
 Diagnostics:
   shiori doctor                  Diagnose shiori setup
@@ -127,6 +131,7 @@ try {
       aggregate: aggregateCommand,
       guide: guideCommand,
       fix: fixCommand,
+      coach: coachCommand,
     },
   });
 } catch (err) {

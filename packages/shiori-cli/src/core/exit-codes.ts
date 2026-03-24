@@ -84,6 +84,7 @@ export const REGISTERED_COMMANDS: readonly string[] = [
   'aggregate',
   'guide',
   'fix',
+  'coach',
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -201,6 +202,11 @@ export const EXIT_CODE_POLICIES: Record<string, ExitCodePolicy> = {
     category: 'usage',
     failCondition:
       'invalid options (--fail-on, --warn-on, --format), mutually exclusive flags, path boundary violations',
+  },
+  coach: {
+    category: 'usage',
+    failCondition:
+      'validation failures (invalid --template, --format), environment errors (registry/template file not found)',
   },
 
   // -- Passthrough commands (always exit 0) --

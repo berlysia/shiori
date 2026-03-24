@@ -140,6 +140,34 @@ export async function scan(options: ScanOptions): Promise<ScanResult> {
 }
 
 /**
+ * Format a summary for projects without a registry (pre-init state).
+ *
+ * Shows candidates count and next-step guidance to help new users
+ * understand the landscape and take the first governance step.
+ */
+export function formatNoRegistrySummary(scanResult: ScanResult): string {
+  const lines: string[] = [];
+  const { annotations, candidates } = scanResult;
+
+  lines.push('');
+  lines.push('── Quick Scan Summary ──────────────────────');
+  lines.push(
+    `Candidates: ${candidates.length} untracked lint disable(s) found`,
+  );
+  lines.push(
+    `Annotations: ${annotations.length} (shiori: markers without registry)`,
+  );
+
+  lines.push('');
+  lines.push('Get started:');
+  lines.push('  $ shiori init                # Create registry');
+  lines.push('  $ shiori adopt --apply       # Track existing lint disables');
+  lines.push('────────────────────────────────────────────');
+
+  return lines.join('\n');
+}
+
+/**
  * Format a Governance Report Card for TTY display after scan.
  *
  * Reuses ReportResult from report() to show tracking rate, candidate count,
