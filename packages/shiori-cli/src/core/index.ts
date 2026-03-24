@@ -25,6 +25,22 @@ export type { ShioriConfig, ResolvedConfig } from './config.ts';
 export { resolveRefUrl, matchRefPattern } from './ref-pattern.ts';
 export type { RefPatternConfig, RefPatternMatch } from './ref-pattern.ts';
 
+// ── Ref Suggestion ────────────────────────────────────────
+export {
+  extractPrefixesFromRegistry,
+  extractPrefixesFromPatterns,
+  suggestPrefixes,
+  findNextAvailableNumber,
+  suggestNextRef,
+} from './ref-suggestion.ts';
+export type {
+  PrefixSource,
+  PrefixSuggestion,
+  SuggestPrefixesOptions,
+  SuggestPrefixesResult,
+  NextRefSuggestion,
+} from './ref-suggestion.ts';
+
 // ── Ref Validation ──────────────────────────────────────────
 export { isValidRef, REF_PATTERN } from './ref-validation.ts';
 
