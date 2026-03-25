@@ -41,6 +41,18 @@ const raw: ShioriConfig = JSON.parse(content) as ShioriConfig;
 
 Each `shiori:` annotation points to a registry entry with reason, owner, and expiration — so your team always knows _why_, _who_, and _when_.
 
+## Try It Now — No Setup Required
+
+See what shiori does in 10 seconds, without installing anything:
+
+```bash
+npx @berlysia/shiori scan --demo
+```
+
+This runs a self-contained demo with built-in sample files — scans 3 annotated source files, verifies them against a demo registry, and shows a health score. No project changes, no configuration needed.
+
+> **Save demo results:** Pipe to a file with `--output report.json`, or redirect stdout for JSON output: `npx @berlysia/shiori scan --demo | cat`
+
 ## Quick Start
 
 ```bash
@@ -56,7 +68,7 @@ shiori check
 
 That's it. Three commands to go from zero to CI-enforced annotation governance.
 
-> **Want a guided walkthrough?** See [Getting Started — 5 Minutes to Governed Code](docs/getting-started.md) for a step-by-step tutorial that explains what each command does.
+> **Want a guided walkthrough?** See [Getting Started — 5 Minutes to Governed Code](docs/getting-started.md) for a step-by-step tutorial that explains what each command does (including a [zero-setup demo](docs/getting-started.md#step-0-まず試してみるセットアップ不要)).
 
 > **Already have lint disables scattered across your codebase?** `shiori adopt` converts them in one step:
 >
@@ -271,10 +283,14 @@ Options:
 shiori scan \
   --patterns "src/**/*.{css,scss,ts,tsx}" \
   --output scan-result.json
+
+# Try with built-in sample files (no setup required)
+shiori scan --demo
 ```
 
 Options:
 
+- `--demo` — Run with built-in sample files to experience shiori without setup. Incompatible with `--patterns`, `--cwd`, `--ignore`. See [Try It Now](#try-it-now--no-setup-required)
 - `--patterns, -p` — Glob patterns (comma-separated). Default: `**/*.{css,scss,pcss,js,ts,tsx,jsx}`
 - `--ignore, -i` — Exclude patterns. Default: `**/node_modules/**,**/dist/**,**/.git/**,**/tests/**,**/test/**,**/__tests__/**,**/*.test.*,**/*.spec.*,**/.config/**` (see [ADR 015](docs/decisions/015-scan-false-positive-prevention.md))
 - `--output, -o` — Output file (default: auto-save to `.config/shiori/scan-result.json` when TTY, stdout when piped)

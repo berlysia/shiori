@@ -105,7 +105,7 @@ export interface DemoResult {
   scanResult: ScanResult;
   verifyResult: VerifyResult;
   healthScore: number;
-  healthLevel: string;
+  healthLevel: HealthLevel;
   demoDir: string;
 }
 
@@ -235,7 +235,7 @@ export function formatDemoResult(result: DemoResult): string {
   // Health score
   lines.push('');
   lines.push('── Health ──────────────────────────────────');
-  const emoji = healthEmoji(result.healthLevel as HealthLevel);
+  const emoji = healthEmoji(result.healthLevel);
   lines.push(
     `${emoji} スコア: ${result.healthScore}/100 (${result.healthLevel})`,
   );
@@ -247,6 +247,9 @@ export function formatDemoResult(result: DemoResult): string {
   lines.push('  $ shiori scan            # 実際のソースコードをスキャン');
   lines.push('  $ shiori health          # ガバナンス健全性を確認');
   lines.push('');
+  lines.push(
+    'ガイド: https://github.com/berlysia/shiori/blob/master/docs/getting-started.md',
+  );
   lines.push('詳しくは: shiori docs / https://github.com/berlysia/shiori');
   lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 

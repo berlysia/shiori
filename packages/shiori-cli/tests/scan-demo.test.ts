@@ -158,4 +158,14 @@ describe('scan-demo: formatDemoResult()', () => {
     assert.ok(output.includes('shiori scan'));
     assert.ok(output.includes('shiori health'));
   });
+
+  it('includes Getting Started guide link in CTA', async () => {
+    const result = await getResult();
+    const output = formatDemoResult(result);
+
+    assert.ok(
+      output.includes('getting-started.md'),
+      'CTA should link to Getting Started guide',
+    );
+  });
 });

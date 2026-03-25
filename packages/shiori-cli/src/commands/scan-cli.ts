@@ -91,7 +91,7 @@ export const scanCommand = define({
     demo: {
       type: 'boolean',
       description:
-        'Run with built-in sample files to experience shiori without setup. Incompatible with --patterns, --cwd, --ignore',
+        'Run with built-in sample files to experience shiori without any setup — scans 3 demo files, verifies against a demo registry, and shows a health score. Try: npx @berlysia/shiori scan --demo. Incompatible with --patterns, --cwd, --ignore',
     },
   },
   run: async (ctx) => {
