@@ -6,7 +6,7 @@
  */
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { runCli } from './helpers/cli-test-utils.ts';
+import { runCli, unwrapEnvelope } from './helpers/cli-test-utils.ts';
 import {
   USE_CASES,
   groupUseCases,
@@ -23,13 +23,13 @@ describe('guide-cli: --json mode', () => {
 
     assert.equal(exitCode, 0);
     // Must parse without throwing
-    const parsed = JSON.parse(stdout) as GroupedUseCases;
+    const parsed = unwrapEnvelope<GroupedUseCases>(stdout);
     assert.ok(Array.isArray(parsed), 'top-level should be an array');
   });
 
   it('JSON contains all 5 categories', async () => {
     const { stdout } = await runCli(['guide', '--json']);
-    const parsed = JSON.parse(stdout) as GroupedUseCases;
+    const parsed = unwrapEnvelope<GroupedUseCases>(stdout);
 
     const categories = parsed.map((g) => g.category);
     const expected: UseCaseCategory[] = [
@@ -44,7 +44,7 @@ describe('guide-cli: --json mode', () => {
 
   it('each group has category, categoryLabel, and useCases array', async () => {
     const { stdout } = await runCli(['guide', '--json']);
-    const parsed = JSON.parse(stdout) as GroupedUseCases;
+    const parsed = unwrapEnvelope<GroupedUseCases>(stdout);
 
     for (const group of parsed) {
       assert.ok(typeof group.category === 'string', 'category is string');
@@ -66,7 +66,7 @@ describe('guide-cli: --json mode', () => {
 
   it('JSON total use-case count matches USE_CASES length', async () => {
     const { stdout } = await runCli(['guide', '--json']);
-    const parsed = JSON.parse(stdout) as GroupedUseCases;
+    const parsed = unwrapEnvelope<GroupedUseCases>(stdout);
 
     const totalCount = parsed.reduce(
       (sum, group) => sum + group.useCases.length,
@@ -181,7 +181,7 @@ describe('guide-cli: pipe mode (non-TTY fallback)', () => {
 
     assert.equal(exitCode, 0);
     // Should fall back to JSON output on stdout
-    const parsed = JSON.parse(stdout) as GroupedUseCases;
+    const parsed = unwrapEnvelope<GroupedUseCases>(stdout);
     assert.ok(Array.isArray(parsed), 'pipe mode outputs valid JSON array');
   });
 });
@@ -306,7 +306,7 @@ describe('guide-cli: --wizard mode', () => {
     const { exitCode, stdout } = await runCli(['guide', '--wizard', '--json']);
 
     assert.equal(exitCode, 0);
-    const parsed = JSON.parse(stdout) as {
+    const parsed = unwrapEnvelope<{
       context: GuideContext;
       recommendations: Array<{
         id: string;
@@ -316,7 +316,7 @@ describe('guide-cli: --wizard mode', () => {
         explanation: string;
         score: number;
       }>;
-    };
+    }>(stdout);
 
     assert.ok(parsed.context, 'has context object');
     assert.ok(
@@ -337,7 +337,7 @@ describe('guide-cli: --wizard mode', () => {
     const { exitCode, stdout } = await runCli(['guide', '--wizard', '--json']);
 
     assert.equal(exitCode, 0);
-    const parsed = JSON.parse(stdout) as { context: GuideContext };
+    const parsed = unwrapEnvelope<{ context: GuideContext }>(stdout);
 
     // Maturity should be 0 for unconfigured project
     assert.equal(parsed.context.maturity, 0, 'maturity should be 0');

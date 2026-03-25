@@ -6,6 +6,7 @@ import {
   runCli,
   createFixtureDir,
   createTempBase,
+  unwrapEnvelope,
 } from './helpers/cli-test-utils.ts';
 
 describe('annotate-cli: dry-run mode', () => {
@@ -309,11 +310,15 @@ describe('annotate-cli: --format json (EP-0058)', () => {
     ]);
 
     assert.equal(exitCode, 0);
-    const envelope = JSON.parse(stdout);
-    assert.ok(envelope.meta, 'should have meta envelope');
-    assert.equal(envelope.meta.command, 'annotate');
-    assert.equal(envelope.meta.schemaVersion, 1);
-    const output = envelope.data;
+    const output = unwrapEnvelope<{
+      file: string;
+      line: number;
+      ref: string;
+      action: string;
+      lineInserted: boolean;
+      annotationLine: string;
+      registryEntry: unknown;
+    }>(stdout, 'annotate');
     assert.equal(output.file, 'src/app.ts');
     assert.equal(output.line, 1);
     assert.equal(output.ref, 'SUP-1234');
@@ -344,10 +349,12 @@ describe('annotate-cli: --format json (EP-0058)', () => {
     ]);
 
     assert.equal(exitCode, 0);
-    const envelope2 = JSON.parse(stdout);
-    assert.ok(envelope2.meta, 'should have meta envelope');
-    assert.equal(envelope2.meta.command, 'annotate');
-    const output = envelope2.data;
+    const output = unwrapEnvelope<{
+      file: string;
+      ref: string;
+      action: string;
+      lineInserted: boolean;
+    }>(stdout, 'annotate');
     assert.equal(output.file, 'src/util.ts');
     assert.equal(output.ref, 'DEV-001');
     assert.equal(output.action, 'insert');
@@ -387,10 +394,10 @@ describe('annotate-cli: --format json (EP-0058)', () => {
 
     // Verify output file was written
     const outputContent = await readFile(join(dir, 'result.json'), 'utf-8');
-    const envelope3 = JSON.parse(outputContent);
-    assert.ok(envelope3.meta, 'should have meta envelope');
-    assert.equal(envelope3.meta.command, 'annotate');
-    const output3 = envelope3.data;
+    const output3 = unwrapEnvelope<{
+      file: string;
+      ref: string;
+    }>(outputContent, 'annotate');
     assert.equal(output3.file, 'src/app.ts');
     assert.equal(output3.ref, 'SUP-9999');
   });

@@ -21,6 +21,7 @@ import { join } from 'node:path';
 import {
   runCli as _runCli,
   PROJECT_ROOT,
+  unwrapEnvelope,
   type CliResult,
 } from './helpers/cli-test-utils.ts';
 
@@ -254,10 +255,10 @@ describe('First 5 Minutes E2E: Empty Project Onboarding', () => {
       `check should pass after init. stderr: ${result.stderr}`,
     );
 
-    const checkResult = JSON.parse(result.stdout) as {
+    const checkResult = unwrapEnvelope<{
       summary: { errors: number; warnings: number };
       issues: Array<{ type: string; ref?: string }>;
-    };
+    }>(result.stdout);
     assert.equal(
       checkResult.summary.errors,
       0,
@@ -301,10 +302,10 @@ describe('First 5 Minutes E2E: Empty Project Onboarding', () => {
       'check should fail with missing-in-registry',
     );
 
-    const checkResult = JSON.parse(result.stdout) as {
+    const checkResult = unwrapEnvelope<{
       issues: Array<{ type: string; ref?: string }>;
       summary: { errors: number };
-    };
+    }>(result.stdout);
     assert.ok(checkResult.summary.errors > 0, 'Should have errors');
     const missingIssues = checkResult.issues.filter(
       (i) => i.type === 'missing-in-registry',
@@ -423,10 +424,10 @@ describe('First 5 Minutes E2E: Empty Project Onboarding', () => {
     );
 
     // doctor outputs to stderr (even in JSON format)
-    const doctorResult = JSON.parse(result.stderr) as {
+    const doctorResult = unwrapEnvelope<{
       checks: Array<{ name: string; status: string; message: string }>;
       summary: { pass: number; warn: number; fail: number };
-    };
+    }>(result.stderr);
     assert.equal(doctorResult.summary.fail, 0, 'No doctor check should fail');
 
     // Record which checks passed/warned for friction analysis
@@ -564,9 +565,9 @@ describe('First 5 Minutes E2E: Zero Annotations Project', () => {
     );
 
     // doctor outputs to stderr (even in JSON format)
-    const doctorResult = JSON.parse(result.stderr) as {
+    const doctorResult = unwrapEnvelope<{
       summary: { fail: number };
-    };
+    }>(result.stderr);
     assert.equal(doctorResult.summary.fail, 0, 'No doctor check should fail');
   });
 });

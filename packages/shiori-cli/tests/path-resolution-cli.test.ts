@@ -12,6 +12,7 @@ import { join } from 'node:path';
 import {
   runCli as _runCli,
   PROJECT_ROOT,
+  unwrapEnvelope,
   type CliResult,
 } from './helpers/cli-test-utils.ts';
 
@@ -70,9 +71,9 @@ describe('CLI path resolution: relative paths resolved against --cwd', () => {
         join(workDir, 'out', 'scan.json'),
         'utf-8',
       );
-      const result = JSON.parse(content) as {
+      const result = unwrapEnvelope<{
         annotations: Array<{ ref: string }>;
-      };
+      }>(content);
       assert.ok(result.annotations.some((a) => a.ref === 'PATH-001'));
     });
   });
@@ -96,9 +97,9 @@ describe('CLI path resolution: relative paths resolved against --cwd', () => {
         join(workDir, 'out', 'watch-scan.json'),
         'utf-8',
       );
-      const result = JSON.parse(content) as {
+      const result = unwrapEnvelope<{
         annotations: Array<{ ref: string }>;
-      };
+      }>(content);
       assert.ok(result.annotations.some((a) => a.ref === 'PATH-001'));
     });
   });
@@ -194,9 +195,9 @@ describe('CLI path resolution: relative paths resolved against --cwd', () => {
       ]);
 
       assert.equal(exitCode, 0);
-      const result = JSON.parse(stdout) as {
+      const result = unwrapEnvelope<{
         summary: { errors: number };
-      };
+      }>(stdout);
       assert.equal(result.summary.errors, 0);
     });
   });
@@ -320,7 +321,7 @@ describe('CLI path resolution: relative paths resolved against --cwd', () => {
         join(workDir, 'out', 'verify-report.json'),
         'utf-8',
       );
-      const result = JSON.parse(content) as { summary: { errors: number } };
+      const result = unwrapEnvelope<{ summary: { errors: number } }>(content);
       assert.equal(result.summary.errors, 0);
     });
   });
@@ -361,7 +362,7 @@ describe('CLI path resolution: relative paths resolved against --cwd', () => {
         join(workDir, 'out', 'check-report.json'),
         'utf-8',
       );
-      const result = JSON.parse(content) as { summary: { errors: number } };
+      const result = unwrapEnvelope<{ summary: { errors: number } }>(content);
       assert.equal(result.summary.errors, 0);
     });
   });
@@ -410,9 +411,9 @@ describe('CLI path resolution: relative paths resolved against --cwd', () => {
         join(workDir, '.config', 'shiori', 'scan-result.json'),
         'utf-8',
       );
-      const scanResult = JSON.parse(scanContent) as {
+      const scanResult = unwrapEnvelope<{
         annotations: Array<{ ref: string }>;
-      };
+      }>(scanContent);
       assert.ok(scanResult.annotations.some((a) => a.ref === 'PATH-001'));
     });
   });
@@ -449,7 +450,7 @@ describe('CLI path resolution: relative paths resolved against --cwd', () => {
         join(workDir, 'out', 'draft-report.json'),
         'utf-8',
       );
-      const result = JSON.parse(content) as { count: number };
+      const result = unwrapEnvelope<{ count: number }>(content);
       assert.ok(typeof result.count === 'number');
     });
   });
@@ -486,7 +487,7 @@ describe('CLI path resolution: relative paths resolved against --cwd', () => {
         join(workDir, 'out', 'candidates-report.json'),
         'utf-8',
       );
-      const result = JSON.parse(content) as { count: number };
+      const result = unwrapEnvelope<{ count: number }>(content);
       assert.ok(typeof result.count === 'number');
     });
   });
@@ -525,9 +526,9 @@ describe('CLI path resolution: relative paths resolved against --cwd', () => {
         join(workDir, 'out', 'config-rel.json'),
         'utf-8',
       );
-      const result = JSON.parse(content) as {
+      const result = unwrapEnvelope<{
         annotations: Array<{ ref: string }>;
-      };
+      }>(content);
       assert.ok(result.annotations.some((a) => a.ref === 'PATH-001'));
     });
   });
@@ -580,9 +581,9 @@ describe('CLI path resolution: relative paths resolved against --cwd', () => {
 
       // Verify scan result was written to the absolute path (not joined with cwd)
       const content = await readFile(absScanPath, 'utf-8');
-      const result = JSON.parse(content) as {
+      const result = unwrapEnvelope<{
         annotations: Array<{ ref: string }>;
-      };
+      }>(content);
       assert.ok(result.annotations.some((a) => a.ref === 'PATH-001'));
     });
   });
@@ -617,9 +618,9 @@ describe('CLI path resolution: relative paths resolved against --cwd', () => {
 
       // Verify file written to absolute path (not joined with cwd)
       const content = await readFile(absOutput, 'utf-8');
-      const result = JSON.parse(content) as {
+      const result = unwrapEnvelope<{
         annotations: Array<{ ref: string }>;
-      };
+      }>(content);
       assert.ok(result.annotations.some((a) => a.ref === 'PATH-001'));
     });
   });
@@ -662,9 +663,9 @@ describe('CLI path resolution: relative paths resolved against --cwd', () => {
 
       // Verify scan result written to absolute path
       const content = await readFile(absScanPath, 'utf-8');
-      const result = JSON.parse(content) as {
+      const result = unwrapEnvelope<{
         annotations: Array<{ ref: string }>;
-      };
+      }>(content);
       assert.ok(result.annotations.some((a) => a.ref === 'ABS-INIT-001'));
     });
   });
@@ -714,9 +715,9 @@ describe('CLI path resolution: relative paths resolved against --cwd', () => {
       ]);
 
       assert.equal(exitCode, 0, `verify failed: ${stderr}`);
-      const result = JSON.parse(stdout) as {
+      const result = unwrapEnvelope<{
         summary: { errors: number };
-      };
+      }>(stdout);
       assert.equal(result.summary.errors, 0);
     });
   });
@@ -806,9 +807,9 @@ describe('CLI path resolution: relative paths resolved against --cwd', () => {
 
       // Verify scan result was written to absolute path
       const content = await readFile(absScanPath, 'utf-8');
-      const result = JSON.parse(content) as {
+      const result = unwrapEnvelope<{
         annotations: Array<{ ref: string }>;
-      };
+      }>(content);
       assert.ok(result.annotations.some((a) => a.ref === 'ABS-CHECK-001'));
     });
   });

@@ -2,7 +2,11 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, writeFile, mkdtemp, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { runCli, createTempBase } from './helpers/cli-test-utils.ts';
+import {
+  runCli,
+  createTempBase,
+  unwrapEnvelope,
+} from './helpers/cli-test-utils.ts';
 
 describe('draft-cli: behavior', () => {
   let baseDir: string;
@@ -54,10 +58,10 @@ describe('draft-cli: behavior', () => {
       ]);
 
       assert.equal(exitCode, 0);
-      const result = JSON.parse(stdout) as {
+      const result = unwrapEnvelope<{
         count: number;
         drafts: Array<{ ref: string; location: { file: string } }>;
-      };
+      }>(stdout);
       // Only the empty-ref annotation is a draft
       assert.equal(result.count, 1);
       assert.ok(stderr.includes('Found 1 draft annotation(s)'));
@@ -100,7 +104,7 @@ describe('draft-cli: behavior', () => {
       assert.equal(exitCode, 0);
       assert.equal(stdout, '');
       const content = await readFile(outputPath, 'utf-8');
-      const result = JSON.parse(content) as { count: number };
+      const result = unwrapEnvelope<{ count: number }>(content);
       assert.equal(result.count, 1);
     });
   });

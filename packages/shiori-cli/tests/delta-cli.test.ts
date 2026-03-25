@@ -2,7 +2,11 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { writeFile, mkdir, rm } from 'node:fs/promises';
-import { runCli, PROJECT_ROOT } from './helpers/cli-test-utils.ts';
+import {
+  runCli,
+  PROJECT_ROOT,
+  unwrapEnvelope,
+} from './helpers/cli-test-utils.ts';
 
 /**
  * Create a temp directory within PROJECT_ROOT/.tmp/ so that
@@ -96,10 +100,13 @@ describe('delta-cli: --added-only', () => {
     ]);
 
     assert.equal(exitCode, 0);
-    const result = JSON.parse(stdout);
+    const result = unwrapEnvelope<{
+      deltas: { kind: string; ref: string }[];
+      summary: { added: number; removed: number; unchanged: number };
+    }>(stdout);
     assert.equal(result.deltas.length, 1);
-    assert.equal(result.deltas[0].kind, 'added');
-    assert.equal(result.deltas[0].ref, 'ADD-001');
+    assert.equal(result.deltas[0]!.kind, 'added');
+    assert.equal(result.deltas[0]!.ref, 'ADD-001');
     assert.equal(result.summary.added, 1);
     assert.equal(result.summary.removed, 0);
     assert.equal(result.summary.unchanged, 0);
@@ -185,7 +192,7 @@ describe('delta-cli: --added-only', () => {
     // Gate should pass (net 0 from full result)
     assert.equal(exitCode, 0);
     // Output should only contain added annotations
-    const result = JSON.parse(stdout);
+    const result = unwrapEnvelope<{ deltas: { kind: string }[] }>(stdout);
     assert.equal(result.deltas.length, 3);
     assert.ok(result.deltas.every((d: { kind: string }) => d.kind === 'added'));
     // stderr should show full delta counts
@@ -227,7 +234,10 @@ describe('delta-cli: --added-only', () => {
     ]);
 
     assert.equal(exitCode, 0);
-    const result = JSON.parse(stdout);
+    const result = unwrapEnvelope<{
+      deltas: unknown[];
+      summary: { added: number };
+    }>(stdout);
     assert.equal(result.deltas.length, 0);
     assert.equal(result.summary.added, 0);
   });
@@ -304,7 +314,9 @@ describe('delta-cli: --base-fallback-empty', () => {
     assert.equal(exitCode, 0);
     assert.match(stderr, /using empty scan result as fallback/);
 
-    const result = JSON.parse(stdout);
+    const result = unwrapEnvelope<{
+      summary: { added: number; removed: number; net: number };
+    }>(stdout);
     assert.equal(result.summary.added, 1);
     assert.equal(result.summary.removed, 0);
     assert.equal(result.summary.net, 1);

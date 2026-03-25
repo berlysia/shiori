@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { writeFile, mkdir, rm, mkdtemp } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { runCli } from './helpers/cli-test-utils.ts';
+import { runCli, unwrapEnvelope } from './helpers/cli-test-utils.ts';
 
 const S8_DIR = new URL(
   './fixtures/scenarios/s8-pnpm-workspace',
@@ -101,7 +101,7 @@ describe('check --workspace: static s8 fixture', () => {
     assert.ok(stderr.includes('2 package(s)'), 'stderr should show 2 packages');
 
     // stdout should be valid JSON with workspace structure
-    const result = JSON.parse(stdout) as {
+    const result = unwrapEnvelope<{
       workspace: boolean;
       packages: Array<{
         name: string;
@@ -113,7 +113,7 @@ describe('check --workspace: static s8 fixture', () => {
       verifyResult: {
         summary: { errors: number; total: number };
       };
-    };
+    }>(stdout);
 
     assert.equal(result.workspace, true);
     assert.equal(result.packages.length, 2);
@@ -265,7 +265,7 @@ describe('check --workspace: dynamic fixture with missing-in-registry', () => {
 
     assert.equal(exitCode, 1);
 
-    const result = JSON.parse(stdout) as {
+    const result = unwrapEnvelope<{
       workspace: boolean;
       packages: Array<{
         name: string;
@@ -278,7 +278,7 @@ describe('check --workspace: dynamic fixture with missing-in-registry', () => {
         summary: { errors: number };
         issues: Array<{ ref: string; type: string; file: string }>;
       };
-    };
+    }>(stdout);
 
     assert.equal(result.workspace, true);
     assert.equal(result.packages.length, 2);
@@ -316,10 +316,10 @@ describe('check --workspace: without --workspace flag on monorepo root', () => {
     // May find 0 annotations in root (s8 has no root src/)
     assert.equal(exitCode, 0);
 
-    const result = JSON.parse(stdout) as {
+    const result = unwrapEnvelope<{
       workspace?: boolean;
       summary: { errors: number };
-    };
+    }>(stdout);
 
     // Should NOT have workspace wrapper
     assert.equal(result.workspace, undefined);

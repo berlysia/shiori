@@ -6,6 +6,7 @@ import {
   runCli,
   createTempBase,
   createFixtureDir,
+  unwrapEnvelope,
 } from './helpers/cli-test-utils.ts';
 
 /** Create a minimal valid ReportResult JSON for snapshot tests */
@@ -216,11 +217,11 @@ describe('coach-cli: integration tests', () => {
       );
 
       assert.equal(exitCode, 0);
-      const parsed = JSON.parse(stdout) as {
+      const parsed = unwrapEnvelope<{
         template: string;
         prompt: string;
         sources: Record<string, unknown>;
-      };
+      }>(stdout);
       assert.equal(parsed.template, 'triage');
       assert.ok(typeof parsed.prompt === 'string');
       assert.ok(parsed.sources !== undefined);

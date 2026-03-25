@@ -2,7 +2,11 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { writeFile, mkdtemp, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { runCli, createTempBase } from './helpers/cli-test-utils.ts';
+import {
+  runCli,
+  createTempBase,
+  unwrapEnvelope,
+} from './helpers/cli-test-utils.ts';
 
 describe('candidates-cli: behavior', () => {
   let baseDir: string;
@@ -46,10 +50,10 @@ describe('candidates-cli: behavior', () => {
       ]);
 
       assert.equal(exitCode, 0);
-      const result = JSON.parse(stdout) as {
+      const result = unwrapEnvelope<{
         count: number;
         candidates: unknown[];
-      };
+      }>(stdout);
       assert.equal(result.count, 1);
       assert.ok(stderr.includes('Found 1 candidate(s)'));
     });

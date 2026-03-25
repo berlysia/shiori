@@ -6,6 +6,7 @@ import {
   runCli,
   createFixtureDir,
   createTempBase,
+  unwrapEnvelope,
 } from './helpers/cli-test-utils.ts';
 
 describe('verify-cli: argument validation and error paths', () => {
@@ -199,9 +200,9 @@ describe('verify-cli: argument validation and error paths', () => {
       ]);
 
       assert.equal(exitCode, 0);
-      const result = JSON.parse(stdout) as {
+      const result = unwrapEnvelope<{
         summary: { errors: number };
-      };
+      }>(stdout);
       assert.equal(result.summary.errors, 0);
     });
   });
@@ -238,10 +239,10 @@ describe('verify-cli: argument validation and error paths', () => {
       ]);
 
       assert.equal(exitCode, 1);
-      const result = JSON.parse(stdout) as {
+      const result = unwrapEnvelope<{
         summary: { errors: number };
         issues: Array<{ type: string }>;
-      };
+      }>(stdout);
       assert.ok(result.summary.errors > 0);
       assert.ok(result.issues.some((i) => i.type === 'missing-in-registry'));
     });
@@ -316,9 +317,9 @@ done
     assert.equal(exitCode, 1);
     assert.ok(stderr.includes('Ref status'));
     assert.ok(stderr.includes('1 closed'));
-    const result = JSON.parse(stdout) as {
+    const result = unwrapEnvelope<{
       issues: Array<{ type: string; ref: string }>;
-    };
+    }>(stdout);
     assert.ok(result.issues.some((i) => i.type === 'ref-status-closed'));
   });
 
@@ -356,9 +357,9 @@ done
     assert.equal(exitCode, 0);
     assert.ok(stderr.includes('Ref status'));
     assert.ok(stderr.includes('0 closed'));
-    const result = JSON.parse(stdout) as {
+    const result = unwrapEnvelope<{
       issues: Array<{ type: string }>;
-    };
+    }>(stdout);
     assert.ok(!result.issues.some((i) => i.type === 'ref-status-closed'));
   });
 

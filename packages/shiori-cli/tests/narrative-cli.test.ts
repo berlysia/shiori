@@ -2,7 +2,11 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { writeFile, mkdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { runCli, createTempBase } from './helpers/cli-test-utils.ts';
+import {
+  runCli,
+  createTempBase,
+  unwrapEnvelope,
+} from './helpers/cli-test-utils.ts';
 
 /**
  * Minimal ReportResult JSON that passes isReportShape() validation.
@@ -140,12 +144,13 @@ describe('narrative-cli: integration tests', () => {
 
       assert.equal(exitCode, 0);
       // Default format is JSON
-      const parsed = JSON.parse(stdout) as {
-        data: { headline: string; observations: unknown[] };
-      };
-      assert.ok(parsed.data.headline, 'Should have a headline');
+      const parsed = unwrapEnvelope<{
+        headline: string;
+        observations: unknown[];
+      }>(stdout);
+      assert.ok(parsed.headline, 'Should have a headline');
       assert.ok(
-        Array.isArray(parsed.data.observations),
+        Array.isArray(parsed.observations),
         'Should have observations array',
       );
       // Stderr should contain summary
@@ -195,12 +200,13 @@ describe('narrative-cli: integration tests', () => {
       );
 
       assert.equal(exitCode, 0);
-      const parsed = JSON.parse(stdout) as {
-        data: { baseTimestamp: string; headTimestamp: string };
-      };
+      const parsed = unwrapEnvelope<{
+        baseTimestamp: string;
+        headTimestamp: string;
+      }>(stdout);
       // Oldest (2026-01-01) as base, newest (2026-01-04) as head
-      assert.equal(parsed.data.baseTimestamp, '2026-01-01T00:00:00.000Z');
-      assert.equal(parsed.data.headTimestamp, '2026-01-04T00:00:00.000Z');
+      assert.equal(parsed.baseTimestamp, '2026-01-01T00:00:00.000Z');
+      assert.equal(parsed.headTimestamp, '2026-01-04T00:00:00.000Z');
     });
 
     it('fails when history directory has fewer than 2 snapshots', async () => {
@@ -279,10 +285,10 @@ describe('narrative-cli: integration tests', () => {
       );
 
       assert.equal(exitCode, 0);
-      const parsed = JSON.parse(stdout) as { data: { headline: string } };
+      const parsed = unwrapEnvelope<{ headline: string }>(stdout);
       assert.ok(
-        parsed.data.headline.includes('improved'),
-        `Expected improving headline, got: ${parsed.data.headline}`,
+        parsed.headline.includes('improved'),
+        `Expected improving headline, got: ${parsed.headline}`,
       );
     });
 
@@ -422,11 +428,7 @@ describe('narrative-cli: integration tests', () => {
 
       assert.equal(exitCode, 0);
       // Should be parseable JSON with schema envelope
-      const parsed = JSON.parse(stdout) as {
-        meta: { command: string };
-        data: unknown;
-      };
-      assert.equal(parsed.meta.command, 'narrative');
+      unwrapEnvelope(stdout, 'narrative');
     });
 
     it('outputs markdown format with --format markdown', async () => {
@@ -497,9 +499,9 @@ describe('narrative-cli: integration tests', () => {
       assert.equal(stdout, '', 'stdout should be empty when --output is used');
 
       const content = await readFile(outputPath, 'utf-8');
-      const parsed = JSON.parse(content) as { data: { headline: string } };
+      const parsed = unwrapEnvelope<{ headline: string }>(content);
       assert.ok(
-        parsed.data.headline,
+        parsed.headline,
         'Output file should contain valid narrative JSON',
       );
     });

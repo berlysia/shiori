@@ -2,7 +2,11 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, writeFile, mkdtemp, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { runCli, createTempBase } from './helpers/cli-test-utils.ts';
+import {
+  runCli,
+  createTempBase,
+  unwrapEnvelope,
+} from './helpers/cli-test-utils.ts';
 
 describe('scan-cli: argument validation and error paths', () => {
   let baseDir: string;
@@ -70,10 +74,10 @@ describe('scan-cli: argument validation and error paths', () => {
       assert.ok(stderr.includes('annotation(s)'));
       // File should contain valid scan result JSON
       const content = await readFile(outputPath, 'utf-8');
-      const result = JSON.parse(content) as {
+      const result = unwrapEnvelope<{
         annotations: Array<{ ref: string }>;
         filesScanned: number;
-      };
+      }>(content, 'scan');
       assert.ok(result.annotations.some((a) => a.ref === 'OUT-001'));
       assert.equal(result.filesScanned, 1);
     });
@@ -100,11 +104,11 @@ describe('scan-cli: argument validation and error paths', () => {
 
       assert.equal(exitCode, 0);
       // stdout should be valid JSON
-      const result = JSON.parse(stdout) as {
+      const result = unwrapEnvelope<{
         annotations: Array<{ ref: string }>;
         candidates: unknown[];
         filesScanned: number;
-      };
+      }>(stdout, 'scan');
       assert.ok(result.annotations.some((a) => a.ref === 'PIPE-001'));
       assert.equal(result.filesScanned, 1);
       // stderr should contain scan stats
@@ -139,9 +143,9 @@ describe('scan-cli: argument validation and error paths', () => {
       ]);
 
       assert.equal(exitCode, 0);
-      const result = JSON.parse(stdout) as {
+      const result = unwrapEnvelope<{
         annotations: Array<{ ref: string }>;
-      };
+      }>(stdout, 'scan');
       assert.ok(result.annotations.some((a) => a.ref === 'PAT-001'));
       assert.ok(!result.annotations.some((a) => a.ref === 'PAT-002'));
     });
@@ -162,11 +166,11 @@ describe('scan-cli: argument validation and error paths', () => {
       ]);
 
       assert.equal(exitCode, 0);
-      const result = JSON.parse(stdout) as {
+      const result = unwrapEnvelope<{
         annotations: unknown[];
         candidates: unknown[];
         filesScanned: number;
-      };
+      }>(stdout, 'scan');
       assert.equal(result.annotations.length, 0);
       assert.equal(result.candidates.length, 0);
       assert.equal(result.filesScanned, 0);
@@ -196,11 +200,11 @@ describe('scan-cli: argument validation and error paths', () => {
       // Should succeed even without registry
       assert.equal(exitCode, 0);
       // Pipe mode outputs JSON to stdout
-      const result = JSON.parse(stdout) as {
+      const result = unwrapEnvelope<{
         annotations: unknown[];
         candidates: Array<{ pattern: string }>;
         filesScanned: number;
-      };
+      }>(stdout, 'scan');
       assert.equal(result.filesScanned, 1);
       assert.ok(result.candidates.length > 0);
       assert.ok(stderr.includes('Scanned'));
@@ -224,10 +228,10 @@ describe('scan-cli: argument validation and error paths', () => {
       ]);
 
       assert.equal(exitCode, 0);
-      const result = JSON.parse(stdout) as {
+      const result = unwrapEnvelope<{
         annotations: Array<{ ref: string }>;
         filesScanned: number;
-      };
+      }>(stdout, 'scan');
       assert.ok(result.annotations.some((a) => a.ref === 'NOINIT-001'));
     });
 
@@ -250,11 +254,11 @@ describe('scan-cli: argument validation and error paths', () => {
       ]);
 
       assert.equal(exitCode, 0);
-      const result = JSON.parse(stdout) as {
+      const result = unwrapEnvelope<{
         annotations: Array<{ ref: string }>;
         candidates: unknown[];
         filesScanned: number;
-      };
+      }>(stdout, 'scan');
       assert.equal(result.filesScanned, 1);
       assert.ok(result.annotations.some((a) => a.ref === 'NOINIT-002'));
       assert.ok(stderr.includes('Scanned'));
@@ -284,10 +288,10 @@ describe('scan-cli: argument validation and error paths', () => {
       assert.equal(exitCode, 0);
       assert.ok(stderr.includes('candidate(s)'));
       const content = await readFile(outputPath, 'utf-8');
-      const result = JSON.parse(content) as {
+      const result = unwrapEnvelope<{
         candidates: Array<{ pattern: string }>;
         filesScanned: number;
-      };
+      }>(content, 'scan');
       assert.equal(result.filesScanned, 1);
       assert.ok(result.candidates.length > 0);
     });
@@ -317,10 +321,10 @@ describe('scan-cli: argument validation and error paths', () => {
       ]);
 
       assert.equal(exitCode, 0);
-      const result = JSON.parse(stdout) as {
+      const result = unwrapEnvelope<{
         annotations: Array<{ ref: string }>;
         filesScanned: number;
-      };
+      }>(stdout, 'scan');
       // Scan still finds annotations regardless of --no-init
       assert.ok(result.annotations.some((a) => a.ref === 'REG-001'));
     });

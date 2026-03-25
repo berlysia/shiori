@@ -6,6 +6,7 @@ import {
   runCli,
   createTempBase,
   createFixtureDir,
+  unwrapEnvelope,
 } from './helpers/cli-test-utils.ts';
 
 describe('summary-cli: --scan option', () => {
@@ -55,10 +56,10 @@ describe('summary-cli: --scan option', () => {
     ]);
 
     assert.equal(exitCode, 0, `stderr: ${stderr}`);
-    const result = JSON.parse(stdout) as {
+    const result = unwrapEnvelope<{
       health: { health: { score: number; level: string } };
       timestamp: string;
-    };
+    }>(stdout);
     assert.equal(result.health.health.level, 'healthy');
     assert.ok(result.timestamp);
     // Should log "Loaded scan result" instead of "Scanned N files"
@@ -178,11 +179,11 @@ describe('summary-cli: --scan option', () => {
     ]);
 
     assert.equal(exitCode, 0, `stderr: ${stderr}`);
-    const result = JSON.parse(stdout) as {
+    const result = unwrapEnvelope<{
       delta: {
         summary: { added: number; removed: number; net: number };
       };
-    };
+    }>(stdout);
     assert.ok(result.delta, 'delta should be present');
     assert.equal(result.delta.summary.added, 1);
     assert.equal(result.delta.summary.removed, 1);

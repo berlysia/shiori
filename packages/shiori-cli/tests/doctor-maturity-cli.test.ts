@@ -6,6 +6,7 @@ import {
   runCli,
   createFixtureDir,
   createTempBase,
+  unwrapEnvelope,
 } from './helpers/cli-test-utils.ts';
 
 describe('doctor --maturity CLI', () => {
@@ -36,9 +37,18 @@ describe('doctor --maturity CLI', () => {
     const dir = await createFixtureDir(baseDir, 'maturity-json');
     const { stderr } = await runCli(
       ['doctor', '--cwd', dir, '--maturity', '-f', 'json'],
-      { baseDir },
+      {
+        baseDir,
+      },
     );
-    const parsed = JSON.parse(stderr);
+    const parsed = unwrapEnvelope<{
+      maturity: {
+        level: number;
+        signals: unknown[];
+        nextActions: unknown[];
+        levelLabel: string;
+      };
+    }>(stderr);
     assert.ok('maturity' in parsed);
     assert.equal(typeof parsed.maturity.level, 'number');
     assert.ok(Array.isArray(parsed.maturity.signals));
@@ -51,7 +61,7 @@ describe('doctor --maturity CLI', () => {
     const { stderr } = await runCli(['doctor', '--cwd', dir, '-f', 'json'], {
       baseDir,
     });
-    const parsed = JSON.parse(stderr);
+    const parsed = unwrapEnvelope<{ maturity?: unknown }>(stderr);
     assert.equal(parsed.maturity, undefined);
   });
 
@@ -59,9 +69,11 @@ describe('doctor --maturity CLI', () => {
     const dir = await createFixtureDir(baseDir, 'maturity-level1');
     const { stderr } = await runCli(
       ['doctor', '--cwd', dir, '--maturity', '-f', 'json'],
-      { baseDir },
+      {
+        baseDir,
+      },
     );
-    const parsed = JSON.parse(stderr);
+    const parsed = unwrapEnvelope<{ maturity: { level: number } }>(stderr);
     // Basic project from createFixtureDir has config + registry but no gitignore
     assert.ok(parsed.maturity.level >= 0);
     assert.ok(parsed.maturity.level <= 4);
@@ -95,13 +107,20 @@ describe('doctor --maturity CLI', () => {
 
     const { stderr } = await runCli(
       ['doctor', '--cwd', dir, '--maturity', '-f', 'json'],
-      { baseDir },
+      {
+        baseDir,
+      },
     );
-    const parsed = JSON.parse(stderr);
+    const parsed = unwrapEnvelope<{
+      maturity: {
+        level: number;
+        signals: { name: string; detected: boolean }[];
+      };
+    }>(stderr);
     const ciSignal = parsed.maturity.signals.find(
       (s: { name: string }) => s.name === 'ci-workflow',
     );
-    assert.equal(ciSignal.detected, true);
+    assert.equal(ciSignal?.detected, true);
     // Should be at least level 2
     assert.ok(parsed.maturity.level >= 2);
   });

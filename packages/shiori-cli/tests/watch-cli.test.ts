@@ -12,6 +12,7 @@ import { join } from 'node:path';
 import {
   runCli as _runCli,
   PROJECT_ROOT,
+  unwrapEnvelope,
   type CliResult,
 } from './helpers/cli-test-utils.ts';
 
@@ -170,10 +171,10 @@ describe('watch-cli: argument validation and error paths', () => {
       assert.ok(stderr.includes('Saved scan result to'));
 
       const content = await readFile(outputPath, 'utf-8');
-      const result = JSON.parse(content) as {
+      const result = unwrapEnvelope<{
         annotations: unknown[];
         candidates: unknown[];
-      };
+      }>(content);
       assert.ok(Array.isArray(result.annotations));
       assert.ok(Array.isArray(result.candidates));
     });
@@ -193,11 +194,11 @@ describe('watch-cli: argument validation and error paths', () => {
 
       assert.equal(exitCode, 0);
       const content = await readFile(outputPath, 'utf-8');
-      const result = JSON.parse(content) as {
+      const result = unwrapEnvelope<{
         annotations: unknown[];
         candidates: unknown[];
         filesScanned: number;
-      };
+      }>(content);
       assert.equal(result.annotations.length, 5);
       assert.equal(result.candidates.length, 1);
       assert.equal(result.filesScanned, 2);
@@ -319,7 +320,7 @@ describe('watch-cli: argument validation and error paths', () => {
 
       assert.equal(exitCode, 0);
       const content = await readFile(outputPath, 'utf-8');
-      const result = JSON.parse(content) as { annotations: unknown[] };
+      const result = unwrapEnvelope<{ annotations: unknown[] }>(content);
       assert.ok(Array.isArray(result.annotations));
     });
 
@@ -343,7 +344,7 @@ describe('watch-cli: argument validation and error paths', () => {
 
       assert.equal(exitCode, 0);
       const content = await readFile(deepOutputPath, 'utf-8');
-      const result = JSON.parse(content) as { annotations: unknown[] };
+      const result = unwrapEnvelope<{ annotations: unknown[] }>(content);
       assert.ok(Array.isArray(result.annotations));
     });
   });
@@ -373,9 +374,9 @@ describe('watch-cli: argument validation and error paths', () => {
 
       assert.equal(exitCode, 0);
       const content = await readFile(outputPath, 'utf-8');
-      const result = JSON.parse(content) as {
+      const result = unwrapEnvelope<{
         annotations: Array<{ ref: string }>;
-      };
+      }>(content);
       assert.ok(result.annotations.some((a) => a.ref === 'CWD-001'));
     });
   });

@@ -4,6 +4,7 @@ import {
   runCli,
   createFixtureDir,
   createTempBase,
+  unwrapEnvelope,
 } from './helpers/cli-test-utils.ts';
 
 describe('doctor-cli', () => {
@@ -59,7 +60,10 @@ describe('doctor-cli', () => {
     );
     assert.equal(exitCode, 0);
     // JSON output goes to stderr in this command
-    const parsed = JSON.parse(stderr);
+    const parsed = unwrapEnvelope<{
+      checks: unknown[];
+      summary: { pass: number };
+    }>(stderr, 'doctor');
     assert.ok(Array.isArray(parsed.checks));
     assert.ok('summary' in parsed);
     assert.equal(typeof parsed.summary.pass, 'number');

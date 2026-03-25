@@ -2,7 +2,11 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { writeFile, mkdtemp, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { runCli, createTempBase } from './helpers/cli-test-utils.ts';
+import {
+  runCli,
+  createTempBase,
+  unwrapEnvelope,
+} from './helpers/cli-test-utils.ts';
 
 describe('show-cli: error paths and behavior', () => {
   let baseDir: string;
@@ -44,10 +48,10 @@ describe('show-cli: error paths and behavior', () => {
 
       assert.equal(exitCode, 2);
       // ShowResult: no registryEntry and empty sourceLocations
-      const result = JSON.parse(stdout) as {
+      const result = unwrapEnvelope<{
         ref: string;
         sourceLocations: unknown[];
-      };
+      }>(stdout);
       assert.equal(result.ref, 'MISSING-REF');
       assert.equal(result.sourceLocations.length, 0);
     });
@@ -94,11 +98,11 @@ describe('show-cli: error paths and behavior', () => {
       ]);
 
       assert.equal(exitCode, 0);
-      const result = JSON.parse(stdout) as {
+      const result = unwrapEnvelope<{
         ref: string;
         registryEntry: { reason: string };
         sourceLocations: Array<{ file: string; line: number }>;
-      };
+      }>(stdout);
       assert.equal(result.ref, 'SHOW-001');
       assert.equal(result.registryEntry.reason, 'test annotation');
       assert.ok(result.sourceLocations.length > 0);

@@ -11,6 +11,7 @@ import {
 import { join } from 'node:path';
 import {
   runCli as _runCli,
+  unwrapEnvelope,
   PROJECT_ROOT,
   type CliResult,
 } from './helpers/cli-test-utils.ts';
@@ -49,11 +50,11 @@ describe('CLI E2E', () => {
       SCAN_IGNORE,
     ]);
 
-    const scanResult = JSON.parse(stdout) as {
+    const scanResult = unwrapEnvelope<{
       annotations: unknown[];
       candidates: unknown[];
       filesScanned: number;
-    };
+    }>(stdout);
     assert.ok(
       Array.isArray(scanResult.annotations),
       'scan should output ScanResult with annotations array',
@@ -96,11 +97,11 @@ describe('CLI E2E', () => {
         SCAN_IGNORE,
       ]);
       assert.equal(exitCode, 0);
-      const scanResult = JSON.parse(stdout) as {
+      const scanResult = unwrapEnvelope<{
         annotations: Array<{ ref: string; location: { file: string } }>;
         candidates: Array<{ pattern: string }>;
         filesScanned: number;
-      };
+      }>(stdout);
       // SUP-1001, SUP-1002, SUP-2001, SUP-2002, draft(no ref)
       assert.equal(scanResult.annotations.length, 5);
       // Line 7: eslint-disable-next-line no-debugger → eslint candidate
@@ -125,10 +126,10 @@ describe('CLI E2E', () => {
       ]);
       assert.equal(exitCode, 0);
       const content = await readFile(outputPath, 'utf-8');
-      const scanResult = JSON.parse(content) as {
+      const scanResult = unwrapEnvelope<{
         annotations: unknown[];
         candidates: unknown[];
-      };
+      }>(content);
       assert.equal(scanResult.annotations.length, 5);
       assert.equal(scanResult.candidates.length, 1);
     });
@@ -147,7 +148,7 @@ describe('CLI E2E', () => {
         'missing-in-registry',
       ]);
       assert.equal(exitCode, 1);
-      const result = JSON.parse(stdout) as { summary: { errors: number } };
+      const result = unwrapEnvelope<{ summary: { errors: number } }>(stdout);
       assert.ok(result.summary.errors > 0);
     });
 
@@ -191,9 +192,9 @@ describe('CLI E2E', () => {
         'missing-in-registry,unused-in-source,expired,syntax-error',
       ]);
       assert.equal(exitCode, 0);
-      const result = JSON.parse(stdout) as {
+      const result = unwrapEnvelope<{
         registryEntries: number;
-      };
+      }>(stdout);
       assert.equal(result.registryEntries, 4);
     });
 
@@ -209,9 +210,9 @@ describe('CLI E2E', () => {
         '--warn-on',
         'missing-in-registry,unused-in-source,syntax-error',
       ]);
-      const result = JSON.parse(stdout) as {
+      const result = unwrapEnvelope<{
         issues: Array<{ type: string }>;
-      };
+      }>(stdout);
       const expired = result.issues.filter((i) => i.type === 'expired');
       assert.ok(expired.length > 0); // SUP-9999 expired
     });
@@ -298,10 +299,10 @@ describe('CLI E2E', () => {
         scanResultPath,
       ]);
       assert.equal(exitCode, 0);
-      const result = JSON.parse(stdout) as {
+      const result = unwrapEnvelope<{
         drafts: Array<{ ref: string; tagged: boolean }>;
         count: number;
-      };
+      }>(stdout);
       assert.equal(result.count, 1);
       assert.equal(result.drafts[0]!.ref, '');
       assert.equal(result.drafts[0]!.tagged, true);
@@ -318,7 +319,7 @@ describe('CLI E2E', () => {
       ]);
       assert.equal(exitCode, 0);
       const content = await readFile(outputPath, 'utf-8');
-      const result = JSON.parse(content) as { count: number };
+      const result = unwrapEnvelope<{ count: number }>(content);
       assert.equal(result.count, 1);
     });
   });
@@ -396,10 +397,10 @@ describe('CLI E2E', () => {
 
       assert.equal(exitCode, 0);
       const content = await readFile(outputPath, 'utf-8');
-      const result = JSON.parse(content) as {
+      const result = unwrapEnvelope<{
         annotations: unknown[];
         candidates: unknown[];
-      };
+      }>(content);
       assert.equal(result.annotations.length, 5);
       assert.equal(result.candidates.length, 1);
     });
@@ -897,10 +898,10 @@ describe('CLI E2E: multi-registry', () => {
       multiDir,
     ]);
 
-    const result = JSON.parse(stdout) as {
+    const result = unwrapEnvelope<{
       issues: Array<{ type: string; ref: string }>;
       summary: { errors: number };
-    };
+    }>(stdout);
     const missingIssues = result.issues.filter(
       (i) => i.type === 'missing-in-registry',
     );
@@ -925,10 +926,10 @@ describe('CLI E2E: multi-registry', () => {
       multiDir,
     ]);
 
-    const result = JSON.parse(stdout) as {
+    const result = unwrapEnvelope<{
       issues: Array<{ type: string; ref: string }>;
       summary: { errors: number };
-    };
+    }>(stdout);
     const missingIssues = result.issues.filter(
       (i) => i.type === 'missing-in-registry',
     );
@@ -962,9 +963,9 @@ describe('CLI E2E: multi-registry', () => {
       multiDir,
     ]);
     assert.equal(exitCode, 0);
-    const result = JSON.parse(stdout) as {
+    const result = unwrapEnvelope<{
       registryEntry: { reason: string } | undefined;
-    };
+    }>(stdout);
     assert.equal(
       result.registryEntry?.reason,
       'jira namespace entry',
@@ -1423,9 +1424,9 @@ describe('CLI E2E: adopt command', () => {
       const scanPath = join(dir, 'scan-result.json');
       await writeFile(scanPath, scanResult.stdout, 'utf-8');
 
-      const scan = JSON.parse(scanResult.stdout) as {
+      const scan = unwrapEnvelope<{
         candidates: unknown[];
-      };
+      }>(scanResult.stdout);
       assert.ok(scan.candidates.length > 0, 'Should find untracked candidates');
 
       // Adopt (dry-run, default)

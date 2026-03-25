@@ -6,6 +6,7 @@ import {
   runCli,
   createFixtureDir,
   createTempBase,
+  unwrapEnvelope,
 } from './helpers/cli-test-utils.ts';
 
 describe('check-cli: argument validation and error paths', () => {
@@ -147,9 +148,9 @@ describe('check-cli: argument validation and error paths', () => {
       assert.ok(stderr.includes('Scanned'));
       assert.ok(stderr.includes('annotation(s)'));
       // stdout should be valid JSON
-      const result = JSON.parse(stdout) as {
+      const result = unwrapEnvelope<{
         summary: { errors: number };
-      };
+      }>(stdout);
       assert.equal(result.summary.errors, 0);
     });
   });
@@ -177,10 +178,10 @@ describe('check-cli: argument validation and error paths', () => {
       ]);
 
       assert.equal(exitCode, 1);
-      const result = JSON.parse(stdout) as {
+      const result = unwrapEnvelope<{
         summary: { errors: number };
         issues: Array<{ type: string }>;
-      };
+      }>(stdout);
       assert.ok(result.summary.errors > 0);
       assert.ok(result.issues.some((i) => i.type === 'missing-in-registry'));
     });
@@ -222,10 +223,10 @@ describe('check-cli: argument validation and error paths', () => {
       );
       // File must exist and contain valid JSON with errors
       const content = await readFile(outputPath, 'utf-8');
-      const result = JSON.parse(content) as {
+      const result = unwrapEnvelope<{
         summary: { errors: number };
         issues: Array<{ type: string }>;
-      };
+      }>(content);
       assert.ok(result.summary.errors > 0, 'report should contain errors');
       assert.ok(
         result.issues.some((i) => i.type === 'missing-in-registry'),
@@ -263,9 +264,9 @@ describe('check-cli: argument validation and error paths', () => {
       assert.ok(stderr.includes('Report written to'));
       // File should contain valid JSON
       const content = await readFile(outputPath, 'utf-8');
-      const result = JSON.parse(content) as {
+      const result = unwrapEnvelope<{
         summary: { errors: number };
-      };
+      }>(content);
       assert.equal(result.summary.errors, 0);
     });
   });
