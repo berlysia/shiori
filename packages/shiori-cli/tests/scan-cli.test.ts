@@ -230,5 +230,99 @@ describe('scan-cli: argument validation and error paths', () => {
       };
       assert.ok(result.annotations.some((a) => a.ref === 'NOINIT-001'));
     });
+
+    it('--no-init flag skips registry loading in pipe mode', async () => {
+      const dir = await mkdtemp(join(baseDir, 'no-init-flag-'));
+      await mkdir(join(dir, 'src'), { recursive: true });
+      await writeFile(
+        join(dir, 'src', 'sample.ts'),
+        '// eslint-disable-next-line no-console -- shiori: NOINIT-002\nconsole.log("test");\n',
+        'utf-8',
+      );
+
+      const { exitCode, stdout, stderr } = await runCli([
+        'scan',
+        '--cwd',
+        dir,
+        '--patterns',
+        'src/**/*.ts',
+        '--no-init',
+      ]);
+
+      assert.equal(exitCode, 0);
+      const result = JSON.parse(stdout) as {
+        annotations: Array<{ ref: string }>;
+        candidates: unknown[];
+        filesScanned: number;
+      };
+      assert.equal(result.filesScanned, 1);
+      assert.ok(result.annotations.some((a) => a.ref === 'NOINIT-002'));
+      assert.ok(stderr.includes('Scanned'));
+    });
+
+    it('--no-init flag works with --output', async () => {
+      const dir = await mkdtemp(join(baseDir, 'no-init-output-'));
+      await mkdir(join(dir, 'src'), { recursive: true });
+      await writeFile(
+        join(dir, 'src', 'sample.ts'),
+        '// eslint-disable-next-line no-console\nconsole.log("test");\n',
+        'utf-8',
+      );
+      const outputPath = join(dir, 'scan-result.json');
+
+      const { exitCode, stderr } = await runCli([
+        'scan',
+        '--cwd',
+        dir,
+        '--patterns',
+        'src/**/*.ts',
+        '--no-init',
+        '--output',
+        outputPath,
+      ]);
+
+      assert.equal(exitCode, 0);
+      assert.ok(stderr.includes('candidate(s)'));
+      const content = await readFile(outputPath, 'utf-8');
+      const result = JSON.parse(content) as {
+        candidates: Array<{ pattern: string }>;
+        filesScanned: number;
+      };
+      assert.equal(result.filesScanned, 1);
+      assert.ok(result.candidates.length > 0);
+    });
+
+    it('--no-init flag does not affect projects with registry', async () => {
+      const dir = await mkdtemp(join(baseDir, 'no-init-with-reg-'));
+      await mkdir(join(dir, '.config', 'shiori'), { recursive: true });
+      await mkdir(join(dir, 'src'), { recursive: true });
+      await writeFile(
+        join(dir, 'src', 'sample.ts'),
+        '// eslint-disable-next-line no-console -- shiori: REG-001\nconsole.log("test");\n',
+        'utf-8',
+      );
+      await writeFile(
+        join(dir, '.config', 'shiori', 'registry.json'),
+        JSON.stringify({ 'REG-001': { reason: 'test entry' } }, null, 2) + '\n',
+        'utf-8',
+      );
+
+      const { exitCode, stdout } = await runCli([
+        'scan',
+        '--cwd',
+        dir,
+        '--patterns',
+        'src/**/*.ts',
+        '--no-init',
+      ]);
+
+      assert.equal(exitCode, 0);
+      const result = JSON.parse(stdout) as {
+        annotations: Array<{ ref: string }>;
+        filesScanned: number;
+      };
+      // Scan still finds annotations regardless of --no-init
+      assert.ok(result.annotations.some((a) => a.ref === 'REG-001'));
+    });
   });
 });

@@ -17,7 +17,7 @@ import {
   DEFAULT_SCAN_IGNORE,
 } from '../core/scan-defaults.ts';
 import { loadConfigAndRegistry } from '../core/registry-loader.ts';
-import { isNodeError } from '../core/errors.ts';
+import { RegistryNotFoundError } from '../core/errors.ts';
 import { ExitCode } from '../core/exit-codes.ts';
 
 export const scanCommand = define({
@@ -25,6 +25,9 @@ export const scanCommand = define({
   description: 'Scan source files for shiori annotations',
   examples: `  # Scan and auto-save to .config/shiori/scan-result.json
   shiori scan
+
+  # Quick scan without registry (no shiori init required)
+  shiori scan --no-init
 
   # Pipe to other commands
   shiori scan | shiori verify
@@ -73,6 +76,12 @@ export const scanCommand = define({
       type: 'boolean',
       toKebab: true,
       description: 'Suppress the Governance Report Card summary in TTY mode',
+    },
+    noInit: {
+      type: 'boolean',
+      toKebab: true,
+      description:
+        'Run scan without requiring registry initialization. Shows a quick summary instead of Governance Report Card',
     },
   },
   run: async (ctx) => {
@@ -141,27 +150,32 @@ export const scanCommand = define({
 
       // Governance Report Card (TTY only, suppressible with --no-summary)
       if (!ctx.values.noSummary) {
-        try {
-          const regResult = await loadConfigAndRegistry({
-            cwd,
-            configDir: ctx.values.config,
-          });
-          const reportResult = report({
-            scanResult: result,
-            registry: regResult.registry,
-            failOn: [],
-            warnOn: [],
-            duplicates: regResult.duplicates,
-            refPatterns: regResult.config.refPatterns,
-            refOrigins: regResult.refOrigins,
-          });
-          console.log(formatGovernanceReportCard(result, reportResult));
-        } catch (err) {
-          // Registry file missing (not initialized) — show quick summary with guidance
-          if (isNodeError(err) && err.code === 'ENOENT') {
-            console.log(formatNoRegistrySummary(result));
-          } else {
-            throw err;
+        if (ctx.values.noInit) {
+          // --no-init: skip registry loading, show quick summary directly
+          console.log(formatNoRegistrySummary(result));
+        } else {
+          try {
+            const regResult = await loadConfigAndRegistry({
+              cwd,
+              configDir: ctx.values.config,
+            });
+            const reportResult = report({
+              scanResult: result,
+              registry: regResult.registry,
+              failOn: [],
+              warnOn: [],
+              duplicates: regResult.duplicates,
+              refPatterns: regResult.config.refPatterns,
+              refOrigins: regResult.refOrigins,
+            });
+            console.log(formatGovernanceReportCard(result, reportResult));
+          } catch (err) {
+            // Registry not found (not initialized) — auto-detect and show quick summary
+            if (err instanceof RegistryNotFoundError) {
+              console.log(formatNoRegistrySummary(result));
+            } else {
+              throw err;
+            }
           }
         }
       }

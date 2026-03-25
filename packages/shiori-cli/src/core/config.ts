@@ -1,7 +1,7 @@
 import { access, readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { parse as parseYaml } from 'yaml';
-import { isNodeError } from './errors.ts';
+import { isNodeError, RegistryNotFoundError } from './errors.ts';
 import type { RefPatternConfig } from './ref-pattern.ts';
 import type {
   CandidatePatternConfig,
@@ -201,6 +201,5 @@ export async function resolveRegistryPath(
     }
   }
 
-  const tried = candidates.map((c) => `  ${c.label} (not found)`).join('\n');
-  throw new Error(`No registry file found. Tried:\n${tried}`);
+  throw new RegistryNotFoundError(candidates.map((c) => c.label));
 }
