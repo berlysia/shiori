@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { PassThrough } from 'node:stream';
 import {
   wizardTriageSession,
+  isActionableItem,
+  hasExtendOption,
   type InteractiveTriageContext,
   type WizardSessionResult,
 } from '../src/commands/triage-interactive.ts';
@@ -247,5 +249,279 @@ describe('wizardTriageSession', () => {
     assert.equal(result.processed[0]!.choice, 'act');
     const output = getOutput();
     assert.ok(output.includes('Invalid choice'));
+  });
+
+  it('displays beforeScore in queue summary when provided', async () => {
+    const queue = makeQueue([makeQueueItem('REF-001', 'open')]);
+
+    const { ctx, getOutput } = createMockContext(['s']);
+    await wizardTriageSession(queue, ctx, 72);
+
+    const output = getOutput();
+    assert.ok(output.includes('Current health: 72/100'));
+  });
+
+  it('does not display health score when beforeScore is omitted', async () => {
+    const queue = makeQueue([makeQueueItem('REF-001', 'open')]);
+
+    const { ctx, getOutput } = createMockContext(['s']);
+    await wizardTriageSession(queue, ctx);
+
+    const output = getOutput();
+    assert.ok(!output.includes('Current health:'));
+  });
+});
+
+// ── Sub-prompt tests (EP-0157) ──────────────────────────────
+
+/**
+ * Create a mock I/O context that feeds responses to both
+ * primary prompts ([a]ct/[s]kip/...) and sub-prompts ([r]esolve/[e]xtend).
+ */
+function createSubPromptMockContext(responses: string[]): {
+  ctx: InteractiveTriageContext;
+  getOutput: () => string;
+} {
+  const input = new PassThrough();
+  const output = new PassThrough();
+  let outputBuf = '';
+
+  output.on('data', (chunk: Buffer) => {
+    outputBuf += chunk.toString();
+  });
+
+  let responseIndex = 0;
+  const feedNextResponse = (): void => {
+    if (responseIndex < responses.length) {
+      const response = responses[responseIndex]!;
+      responseIndex++;
+      setImmediate(() => {
+        input.write(response + '\n');
+      });
+    }
+  };
+
+  // Feed response on both primary and sub-prompt patterns
+  output.on('data', (chunk: Buffer) => {
+    const text = chunk.toString();
+    if (text.includes('[a]ct') || text.includes('[r]esolve')) {
+      feedNextResponse();
+    }
+  });
+
+  return {
+    ctx: { input, output },
+    getOutput: () => outputBuf,
+  };
+}
+
+describe('wizard sub-prompt (EP-0157)', () => {
+  it('shows resolve/extend sub-prompt for expired item with expires', async () => {
+    const queue = makeQueue([
+      makeQueueItem('EXP-001', 'overdue', -10, {
+        issues: [
+          {
+            type: 'expired',
+            severity: 'error',
+            ref: 'EXP-001',
+            message: 'expired',
+            file: 'src/a.ts',
+            line: 1,
+          },
+        ],
+        registryEntry: makeRegistryEntry({ expires: '2026-01' }),
+      }),
+    ]);
+
+    // User selects "act", then "resolve" in sub-prompt
+    const { ctx, getOutput } = createSubPromptMockContext(['a', 'r']);
+    const result = await wizardTriageSession(queue, ctx);
+
+    assert.equal(result.processed[0]!.choice, 'act');
+    assert.equal(result.processed[0]!.actionType, 'resolve');
+    assert.equal(result.processed[0]!.newExpires, undefined);
+    const output = getOutput();
+    assert.ok(output.includes('[r]esolve'));
+    assert.ok(output.includes('[e]xtend'));
+  });
+
+  it('sets actionType=extend and newExpires for extend choice', async () => {
+    const queue = makeQueue([
+      makeQueueItem('EXP-002', 'overdue', -10, {
+        issues: [
+          {
+            type: 'expired',
+            severity: 'error',
+            ref: 'EXP-002',
+            message: 'expired',
+            file: 'src/a.ts',
+            line: 1,
+          },
+        ],
+        registryEntry: makeRegistryEntry({ expires: '2026-01' }),
+      }),
+    ]);
+
+    // User selects "act", then "extend"
+    const { ctx } = createSubPromptMockContext(['a', 'e']);
+    const result = await wizardTriageSession(queue, ctx);
+
+    assert.equal(result.processed[0]!.choice, 'act');
+    assert.equal(result.processed[0]!.actionType, 'extend');
+    // extendExpires('2026-01', 3) = '2026-04'
+    assert.equal(result.processed[0]!.newExpires, '2026-04');
+  });
+
+  it('auto-resolves ref-status-closed without sub-prompt', async () => {
+    const queue = makeQueue([
+      makeQueueItem('CLOSED-001', 'open', null, {
+        issues: [
+          {
+            type: 'ref-status-closed',
+            severity: 'warning',
+            ref: 'CLOSED-001',
+            message: 'ref closed',
+            file: 'src/a.ts',
+            line: 1,
+          },
+        ],
+        registryEntry: makeRegistryEntry(),
+      }),
+    ]);
+
+    // Only need primary "act" choice; no sub-prompt expected
+    const { ctx, getOutput } = createSubPromptMockContext(['a']);
+    const result = await wizardTriageSession(queue, ctx);
+
+    assert.equal(result.processed[0]!.choice, 'act');
+    assert.equal(result.processed[0]!.actionType, 'resolve');
+    // Should not show sub-prompt
+    assert.ok(!getOutput().includes('[r]esolve'));
+  });
+
+  it('does not set actionType for non-actionable issue type', async () => {
+    // missing-in-registry is not actionable
+    const queue = makeQueue([makeQueueItem('REF-001', 'open')]);
+
+    const { ctx } = createSubPromptMockContext(['a']);
+    const result = await wizardTriageSession(queue, ctx);
+
+    assert.equal(result.processed[0]!.choice, 'act');
+    assert.equal(result.processed[0]!.actionType, undefined);
+  });
+});
+
+// ── Helper function tests (EP-0157) ─────────────────────────
+
+describe('isActionableItem', () => {
+  it('returns true for expired issue type', () => {
+    const qi = makeQueueItem('REF-001', 'overdue', -5, {
+      issues: [
+        {
+          type: 'expired',
+          severity: 'error',
+          ref: 'REF-001',
+          message: '',
+          file: 'a.ts',
+          line: 1,
+        },
+      ],
+    });
+    assert.equal(isActionableItem(qi), true);
+  });
+
+  it('returns true for expiring-soon issue type', () => {
+    const qi = makeQueueItem('REF-001', 'imminent', 5, {
+      issues: [
+        {
+          type: 'expiring-soon',
+          severity: 'warning',
+          ref: 'REF-001',
+          message: '',
+          file: 'a.ts',
+          line: 1,
+        },
+      ],
+    });
+    assert.equal(isActionableItem(qi), true);
+  });
+
+  it('returns true for ref-status-closed issue type', () => {
+    const qi = makeQueueItem('REF-001', 'open', null, {
+      issues: [
+        {
+          type: 'ref-status-closed',
+          severity: 'warning',
+          ref: 'REF-001',
+          message: '',
+          file: 'a.ts',
+          line: 1,
+        },
+      ],
+    });
+    assert.equal(isActionableItem(qi), true);
+  });
+
+  it('returns false for missing-in-registry issue type', () => {
+    const qi = makeQueueItem('REF-001', 'open');
+    assert.equal(isActionableItem(qi), false);
+  });
+});
+
+describe('hasExtendOption', () => {
+  it('returns true for expired item with expires', () => {
+    const qi = makeQueueItem('REF-001', 'overdue', -5, {
+      issues: [
+        {
+          type: 'expired',
+          severity: 'error',
+          ref: 'REF-001',
+          message: '',
+          file: 'a.ts',
+          line: 1,
+        },
+      ],
+      registryEntry: makeRegistryEntry({ expires: '2026-01' }),
+    });
+    assert.equal(hasExtendOption(qi), true);
+  });
+
+  it('returns false for expired item without expires', () => {
+    const qi = makeQueueItem('REF-001', 'overdue', -5, {
+      issues: [
+        {
+          type: 'expired',
+          severity: 'error',
+          ref: 'REF-001',
+          message: '',
+          file: 'a.ts',
+          line: 1,
+        },
+      ],
+      registryEntry: makeRegistryEntry(),
+    });
+    assert.equal(hasExtendOption(qi), false);
+  });
+
+  it('returns false for ref-status-closed (not extendable)', () => {
+    const qi = makeQueueItem('REF-001', 'open', null, {
+      issues: [
+        {
+          type: 'ref-status-closed',
+          severity: 'warning',
+          ref: 'REF-001',
+          message: '',
+          file: 'a.ts',
+          line: 1,
+        },
+      ],
+      registryEntry: makeRegistryEntry({ expires: '2026-01' }),
+    });
+    assert.equal(hasExtendOption(qi), false);
+  });
+
+  it('returns false for non-actionable issue type', () => {
+    const qi = makeQueueItem('REF-001', 'open');
+    assert.equal(hasExtendOption(qi), false);
   });
 });

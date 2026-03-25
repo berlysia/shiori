@@ -1,3 +1,6 @@
+import { readFile, writeFile } from 'node:fs/promises';
+import { createInterface } from 'node:readline/promises';
+import { resolve } from 'node:path';
 import { define } from 'gunshi';
 import {
   loadConfigAndRegistry,
@@ -15,6 +18,14 @@ import {
 } from './triage.ts';
 import { wizardTriageSession } from './triage-interactive.ts';
 import {
+  planWizardActions,
+  formatWizardApplyPreview,
+  formatWizardCompletionSummary,
+} from './triage-wizard-apply.ts';
+import { groupResolveActionsByFile, applyResolveToFile } from './resolve.ts';
+import { report } from './report.ts';
+import { buildHealthResult } from './health.ts';
+import {
   parseAndValidateIssueTypes,
   createFormatValidator,
 } from '../core/cli-validation.ts';
@@ -23,8 +34,13 @@ import {
   DEFAULT_SCAN_IGNORE,
 } from '../core/scan-defaults.ts';
 import { writeOutput } from '../core/cli-output.ts';
-import { resolveExpiringThreshold } from '../core/cli-context.ts';
+import {
+  resolveExpiringThreshold,
+  warnIfGitDirty,
+  saveRegistryRouted,
+} from '../core/cli-context.ts';
 import { ExitCode } from '../core/exit-codes.ts';
+import { recordJournalEvent } from '../core/journal.ts';
 
 const validateTriageFormat = createFormatValidator<TriageFormat>(
   TRIAGE_FORMATS,
@@ -153,7 +169,8 @@ export const triageCommand = define({
       registryPath: ctx.values.registry,
     });
     reportRegistryIssues(configAndRegistry);
-    const { config, registry, duplicates, refOrigins } = configAndRegistry;
+    const { config, registry, registryPath, duplicates, refOrigins } =
+      configAndRegistry;
 
     const patterns = ctx.values.patterns
       ? ctx.values.patterns.split(',').map((s: string) => s.trim())
@@ -221,13 +238,148 @@ export const triageCommand = define({
         return;
       }
 
+      // Step 1: beforeScore — compute current health before wizard session
+      const beforeReport = report({
+        scanResult,
+        registry,
+        failOn: [],
+        warnOn: [],
+        refPatterns: config.refPatterns,
+        refOrigins,
+        expiringThresholdDays,
+      });
+      const beforeScore = buildHealthResult(beforeReport).health.score;
+
+      // Step 2: wizard session
       const queue = buildTriageQueue({ triageResult: result });
-      const sessionResult = await wizardTriageSession(queue, {
+      const sessionResult = await wizardTriageSession(
+        queue,
+        { input: process.stdin, output: process.stderr },
+        beforeScore,
+      );
+
+      // Step 3: filter actionable items
+      const actionable = sessionResult.processed.filter((p) => p.actionType);
+      if (actionable.length === 0) {
+        // No executable actions — output session result as JSON and exit
+        const wizardOutput = JSON.stringify(sessionResult, null, 2);
+        process.stdout.write(wizardOutput + '\n');
+        if (verifyResult.summary.errors > 0) {
+          process.exitCode = ExitCode.GOVERNANCE_VIOLATION;
+        }
+        return;
+      }
+
+      // Step 4: load file contents for resolve targets (D2)
+      const resolveRefs = new Set(
+        actionable.filter((p) => p.actionType === 'resolve').map((p) => p.ref),
+      );
+      const filePaths = new Set(
+        scanResult.annotations
+          .filter((a) => resolveRefs.has(a.ref))
+          .map((a) => a.location.file),
+      );
+      const fileContents = new Map<string, string>();
+      for (const file of filePaths) {
+        try {
+          fileContents.set(file, await readFile(resolve(cwd, file), 'utf-8'));
+        } catch {
+          console.error(
+            `Warning: Could not read ${file}, skipping resolve actions for this file.`,
+          );
+        }
+      }
+
+      // Step 5: plan + preview
+      const plan = planWizardActions({
+        processed: sessionResult.processed,
+        scanResult,
+        registry,
+        fileContents,
+      });
+      console.error(formatWizardApplyPreview(plan));
+
+      // Step 6: confirm
+      const rl = createInterface({
         input: process.stdin,
         output: process.stderr,
       });
+      const answer = await rl.question('Apply these changes? [y/N] ');
+      rl.close();
+      if (answer.trim().toLowerCase() !== 'y') {
+        console.error('Aborted. No changes applied.');
+        const wizardOutput = JSON.stringify(sessionResult, null, 2);
+        process.stdout.write(wizardOutput + '\n');
+        if (verifyResult.summary.errors > 0) {
+          process.exitCode = ExitCode.GOVERNANCE_VIOLATION;
+        }
+        return;
+      }
 
-      // Output wizard session result as JSON to stdout
+      // Step 7: apply
+      await warnIfGitDirty(cwd);
+
+      // 7a: Apply resolve actions to source files
+      const actionsByFile = groupResolveActionsByFile(plan.resolves.allActions);
+      for (const [file, actions] of actionsByFile) {
+        const content = fileContents.get(file);
+        if (!content) continue;
+        const editResult = applyResolveToFile(content, actions);
+        await writeFile(resolve(cwd, file), editResult.content, 'utf-8');
+        for (const warning of editResult.warnings) {
+          console.error(`Warning: ${warning}`);
+        }
+      }
+
+      // 7b: Save registry with extends applied
+      const saved = await saveRegistryRouted({
+        registry: plan.registryAfter,
+        registryPath,
+        cwd,
+        refPatterns: config.refPatterns,
+        label: 'Wizard applied',
+      });
+      if (!saved) return;
+
+      // 7c: Record journal events
+      const allAffectedRefs = [
+        ...actionable
+          .filter((p) => p.actionType === 'resolve')
+          .map((p) => p.ref),
+        ...actionable
+          .filter((p) => p.actionType === 'extend')
+          .map((p) => p.ref),
+      ];
+      recordJournalEvent({
+        cwd,
+        eventType: 'cli.triage-wizard',
+        refs: allAffectedRefs,
+        success: true,
+        entriesRemoved: plan.summary.resolveCount,
+      });
+
+      // Step 8: afterScore + summary
+      const afterReport = report({
+        scanResult,
+        registry: plan.registryAfter,
+        failOn: [],
+        warnOn: [],
+        refPatterns: config.refPatterns,
+        refOrigins,
+        expiringThresholdDays,
+      });
+      const afterScore = buildHealthResult(afterReport).health.score;
+      console.error(
+        formatWizardCompletionSummary({
+          beforeScore,
+          afterScore,
+          resolveCount: plan.summary.resolveCount,
+          extendCount: plan.summary.extendCount,
+          manualCount: plan.summary.manualCount,
+        }),
+      );
+
+      // Output session result as JSON to stdout
       const wizardOutput = JSON.stringify(sessionResult, null, 2);
       process.stdout.write(wizardOutput + '\n');
 

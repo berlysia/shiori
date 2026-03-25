@@ -759,7 +759,8 @@ export type CliOperationType =
   | 'cli.update'
   | 'cli.fix'
   | 'cli.annotate'
-  | 'cli.migrate';
+  | 'cli.migrate'
+  | 'cli.triage-wizard';
 
 /**
  * CLI journal entry for tracking registry-modifying operations.

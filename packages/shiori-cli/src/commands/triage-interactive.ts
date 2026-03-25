@@ -17,6 +17,8 @@ import type {
   WizardUrgency,
   TriagePriority,
 } from './triage.ts';
+import type { VerifyIssueType } from '../core/types.ts';
+import { extendExpires } from '../core/date-utils.ts';
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -29,10 +31,17 @@ export interface InteractiveTriageContext {
 /** User's choice for a wizard triage item */
 export type WizardChoice = 'act' | 'skip' | 'defer' | 'quit';
 
+/** Executable action type for wizard items */
+export type WizardActionType = 'resolve' | 'extend';
+
 /** Result of processing a single wizard item */
 export interface WizardItemResult {
   ref: string;
   choice: WizardChoice;
+  /** Executable action type (only set when choice is 'act' on actionable items) */
+  actionType?: WizardActionType;
+  /** New expires value (only set when actionType is 'extend') */
+  newExpires?: string;
 }
 
 /** Result of a complete wizard session */
@@ -68,6 +77,19 @@ const PRIORITY_EMOJI: Record<TriagePriority, string> = {
   low: '\u001b[37m-\u001b[0m',
 };
 
+/** Issue types that the wizard can execute actions for */
+const ACTIONABLE_ISSUE_TYPES: ReadonlySet<VerifyIssueType> = new Set([
+  'expired',
+  'expiring-soon',
+  'ref-status-closed',
+]);
+
+/** Issue types that support the extend option (require expires field) */
+const EXTENDABLE_ISSUE_TYPES: ReadonlySet<VerifyIssueType> = new Set([
+  'expired',
+  'expiring-soon',
+]);
+
 // ── Internal helpers ─────────────────────────────────────────
 
 function parseChoice(input: string): WizardChoice | null {
@@ -90,6 +112,20 @@ function parseChoice(input: string): WizardChoice | null {
   }
 }
 
+function parseSubChoice(input: string): 'resolve' | 'extend' | null {
+  const normalized = input.trim().toLowerCase();
+  switch (normalized) {
+    case 'r':
+    case 'resolve':
+      return 'resolve';
+    case 'e':
+    case 'extend':
+      return 'extend';
+    default:
+      return null;
+  }
+}
+
 function writeTo(output: NodeJS.WritableStream, text: string): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     output.write(text, (err) => {
@@ -106,17 +142,44 @@ function formatDaysToExpiry(days: number | null): string {
   return `${days}d remaining`;
 }
 
+/**
+ * Determine the highest-priority issue type for a triage item.
+ * Used to decide which sub-prompt to show.
+ */
+function highestPriorityIssueType(queueItem: WizardQueueItem): VerifyIssueType {
+  return queueItem.item.issues[0]!.type;
+}
+
+/** Whether the wizard can execute an action for this item */
+export function isActionableItem(queueItem: WizardQueueItem): boolean {
+  const issueType = highestPriorityIssueType(queueItem);
+  return ACTIONABLE_ISSUE_TYPES.has(issueType);
+}
+
+/** Whether the item supports the extend option (has expires + extendable issue type) */
+export function hasExtendOption(queueItem: WizardQueueItem): boolean {
+  const issueType = highestPriorityIssueType(queueItem);
+  return (
+    EXTENDABLE_ISSUE_TYPES.has(issueType) &&
+    queueItem.item.registryEntry?.expires !== undefined
+  );
+}
+
 // ── Display functions ────────────────────────────────────────
 
 async function displayQueueSummary(
   queue: WizardQueue,
   output: NodeJS.WritableStream,
+  beforeScore?: number,
 ): Promise<void> {
   const total = queue.items.length;
   await writeTo(
     output,
     '\n  \u250c\u2500 Triage Wizard \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n',
   );
+  if (beforeScore !== undefined) {
+    await writeTo(output, `  \u2502 Current health: ${beforeScore}/100\n`);
+  }
   await writeTo(output, `  \u2502 ${total} item(s) to review\n`);
   if (queue.byUrgency.overdue > 0) {
     await writeTo(
@@ -182,10 +245,54 @@ async function displayItem(
   await writeTo(output, '\n');
 }
 
+// ── Sub-prompt for actionable items ─────────────────────────
+
+/**
+ * Prompt for resolve/extend sub-action when user selects "act" on an actionable item.
+ *
+ * Returns the action details to record in WizardItemResult.
+ * - Items with extend option: user chooses resolve or extend
+ * - Items without extend option (e.g., ref-status-closed): auto-resolve
+ */
+async function promptSubAction(
+  queueItem: WizardQueueItem,
+  rl: ReadlineInterface,
+  output: NodeJS.WritableStream,
+): Promise<{ actionType: WizardActionType; newExpires?: string }> {
+  // ref-status-closed or items without expires → auto-resolve
+  if (!hasExtendOption(queueItem)) {
+    return { actionType: 'resolve' };
+  }
+
+  // Compute the extended expires preview
+  // hasExtendOption() guarantees registryEntry?.expires is non-null
+  const currentExpires = queueItem.item.registryEntry!.expires!;
+  const extendedExpires = extendExpires(currentExpires, 3);
+
+  while (true) {
+    const answer = await rl.question(
+      `  [r]esolve / [e]xtend (+3mo \u2192 ${extendedExpires})? `,
+    );
+    const subChoice = parseSubChoice(answer);
+    if (subChoice === 'resolve') {
+      return { actionType: 'resolve' };
+    }
+    if (subChoice === 'extend') {
+      return { actionType: 'extend', newExpires: extendedExpires };
+    }
+    await writeTo(
+      output,
+      '  Invalid choice. Please enter "r" (resolve) or "e" (extend).\n',
+    );
+  }
+}
+
 // ── Prompt ───────────────────────────────────────────────────
 
 /**
  * Prompt the user to act, skip, defer, or quit for a single triage item.
+ * When user selects "act" on an actionable item, shows a sub-prompt for
+ * resolve/extend selection.
  *
  * Accepts a pre-created readline interface so the caller can manage the
  * lifecycle (create once, close after all items are processed).
@@ -196,14 +303,23 @@ export async function promptTriageAction(
   total: number,
   rl: ReadlineInterface,
   output: NodeJS.WritableStream,
-): Promise<WizardChoice> {
+): Promise<WizardItemResult> {
   await displayItem(queueItem, index, total, output);
 
   while (true) {
     const answer = await rl.question('  [a]ct / [s]kip / [d]efer / [q]uit? ');
     const choice = parseChoice(answer);
     if (choice !== null) {
-      return choice;
+      if (choice === 'act' && isActionableItem(queueItem)) {
+        const subAction = await promptSubAction(queueItem, rl, output);
+        return {
+          ref: queueItem.item.ref,
+          choice,
+          actionType: subAction.actionType,
+          newExpires: subAction.newExpires,
+        };
+      }
+      return { ref: queueItem.item.ref, choice };
     }
     await writeTo(
       output,
@@ -234,10 +350,15 @@ export function createTriageReadline(
  * the user for a decision. Returns the session result with all decisions.
  *
  * Accepts abstract I/O streams for testability.
+ *
+ * @param queue - Wizard queue (urgency-ordered items to triage)
+ * @param ctx - I/O context (input/output streams)
+ * @param beforeScore - Current health score to display in summary (optional)
  */
 export async function wizardTriageSession(
   queue: WizardQueue,
   ctx: InteractiveTriageContext,
+  beforeScore?: number,
 ): Promise<WizardSessionResult> {
   const rl = createTriageReadline(ctx);
   const processed: WizardItemResult[] = [];
@@ -249,11 +370,11 @@ export async function wizardTriageSession(
       return { processed: [], remaining: 0, total: 0 };
     }
 
-    await displayQueueSummary(queue, ctx.output);
+    await displayQueueSummary(queue, ctx.output, beforeScore);
 
     for (let i = 0; i < total; i++) {
       const queueItem = queue.items[i]!;
-      const choice = await promptTriageAction(
+      const itemResult = await promptTriageAction(
         queueItem,
         i,
         total,
@@ -261,9 +382,9 @@ export async function wizardTriageSession(
         ctx.output,
       );
 
-      processed.push({ ref: queueItem.item.ref, choice });
+      processed.push(itemResult);
 
-      if (choice === 'quit') {
+      if (itemResult.choice === 'quit') {
         const remaining = total - i - 1;
         await writeTo(
           ctx.output,
@@ -273,12 +394,24 @@ export async function wizardTriageSession(
       }
 
       // Brief feedback per choice
-      switch (choice) {
+      switch (itemResult.choice) {
         case 'act':
-          await writeTo(
-            ctx.output,
-            `  \u2192 Marked for action: ${queueItem.item.action}\n\n`,
-          );
+          if (itemResult.actionType === 'extend') {
+            await writeTo(
+              ctx.output,
+              `  \u2192 Will extend expires to ${itemResult.newExpires}\n\n`,
+            );
+          } else if (itemResult.actionType === 'resolve') {
+            await writeTo(
+              ctx.output,
+              `  \u2192 Will resolve: ${queueItem.item.action}\n\n`,
+            );
+          } else {
+            await writeTo(
+              ctx.output,
+              `  \u2192 Marked for action: ${queueItem.item.action}\n\n`,
+            );
+          }
           break;
         case 'skip':
           await writeTo(ctx.output, '  \u2192 Skipped\n\n');
