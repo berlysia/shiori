@@ -51,6 +51,11 @@ export {
   formatFixApplyResult,
   formatFixApplyResultJson,
 } from './fix-formatter.ts';
+export {
+  formatWeeklyReport,
+  formatWeeklyReportAsMarkdown,
+  formatWeeklyReportAsHtml,
+} from './weekly-report-formatter.ts';
 
 export interface FormatVerifyOutputOptions {
   format: OutputFormat;

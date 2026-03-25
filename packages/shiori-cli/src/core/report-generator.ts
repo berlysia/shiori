@@ -5,7 +5,7 @@
  *   1. collectReportData()  — gather journal, registry, and governance data
  *   2. analyzeReportData()  — compute activity summary, health, and velocity metrics
  *
- * Format rendering (formatWeeklyReport) is in formatters/weekly-report-html-formatter.ts.
+ * Format rendering (formatWeeklyReport) is in formatters/weekly-report-formatter.ts.
  *
  * Pure functions (except collectReportData which performs I/O for data loading).
  *
@@ -22,7 +22,6 @@ import type {
   ReportResult,
   JournalVelocityResult,
 } from './types.ts';
-import { healthEmoji, insightIcon } from './emoji.ts';
 
 // ── Layer 1: Data Collector ─────────────────────────────────
 
@@ -185,110 +184,4 @@ export function analyzeReportData(
     insights: data.reportResult.insights,
     velocity: data.velocity.summary,
   };
-}
-
-// ── Layer 3: Formatter ──────────────────────────────────────
-
-/**
- * Format analyzed metrics as Markdown.
- */
-export function formatWeeklyReportAsMarkdown(
-  metrics: AnalyzedReportMetrics,
-  preset: WeeklyReportPreset,
-): string {
-  const lines: string[] = [];
-
-  // Title
-  const presetLabel =
-    preset === 'weekly' ? 'Weekly' : preset === 'health' ? 'Health' : 'Custom';
-  lines.push(`# Shiori ${presetLabel} Report`);
-  lines.push('');
-  lines.push(`**Generated:** ${metrics.timestamp}`);
-  lines.push(`**Period:** ${metrics.period.since} → ${metrics.period.until}`);
-  lines.push('');
-
-  // Health
-  const emoji = healthEmoji(metrics.health.level);
-  lines.push(`## ${emoji} Governance Health: ${metrics.health.score}/100`);
-  lines.push('');
-  lines.push(metrics.health.summary);
-  lines.push('');
-
-  // Registry overview
-  lines.push('## Registry Overview');
-  lines.push('');
-  lines.push('| Metric | Count |');
-  lines.push('|--------|-------|');
-  lines.push(
-    `| Tracked annotations | ${metrics.registryOverview.totalAnnotations} |`,
-  );
-  lines.push(
-    `| Untracked candidates | ${metrics.registryOverview.totalCandidates} |`,
-  );
-  lines.push(`| Registry entries | ${metrics.registryOverview.totalEntries} |`);
-  lines.push(`| Open issues | ${metrics.registryOverview.totalIssues} |`);
-  lines.push('');
-
-  // Activity summary (skip for health preset when no activity)
-  if (preset !== 'health' || metrics.activity.totalOperations > 0) {
-    lines.push('## Activity Summary');
-    lines.push('');
-    lines.push('| Metric | Value |');
-    lines.push('|--------|-------|');
-    lines.push(`| Total operations | ${metrics.activity.totalOperations} |`);
-    lines.push(`| Successful | ${metrics.activity.successfulOperations} |`);
-    lines.push(`| Failed | ${metrics.activity.failedOperations} |`);
-    lines.push(`| Success rate | ${metrics.activity.successRate}% |`);
-    lines.push(
-      `| Net registry change | ${metrics.activity.netChange >= 0 ? '+' : ''}${metrics.activity.netChange} |`,
-    );
-    lines.push(
-      `| Unique refs touched | ${metrics.activity.uniqueRefs.length} |`,
-    );
-    lines.push('');
-
-    // Operations by type
-    const eventTypes = Object.entries(metrics.activity.byEventType).sort(
-      ([, a], [, b]) => b - a,
-    );
-    if (eventTypes.length > 0) {
-      lines.push('### Operations by Type');
-      lines.push('');
-      lines.push('| Event Type | Count |');
-      lines.push('|------------|-------|');
-      for (const [type, count] of eventTypes) {
-        lines.push(`| ${type} | ${count} |`);
-      }
-      lines.push('');
-    }
-  }
-
-  // Velocity (skip if no data)
-  if (metrics.velocity.count > 0) {
-    lines.push('## Velocity');
-    lines.push('');
-    lines.push('| Metric | Value |');
-    lines.push('|--------|-------|');
-    lines.push(`| Buckets | ${metrics.velocity.count} |`);
-    lines.push(
-      `| Period | ${metrics.velocity.oldest} → ${metrics.velocity.newest} |`,
-    );
-    lines.push(`| Total operations | ${metrics.velocity.totalOperations} |`);
-    lines.push(`| Success rate | ${metrics.velocity.successRate}% |`);
-    lines.push(`| Direction | ${metrics.velocity.direction} |`);
-    lines.push('');
-  }
-
-  // Insights
-  if (metrics.insights.length > 0) {
-    lines.push('## Insights');
-    lines.push('');
-    for (const insight of metrics.insights) {
-      const icon = insightIcon(insight.level);
-      lines.push(`- ${icon} **${insight.label}**: ${insight.message}`);
-    }
-    lines.push('');
-  }
-
-  return lines.join('\n');
 }

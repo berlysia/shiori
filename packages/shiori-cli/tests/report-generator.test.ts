@@ -14,12 +14,12 @@ import {
   collectReportData,
   computeActivitySummary,
   analyzeReportData,
-  formatWeeklyReportAsMarkdown,
 } from '../src/core/report-generator.ts';
 import {
+  formatWeeklyReportAsMarkdown,
   formatWeeklyReportAsHtml,
   formatWeeklyReport,
-} from '../src/formatters/weekly-report-html-formatter.ts';
+} from '../src/formatters/weekly-report-formatter.ts';
 
 // ── Test helpers ─────────────────────────────────────────────
 

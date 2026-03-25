@@ -25,7 +25,7 @@ import {
   collectReportData,
   analyzeReportData,
 } from '../core/report-generator.ts';
-import { formatWeeklyReport } from '../formatters/weekly-report-html-formatter.ts';
+import { formatWeeklyReport } from '../formatters/index.ts';
 import {
   buildCoachPrompt,
   buildCoachPromptFromCustomTemplate,
