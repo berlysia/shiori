@@ -140,6 +140,7 @@ describe('COACH_PLACEHOLDERS', () => {
     assert.equal(COACH_PLACEHOLDERS.TRIAGE, '{{TRIAGE_JSON}}');
     assert.equal(COACH_PLACEHOLDERS.WEEKLY_REPORT, '{{WEEKLY_REPORT_JSON}}');
     assert.equal(COACH_PLACEHOLDERS.HEALTH, '{{HEALTH_JSON}}');
+    assert.equal(COACH_PLACEHOLDERS.NARRATIVE, '{{NARRATIVE}}');
   });
 
   it('built-in templates use only defined placeholders', () => {
@@ -158,5 +159,72 @@ describe('COACH_PLACEHOLDERS', () => {
         );
       }
     }
+  });
+});
+
+describe('narrative + coach integration (EP-0151)', () => {
+  const narrativeJson =
+    '{"headline":"Governance health improved","healthSummary":"Score +5"}';
+
+  it('replaces {{NARRATIVE}} in combined template', () => {
+    const result = buildCoachPrompt('combined', {
+      triageJson: '{"items":[]}',
+      weeklyReportJson: '{"health":{"score":90}}',
+      narrativeJson,
+    });
+
+    assert.ok(result.prompt.includes(narrativeJson));
+    assert.ok(!result.prompt.includes('{{NARRATIVE}}'));
+    assert.equal(result.sources.narrative, narrativeJson);
+  });
+
+  it('leaves {{NARRATIVE}} unreplaced when narrativeJson is not provided', () => {
+    const result = buildCoachPrompt('combined', {
+      triageJson: '{"items":[]}',
+      weeklyReportJson: '{"health":{"score":90}}',
+    });
+
+    assert.ok(result.prompt.includes('{{NARRATIVE}}'));
+    assert.equal(result.sources.narrative, undefined);
+  });
+
+  it('replaces {{NARRATIVE}} in custom template', () => {
+    const templateContent =
+      'Narrative: {{NARRATIVE}} | Triage: {{TRIAGE_JSON}}';
+    const result = buildCoachPromptFromCustomTemplate(templateContent, {
+      triageJson: '{"data":"triage"}',
+      narrativeJson,
+    });
+
+    assert.ok(result.prompt.includes(narrativeJson));
+    assert.ok(!result.prompt.includes('{{NARRATIVE}}'));
+    assert.equal(result.sources.narrative, narrativeJson);
+  });
+
+  it('narrative source is included in JSON output format', () => {
+    const result = buildCoachPrompt('combined', {
+      triageJson: '{"items":[]}',
+      weeklyReportJson: '{"report":{}}',
+      narrativeJson,
+    });
+    const output = formatCoachOutput(result, 'json');
+    const parsed = JSON.parse(output) as {
+      sources: { narrative?: string };
+    };
+
+    assert.equal(parsed.sources.narrative, narrativeJson);
+  });
+
+  it('non-combined templates work without narrative placeholder in template', () => {
+    // triage template doesn't have {{NARRATIVE}} — narrativeJson is ignored but stored in sources
+    const result = buildCoachPrompt('triage', {
+      triageJson: '{"items":[]}',
+      narrativeJson,
+    });
+
+    // narrative not in prompt (no placeholder in triage template)
+    assert.ok(!result.prompt.includes(narrativeJson));
+    // but still tracked in sources
+    assert.equal(result.sources.narrative, narrativeJson);
   });
 });

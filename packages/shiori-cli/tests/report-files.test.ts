@@ -324,6 +324,8 @@ describe('isReportShape', () => {
             candidates: 0,
             issues: 0,
             registryEntries: 5,
+            errors: 0,
+            warnings: 0,
           },
         }),
         true,
@@ -381,6 +383,40 @@ describe('isReportShape', () => {
         timestamp: '2026-01-01T00:00:00.000Z',
         health: { level: 'healthy', score: 100 },
         totals: { annotations: 5, candidates: 0, issues: 0 },
+      }),
+      false,
+    );
+  });
+
+  it('rejects totals missing errors', () => {
+    assert.equal(
+      isReportShape({
+        timestamp: '2026-01-01T00:00:00.000Z',
+        health: { level: 'healthy', score: 100 },
+        totals: {
+          annotations: 5,
+          candidates: 0,
+          issues: 0,
+          registryEntries: 5,
+          warnings: 0,
+        },
+      }),
+      false,
+    );
+  });
+
+  it('rejects totals missing warnings', () => {
+    assert.equal(
+      isReportShape({
+        timestamp: '2026-01-01T00:00:00.000Z',
+        health: { level: 'healthy', score: 100 },
+        totals: {
+          annotations: 5,
+          candidates: 0,
+          issues: 0,
+          registryEntries: 5,
+          errors: 0,
+        },
       }),
       false,
     );

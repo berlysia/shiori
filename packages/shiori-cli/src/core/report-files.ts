@@ -27,6 +27,8 @@ export function isReportShape(value: Record<string, unknown>): boolean {
   if (typeof totals.annotations !== 'number') return false;
   if (typeof totals.candidates !== 'number') return false;
   if (typeof totals.registryEntries !== 'number') return false;
+  if (typeof totals.errors !== 'number') return false;
+  if (typeof totals.warnings !== 'number') return false;
 
   return true;
 }

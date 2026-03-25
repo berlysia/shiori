@@ -1,9 +1,12 @@
 /**
- * CLI wrapper for the coach command (EP-0139).
+ * CLI wrapper for the coach command (EP-0139, EP-0151).
  *
  * Generates structured LLM prompts from governance data.
  * Internally runs triage, weekly-report, and/or health to collect JSON,
  * then embeds it into prompt templates. No LLM API calls.
+ *
+ * EP-0151: Optionally computes a governance narrative from report snapshots
+ * and embeds it via {{NARRATIVE}} placeholder for richer LLM context.
  */
 
 import { readFile } from 'node:fs/promises';
@@ -45,6 +48,12 @@ import {
 import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
 import { ExitCode } from '../core/exit-codes.ts';
 import { isNodeError } from '../core/errors.ts';
+import { loadSnapshots } from '../core/snapshot.ts';
+import { isReportShape } from '../core/report-files.ts';
+import { computeSnapshotDiff } from '../core/diff-snapshots.ts';
+import { computeNarrative } from './narrative.ts';
+import { wrapOutputJson } from '../core/schema-envelope.ts';
+import type { ReportResult } from '../core/types.ts';
 
 const validateCoachFormat = createFormatValidator<CoachFormat>(
   COACH_FORMATS,
@@ -79,7 +88,13 @@ export const coachCommand = define({
   shiori coach --template-file ./my-prompt.md
 
   # Save to file
-  shiori coach -o coach-prompt.md`,
+  shiori coach -o coach-prompt.md
+
+  # Include governance narrative from snapshot history (EP-0151)
+  shiori coach --template combined --narrative-history ./reports/
+
+  # Include narrative from specific snapshot files
+  shiori coach --template combined --narrative-base old.json --narrative-head new.json`,
   rendering: { header: null },
   args: {
     template: {
@@ -93,7 +108,7 @@ export const coachCommand = define({
       type: 'string',
       toKebab: true,
       description:
-        'Path to a custom template file. Overrides --template. Supports {{TRIAGE_JSON}}, {{WEEKLY_REPORT_JSON}}, {{HEALTH_JSON}} placeholders.',
+        'Path to a custom template file. Overrides --template. Supports {{TRIAGE_JSON}}, {{WEEKLY_REPORT_JSON}}, {{HEALTH_JSON}}, {{NARRATIVE}} placeholders.',
     },
     format: {
       type: 'string',
@@ -128,6 +143,24 @@ export const coachCommand = define({
       toKebab: true,
       description:
         'Days before expiration to trigger expiring-soon warning. Default: 14',
+    },
+    narrativeHistory: {
+      type: 'string',
+      toKebab: true,
+      description:
+        'Directory containing ReportResult JSON snapshots for narrative. Uses oldest and newest as base/head.',
+    },
+    narrativeBase: {
+      type: 'string',
+      toKebab: true,
+      description:
+        'Path to the base (before) ReportResult JSON for narrative. Use with --narrative-head.',
+    },
+    narrativeHead: {
+      type: 'string',
+      toKebab: true,
+      description:
+        'Path to the head (after) ReportResult JSON for narrative. Use with --narrative-base.',
     },
   },
   run: async (ctx) => {
@@ -232,7 +265,146 @@ export const coachCommand = define({
     const metrics = analyzeReportData(collected);
     const weeklyReportJson = formatWeeklyReport(metrics, 'json', 'weekly');
 
+    // Narrative JSON (EP-0151: optional, from snapshot history or explicit base/head)
+    let narrativeJson: string | undefined;
+    const hasNarrativeHistory = ctx.values.narrativeHistory !== undefined;
+    const hasNarrativeBase = ctx.values.narrativeBase !== undefined;
+    const hasNarrativeHead = ctx.values.narrativeHead !== undefined;
+
+    if (hasNarrativeHistory && (hasNarrativeBase || hasNarrativeHead)) {
+      console.error(
+        'Error: --narrative-history cannot be used together with --narrative-base/--narrative-head',
+      );
+      process.exitCode = ExitCode.USAGE_ERROR;
+      return;
+    }
+
+    if (
+      (hasNarrativeBase && !hasNarrativeHead) ||
+      (!hasNarrativeBase && hasNarrativeHead)
+    ) {
+      console.error(
+        'Error: --narrative-base and --narrative-head must be used together',
+      );
+      process.exitCode = ExitCode.USAGE_ERROR;
+      return;
+    }
+
+    if (hasNarrativeHistory || (hasNarrativeBase && hasNarrativeHead)) {
+      let baseReport: ReportResult;
+      let headReport: ReportResult;
+
+      if (hasNarrativeHistory) {
+        const reports = await loadSnapshots(ctx.values.narrativeHistory!, cwd, {
+          onDirectoryError: (msg) => {
+            console.error(`Error: ${msg}`);
+            process.exitCode = ExitCode.ENVIRONMENT_ERROR;
+          },
+          onNoFiles: (dir) => {
+            console.error(`Error: No JSON files found in ${dir}`);
+            process.exitCode = ExitCode.ENVIRONMENT_ERROR;
+          },
+          onLoaded: (count, dir) => {
+            console.error(`Narrative: loaded ${count} snapshot(s) from ${dir}`);
+          },
+        });
+
+        if (reports === null) {
+          if (!process.exitCode) {
+            process.exitCode = ExitCode.ENVIRONMENT_ERROR;
+          }
+          return;
+        }
+
+        if (reports.length < 2) {
+          console.error(
+            'Error: At least 2 snapshots are required for narrative',
+          );
+          process.exitCode = ExitCode.USAGE_ERROR;
+          return;
+        }
+
+        const sorted = [...reports].sort((a, b) =>
+          a.timestamp.localeCompare(b.timestamp),
+        );
+        baseReport = sorted[0]!;
+        headReport = sorted[sorted.length - 1]!;
+      } else {
+        // Load explicit base/head
+        const basePath = resolve(cwd, ctx.values.narrativeBase!);
+        const headPath = resolve(cwd, ctx.values.narrativeHead!);
+
+        try {
+          await assertWithinCwd(basePath, cwd);
+          await assertWithinCwd(headPath, cwd);
+        } catch (err) {
+          if (err instanceof PathBoundaryError) {
+            console.error(`Error: ${err.message}`);
+            process.exitCode = ExitCode.ENVIRONMENT_ERROR;
+            return;
+          }
+          throw err;
+        }
+
+        try {
+          const baseContent = await readFile(basePath, 'utf-8');
+          const baseParsed = JSON.parse(baseContent) as Record<string, unknown>;
+          if (!isReportShape(baseParsed)) {
+            console.error(
+              `Error: ${basePath} is not a valid ReportResult JSON`,
+            );
+            process.exitCode = ExitCode.ENVIRONMENT_ERROR;
+            return;
+          }
+          // shiori: DEV-019 reason="runtime JSON shape validated by isReportShape but static type requires assertion"
+          baseReport = baseParsed as unknown as ReportResult;
+        } catch (err) {
+          console.error(
+            `Error loading narrative base report: ${err instanceof Error ? err.message : String(err)}`,
+          );
+          process.exitCode = ExitCode.ENVIRONMENT_ERROR;
+          return;
+        }
+
+        try {
+          const headContent = await readFile(headPath, 'utf-8');
+          const headParsed = JSON.parse(headContent) as Record<string, unknown>;
+          if (!isReportShape(headParsed)) {
+            console.error(
+              `Error: ${headPath} is not a valid ReportResult JSON`,
+            );
+            process.exitCode = ExitCode.ENVIRONMENT_ERROR;
+            return;
+          }
+          // shiori: DEV-019 reason="runtime JSON shape validated by isReportShape but static type requires assertion"
+          headReport = headParsed as unknown as ReportResult;
+        } catch (err) {
+          console.error(
+            `Error loading narrative head report: ${err instanceof Error ? err.message : String(err)}`,
+          );
+          process.exitCode = ExitCode.ENVIRONMENT_ERROR;
+          return;
+        }
+      }
+
+      const diff = computeSnapshotDiff(baseReport, headReport);
+      const narrative = computeNarrative(diff);
+      narrativeJson = wrapOutputJson(narrative, {
+        command: 'narrative',
+        schemaVersion: 1,
+      });
+      console.error(
+        `Narrative: ${diff.health.baseScore}/100 → ${diff.health.headScore}/100 (${diff.health.direction})`,
+      );
+    }
+
     // Build coach prompt
+    const coachInput = {
+      triageJson,
+      weeklyReportJson,
+      healthJson,
+      narrativeJson,
+    };
     let result;
     if (ctx.values.templateFile) {
       const templatePath = resolve(cwd, ctx.values.templateFile);
@@ -262,17 +434,9 @@ export const coachCommand = define({
         process.exitCode = ExitCode.ENVIRONMENT_ERROR;
         return;
       }
-      result = buildCoachPromptFromCustomTemplate(templateContent, {
-        triageJson,
-        weeklyReportJson,
-        healthJson,
-      });
+      result = buildCoachPromptFromCustomTemplate(templateContent, coachInput);
     } else {
-      result = buildCoachPrompt(template, {
-        triageJson,
-        weeklyReportJson,
-        healthJson,
-      });
+      result = buildCoachPrompt(template, coachInput);
     }
 
     // Output

@@ -38,6 +38,7 @@ export interface CoachInput {
   triageJson?: string;
   weeklyReportJson?: string;
   healthJson?: string;
+  narrativeJson?: string;
 }
 
 export interface CoachResult {
@@ -48,6 +49,7 @@ export interface CoachResult {
     triage?: string;
     weeklyReport?: string;
     health?: string;
+    narrative?: string;
   };
 }
 
@@ -58,6 +60,7 @@ export const COACH_PLACEHOLDERS = {
   TRIAGE: '{{TRIAGE_JSON}}',
   WEEKLY_REPORT: '{{WEEKLY_REPORT_JSON}}',
   HEALTH: '{{HEALTH_JSON}}',
+  NARRATIVE: '{{NARRATIVE}}',
 } as const;
 
 // ── Prompt Templates ─────────────────────────────────────────
@@ -137,7 +140,7 @@ const HEALTH_PROMPT = `あなたはコードベースの健全性を診断する
 現在のペースで改善を続けた場合の 1 ヶ月後のスコア予測と根拠。`;
 
 const COMBINED_PROMPT = `あなたはソフトウェアガバナンスの専門家です。
-以下は shiori（アノテーション追跡ツール）の2つのレポートです。
+以下は shiori（アノテーション追跡ツール）の複数のレポートです。
 
 ## Triage レポート
 \`\`\`json
@@ -149,8 +152,13 @@ const COMBINED_PROMPT = `あなたはソフトウェアガバナンスの専門�
 {{WEEKLY_REPORT_JSON}}
 \`\`\`
 
-この2つのレポートを総合的に分析し、以下を出力してください:
-1. 現状の要約（2-3文）
+## ガバナンス変動ナラティブ
+\`\`\`json
+{{NARRATIVE}}
+\`\`\`
+
+これらのレポートを総合的に分析し、以下を出力してください:
+1. 現状の要約（2-3文、ナラティブの変動傾向を加味）
 2. 今週の最優先アクション（1件、shiori コマンド付き）
 3. 中期的な改善提案（1件）`;
 
@@ -194,6 +202,13 @@ function replacePlaceholders(
   if (input.healthJson != null) {
     prompt = prompt.replaceAll(COACH_PLACEHOLDERS.HEALTH, input.healthJson);
     sources.health = input.healthJson;
+  }
+  if (input.narrativeJson != null) {
+    prompt = prompt.replaceAll(
+      COACH_PLACEHOLDERS.NARRATIVE,
+      input.narrativeJson,
+    );
+    sources.narrative = input.narrativeJson;
   }
 
   return { prompt, sources };
