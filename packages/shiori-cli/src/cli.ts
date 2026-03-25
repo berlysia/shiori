@@ -30,6 +30,7 @@ import { guideCommand } from './commands/guide-cli.ts';
 import { fixCommand } from './commands/fix-cli.ts';
 import { coachCommand } from './commands/coach-cli.ts';
 import { narrativeCommand } from './commands/narrative-cli.ts';
+import { recipesCommand } from './commands/recipes-cli.ts';
 import { VERSION } from './core/version.ts';
 import { ExitCode } from './core/exit-codes.ts';
 
@@ -84,6 +85,7 @@ Coaching:
 Diagnostics:
   shiori doctor                  Diagnose shiori setup
   shiori guide                   Interactive command navigator
+  shiori recipes                 Maturity-based recipe catalog
 
 Other commands:
   shiori scan                    Extract annotations from source
@@ -135,6 +137,7 @@ try {
       fix: fixCommand,
       coach: coachCommand,
       narrative: narrativeCommand,
+      recipes: recipesCommand,
     },
   });
 } catch (err) {
