@@ -10,35 +10,12 @@ import type {
   SnapshotDiff,
   CategoryDelta,
   HealthTransition,
-} from '../core/diff-snapshots.ts';
+  NarrativeObservation,
+  NarrativeResult,
+} from '../core/types.ts';
 
-// ── Types ────────────────────────────────────────────────────
-
-/** A single observation about a metric change */
-export interface NarrativeObservation {
-  /** Category that changed */
-  category: string;
-  /** Human-readable description of the change */
-  message: string;
-  /** Magnitude of importance (higher = more significant) */
-  significance: number;
-}
-
-/** Result of computing a narrative */
-export interface NarrativeResult {
-  /** Headline summary of the governance transition */
-  headline: string;
-  /** Health transition description */
-  healthSummary: string;
-  /** Individual observations about metric changes, sorted by significance */
-  observations: NarrativeObservation[];
-  /** Base snapshot timestamp */
-  baseTimestamp: string;
-  /** Head snapshot timestamp */
-  headTimestamp: string;
-  /** Underlying diff data (for JSON output) */
-  diff: SnapshotDiff;
-}
+// Re-export types for backward compatibility
+export type { NarrativeObservation, NarrativeResult } from '../core/types.ts';
 
 // ── Helpers ──────────────────────────────────────────────────
 

@@ -4,7 +4,7 @@
  * Pure function — no I/O.
  */
 
-import type { NarrativeResult } from '../commands/narrative.ts';
+import type { NarrativeResult } from '../core/types.ts';
 import { healthEmoji, trendEmoji } from '../core/emoji.ts';
 
 /**

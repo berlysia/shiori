@@ -6,49 +6,16 @@
  * Pure function — no I/O.
  */
 
-import type { ReportResult, HealthLevel, TrendDirection } from './types.ts';
+import type {
+  ReportResult,
+  TrendDirection,
+  SnapshotDiff,
+  CategoryDelta,
+  HealthTransition,
+} from './types.ts';
 
-// ── Types ────────────────────────────────────────────────────
-
-/** A numeric change in a single metric category */
-export interface CategoryDelta {
-  /** Metric name (e.g. "annotations", "issues") */
-  category: string;
-  /** Value in the base snapshot */
-  base: number;
-  /** Value in the head snapshot */
-  head: number;
-  /** Absolute change: head - base */
-  delta: number;
-}
-
-/** Health level transition between two snapshots */
-export interface HealthTransition {
-  /** Base health level */
-  base: HealthLevel;
-  /** Head health level */
-  head: HealthLevel;
-  /** Base health score */
-  baseScore: number;
-  /** Head health score */
-  headScore: number;
-  /** Score change: head - base */
-  scoreDelta: number;
-  /** Transition direction */
-  direction: TrendDirection;
-}
-
-/** Result of comparing two report snapshots */
-export interface SnapshotDiff {
-  /** Base snapshot timestamp */
-  baseTimestamp: string;
-  /** Head snapshot timestamp */
-  headTimestamp: string;
-  /** Per-category deltas */
-  categories: CategoryDelta[];
-  /** Health level transition */
-  health: HealthTransition;
-}
+// Re-export types for backward compatibility
+export type { SnapshotDiff, CategoryDelta, HealthTransition } from './types.ts';
 
 // ── Core function ────────────────────────────────────────────
 

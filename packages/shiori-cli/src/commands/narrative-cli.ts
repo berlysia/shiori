@@ -8,7 +8,12 @@
 import { define } from 'gunshi';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { NARRATIVE_FORMATS, type NarrativeFormat } from '../core/types.ts';
+import {
+  NARRATIVE_FORMATS,
+  type NarrativeFormat,
+  type NarrativeResult,
+  type ReportResult,
+} from '../core/types.ts';
 import { createFormatValidator } from '../core/cli-validation.ts';
 import { writeOutput } from '../core/cli-output.ts';
 import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
@@ -17,9 +22,8 @@ import { loadSnapshots } from '../core/snapshot.ts';
 import { isReportShape } from '../core/report-files.ts';
 import { wrapOutputJson } from '../core/schema-envelope.ts';
 import { computeSnapshotDiff } from '../core/diff-snapshots.ts';
-import { computeNarrative, type NarrativeResult } from './narrative.ts';
+import { computeNarrative } from './narrative.ts';
 import { formatNarrativeAsMarkdown } from '../formatters/narrative-markdown.ts';
-import type { ReportResult } from '../core/types.ts';
 import { trendArrow } from '../core/emoji.ts';
 
 const validateNarrativeFormat =

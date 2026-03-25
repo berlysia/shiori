@@ -1120,6 +1120,78 @@ export const NARRATIVE_FORMATS = ['json', 'markdown'] as const;
 /** Output format for narrative command (derived from NARRATIVE_FORMATS) */
 export type NarrativeFormat = (typeof NARRATIVE_FORMATS)[number];
 
+// ── SnapshotDiff types (EP-0146) ──────────────────────────────
+
+/** A numeric change in a single metric category */
+export interface CategoryDelta {
+  /** Metric name (e.g. "annotations", "issues") */
+  category: string;
+  /** Value in the base snapshot */
+  base: number;
+  /** Value in the head snapshot */
+  head: number;
+  /** Absolute change: head - base */
+  delta: number;
+}
+
+/** Health level transition between two snapshots */
+export interface HealthTransition {
+  /** Base health level */
+  base: HealthLevel;
+  /** Head health level */
+  head: HealthLevel;
+  /** Base health score */
+  baseScore: number;
+  /** Head health score */
+  headScore: number;
+  /** Score change: head - base */
+  scoreDelta: number;
+  /** Transition direction */
+  direction: TrendDirection;
+}
+
+/** Result of comparing two report snapshots */
+export interface SnapshotDiff {
+  /** Base snapshot timestamp */
+  baseTimestamp: string;
+  /** Head snapshot timestamp */
+  headTimestamp: string;
+  /** Per-category deltas */
+  categories: CategoryDelta[];
+  /** Health level transition */
+  health: HealthTransition;
+}
+
+// ── Narrative result types (EP-0146) ──────────────────────────
+
+/** A single observation about a metric change */
+export interface NarrativeObservation {
+  /** Category that changed */
+  category: string;
+  /** Human-readable description of the change */
+  message: string;
+  /** Magnitude of importance (higher = more significant) */
+  significance: number;
+}
+
+/** Result of computing a narrative */
+export interface NarrativeResult {
+  /** Headline summary of the governance transition */
+  headline: string;
+  /** Health transition description */
+  healthSummary: string;
+  /** Individual observations about metric changes, sorted by significance */
+  observations: NarrativeObservation[];
+  /** Base snapshot timestamp */
+  baseTimestamp: string;
+  /** Head snapshot timestamp */
+  headTimestamp: string;
+  /** Underlying diff data (for JSON output) */
+  diff: SnapshotDiff;
+}
+
+// ── Aggregate types ──────────────────────────────────────────
+
 /** Result of aggregating multiple repository summaries */
 export interface AggregateResult {
   /** ISO timestamp when the aggregate was generated */
