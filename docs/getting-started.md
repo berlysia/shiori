@@ -63,7 +63,20 @@ shiori はソースコード中の lint disable コメントや設計判断を
 | `DEMO-002` | lint disable + `shiori:` マーカー | 互換性理由の抑制（期限なし）         |
 | `DEMO-003` | スタンドアロン `shiori:` コメント | 設計判断のドキュメント化             |
 
-> **JSON 出力も対応:** `npx @berlysia/shiori scan --demo | cat` でパイプすると JSON が出力されます。`--output report.json` でファイルに保存することもできます。
+> **共有・CI 連携:** デモ結果はチーム共有に便利な複数のフォーマットで出力できます:
+>
+> ```bash
+> # Markdown — Gist や Wiki に貼り付け
+> npx @berlysia/shiori scan --demo --format markdown
+>
+> # GitHub Actions Step Summary — CI の Summary タブに表示
+> npx @berlysia/shiori scan --demo --format github-summary >> "$GITHUB_STEP_SUMMARY"
+>
+> # JSON — プログラムから利用
+> npx @berlysia/shiori scan --demo --format json
+> ```
+>
+> CI での活用方法は [Demo CI Step Summary レシピ](./recipes/demo-ci-step-summary.md) を参照してください。
 
 デモの動作を確認したら、Step 1 に進んで自分のプロジェクトをセットアップしましょう。
 

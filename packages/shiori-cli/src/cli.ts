@@ -143,5 +143,8 @@ try {
 } catch (err) {
   const message = err instanceof Error ? err.message : String(err);
   console.error(`Error: ${message}`);
+  if (process.env.SHIORI_DEBUG && err instanceof Error && err.stack) {
+    console.error(err.stack);
+  }
   process.exitCode = ExitCode.ENVIRONMENT_ERROR;
 }

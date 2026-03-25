@@ -1027,6 +1027,15 @@ export interface HealthPrescription {
 
 // ── Demo output types (EP-0174) ──────────────────────────────
 
+/** Result of running the scan --demo pipeline */
+export interface DemoResult {
+  scanResult: ScanResult;
+  verifyResult: VerifyResult;
+  healthScore: number;
+  healthLevel: HealthLevel;
+  demoDir: string;
+}
+
 /** Canonical list of demo output formats (derived → DemoOutputFormat) */
 export const DEMO_OUTPUT_FORMATS = [
   'json',

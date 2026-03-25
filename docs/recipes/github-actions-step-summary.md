@@ -117,6 +117,7 @@ steps:
 
 ## 関連
 
+- [Demo CI Step Summary レシピ](./demo-ci-step-summary.md) — セットアップ不要のデモ版 Step Summary
 - [Delta PR Comment レシピ](./github-actions-delta-pr-comment.md) — PR コメントに差分情報を投稿
 - [Governance Summary レシピ](./github-actions-governance-summary.md) — PR コメントに統合サマリーを投稿
 - [HTML Artifacts Dashboard レシピ](./html-artifacts-dashboard.md) — HTML レポートをアーティファクトとして保存

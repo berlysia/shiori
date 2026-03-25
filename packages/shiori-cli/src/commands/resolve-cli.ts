@@ -30,6 +30,7 @@ import {
   formatBulkResolvePreview,
 } from './resolve.ts';
 import { ExitCode } from '../core/exit-codes.ts';
+import { RegistryNotFoundError } from '../core/errors.ts';
 
 const validateResolveFormat = createFormatValidator<ResolveOutputFormat>(
   RESOLVE_OUTPUT_FORMATS,
@@ -175,11 +176,24 @@ export const resolveCommand = define({
 
     // ── Common setup ─────────────────────────────────────────
 
-    const { config, registry, registryPath } = await loadConfigAndRegistry({
-      cwd,
-      configDir: ctx.values.config,
-      registryPath: ctx.values.registry,
-    });
+    let config;
+    let registry;
+    let registryPath;
+    try {
+      ({ config, registry, registryPath } = await loadConfigAndRegistry({
+        cwd,
+        configDir: ctx.values.config,
+        registryPath: ctx.values.registry,
+      }));
+    } catch (err) {
+      if (err instanceof RegistryNotFoundError) {
+        console.error('Error: Registry not found. Run "shiori init" first.');
+        console.error(`  ${err.message}`);
+        process.exitCode = ExitCode.ENVIRONMENT_ERROR;
+        return;
+      }
+      throw err;
+    }
 
     const scanResultOptions = {
       explicitPath: ctx.values.scan,

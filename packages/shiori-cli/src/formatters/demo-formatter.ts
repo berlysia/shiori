@@ -5,7 +5,7 @@
  * so users can export and share demo results with their team.
  */
 
-import type { DemoResult } from '../commands/scan-demo.ts';
+import type { DemoResult } from '../core/types.ts';
 import { healthEmoji } from '../core/emoji.ts';
 
 /**

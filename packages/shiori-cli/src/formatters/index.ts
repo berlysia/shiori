@@ -20,7 +20,7 @@ import {
   formatDemoResultAsMarkdown,
   formatDemoResultAsGitHubSummary,
 } from './demo-formatter.ts';
-import type { DemoResult } from '../commands/scan-demo.ts';
+import type { DemoResult } from '../core/types.ts';
 import type { OutputFormat } from './types.ts';
 
 export type { OutputFormat } from './types.ts';

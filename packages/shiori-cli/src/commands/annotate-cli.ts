@@ -8,6 +8,7 @@ import { recordJournalEvent } from '../core/journal.ts';
 import { createFormatValidator } from '../core/cli-validation.ts';
 import { writeOutput } from '../core/cli-output.ts';
 import { ANNOTATE_FORMATS, type AnnotateFormat } from '../core/types.ts';
+import { RegistryNotFoundError } from '../core/errors.ts';
 import { isValidRef } from '../core/ref-validation.ts';
 import {
   planAnnotation,
@@ -184,15 +185,28 @@ export const annotateCommand = define({
     }
 
     // Load config and registry
-    const {
-      config,
-      registry: existingRegistry,
-      registryPath,
-    } = await loadConfigAndRegistry({
-      cwd,
-      configDir: ctx.values.config,
-      registryPath: ctx.values.registry,
-    });
+    let config;
+    let existingRegistry;
+    let registryPath;
+    try {
+      ({
+        config,
+        registry: existingRegistry,
+        registryPath,
+      } = await loadConfigAndRegistry({
+        cwd,
+        configDir: ctx.values.config,
+        registryPath: ctx.values.registry,
+      }));
+    } catch (err) {
+      if (err instanceof RegistryNotFoundError) {
+        console.error('Error: Registry not found. Run "shiori init" first.');
+        console.error(`  ${err.message}`);
+        process.exitCode = ExitCode.ENVIRONMENT_ERROR;
+        return;
+      }
+      throw err;
+    }
 
     // Read target file
     const filePath = resolve(cwd, file);

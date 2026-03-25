@@ -51,7 +51,20 @@ npx @berlysia/shiori scan --demo
 
 This runs a self-contained demo with built-in sample files — scans 3 annotated source files, verifies them against a demo registry, and shows a health score. No project changes, no configuration needed.
 
-> **Save demo results:** Pipe to a file with `--output report.json`, or redirect stdout for JSON output: `npx @berlysia/shiori scan --demo | cat`
+> **Save & share demo results:**
+>
+> ```bash
+> # Markdown — Gist やドキュメントで共有
+> npx @berlysia/shiori scan --demo --format markdown --output demo-report.md
+>
+> # GitHub Actions Step Summary — CI 上でチームに共有
+> npx @berlysia/shiori scan --demo --format github-summary >> "$GITHUB_STEP_SUMMARY"
+>
+> # JSON — プログラム連携
+> npx @berlysia/shiori scan --demo --format json --output demo-report.json
+> ```
+>
+> See [Demo CI Step Summary recipe](docs/recipes/demo-ci-step-summary.md) for a ready-to-use GitHub Actions workflow.
 
 ## Quick Start
 

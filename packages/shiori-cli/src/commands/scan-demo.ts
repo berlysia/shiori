@@ -21,6 +21,7 @@ import type {
   ScanResult,
   VerifyResult,
   HealthLevel,
+  DemoResult,
 } from '../core/types.ts';
 import { saveRegistry } from '../core/registry.ts';
 import { healthEmoji } from '../core/emoji.ts';
@@ -97,17 +98,8 @@ function getDemoRegistry(): Registry {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Demo result type
-// ---------------------------------------------------------------------------
-
-export interface DemoResult {
-  scanResult: ScanResult;
-  verifyResult: VerifyResult;
-  healthScore: number;
-  healthLevel: HealthLevel;
-  demoDir: string;
-}
+// Re-export DemoResult from core/types.ts for backward compatibility
+export type { DemoResult } from '../core/types.ts';
 
 // ---------------------------------------------------------------------------
 // Demo orchestration
