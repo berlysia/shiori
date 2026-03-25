@@ -946,6 +946,8 @@ export interface AnalyzedReportMetrics {
   insights: ReportInsight[];
   /** Velocity summary */
   velocity: JournalVelocityResult['summary'];
+  /** Governance score trend from accumulated snapshots (EP-0144) */
+  trend?: TrendResult['summary'];
 }
 
 // ── Summary types (EP-0090) ──────────────────────────────────

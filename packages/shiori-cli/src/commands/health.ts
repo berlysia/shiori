@@ -6,6 +6,7 @@ import {
   type TrendResult,
 } from '../core/types.ts';
 import { healthEmoji, trendArrow } from '../core/emoji.ts';
+import { buildSparkline } from '../core/sparkline.ts';
 import { report, type ReportOptions } from './report.ts';
 import { buildPrescriptions } from '../core/prescriptions.ts';
 
@@ -152,8 +153,12 @@ export function formatHealthSummary(result: HealthResult): string {
   if (result.trend) {
     const arrow = trendArrow(result.trend.direction);
     const sign = result.trend.scoreChange >= 0 ? '+' : '';
+    const spark = buildSparkline([
+      result.trend.minScore,
+      result.trend.latestScore,
+    ]);
     infoLines.push(
-      `Trend: ${arrow} ${result.trend.direction} (${sign}${result.trend.scoreChange})`,
+      `Trend: ${spark} ${arrow} ${result.trend.direction} (${sign}${result.trend.scoreChange}, ${result.trend.count} pts)`,
     );
   }
   sections.push(infoLines);

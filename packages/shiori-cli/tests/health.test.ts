@@ -345,10 +345,11 @@ describe('formatHealthSummary', () => {
     assert.ok(output.includes('Expired:'));
   });
 
-  it('shows trend when present', () => {
+  it('shows trend with sparkline when present (EP-0145)', () => {
     const trendResult = makeTrendResult({
       direction: 'improving',
       scoreChange: 5,
+      count: 3,
     });
     const result = health({
       scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
@@ -363,6 +364,13 @@ describe('formatHealthSummary', () => {
     const output = formatHealthSummary(result);
     assert.ok(output.includes('Trend:'));
     assert.ok(output.includes('improving'));
+    assert.ok(output.includes('+5'));
+    assert.ok(output.includes('3 pts'));
+    // Sparkline block characters should be present (▁-█ range)
+    assert.ok(
+      /[▁▂▃▄▅▆▇█]/.test(output),
+      'should contain sparkline block characters',
+    );
   });
 
   it('omits expiring line when counts are zero', () => {

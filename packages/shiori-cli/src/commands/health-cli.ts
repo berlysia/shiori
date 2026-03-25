@@ -21,7 +21,11 @@ import {
   parseAndValidateIssueTypes,
   createFormatValidator,
 } from '../core/cli-validation.ts';
-import { saveSnapshot, loadSnapshots } from '../core/snapshot.ts';
+import {
+  saveSnapshot,
+  loadSnapshots,
+  DEFAULT_REPORTS_DIR,
+} from '../core/snapshot.ts';
 import { writeOutput } from '../core/cli-output.ts';
 import { isAtOrBelowLevel, type HealthLevel } from '../core/types.ts';
 import {
@@ -78,13 +82,16 @@ export const healthCommand = define({
   examples: `  # Quick health check
   shiori health
 
+  # Health with score trend sparkline (auto-loads from .config/shiori/reports/)
+  shiori health --trend
+
   # JSON output for CI integration
   shiori health -f json
 
   # Fail CI if health is critical
   shiori health --fail-on-level critical
 
-  # Include trend from historical reports
+  # Include trend from historical reports (explicit path)
   shiori health --history ./reports/
 
   # Save current report as snapshot for later trend analysis
@@ -175,6 +182,11 @@ export const healthCommand = define({
       toKebab: true,
       description:
         'Days before expiration to trigger expiring-soon warning. Overrides config. Default: 14',
+    },
+    trend: {
+      type: 'boolean',
+      description:
+        'Show score trend sparkline from auto-accumulated snapshots in .config/shiori/reports/. Overridden by --history if both are specified.',
     },
     triage: {
       type: 'boolean',
@@ -290,13 +302,21 @@ export const healthCommand = define({
       console.error(`Snapshot saved to ${result.path}`);
     }
 
-    // Load trend data if --history is provided
+    // Load trend data: --history (explicit path) takes precedence over --trend (default path)
     let trendResult = undefined;
-    if (ctx.values.history) {
-      const reports = await loadSnapshots(ctx.values.history, base.cwd, {
-        onDirectoryError: (msg) => console.error(`Warning: ${msg}`),
-        onNoFiles: (dir) =>
-          console.error(`Warning: No JSON files found in ${dir}`),
+    const trendDir =
+      ctx.values.history ??
+      (ctx.values.trend ? DEFAULT_REPORTS_DIR : undefined);
+    if (trendDir) {
+      const reports = await loadSnapshots(trendDir, base.cwd, {
+        onDirectoryError: ctx.values.history
+          ? (msg) => console.error(`Warning: ${msg}`)
+          : () => {
+              /* --trend: silently skip when no history yet */
+            },
+        onNoFiles: ctx.values.history
+          ? (dir) => console.error(`Warning: No JSON files found in ${dir}`)
+          : undefined,
         onLoaded: (count, dir) =>
           console.error(`Loaded ${count} report(s) from ${dir}`),
       });

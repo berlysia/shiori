@@ -393,6 +393,50 @@ describe('formatWeeklyReportAsMarkdown', () => {
     const md = formatWeeklyReportAsMarkdown(metrics, 'weekly');
     assert.ok(!md.includes('## Velocity'));
   });
+
+  it('shows trend sparkline when trend data has 2+ snapshots (EP-0144)', () => {
+    const metrics = makeMetrics({
+      trend: {
+        count: 5,
+        oldest: '2026-02-18T00:00:00.000Z',
+        newest: '2026-03-18T00:00:00.000Z',
+        latestScore: 90,
+        scoreChange: 15,
+        direction: 'improving',
+        minScore: 60,
+        maxScore: 90,
+      },
+    });
+    const md = formatWeeklyReportAsMarkdown(metrics, 'weekly');
+    assert.ok(md.includes('## Score Trend'));
+    assert.ok(md.includes('90/100'));
+    assert.ok(md.includes('improving'));
+    assert.ok(md.includes('+15'));
+    assert.ok(md.includes('5 snapshots'));
+  });
+
+  it('omits trend section when trend is undefined', () => {
+    const metrics = makeMetrics({ trend: undefined });
+    const md = formatWeeklyReportAsMarkdown(metrics, 'weekly');
+    assert.ok(!md.includes('## Score Trend'));
+  });
+
+  it('omits trend section when only 1 snapshot', () => {
+    const metrics = makeMetrics({
+      trend: {
+        count: 1,
+        oldest: '2026-03-18T00:00:00.000Z',
+        newest: '2026-03-18T00:00:00.000Z',
+        latestScore: 85,
+        scoreChange: 0,
+        direction: 'stable',
+        minScore: 85,
+        maxScore: 85,
+      },
+    });
+    const md = formatWeeklyReportAsMarkdown(metrics, 'weekly');
+    assert.ok(!md.includes('## Score Trend'));
+  });
 });
 
 // ── formatWeeklyReportAsHtml ─────────────────────────────────
@@ -460,6 +504,30 @@ describe('formatWeeklyReportAsHtml', () => {
     const html = formatWeeklyReportAsHtml(metrics, 'weekly');
     assert.ok(html.includes('#ef4444'));
   });
+
+  it('shows trend section in HTML when trend data has 2+ snapshots (EP-0144)', () => {
+    const metrics = makeMetrics();
+    metrics.trend = {
+      count: 3,
+      oldest: '2026-02-18T00:00:00.000Z',
+      newest: '2026-03-18T00:00:00.000Z',
+      latestScore: 95,
+      scoreChange: 10,
+      direction: 'improving',
+      minScore: 70,
+      maxScore: 95,
+    };
+    const html = formatWeeklyReportAsHtml(metrics, 'weekly');
+    assert.ok(html.includes('Score Trend'));
+    assert.ok(html.includes('95/100'));
+    assert.ok(html.includes('improving'));
+    assert.ok(html.includes('3 snapshots'));
+  });
+
+  it('omits trend section in HTML when trend is undefined', () => {
+    const html = formatWeeklyReportAsHtml(makeMetrics(), 'weekly');
+    assert.ok(!html.includes('Score Trend'));
+  });
 });
 
 // ── formatWeeklyReport (dispatcher) ──────────────────────────
@@ -513,5 +581,24 @@ describe('formatWeeklyReport', () => {
     const parsed = JSON.parse(output);
     assert.equal(parsed.health.score, 100);
     assert.equal(parsed.period.since, '2026-03-11');
+  });
+
+  it('json output includes trend when present (EP-0144)', () => {
+    const metrics = makeMetrics();
+    metrics.trend = {
+      count: 4,
+      oldest: '2026-02-01T00:00:00.000Z',
+      newest: '2026-03-18T00:00:00.000Z',
+      latestScore: 100,
+      scoreChange: 20,
+      direction: 'improving',
+      minScore: 80,
+      maxScore: 100,
+    };
+    const output = formatWeeklyReport(metrics, 'json', 'weekly');
+    const parsed = JSON.parse(output);
+    assert.equal(parsed.trend.count, 4);
+    assert.equal(parsed.trend.direction, 'improving');
+    assert.equal(parsed.trend.scoreChange, 20);
   });
 });

@@ -26,7 +26,12 @@ import {
   DEFAULT_SCAN_IGNORE,
 } from '../core/scan-defaults.ts';
 import { ExitCode } from '../core/exit-codes.ts';
-import { saveSnapshot, DEFAULT_REPORTS_DIR } from '../core/snapshot.ts';
+import {
+  saveSnapshot,
+  loadSnapshots,
+  DEFAULT_REPORTS_DIR,
+} from '../core/snapshot.ts';
+import { computeTrend } from './trend.ts';
 
 const VALID_PRESETS: readonly WeeklyReportPreset[] = [
   'weekly',
@@ -220,6 +225,18 @@ export const weeklyReportCommand = define({
     });
 
     const metrics = analyzeReportData(collected);
+
+    // Auto-load past snapshots for zero-config trend (EP-0144)
+    const pastReports = await loadSnapshots(DEFAULT_REPORTS_DIR, cwd, {
+      onDirectoryError: () => {
+        /* first run — no history yet, silently skip */
+      },
+    });
+    if (pastReports && pastReports.length >= 2) {
+      const trendResult = computeTrend(pastReports);
+      metrics.trend = trendResult.summary;
+    }
+
     const output = formatWeeklyReport(metrics, format, validatedPreset);
 
     const written = await writeOutput(output, {

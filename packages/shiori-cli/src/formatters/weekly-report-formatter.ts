@@ -15,8 +15,9 @@ import type {
   WeeklyReportFormat,
   ReportInsight,
 } from '../core/types.ts';
-import { healthEmoji, insightIcon } from '../core/emoji.ts';
+import { healthEmoji, insightIcon, trendEmoji } from '../core/emoji.ts';
 import { escapeHtml, healthColorCss } from '../core/html-utils.ts';
+import { buildSparkline } from '../core/sparkline.ts';
 
 /**
  * Format analyzed metrics for output (orchestrator).
@@ -63,6 +64,22 @@ export function formatWeeklyReportAsMarkdown(
   lines.push('');
   lines.push(metrics.health.summary);
   lines.push('');
+
+  // Trend sparkline (EP-0144: auto-displayed when 2+ snapshots exist)
+  if (metrics.trend && metrics.trend.count >= 2) {
+    const spark = buildSparkline([
+      metrics.trend.minScore,
+      metrics.trend.latestScore,
+    ]);
+    const dirEmoji = trendEmoji(metrics.trend.direction);
+    const sign = metrics.trend.scoreChange >= 0 ? '+' : '';
+    lines.push('## Score Trend');
+    lines.push('');
+    lines.push(
+      `${spark}  ${metrics.trend.latestScore}/100 ${dirEmoji} ${metrics.trend.direction} (${sign}${metrics.trend.scoreChange}, ${metrics.trend.count} snapshots)`,
+    );
+    lines.push('');
+  }
 
   // Registry overview
   lines.push('## Registry Overview');
@@ -170,6 +187,19 @@ export function formatWeeklyReportAsHtml(
     )
     .join('\n        ');
 
+  // Pre-compute trend HTML block (EP-0144)
+  let trendHtmlBlock = '';
+  if (metrics.trend && metrics.trend.count >= 2) {
+    const spark = buildSparkline([
+      metrics.trend.minScore,
+      metrics.trend.latestScore,
+    ]);
+    const sign = metrics.trend.scoreChange >= 0 ? '+' : '';
+    trendHtmlBlock = `<h2>Score Trend</h2>
+  <p style="font-size: 1.5rem; letter-spacing: 0.1em">${escapeHtml(spark)}</p>
+  <p>${metrics.trend.latestScore}/100 ${escapeHtml(metrics.trend.direction)} (${sign}${metrics.trend.scoreChange}, ${metrics.trend.count} snapshots)</p>`;
+  }
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -204,6 +234,8 @@ export function formatWeeklyReportAsHtml(
   <h2>Governance Health</h2>
   <div class="health-badge">${metrics.health.score}/100 (${escapeHtml(metrics.health.level)})</div>
   <p style="margin-top: 0.5rem">${escapeHtml(metrics.health.summary)}</p>
+
+  ${trendHtmlBlock}
 
   <h2>Registry Overview</h2>
   <table>
