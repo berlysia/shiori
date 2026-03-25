@@ -9,6 +9,8 @@ import {
   type ReportResult,
 } from '../core/types.ts';
 import { healthEmoji, trendArrow } from '../core/emoji.ts';
+import { buildSparkline } from '../core/sparkline.ts';
+import { renderBox, type BoxSection } from '../core/box-drawing.ts';
 import { report, type ReportOptions } from './report.ts';
 import { buildHealthResult } from './health.ts';
 import { computeDelta } from './delta.ts';
@@ -238,6 +240,86 @@ export function formatSummaryAsMarkdown(result: SummaryResult): string {
 }
 
 /**
+ * Format SummaryResult as a compact TTY pulse dashboard (EP-0158).
+ * Uses box-drawing for a single-viewport governance overview.
+ */
+export function formatSummaryAsPulse(result: SummaryResult): string {
+  const sections: BoxSection[] = [];
+
+  // ── Header ──────────────────────────────────────────────
+  const pulseEmoji = healthEmoji(result.health.health.level);
+  sections.push([
+    `${pulseEmoji} Health: ${result.health.health.score}/100 (${result.health.health.level})`,
+  ]);
+
+  // ── Info section ────────────────────────────────────────
+  const infoLines: string[] = [];
+
+  infoLines.push(
+    `Issues: ${result.health.issues.total} (${result.health.issues.errors} errors, ${result.health.issues.warnings} warnings)`,
+  );
+
+  if (
+    result.health.expiring.expired > 0 ||
+    result.health.expiring.expiringSoon > 0
+  ) {
+    infoLines.push(
+      `Expired: ${result.health.expiring.expired}, Expiring soon: ${result.health.expiring.expiringSoon}`,
+    );
+  }
+
+  if (result.delta) {
+    const { added, removed, net } = result.delta.summary;
+    const netSign = net >= 0 ? '+' : '';
+    infoLines.push(`Delta: +${added}/-${removed} (net ${netSign}${net})`);
+  }
+
+  if (result.trend && result.trend.points.length > 0) {
+    const { summary: trendSummary } = result.trend;
+    const scores = result.trend.points.map((p) => p.score);
+    const spark = buildSparkline(scores);
+    const pulseArrow = trendArrow(trendSummary.direction);
+    const sign = trendSummary.scoreChange >= 0 ? '+' : '';
+    infoLines.push(
+      `Trend: ${spark} ${pulseArrow} ${trendSummary.direction} (${sign}${trendSummary.scoreChange}, ${trendSummary.count} pts)`,
+    );
+  }
+
+  sections.push(infoLines);
+
+  // ── Triage section ──────────────────────────────────────
+  if (result.triage && result.triage.items.length > 0) {
+    const { byPriority, total } = result.triage.summary;
+    sections.push([
+      `Triage: ${total} items \u2014 \u{1F534} ${byPriority.critical} \u{1F7E1} ${byPriority.high} \u{1F535} ${byPriority.medium} \u26AA ${byPriority.low}`,
+    ]);
+  }
+
+  // ── Prescriptions section ───────────────────────────────
+  if (result.health.prescriptions && result.health.prescriptions.length > 0) {
+    const rxLines: string[] = [];
+    rxLines.push('\u{1F48A} Prescriptions:');
+    for (const rx of result.health.prescriptions.slice(0, 3)) {
+      const urgencyMark =
+        rx.urgency === 'critical'
+          ? '\u{1F534}'
+          : rx.urgency === 'recommended'
+            ? '\u{1F7E1}'
+            : '\u26AA';
+      rxLines.push(` ${urgencyMark} +${rx.scoreImpact}pt: ${rx.command}`);
+    }
+    sections.push(rxLines);
+  }
+
+  // ── CTA footer ──────────────────────────────────────────
+  if (result.health.issues.total > 0) {
+    sections.push(['\u{1F4A1} Run: shiori triage']);
+  }
+
+  return renderBox(sections);
+}
+
+/**
  * Format SummaryResult based on output format.
  */
 export function formatSummary(
@@ -252,6 +334,8 @@ export function formatSummary(
       const { _reportResult: _, ...serializable } = result;
       return JSON.stringify(serializable, null, 2);
     }
+    case 'pulse':
+      return formatSummaryAsPulse(result);
     default:
       return assertNever(format);
   }

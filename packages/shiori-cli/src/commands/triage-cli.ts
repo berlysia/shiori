@@ -8,10 +8,12 @@ import { verify } from './verify.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
 import {
   triage,
+  buildTriageQueue,
   formatTriageOutput,
   TRIAGE_FORMATS,
   type TriageFormat,
 } from './triage.ts';
+import { wizardTriageSession } from './triage-interactive.ts';
 import {
   parseAndValidateIssueTypes,
   createFormatValidator,
@@ -38,6 +40,9 @@ export const triageCommand = define({
 
   # Markdown output
   shiori triage -f markdown
+
+  # Interactive wizard (deadline-driven)
+  shiori triage --wizard
 
   # Filter by owner
   shiori triage --owner team-platform
@@ -96,6 +101,10 @@ export const triageCommand = define({
       type: 'boolean',
       toKebab: true,
       description: 'Show only refs with expired issues',
+    },
+    wizard: {
+      type: 'boolean',
+      description: 'Launch interactive triage wizard (deadline-driven)',
     },
     failOn: {
       type: 'string',
@@ -200,6 +209,36 @@ export const triageCommand = define({
       expiredOnly: ctx.values.expiredOnly,
       verifyResult,
     });
+
+    // ── Wizard mode ───────────────────────────────────────────
+    if (ctx.values.wizard) {
+      // TTY check: wizard requires interactive terminal
+      if (!process.stdin.isTTY) {
+        console.error(
+          'Error: --wizard requires an interactive terminal (TTY).',
+        );
+        process.exitCode = 1;
+        return;
+      }
+
+      const queue = buildTriageQueue({ triageResult: result });
+      const sessionResult = await wizardTriageSession(queue, {
+        input: process.stdin,
+        output: process.stderr,
+      });
+
+      // Output wizard session result as JSON to stdout
+      const wizardOutput = JSON.stringify(sessionResult, null, 2);
+      process.stdout.write(wizardOutput + '\n');
+
+      // Exit code: fail when --fail-on issues produce errors
+      if (verifyResult.summary.errors > 0) {
+        process.exitCode = ExitCode.GOVERNANCE_VIOLATION;
+      }
+      return;
+    }
+
+    // ── Standard (non-wizard) mode ────────────────────────────
 
     // Empty result message
     if (result.items.length === 0) {

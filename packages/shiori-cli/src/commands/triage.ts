@@ -224,6 +224,139 @@ export function triage(options: TriageOptions): TriageResult {
   };
 }
 
+// ── Wizard queue ─────────────────────────────────────────────
+
+/** Urgency bucket for wizard display */
+export type WizardUrgency = 'overdue' | 'imminent' | 'upcoming' | 'open';
+
+/** A triage item enriched with urgency context for interactive wizard */
+export interface WizardQueueItem {
+  /** Original triage item */
+  item: TriageItem;
+  /** Urgency bucket based on expiration proximity */
+  urgency: WizardUrgency;
+  /** Days until/since expiration (negative = overdue). null if no expiration. */
+  daysToExpiry: number | null;
+}
+
+/** Result of building a wizard queue */
+export interface WizardQueue {
+  /** Ordered queue items (overdue first, then by days-to-expiry ascending) */
+  items: WizardQueueItem[];
+  /** Summary counts by urgency */
+  byUrgency: Record<WizardUrgency, number>;
+}
+
+/** Options for building a wizard triage queue */
+export interface BuildTriageQueueOptions {
+  /** Triage result to convert into a wizard queue */
+  triageResult: TriageResult;
+  /** Reference date for expiry calculation (defaults to now) */
+  now?: Date;
+  /** Days threshold for "imminent" urgency (default: 14) */
+  imminentDays?: number;
+  /** Days threshold for "upcoming" urgency (default: 30) */
+  upcomingDays?: number;
+}
+
+/**
+ * Compute days remaining until expiration.
+ * Returns negative values for overdue items.
+ * Returns null if no expires date is present.
+ */
+function computeDaysToExpiry(
+  registryEntry: RegistryEntry | undefined,
+  now: Date,
+): number | null {
+  if (!registryEntry?.expires) return null;
+  const expiresStr = registryEntry.expires;
+  // Handle YYYY-MM format by normalizing to YYYY-MM-01
+  const normalized = expiresStr.length === 7 ? `${expiresStr}-01` : expiresStr;
+  const expiresDate = new Date(normalized);
+  if (Number.isNaN(expiresDate.getTime())) return null;
+  const diffMs = expiresDate.getTime() - now.getTime();
+  return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+}
+
+function classifyUrgency(
+  daysToExpiry: number | null,
+  imminentDays: number,
+  upcomingDays: number,
+): WizardUrgency {
+  if (daysToExpiry === null) return 'open';
+  if (daysToExpiry <= 0) return 'overdue';
+  if (daysToExpiry <= imminentDays) return 'imminent';
+  if (daysToExpiry <= upcomingDays) return 'upcoming';
+  return 'open';
+}
+
+/**
+ * Build an urgency-ordered queue from a triage result for interactive wizard processing.
+ *
+ * Pure function — no I/O. Enriches triage items with expiry-based urgency
+ * and sorts them for deadline-driven triage sessions:
+ *   overdue → imminent → upcoming → open
+ * Within each urgency bucket, items sort by days-to-expiry (ascending),
+ * then by the original triage priority, then by ref name.
+ */
+export function buildTriageQueue(
+  options: BuildTriageQueueOptions,
+): WizardQueue {
+  const {
+    triageResult,
+    now = new Date(),
+    imminentDays = 14,
+    upcomingDays = 30,
+  } = options;
+
+  const URGENCY_ORDER: WizardUrgency[] = [
+    'overdue',
+    'imminent',
+    'upcoming',
+    'open',
+  ];
+  function urgencyRank(u: WizardUrgency): number {
+    return URGENCY_ORDER.indexOf(u);
+  }
+
+  const queueItems: WizardQueueItem[] = triageResult.items.map((item) => {
+    const daysToExpiry = computeDaysToExpiry(item.registryEntry, now);
+    const urgency = classifyUrgency(daysToExpiry, imminentDays, upcomingDays);
+    return { item, urgency, daysToExpiry };
+  });
+
+  // Sort: urgency bucket → days-to-expiry asc (nulls last) → priority → ref
+  queueItems.sort((a, b) => {
+    const ua = urgencyRank(a.urgency);
+    const ub = urgencyRank(b.urgency);
+    if (ua !== ub) return ua - ub;
+
+    // Within same urgency: sort by days-to-expiry ascending (null → Infinity)
+    const da = a.daysToExpiry ?? Number.POSITIVE_INFINITY;
+    const db = b.daysToExpiry ?? Number.POSITIVE_INFINITY;
+    if (da !== db) return da - db;
+
+    // Fallback: original triage priority then ref
+    const pa = priorityRank(a.item.priority);
+    const pb = priorityRank(b.item.priority);
+    if (pa !== pb) return pa - pb;
+
+    return a.item.ref.localeCompare(b.item.ref);
+  });
+
+  const byUrgency: Record<WizardUrgency, number> = {
+    overdue: 0,
+    imminent: 0,
+    upcoming: 0,
+    open: 0,
+  };
+  for (const qi of queueItems) {
+    byUrgency[qi.urgency]++;
+  }
+
+  return { items: queueItems, byUrgency };
+}
+
 // ── Formatters ───────────────────────────────────────────────
 
 const PRIORITY_EMOJI: Record<TriagePriority, string> = {

@@ -51,6 +51,9 @@ export const summaryCommand = define({
   examples: `  # Generate governance summary as JSON (default)
   shiori summary
 
+  # Compact TTY dashboard (pulse format)
+  shiori summary --format pulse
+
   # Markdown output for PR comments
   shiori summary --format markdown
 
@@ -120,7 +123,8 @@ export const summaryCommand = define({
     format: {
       type: 'string',
       short: 'f',
-      description: 'Output format: "json", "markdown". Default: "json"',
+      description:
+        'Output format: "json", "markdown", "pulse" (compact TTY dashboard). Default: "json"',
       default: 'json',
     },
     output: {
@@ -186,8 +190,16 @@ export const summaryCommand = define({
     const warnOn = parseAndValidateIssueTypes(ctx.values.warnOn, '--warn-on');
     if (warnOn === null) return;
 
-    const format = validateSummaryFormat(ctx.values.format);
+    let format = validateSummaryFormat(ctx.values.format);
     if (format === null) return;
+
+    // Pulse format requires TTY output — fall back to json when piped
+    if (format === 'pulse' && !ctx.values.output && !process.stdout.isTTY) {
+      console.error(
+        'Warning: pulse format requires TTY output. Falling back to "json".',
+      );
+      format = 'json';
+    }
 
     // Validate --fail-on-level
     const failOnLevelValue = ctx.values.failOnLevel;
@@ -350,23 +362,25 @@ export const summaryCommand = define({
     });
     if (!written) return;
 
-    // Log summary to stderr for CI visibility
-    const emoji =
-      result.health.health.level === 'healthy'
-        ? '🟢'
-        : result.health.health.level === 'warning'
-          ? '🟡'
-          : '🔴';
-    console.error(
-      `${emoji} Health: ${result.health.health.score}/100 (${result.health.health.level})` +
-        (result.delta
-          ? ` | Delta: +${result.delta.summary.added}/-${result.delta.summary.removed}`
-          : '') +
-        (result.trend ? ` | Trend: ${result.trend.summary.direction}` : '') +
-        (result.triage
-          ? ` | Triage: ${result.triage.summary.total} items`
-          : ''),
-    );
+    // Log summary to stderr for CI visibility (skip for pulse — already visual)
+    if (format !== 'pulse') {
+      const emoji =
+        result.health.health.level === 'healthy'
+          ? '🟢'
+          : result.health.health.level === 'warning'
+            ? '🟡'
+            : '🔴';
+      console.error(
+        `${emoji} Health: ${result.health.health.score}/100 (${result.health.health.level})` +
+          (result.delta
+            ? ` | Delta: +${result.delta.summary.added}/-${result.delta.summary.removed}`
+            : '') +
+          (result.trend ? ` | Trend: ${result.trend.summary.direction}` : '') +
+          (result.triage
+            ? ` | Triage: ${result.triage.summary.total} items`
+            : ''),
+      );
+    }
 
     // Exit code: --fail-on (errors > 0) OR --fail-on-level
     const hasIssueFailure = result.health.issues.errors > 0;

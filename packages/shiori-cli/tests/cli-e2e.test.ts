@@ -1482,7 +1482,9 @@ describe('CLI E2E: adopt command', () => {
       ]);
       assert.equal(adoptResult.exitCode, 0);
       assert.ok(adoptResult.stderr.includes('Adopted'));
-      assert.ok(adoptResult.stderr.includes('shiori check'));
+      // EP-0159: dynamic CTA based on health score (replaces static "shiori check")
+      assert.ok(adoptResult.stderr.includes('Next step:'));
+      assert.ok(adoptResult.stderr.includes('shiori '));
 
       // Verify source files were modified
       const appContent = await readFile(join(dir, 'src/app.ts'), 'utf-8');

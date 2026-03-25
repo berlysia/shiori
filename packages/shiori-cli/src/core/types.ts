@@ -953,7 +953,7 @@ export interface AnalyzedReportMetrics {
 // ── Summary types (EP-0090) ──────────────────────────────────
 
 /** Canonical list of all summary output formats (derived → SummaryFormat) */
-export const SUMMARY_FORMATS = ['json', 'markdown'] as const;
+export const SUMMARY_FORMATS = ['json', 'markdown', 'pulse'] as const;
 
 /** Output format for summary command (derived from SUMMARY_FORMATS) */
 export type SummaryFormat = (typeof SUMMARY_FORMATS)[number];

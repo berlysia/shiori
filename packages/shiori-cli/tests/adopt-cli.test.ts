@@ -349,7 +349,7 @@ describe('adopt-cli: --apply mode', () => {
     assert.equal(entry!.kind, 'tech-debt');
   });
 
-  it('reports modified lines and suggests shiori check', async () => {
+  it('reports modified lines and suggests next step', async () => {
     const dir = await createFixtureDir(baseDir, 'report', {
       sourceFiles: {
         'src/a.ts':
@@ -380,7 +380,9 @@ describe('adopt-cli: --apply mode', () => {
     assert.equal(exitCode, 0);
     assert.ok(stderr.includes('Modified'));
     assert.ok(stderr.includes('registry'));
-    assert.ok(stderr.includes('shiori check'));
+    // EP-0159: dynamic CTA based on health score (replaces static "shiori check")
+    assert.ok(stderr.includes('Next step:'));
+    assert.ok(stderr.includes('shiori '));
   });
 });
 
