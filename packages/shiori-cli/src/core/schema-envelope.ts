@@ -20,6 +20,8 @@ export interface OutputMeta {
   command: string;
   /** ISO 8601 timestamp (optional, for audit trails) */
   timestamp?: string;
+  /** Execution mode (e.g. "demo") — distinguishes demo output from normal output without breaking schema */
+  mode?: string;
 }
 
 /**
@@ -41,6 +43,8 @@ export interface WrapOutputOptions {
   schemaVersion: number;
   /** Include ISO 8601 timestamp in meta (default: false) */
   includeTimestamp?: boolean;
+  /** Execution mode (e.g. "demo") — propagated to meta.mode */
+  mode?: string;
 }
 
 /**
@@ -67,6 +71,10 @@ export function wrapOutput<T>(
 
   if (options.includeTimestamp) {
     meta.timestamp = new Date().toISOString();
+  }
+
+  if (options.mode) {
+    meta.mode = options.mode;
   }
 
   return { meta, data };

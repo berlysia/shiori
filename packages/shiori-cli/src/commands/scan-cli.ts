@@ -10,7 +10,10 @@ import {
 import { report } from './report.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
 import { loadConfig } from '../core/config.ts';
-import { validateProvider } from '../core/cli-validation.ts';
+import {
+  validateProvider,
+  createFormatValidator,
+} from '../core/cli-validation.ts';
 import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
 import {
   DEFAULT_SCAN_PATTERNS,
@@ -20,7 +23,10 @@ import { wrapOutputJson } from '../core/schema-envelope.ts';
 import { loadConfigAndRegistry } from '../core/registry-loader.ts';
 import { RegistryNotFoundError } from '../core/errors.ts';
 import { ExitCode } from '../core/exit-codes.ts';
+import { DEMO_OUTPUT_FORMATS } from '../core/types.ts';
 import { runDemo, formatDemoResult } from './scan-demo.ts';
+import { formatDemoOutput } from '../formatters/index.ts';
+import { writeOutput } from '../core/cli-output.ts';
 
 export const scanCommand = define({
   name: 'scan',
@@ -93,6 +99,12 @@ export const scanCommand = define({
       description:
         'Run with built-in sample files to experience shiori without any setup — scans 3 demo files, verifies against a demo registry, and shows a health score. Try: npx @berlysia/shiori scan --demo. Incompatible with --patterns, --cwd, --ignore',
     },
+    format: {
+      type: 'string',
+      short: 'f',
+      description:
+        'Output format for --demo mode: "json", "markdown", "github-summary". Default: "json" (pipe) or human-readable (TTY)',
+    },
   },
   run: async (ctx) => {
     // ── Demo mode ──────────────────────────────────────────────
@@ -110,34 +122,53 @@ export const scanCommand = define({
         return;
       }
 
-      const demoResult = await runDemo();
-      const json = wrapOutputJson(
-        {
-          scanResult: demoResult.scanResult,
-          verifyResult: demoResult.verifyResult,
-          healthScore: demoResult.healthScore,
-          healthLevel: demoResult.healthLevel,
-        },
-        { command: 'scan', schemaVersion: 1 },
-      );
+      // Early --format validation before heavy I/O (fail-fast on typos)
+      const validateDemoFormat = createFormatValidator(DEMO_OUTPUT_FORMATS);
+      const demoFormat = ctx.values.format
+        ? validateDemoFormat(ctx.values.format)
+        : undefined;
+      if (ctx.values.format && demoFormat === null) return;
 
-      if (ctx.values.output) {
-        const outputPath = resolve(
-          ctx.values.cwd ?? process.cwd(),
-          ctx.values.output,
-        );
-        await mkdir(dirname(outputPath), { recursive: true });
-        await writeFile(outputPath, json + '\n', 'utf-8');
-        console.error(`Demo results written to ${outputPath}`);
+      const demoResult = await runDemo();
+      const cwd = ctx.values.cwd ?? process.cwd();
+
+      if (demoFormat) {
+        // Explicit --format: dispatch through formatter
+        const output = formatDemoOutput({ format: demoFormat, demoResult });
+        await writeOutput(output, {
+          outputPath: ctx.values.output,
+          cwd,
+          label: 'Demo results',
+        });
+      } else if (ctx.values.output) {
+        // Explicit --output without --format: default to JSON (backward compat)
+        const json = formatDemoOutput({ format: 'json', demoResult });
+        await writeOutput(json, {
+          outputPath: ctx.values.output,
+          cwd,
+          label: 'Demo results',
+        });
       } else if (process.stdout.isTTY) {
+        // TTY without explicit format: human-readable display
         console.log(formatDemoResult(demoResult));
       } else {
+        // Pipe without explicit format: JSON (backward compat)
+        const json = formatDemoOutput({ format: 'json', demoResult });
         console.log(json);
       }
       return;
     }
 
     // ── Standard scan mode ─────────────────────────────────────
+
+    // --format is currently only supported with --demo
+    if (ctx.values.format) {
+      console.error(
+        'Error: --format is currently only supported with --demo. Use --output for standard scan.',
+      );
+      process.exitCode = ExitCode.USAGE_ERROR;
+      return;
+    }
 
     // Validate options early
     if (validateProvider(ctx.values.provider) === null) return;

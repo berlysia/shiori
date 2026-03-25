@@ -1025,6 +1025,18 @@ export interface HealthPrescription {
   actionType: PrescriptionActionType;
 }
 
+// ── Demo output types (EP-0174) ──────────────────────────────
+
+/** Canonical list of demo output formats (derived → DemoOutputFormat) */
+export const DEMO_OUTPUT_FORMATS = [
+  'json',
+  'markdown',
+  'github-summary',
+] as const;
+
+/** Output format for scan --demo (derived from DEMO_OUTPUT_FORMATS) */
+export type DemoOutputFormat = (typeof DEMO_OUTPUT_FORMATS)[number];
+
 // ── Aggregate types (EP-0093) ─────────────────────────────────
 
 /** Canonical list of all aggregate output formats (derived → AggregateFormat) */

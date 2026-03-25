@@ -2,6 +2,7 @@ import {
   assertNever,
   type DeltaOutputFormat,
   type DeltaResult,
+  type DemoOutputFormat,
   type Registry,
   type ShioriAnnotation,
   type ShioriCandidate,
@@ -15,6 +16,11 @@ import { formatAsJsonl } from './jsonl.ts';
 import { formatAsSarif } from './sarif.ts';
 import { formatAsSummary } from './summary.ts';
 import { formatVerifyAsGitHubSummary } from './github-summary-formatter.ts';
+import {
+  formatDemoResultAsMarkdown,
+  formatDemoResultAsGitHubSummary,
+} from './demo-formatter.ts';
+import type { DemoResult } from '../commands/scan-demo.ts';
 import type { OutputFormat } from './types.ts';
 
 export type { OutputFormat } from './types.ts';
@@ -96,12 +102,46 @@ export function formatVerifyOutput(options: FormatVerifyOutputOptions): string {
   }
 }
 
+export {
+  formatDemoResultAsMarkdown,
+  formatDemoResultAsGitHubSummary,
+} from './demo-formatter.ts';
 export { DELTA_OUTPUT_FORMATS, type DeltaOutputFormat } from '../core/types.ts';
+export { DEMO_OUTPUT_FORMATS, type DemoOutputFormat } from '../core/types.ts';
 
 export interface FormatDeltaOutputOptions {
   format: DeltaOutputFormat;
   deltaResult: DeltaResult;
   maxIncrease?: number;
+}
+
+// ── Demo output dispatcher (EP-0174) ─────────────────────────
+
+export interface FormatDemoOutputOptions {
+  format: DemoOutputFormat;
+  demoResult: DemoResult;
+}
+
+export function formatDemoOutput(options: FormatDemoOutputOptions): string {
+  const { format, demoResult } = options;
+  switch (format) {
+    case 'markdown':
+      return formatDemoResultAsMarkdown(demoResult);
+    case 'github-summary':
+      return formatDemoResultAsGitHubSummary(demoResult);
+    case 'json':
+      return wrapOutputJson(
+        {
+          scanResult: demoResult.scanResult,
+          verifyResult: demoResult.verifyResult,
+          healthScore: demoResult.healthScore,
+          healthLevel: demoResult.healthLevel,
+        },
+        { command: 'scan', schemaVersion: 1, mode: 'demo' },
+      );
+    default:
+      return assertNever(format);
+  }
 }
 
 export function formatDeltaOutput(options: FormatDeltaOutputOptions): string {
