@@ -1212,6 +1212,49 @@ export interface NarrativeResult {
   diff: SnapshotDiff;
 }
 
+// ── Pitch types (EP-0177) ─────────────────────────────────────
+
+/** Canonical list of all pitch output formats (derived → PitchFormat) */
+export const PITCH_FORMATS = ['json', 'markdown'] as const;
+
+/** Output format for pitch command (derived from PITCH_FORMATS) */
+export type PitchFormat = (typeof PITCH_FORMATS)[number];
+
+/** A single data-driven talking point for governance adoption pitch */
+export interface PitchHighlight {
+  /** Emoji indicator for visual scanning */
+  emoji: string;
+  /** Category label (e.g. "health", "trend", "risk", "coverage") */
+  category: string;
+  /** Human-readable summary of this highlight */
+  message: string;
+}
+
+/** Result of computing a governance adoption pitch */
+export interface PitchResult {
+  /** ISO timestamp when pitch was generated */
+  timestamp: string;
+  /** Team/project name (from config or fallback to cwd basename) */
+  teamName: string;
+  /** One-line pitch summary headline */
+  headline: string;
+  /** Current governance health snapshot */
+  health: {
+    score: number;
+    level: HealthLevel;
+  };
+  /** Key data-driven highlights for the pitch */
+  highlights: PitchHighlight[];
+  /** Governance trend (when history is available) */
+  trend?: {
+    direction: TrendDirection;
+    scoreChange: number;
+    dataPoints: number;
+  };
+  /** Recommended next steps (copy-paste ready commands) */
+  nextSteps: string[];
+}
+
 // ── Aggregate types ──────────────────────────────────────────
 
 /** Result of aggregating multiple repository summaries */

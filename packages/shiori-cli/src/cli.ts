@@ -31,6 +31,7 @@ import { fixCommand } from './commands/fix-cli.ts';
 import { coachCommand } from './commands/coach-cli.ts';
 import { narrativeCommand } from './commands/narrative-cli.ts';
 import { recipesCommand } from './commands/recipes-cli.ts';
+import { pitchCommand } from './commands/pitch-cli.ts';
 import { VERSION } from './core/version.ts';
 import { ExitCode } from './core/exit-codes.ts';
 
@@ -78,6 +79,9 @@ Workflow:
   shiori journal                 Browse CLI operation journal
   shiori aggregate               Aggregate multi-repo summaries
   shiori check --fail-on ...     Enforce governance in CI
+
+Adoption:
+  shiori pitch                   Generate a governance adoption pitch for your team
 
 Coaching:
   shiori coach                   Generate LLM prompts for governance coaching
@@ -138,6 +142,7 @@ try {
       coach: coachCommand,
       narrative: narrativeCommand,
       recipes: recipesCommand,
+      pitch: pitchCommand,
     },
   });
 } catch (err) {
