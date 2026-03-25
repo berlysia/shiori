@@ -95,7 +95,7 @@ function computeSignificance(cat: CategoryDelta): number {
 // ── Core function ────────────────────────────────────────────
 
 function describeHealthTransition(health: HealthTransition): string {
-  const { base, head, baseScore, headScore, scoreDelta, direction } = health;
+  const { base, head, baseScore, headScore, scoreDelta } = health;
 
   if (base === head && scoreDelta === 0) {
     return `Health remains ${head} at ${headScore}/100.`;

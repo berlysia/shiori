@@ -66,7 +66,9 @@ export function formatNarrativeAsMarkdown(result: NarrativeResult): string {
     lines.push('');
   }
 
-  // Full metric changes table
+  // Full metric table — shown only when at least one category changed.
+  // Iterates all categories (not just changed ones) so the reader sees
+  // stable metrics alongside deltas for full context.
   const changedCategories = result.diff.categories.filter((c) => c.delta !== 0);
   if (changedCategories.length > 0) {
     lines.push('## Metric Details');
