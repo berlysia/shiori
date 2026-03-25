@@ -10,17 +10,19 @@
  */
 
 import { mkdir, writeFile } from 'node:fs/promises';
-import { join, dirname } from 'node:path';
-import { fileExists } from '../commands/init.ts';
-import { CONFIG_FILENAMES, DEFAULT_REGISTRY_PATH } from './config.ts';
+import { join, dirname, resolve } from 'node:path';
+import { fileExists, findExistingConfig } from './fs-utils.ts';
+import { DEFAULT_REGISTRY_PATH } from './config.ts';
 import { saveRegistry } from './registry.ts';
-import { CONFIG_YAML_TEMPLATE } from '../commands/init-steps.ts';
+import { CONFIG_YAML_TEMPLATE } from './config-template.ts';
 
 export interface AutoInitOptions {
   /** Project working directory */
   cwd: string;
   /** Explicit config directory (from --config flag), or undefined for default */
   configDir?: string;
+  /** Explicit registry path (from --registry flag), or undefined for default */
+  registryPath?: string;
 }
 
 export interface AutoInitResult {
@@ -42,9 +44,16 @@ export interface AutoInitResult {
 export async function autoInitProject(
   options: AutoInitOptions,
 ): Promise<AutoInitResult> {
-  const { cwd, configDir: configDirFlag } = options;
+  const {
+    cwd,
+    configDir: configDirFlag,
+    registryPath: registryPathFlag,
+  } = options;
+
+  // Use resolve() for explicit flags (handles both relative and absolute paths),
+  // join() for defaults (always relative to cwd). Consistent with config.ts strategy.
   const configDir = configDirFlag
-    ? join(cwd, configDirFlag)
+    ? resolve(cwd, configDirFlag)
     : join(cwd, '.config', 'shiori');
 
   // Create config directory and config.yaml if needed
@@ -60,8 +69,11 @@ export async function autoInitProject(
     configCreated = true;
   }
 
-  // Create empty registry if needed
-  const registryPath = join(cwd, DEFAULT_REGISTRY_PATH);
+  // Create empty registry if needed.
+  // Explicit --registry flag is resolved via resolve() (same as resolveRegistryPath in config.ts).
+  const registryPath = registryPathFlag
+    ? resolve(cwd, registryPathFlag)
+    : join(cwd, DEFAULT_REGISTRY_PATH);
   let registryCreated = false;
   if (!(await fileExists(registryPath))) {
     await mkdir(dirname(registryPath), { recursive: true });
@@ -70,16 +82,4 @@ export async function autoInitProject(
   }
 
   return { configCreated, registryCreated, registryPath };
-}
-
-/** Check if any config file already exists in the directory */
-async function findExistingConfig(
-  configDir: string,
-): Promise<string | undefined> {
-  for (const filename of CONFIG_FILENAMES) {
-    if (await fileExists(join(configDir, filename))) {
-      return filename;
-    }
-  }
-  return undefined;
 }

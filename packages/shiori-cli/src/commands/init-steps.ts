@@ -14,12 +14,15 @@ import { CommentProvider } from '../core/providers/CommentProvider.ts';
 import {
   loadConfig,
   DEFAULT_REGISTRY_PATH,
-  CONFIG_FILENAMES,
   type ResolvedConfig,
 } from '../core/config.ts';
 import { loadRegistry, saveRegistry } from '../core/registry.ts';
 import { initRegistry } from './registry-generator.ts';
-import { fileExists, fileContainsLine } from './init.ts';
+import {
+  fileExists,
+  fileContainsLine,
+  findExistingConfig,
+} from '../core/fs-utils.ts';
 import {
   DEFAULT_SCAN_PATTERNS,
   DEFAULT_SCAN_IGNORE,
@@ -53,59 +56,9 @@ import {
 
 const GITIGNORE_ENTRY = '.config/shiori/scan-result.json';
 
-export const CONFIG_YAML_TEMPLATE = `# shiori configuration
-# See: https://github.com/berlysia/shiori
-
-# Scan options: default glob patterns for source file scanning
-# scan:
-#   patterns:
-#     - "**/*.{js,ts,tsx,jsx}"
-#     - "**/*.{css,scss,pcss}"
-#   ignore:
-#     - "**/node_modules/**"
-#     - "**/dist/**"
-#     - "**/.git/**"
-#     - "**/tests/**"
-#     - "**/test/**"
-#     - "**/__tests__/**"
-#     - "**/*.test.*"
-#     - "**/*.spec.*"
-#     - "**/.config/**"
-
-# File paths (relative to project root)
-# paths:
-#   scanResult: ".config/shiori/scan-result.json"  # scan result cache
-#   registry: ".config/shiori/registry.json"        # annotation registry
-
-# Candidate detection: which comment patterns to detect as candidates
-# Built-in tools: eslint, stylelint, typescript, keywords
-# candidates:
-#   eslint: true            # eslint-disable-next-line, eslint-disable-line
-#   stylelint: true         # stylelint-disable-next-line, stylelint-disable-line
-#   typescript: false       # @ts-ignore, @ts-expect-error
-#   keywords: false         # TODO, FIXME, HACK, XXX comments
-#
-# Per-matcher control (advanced):
-#   eslint:
-#     disable-next-line: true
-#     disable-line: false
-#
-# Custom matchers:
-#   my-tool:
-#     _matchers:
-#       my-directive:
-#         pattern: "\\bmy-tool-disable\\s+(.*)"
-#         rules: csv
-#         separator: "--"
-
-# Pattern-based ref resolution (see docs/decisions/012)
-# refPatterns:
-#   - match: "JIRA-{id}"
-#     urlTemplate: "https://jira.example.com/browse/{id}"
-#     registryFile: ".config/shiori/registry-jira.json"
-#   - match: "ADR-{id}"
-#     urlTemplate: "docs/decisions/{id}.md"
-`;
+// Import and re-export from core layer (canonical source: core/config-template.ts)
+import { CONFIG_YAML_TEMPLATE } from '../core/config-template.ts';
+export { CONFIG_YAML_TEMPLATE };
 
 // ── Shared context for init pipeline ─────────────────────────
 
@@ -186,7 +139,11 @@ export async function createInitContext(
 ): Promise<InitContext> {
   const { cwd, configFlag, registryFlag } = opts;
   const config = await loadConfig(cwd, configFlag);
-  const configDir = join(cwd, '.config', 'shiori');
+  // Use resolve() for explicit flag (handles relative and absolute paths),
+  // join() for default (always relative to cwd). Consistent with config.ts strategy.
+  const configDir = configFlag
+    ? resolve(cwd, configFlag)
+    : join(cwd, '.config', 'shiori');
   const scanResultPath = resolve(cwd, config.paths.scanResult);
   const registryPath = registryFlag
     ? resolve(cwd, registryFlag)
@@ -462,20 +419,6 @@ export function stepSummary(steps: string[], opts: StepSummaryOptions): void {
 
   console.error('');
   console.error('Run "shiori docs" for full documentation.');
-}
-
-// ── Helpers ──────────────────────────────────────────────────
-
-/** Check if any config file already exists in the directory */
-async function findExistingConfig(
-  configDir: string,
-): Promise<string | undefined> {
-  for (const filename of CONFIG_FILENAMES) {
-    if (await fileExists(join(configDir, filename))) {
-      return filename;
-    }
-  }
-  return undefined;
 }
 
 export { PathBoundaryError };

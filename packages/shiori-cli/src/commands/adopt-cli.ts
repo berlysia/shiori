@@ -397,6 +397,7 @@ export const adoptCommand = define({
         const initResult = await autoInitProject({
           cwd,
           configDir: ctx.values.config,
+          registryPath: ctx.values.registry,
         });
         const parts: string[] = [];
         if (initResult.configCreated) parts.push('config');

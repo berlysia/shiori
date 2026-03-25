@@ -3,8 +3,15 @@
  */
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile, mkdir, writeFile, rm, mkdtemp } from 'node:fs/promises';
-import { join } from 'node:path';
+import {
+  readFile,
+  mkdir,
+  writeFile,
+  rm,
+  mkdtemp,
+  access,
+} from 'node:fs/promises';
+import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { autoInitProject } from '../src/core/auto-init.ts';
 
@@ -115,5 +122,70 @@ describe('autoInitProject', () => {
       result.registryPath,
       join(cwd, '.config', 'shiori', 'registry.json'),
     );
+  });
+
+  it('creates registry at explicit registryPath when --registry flag is provided', async () => {
+    const cwd = await mkdtemp(join(baseDir, 'custom-reg-'));
+
+    const result = await autoInitProject({
+      cwd,
+      registryPath: 'custom/my-registry.json',
+    });
+
+    assert.equal(result.configCreated, true);
+    assert.equal(result.registryCreated, true);
+    // Registry should be at the custom path, resolved via resolve()
+    assert.equal(result.registryPath, resolve(cwd, 'custom/my-registry.json'));
+
+    // File should actually exist at the custom path
+    const content = await readFile(
+      resolve(cwd, 'custom/my-registry.json'),
+      'utf-8',
+    );
+    assert.deepEqual(JSON.parse(content), {});
+
+    // Default registry path should NOT exist
+    await assert.rejects(
+      access(join(cwd, '.config', 'shiori', 'registry.json')),
+      'Default registry should not be created when explicit path is given',
+    );
+  });
+
+  it('creates config at explicit configDir when --config flag is provided', async () => {
+    const cwd = await mkdtemp(join(baseDir, 'custom-cfg-'));
+
+    const result = await autoInitProject({
+      cwd,
+      configDir: 'my-config',
+    });
+
+    assert.equal(result.configCreated, true);
+    // Config should be at the custom directory, resolved via resolve()
+    const configPath = resolve(cwd, 'my-config', 'config.yaml');
+    const content = await readFile(configPath, 'utf-8');
+    assert.ok(content.includes('shiori configuration'));
+
+    // Default config path should NOT exist
+    await assert.rejects(
+      access(join(cwd, '.config', 'shiori', 'config.yaml')),
+      'Default config should not be created when explicit configDir is given',
+    );
+  });
+
+  it('resolves absolute registryPath correctly', async () => {
+    const cwd = await mkdtemp(join(baseDir, 'abs-reg-'));
+    const absRegistryPath = join(cwd, 'absolute-path', 'registry.json');
+
+    const result = await autoInitProject({
+      cwd,
+      registryPath: absRegistryPath,
+    });
+
+    assert.equal(result.registryCreated, true);
+    // resolve(cwd, absolutePath) === absolutePath
+    assert.equal(result.registryPath, absRegistryPath);
+
+    const content = await readFile(absRegistryPath, 'utf-8');
+    assert.deepEqual(JSON.parse(content), {});
   });
 });
