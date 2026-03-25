@@ -26,6 +26,7 @@ import {
   DEFAULT_SCAN_IGNORE,
 } from '../core/scan-defaults.ts';
 import { ExitCode } from '../core/exit-codes.ts';
+import { saveSnapshot, DEFAULT_REPORTS_DIR } from '../core/snapshot.ts';
 
 const VALID_PRESETS: readonly WeeklyReportPreset[] = [
   'weekly',
@@ -54,7 +55,10 @@ export const weeklyReportCommand = define({
   shiori weekly-report --preset custom --since 2026-01-01 --until 2026-03-01 -o q1.md
 
   # Weekly report as JSON for automation
-  shiori weekly-report --format json | jq '.activity'`,
+  shiori weekly-report --format json | jq '.activity'
+
+  # Disable auto-saving snapshot (e.g. in CI dry-run)
+  shiori weekly-report --no-save`,
   rendering: { header: null },
   args: {
     preset: {
@@ -103,6 +107,12 @@ export const weeklyReportCommand = define({
       toKebab: true,
       description:
         'Days before expiration to trigger expiring-soon warning. Default: 14',
+    },
+    noSave: {
+      type: 'boolean',
+      toKebab: true,
+      description:
+        'Disable auto-saving ReportResult snapshot to .config/shiori/reports/. Default: false (snapshots are saved automatically)',
     },
   },
   run: async (ctx) => {
@@ -165,6 +175,23 @@ export const weeklyReportCommand = define({
       refOrigins: configAndRegistry.refOrigins,
       expiringThresholdDays,
     });
+
+    // Auto-save snapshot (EP-0144: zero-config trend experience)
+    if (!ctx.values.noSave) {
+      const snapshotResult = await saveSnapshot(
+        reportResult,
+        DEFAULT_REPORTS_DIR,
+        cwd,
+      );
+      if (snapshotResult.ok) {
+        console.error(`Snapshot saved to ${snapshotResult.path}`);
+      } else {
+        // Non-fatal: warn and continue
+        console.error(
+          `Warning: Failed to save snapshot: ${snapshotResult.error}`,
+        );
+      }
+    }
 
     // Load journal entries
     const journalPath = resolveJournalPath(cwd);

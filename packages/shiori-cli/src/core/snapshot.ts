@@ -5,6 +5,12 @@ import type { ReportResult } from './types.ts';
 import { loadReportFiles, type ReportFilesCallbacks } from './report-files.ts';
 
 /**
+ * Default directory for auto-accumulated report snapshots (relative to cwd).
+ * Used by weekly-report auto-save (EP-0144) and health --trend (EP-0145).
+ */
+export const DEFAULT_REPORTS_DIR = '.config/shiori/reports';
+
+/**
  * Result of a snapshot save operation.
  * Pure data — no side effects like process.exitCode.
  */
@@ -48,12 +54,19 @@ export async function saveSnapshot(
     throw err;
   }
 
-  await mkdir(resolvedDir, { recursive: true });
-  await writeFile(
-    snapshotFile,
-    JSON.stringify(reportResult, null, 2) + '\n',
-    'utf-8',
-  );
+  try {
+    await mkdir(resolvedDir, { recursive: true });
+    await writeFile(
+      snapshotFile,
+      JSON.stringify(reportResult, null, 2) + '\n',
+      'utf-8',
+    );
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
 
   return { ok: true, path: snapshotFile };
 }

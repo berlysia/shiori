@@ -12,7 +12,7 @@ import type {
   WeeklyReportFormat,
   ReportInsight,
 } from '../core/types.ts';
-import { formatWeeklyReportAsMarkdown } from '../core/report-generator.ts';
+import { formatWeeklyReportAsMarkdown } from './weekly-report-formatter.ts';
 import { escapeHtml, healthColorCss } from '../core/html-utils.ts';
 
 /**

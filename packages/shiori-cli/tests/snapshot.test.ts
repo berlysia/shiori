@@ -1,12 +1,13 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, rm, chmod } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import {
   saveSnapshot,
   loadSnapshots,
   snapshotFilename,
+  DEFAULT_REPORTS_DIR,
 } from '../src/core/snapshot.ts';
 import type { ReportResult } from '../src/core/types.ts';
 
@@ -150,6 +151,24 @@ describe('saveSnapshot', () => {
 
     await rm(tempDir, { recursive: true, force: true });
   });
+
+  it('returns error result when fs write fails (not an unhandled exception)', async () => {
+    tempDir = await mkdtemp(join(tmpdir(), 'shiori-snapshot-'));
+    const report = createReportResult();
+    // Create a file where the directory should be — mkdir will fail with ENOTDIR
+    const blocker = join(tempDir, 'snapshots');
+    await writeFile(blocker, 'not-a-dir', 'utf-8');
+    const snapshotDir = join(blocker, 'nested');
+
+    const result = await saveSnapshot(report, snapshotDir, tempDir);
+
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.ok(result.error.length > 0);
+    }
+
+    await rm(tempDir, { recursive: true, force: true });
+  });
 });
 
 describe('loadSnapshots', () => {
@@ -225,6 +244,56 @@ describe('loadSnapshots', () => {
     const first = result![0];
     assert.ok(first !== undefined);
     assert.equal(first.timestamp, validReport.timestamp);
+
+    await rm(tempDir, { recursive: true, force: true });
+  });
+});
+
+describe('DEFAULT_REPORTS_DIR', () => {
+  it('is a relative path under .config/shiori/', () => {
+    assert.equal(DEFAULT_REPORTS_DIR, '.config/shiori/reports');
+  });
+});
+
+describe('auto-save integration (saveSnapshot + loadSnapshots roundtrip)', () => {
+  it('saved snapshot is loadable by loadSnapshots', async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), 'shiori-snapshot-'));
+    const reportsDir = join(tempDir, '.config', 'shiori', 'reports');
+    const report = createReportResult();
+
+    const saveResult = await saveSnapshot(report, reportsDir, tempDir);
+    assert.equal(saveResult.ok, true);
+
+    const loaded = await loadSnapshots(reportsDir, tempDir);
+    assert.ok(loaded !== null);
+    assert.equal(loaded!.length, 1);
+    const first = loaded![0];
+    assert.ok(first !== undefined);
+    assert.equal(first.timestamp, report.timestamp);
+    assert.equal(first.health.score, report.health.score);
+
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('accumulates multiple snapshots across separate saves', async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), 'shiori-snapshot-'));
+    const reportsDir = join(tempDir, '.config', 'shiori', 'reports');
+
+    const report1 = createReportResult({
+      timestamp: '2026-03-18T10:00:00.000Z',
+      health: { level: 'warning', score: 60, summary: 'Week 1' },
+    });
+    const report2 = createReportResult({
+      timestamp: '2026-03-25T10:00:00.000Z',
+      health: { level: 'healthy', score: 80, summary: 'Week 2' },
+    });
+
+    await saveSnapshot(report1, reportsDir, tempDir);
+    await saveSnapshot(report2, reportsDir, tempDir);
+
+    const loaded = await loadSnapshots(reportsDir, tempDir);
+    assert.ok(loaded !== null);
+    assert.equal(loaded!.length, 2);
 
     await rm(tempDir, { recursive: true, force: true });
   });
