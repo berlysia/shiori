@@ -87,6 +87,7 @@ export const REGISTERED_COMMANDS: readonly string[] = [
   'coach',
   'narrative',
   'recipes',
+  'pitch',
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -217,6 +218,11 @@ export const EXIT_CODE_POLICIES: Record<string, ExitCodePolicy> = {
   recipes: {
     category: 'usage',
     failCondition: 'invalid --level value',
+  },
+  pitch: {
+    category: 'usage',
+    failCondition:
+      'validation failures (invalid --format), environment errors (registry not found)',
   },
 
   // -- Passthrough commands (always exit 0) --
