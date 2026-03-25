@@ -2,13 +2,18 @@ import { createInterface } from 'node:readline/promises';
 import { define } from 'gunshi';
 import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { loadConfigAndRegistry } from '../core/registry-loader.ts';
+import {
+  loadConfigAndRegistry,
+  type ConfigAndRegistryResult,
+} from '../core/registry-loader.ts';
 import { loadScanResult } from '../core/scan-result-loader.ts';
 import type { ResolvedConfig } from '../core/config.ts';
 import {
   assertAllWithinCwd,
   PathBoundaryError,
 } from '../core/path-boundary.ts';
+import { RegistryNotFoundError } from '../core/errors.ts';
+import { autoInitProject } from '../core/auto-init.ts';
 import { warnIfGitDirty, saveRegistryRouted } from '../core/cli-context.ts';
 import { recordJournalEvent } from '../core/journal.ts';
 import { isValidRef } from '../core/ref-validation.ts';
@@ -378,15 +383,41 @@ export const adoptCommand = define({
       return;
     }
 
-    const {
-      config,
-      registry: existingRegistry,
-      registryPath,
-    } = await loadConfigAndRegistry({
-      cwd,
-      configDir: ctx.values.config,
-      registryPath: ctx.values.registry,
-    });
+    // Load config + registry, auto-initializing if not yet set up (EP-0152)
+    let loadResult: ConfigAndRegistryResult;
+    try {
+      loadResult = await loadConfigAndRegistry({
+        cwd,
+        configDir: ctx.values.config,
+        registryPath: ctx.values.registry,
+      });
+    } catch (err) {
+      if (err instanceof RegistryNotFoundError) {
+        // Auto-initialize config + empty registry
+        const initResult = await autoInitProject({
+          cwd,
+          configDir: ctx.values.config,
+        });
+        const parts: string[] = [];
+        if (initResult.configCreated) parts.push('config');
+        if (initResult.registryCreated) parts.push('registry');
+        if (parts.length > 0) {
+          console.error(
+            `Auto-initialized .config/shiori/ (${parts.join(', ')}). Run "shiori init" for full setup.`,
+          );
+        }
+        // Retry loading after auto-init
+        loadResult = await loadConfigAndRegistry({
+          cwd,
+          configDir: ctx.values.config,
+          registryPath: ctx.values.registry,
+        });
+      } else {
+        throw err;
+      }
+    }
+
+    const { config, registry: existingRegistry, registryPath } = loadResult;
 
     // Load scan result
     const scanResult = await loadScanResult({
