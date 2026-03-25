@@ -188,8 +188,8 @@ export function suggestPrefixes(
  * Scans existing keys matching `PREFIX-NNN` and returns max+1.
  * Returns 1 if no existing refs match.
  *
- * Note: This mirrors migrate.ts findNextNumber() but is public API
- * for use in wizard and suggestion contexts.
+ * Used by adopt, migrate, and wizard flows as the single source
+ * of truth for ref number allocation.
  */
 export function findNextAvailableNumber(
   prefix: string,
@@ -213,7 +213,7 @@ export function findNextAvailableNumber(
  * Uses 3-digit padding by default (e.g. "001"),
  * switches to 4-digit when totalCount >= 1000.
  */
-function formatRefNumber(num: number, totalCount: number): string {
+export function formatRefNumber(num: number, totalCount: number): string {
   const width = totalCount >= 1000 ? 4 : 3;
   return String(num).padStart(width, '0');
 }

@@ -4,7 +4,10 @@ import type {
   RegistryEntry,
   FileEditResult,
 } from '../core/types.ts';
-import { escapeRegex } from '../core/regex-utils.ts';
+import {
+  findNextAvailableNumber,
+  formatRefNumber,
+} from '../core/ref-suggestion.ts';
 
 // Re-export FileEditResult for backward compatibility
 export type { FileEditResult } from '../core/types.ts';
@@ -39,34 +42,6 @@ export interface MigrateResult {
   actions: MigrateAction[];
   /** Generated registry entries (keyed by ref) */
   registry: Registry;
-}
-
-/**
- * Find the next available number for a given prefix in the registry.
- * Scans existing keys matching `PREFIX-NNN` and returns max+1.
- */
-function findNextNumber(prefix: string, existingRegistry: Registry): number {
-  const pattern = new RegExp(`^${escapeRegex(prefix)}-(\\d+)$`);
-  let max = 0;
-  for (const key of Object.keys(existingRegistry)) {
-    const m = key.match(pattern);
-    if (m) {
-      const n = parseInt(m[1]!, 10);
-      if (n > max) max = n;
-    }
-  }
-  return max + 1;
-}
-
-/**
- * Format a ref number with zero-padding based on total count.
- * - < 100 candidates: 3 digits (001)
- * - < 1000: 3 digits (001)
- * - >= 1000: 4 digits (0001)
- */
-function formatRefNumber(num: number, totalCount: number): string {
-  const width = totalCount >= 1000 ? 4 : 3;
-  return String(num).padStart(width, '0');
 }
 
 /**
@@ -106,7 +81,7 @@ export function planMigration(options: MigrateOptions): MigrateResult {
   const groups = groupCandidatesByLine(candidates);
   const actions: MigrateAction[] = [];
   const registry: Registry = {};
-  let nextNum = findNextNumber(prefix, existingRegistry);
+  let nextNum = findNextAvailableNumber(prefix, existingRegistry);
 
   for (const group of groups) {
     const first = group[0]!;

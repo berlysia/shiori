@@ -7,6 +7,7 @@ import {
   extractPrefixesFromPatterns,
   suggestPrefixes,
   findNextAvailableNumber,
+  formatRefNumber,
   suggestNextRef,
 } from '../src/core/ref-suggestion.ts';
 
@@ -398,5 +399,26 @@ describe('suggestNextRef', () => {
   it('uses 3-digit padding for small registry', () => {
     const result = suggestNextRef('ADOPT', {}, 5);
     assert.equal(result.ref, 'ADOPT-001');
+  });
+});
+
+// ── formatRefNumber ──────────────────────────────────────────
+
+describe('formatRefNumber', () => {
+  it('pads to 3 digits by default', () => {
+    assert.equal(formatRefNumber(1, 10), '001');
+    assert.equal(formatRefNumber(42, 100), '042');
+    assert.equal(formatRefNumber(999, 999), '999');
+  });
+
+  it('pads to 4 digits when totalCount >= 1000', () => {
+    assert.equal(formatRefNumber(1, 1000), '0001');
+    assert.equal(formatRefNumber(42, 2000), '0042');
+    assert.equal(formatRefNumber(1234, 1500), '1234');
+  });
+
+  it('does not truncate numbers exceeding pad width', () => {
+    assert.equal(formatRefNumber(10000, 50), '10000');
+    assert.equal(formatRefNumber(99999, 1000), '99999');
   });
 });
