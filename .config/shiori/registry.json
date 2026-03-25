@@ -6,15 +6,6 @@
     "notes": "while(true) pattern is idiomatic for walk-up-until-found; suppress is permanent",
     "kind": "lint-suppress"
   },
-  "DEV-002": {
-    "reason": "Type assertion for runtime-validated JSON parsed as ReportResult",
-    "target": "src/commands/trend-cli.ts",
-    "expires": "2026-06",
-    "ticket": "EP-0011",
-    "owner": "berlysia",
-    "notes": "JSON Schema validation (EP-0011) would eliminate need for this assertion",
-    "kind": "type-assertion"
-  },
   "DEV-003": {
     "reason": "TODO placeholder values in scaffold generation are intentional design, not missing implementation",
     "target": "src/commands/registry-generator.ts",

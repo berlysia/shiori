@@ -71,11 +71,18 @@ export async function saveSnapshot(
   return { ok: true, path: snapshotFile };
 }
 
+/** Result of a snapshot load operation. */
+export type LoadSnapshotsResult =
+  | { ok: true; reports: ReportResult[] }
+  | { ok: false; error: string };
+
 /**
  * Load snapshot files from a history directory.
- * Thin wrapper over loadReportFiles with consistent naming.
+ * Validates the resolved path stays within `cwd` before reading,
+ * symmetric with saveSnapshot's boundary check.
  *
  * @param historyDir - Directory containing ReportResult JSON files
+ * @param cwd - Working directory boundary
  * @param callbacks - Optional diagnostic callbacks
  */
 export async function loadSnapshots(
@@ -84,5 +91,16 @@ export async function loadSnapshots(
   callbacks?: ReportFilesCallbacks,
 ): Promise<ReportResult[] | null> {
   const resolvedDir = resolve(cwd, historyDir);
+
+  try {
+    await assertWithinCwd(resolvedDir, cwd);
+  } catch (err) {
+    if (err instanceof PathBoundaryError) {
+      callbacks?.onDirectoryError?.(err.message);
+      return null;
+    }
+    throw err;
+  }
+
   return loadReportFiles(resolvedDir, callbacks);
 }

@@ -1,6 +1,4 @@
 import { define } from 'gunshi';
-import { readdir, readFile } from 'node:fs/promises';
-import { resolve, join } from 'node:path';
 import { computeTrend, formatTrend } from './trend.ts';
 import {
   computeJournalVelocity,
@@ -9,7 +7,6 @@ import {
 import { readJournalEntries, resolveJournalPath } from '../core/journal.ts';
 import {
   TREND_FORMATS,
-  type ReportResult,
   type TrendFormat,
   type VelocityBucket,
 } from '../core/types.ts';
@@ -17,6 +14,7 @@ import { createFormatValidator } from '../core/cli-validation.ts';
 import { writeOutput } from '../core/cli-output.ts';
 import { trendArrow } from '../core/emoji.ts';
 import { ExitCode } from '../core/exit-codes.ts';
+import { loadSnapshots } from '../core/snapshot.ts';
 
 const validateTrendFormat = createFormatValidator<TrendFormat>(TREND_FORMATS);
 
@@ -203,68 +201,29 @@ export const trendCommand = define({
       return;
     }
 
-    // ── Report history path (existing behavior) ────────────────
-    // Load report files from history directory
-    const historyDir = resolve(cwd, ctx.values.history!);
-    let files: string[];
-    try {
-      const entries = await readdir(historyDir);
-      files = entries.filter((f) => f.endsWith('.json'));
-    } catch (err) {
-      console.error(
-        `Error: Cannot read history directory: ${err instanceof Error ? err.message : String(err)}`,
-      );
-      process.exitCode = ExitCode.ENVIRONMENT_ERROR;
-      return;
-    }
+    // ── Report history path ─────────────────────────────────────
+    // Use loadSnapshots for path boundary check and consistent shape validation
+    const reports = await loadSnapshots(ctx.values.history!, cwd, {
+      onDirectoryError: (msg) => {
+        console.error(`Error: ${msg}`);
+        process.exitCode = ExitCode.ENVIRONMENT_ERROR;
+      },
+      onNoFiles: (dir) => {
+        console.error(`Error: No JSON files found in ${dir}`);
+        process.exitCode = ExitCode.ENVIRONMENT_ERROR;
+      },
+      onLoaded: (count, dir) => {
+        console.error(`Loaded ${count} report(s) from ${dir}`);
+      },
+    });
 
-    if (files.length === 0) {
-      console.error(`Error: No JSON files found in ${historyDir}`);
-      process.exitCode = ExitCode.ENVIRONMENT_ERROR;
-      return;
-    }
-
-    // Load and parse each file, skipping invalid ones
-    const reports: ReportResult[] = [];
-    const skipped: string[] = [];
-    for (const file of files) {
-      const filePath = join(historyDir, file);
-      try {
-        const content = await readFile(filePath, 'utf-8');
-        const parsed = JSON.parse(content) as Record<string, unknown>;
-
-        // Validate it looks like a ReportResult (has timestamp, health.score, and totals.issues)
-        if (
-          typeof parsed.timestamp === 'string' &&
-          parsed.health &&
-          typeof (parsed.health as Record<string, unknown>).score ===
-            'number' &&
-          parsed.totals &&
-          typeof (parsed.totals as Record<string, unknown>).issues === 'number'
-        ) {
-          // shiori: DEV-002 reason="runtime JSON shape validated above but static type requires assertion"
-          reports.push(parsed as unknown as ReportResult);
-        } else {
-          skipped.push(file);
-        }
-      } catch {
-        skipped.push(file);
+    if (reports === null) {
+      // Error already reported via callbacks; ensure exitCode is set
+      if (!process.exitCode) {
+        process.exitCode = ExitCode.ENVIRONMENT_ERROR;
       }
-    }
-
-    if (skipped.length > 0) {
-      console.error(
-        `Skipped ${skipped.length} non-report file(s): ${skipped.join(', ')}`,
-      );
-    }
-
-    if (reports.length === 0) {
-      console.error('Error: No valid ReportResult files found');
-      process.exitCode = ExitCode.ENVIRONMENT_ERROR;
       return;
     }
-
-    console.error(`Loaded ${reports.length} report(s) from ${historyDir}`);
 
     // Compute trend
     const result = computeTrend(reports, { last });

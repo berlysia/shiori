@@ -221,6 +221,33 @@ describe('loadSnapshots', () => {
     await rm(tempDir, { recursive: true, force: true });
   });
 
+  it('returns null for path outside cwd boundary', async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), 'shiori-snapshot-'));
+    const outsideDir = join(tempDir, '..', '..', 'outside-reports');
+
+    const result = await loadSnapshots(outsideDir, tempDir);
+
+    assert.equal(result, null);
+
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
+  it('calls onDirectoryError callback for path outside cwd boundary', async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), 'shiori-snapshot-'));
+    const outsideDir = join(tempDir, '..', '..', 'outside-reports');
+    const errors: string[] = [];
+
+    const result = await loadSnapshots(outsideDir, tempDir, {
+      onDirectoryError: (msg) => errors.push(msg),
+    });
+
+    assert.equal(result, null);
+    assert.equal(errors.length, 1);
+    assert.ok(errors[0]!.includes('outside the allowed boundary'));
+
+    await rm(tempDir, { recursive: true, force: true });
+  });
+
   it('skips invalid JSON files', async () => {
     const tempDir = await mkdtemp(join(tmpdir(), 'shiori-snapshot-'));
     const validReport = createReportResult();

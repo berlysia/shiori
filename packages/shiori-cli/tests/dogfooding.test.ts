@@ -23,7 +23,7 @@ const DOGFOODING_ANNOTATIONS: {
     file: 'src/core/path-boundary.ts',
     rule: 'no-constant-condition',
   },
-  { ref: 'DEV-002', file: 'src/commands/trend-cli.ts' },
+  // DEV-002: resolved by loadSnapshots() unification — inline type assertion in trend-cli.ts eliminated
   { ref: 'DEV-003', file: 'src/commands/registry-generator.ts' },
   // DEV-004, DEV-005, DEV-006, DEV-010: resolved by createFormatValidator() — inline format assertions eliminated
   { ref: 'DEV-007', file: 'src/core/config.ts' },
