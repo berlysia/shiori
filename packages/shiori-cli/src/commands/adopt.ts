@@ -1,6 +1,7 @@
 import type { ShioriCandidate, Registry } from '../core/types.ts';
 import type { MigrateResult } from './migrate.ts';
 import { planMigration, groupActionsByFile } from './migrate.ts';
+import { healthEmoji } from '../core/emoji.ts';
 
 /** Options for adopt planning */
 export interface AdoptOptions {
@@ -106,6 +107,79 @@ export function filterCandidatesByGroups(
   selectedKeys: Set<string>,
 ): ShioriCandidate[] {
   return candidates.filter((c) => selectedKeys.has(buildGroupKey(c)));
+}
+
+/**
+ * Build a dynamic next-step CTA based on health score.
+ *
+ * Thresholds follow onboarding-guidance.ts's adopt → health → triage flow:
+ * - score < 60  → direct triage for critical issues
+ * - score 60-89 → combined health+triage for moderate issues
+ * - score >= 90 → simple health check for confirmation
+ */
+export function buildNextStepCTA(score: number): {
+  command: string;
+  message: string;
+} {
+  if (score < 60) {
+    return {
+      command: 'shiori triage',
+      message:
+        'Score is low — run "shiori triage" to prioritize which annotations to address first.',
+    };
+  }
+  if (score < 90) {
+    return {
+      command: 'shiori health --triage',
+      message:
+        'Run "shiori health --triage" to see your governance score with a prioritized action list.',
+    };
+  }
+  return {
+    command: 'shiori health',
+    message: 'Run "shiori health" to confirm your governance status.',
+  };
+}
+
+/** Options for formatAdoptCompletionSummary */
+export interface AdoptCompletionSummaryOptions {
+  result: AdoptResult;
+  beforeScore: number;
+  afterScore: number;
+}
+
+/**
+ * Format a completion summary with before/after health score and next-step CTA.
+ * Called from adopt-cli.ts after successful adoption apply.
+ */
+export function formatAdoptCompletionSummary(
+  options: AdoptCompletionSummaryOptions,
+): string {
+  const { result, beforeScore, afterScore } = options;
+  const lines: string[] = [];
+
+  // Score level for emoji: reuse thresholds from report.ts
+  const afterLevel =
+    afterScore >= 80 ? 'healthy' : afterScore >= 50 ? 'warning' : 'critical';
+  const emoji = healthEmoji(afterLevel);
+
+  const scoreDelta = afterScore - beforeScore;
+  const sign = scoreDelta >= 0 ? '+' : '';
+
+  lines.push('');
+  lines.push(
+    `${emoji} Governance: ${afterScore}/100 (${sign}${scoreDelta} from adoption)`,
+  );
+  lines.push(
+    `   Adopted ${result.migrate.actions.length} annotation(s) across ${result.filesAffected} file(s)`,
+  );
+
+  // Dynamic CTA
+  const cta = buildNextStepCTA(afterScore);
+  lines.push('');
+  lines.push(`💡 Next step: ${cta.message}`);
+
+  return lines.join('\n');
 }
 
 /**

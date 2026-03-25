@@ -26,14 +26,17 @@ import { applyMigrateToFile, groupActionsByFile } from './migrate.ts';
 import {
   planAdoption,
   formatAdoptPreview,
+  formatAdoptCompletionSummary,
   buildGroupKey,
   buildGroupSummaries,
   filterCandidatesByGroups,
   type AdoptGroupSummary,
 } from './adopt.ts';
+import { report } from './report.ts';
+import { buildHealthResult } from './health.ts';
 import { formatGroupLabel } from '../core/format-utils.ts';
 import { ExitCode } from '../core/exit-codes.ts';
-import type { ShioriCandidate, Registry } from '../core/types.ts';
+import type { ShioriCandidate, Registry, ScanResult } from '../core/types.ts';
 
 /**
  * Wizard Step 1: Interactive group selection.
@@ -539,6 +542,7 @@ export const adoptCommand = define({
         registryPath,
         config,
         cwd,
+        scanResult,
       });
     }
 
@@ -559,6 +563,7 @@ export const adoptCommand = define({
       registryPath,
       config,
       cwd,
+      scanResult,
     });
   },
 });
@@ -566,6 +571,7 @@ export const adoptCommand = define({
 /**
  * Apply adoption changes to source files and registry.
  * Extracted to avoid duplication between wizard and --apply paths.
+ * Computes before/after health scores and shows completion summary with CTA.
  */
 async function applyAdoption(opts: {
   result: ReturnType<typeof planAdoption>;
@@ -573,8 +579,20 @@ async function applyAdoption(opts: {
   registryPath: string;
   config: ResolvedConfig;
   cwd: string;
+  scanResult: ScanResult;
 }): Promise<void> {
-  const { result, existingRegistry, registryPath, config, cwd } = opts;
+  const { result, existingRegistry, registryPath, config, cwd, scanResult } =
+    opts;
+
+  // Compute before-adoption health score (using current registry state)
+  const beforeReportResult = report({
+    scanResult,
+    registry: existingRegistry,
+    failOn: [],
+    warnOn: [],
+    refPatterns: config.refPatterns,
+  });
+  const beforeScore = buildHealthResult(beforeReportResult).health.score;
 
   // Check git status
   await warnIfGitDirty(cwd);
@@ -670,8 +688,26 @@ async function applyAdoption(opts: {
     }
   }
 
-  console.error('');
-  console.error(
-    'Run "shiori check" to verify all adopted annotations are valid.',
-  );
+  // Compute after-adoption health score with merged registry.
+  // Note: scanResult is from pre-adoption state (source files now contain
+  // shiori annotations that weren't there during scan). The registry change
+  // is the primary score driver — newly registered refs resolve
+  // "missing-in-registry" issues. The score may slightly underestimate
+  // improvement since newly-written annotations aren't in scanResult.
+  const afterReportResult = report({
+    scanResult,
+    registry: mergedRegistry,
+    failOn: [],
+    warnOn: [],
+    refPatterns: config.refPatterns,
+  });
+  const afterScore = buildHealthResult(afterReportResult).health.score;
+
+  // Completion summary with before/after score and dynamic CTA
+  const completionSummary = formatAdoptCompletionSummary({
+    result,
+    beforeScore,
+    afterScore,
+  });
+  console.error(completionSummary);
 }
