@@ -19,6 +19,7 @@ import {
   type HealthLevel,
 } from '../core/types.ts';
 import { ExitCode } from '../core/exit-codes.ts';
+import { wrapOutputJson } from '../core/schema-envelope.ts';
 
 /**
  * Format AggregateResult based on output format.
@@ -34,7 +35,10 @@ function formatAggregate(
     case 'html':
       return formatAggregateAsHtml(result);
     case 'json':
-      return JSON.stringify(result, null, 2);
+      return wrapOutputJson(result, {
+        command: 'aggregate',
+        schemaVersion: 1,
+      });
     default:
       return assertNever(format);
   }

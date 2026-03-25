@@ -111,7 +111,11 @@ describe('formatCoachOutput', () => {
 
   it('returns valid JSON for "json" format', () => {
     const output = formatCoachOutput(mockResult, 'json');
-    const parsed = JSON.parse(output) as { template: string; prompt: string };
+    const envelope = JSON.parse(output);
+    assert.ok(envelope.meta, 'should have meta envelope');
+    assert.equal(envelope.meta.command, 'coach');
+    assert.equal(envelope.meta.schemaVersion, 1);
+    const parsed = envelope.data as { template: string; prompt: string };
 
     assert.equal(parsed.template, 'triage');
     assert.ok(typeof parsed.prompt === 'string');
@@ -213,7 +217,10 @@ describe('narrative + coach integration (EP-0151)', () => {
       narrativeJson,
     });
     const output = formatCoachOutput(result, 'json');
-    const parsed = JSON.parse(output) as {
+    const envelope = JSON.parse(output);
+    assert.ok(envelope.meta, 'should have meta envelope');
+    assert.equal(envelope.meta.command, 'coach');
+    const parsed = envelope.data as {
       sources: { narrative?: string };
     };
 

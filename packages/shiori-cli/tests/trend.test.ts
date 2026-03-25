@@ -281,7 +281,11 @@ describe('formatTrend', () => {
   it('formats as JSON', () => {
     const result = makeTrendResult();
     const output = formatTrend(result, 'json');
-    const parsed = JSON.parse(output) as TrendResult;
+    const envelope = JSON.parse(output);
+    assert.ok(envelope.meta, 'should have meta envelope');
+    assert.equal(envelope.meta.command, 'trend');
+    assert.equal(envelope.meta.schemaVersion, 1);
+    const parsed = envelope.data as TrendResult;
 
     assert.equal(parsed.points.length, 2);
     assert.equal(parsed.summary.direction, 'improving');

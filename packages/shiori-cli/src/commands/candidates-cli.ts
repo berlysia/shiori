@@ -7,6 +7,7 @@ import {
   CANDIDATES_OUTPUT_FORMATS,
   type CandidatesOutputFormat,
 } from './candidates.ts';
+import { wrapOutputJson } from '../core/schema-envelope.ts';
 import { createFormatValidator } from '../core/cli-validation.ts';
 import { writeOutput } from '../core/cli-output.ts';
 
@@ -73,7 +74,7 @@ export const candidatesCommand = define({
     const output =
       format === 'markdown'
         ? formatCandidatesAsMarkdown(result)
-        : JSON.stringify(result, null, 2);
+        : wrapOutputJson(result, { command: 'candidates', schemaVersion: 1 });
 
     const written = await writeOutput(output, {
       outputPath: ctx.values.output,

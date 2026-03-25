@@ -247,7 +247,11 @@ describe('formatDeltaAsJson', () => {
     };
 
     const json = formatDeltaAsJson(result);
-    const parsed = JSON.parse(json);
+    const envelope = JSON.parse(json);
+    assert.ok(envelope.meta, 'should have meta envelope');
+    assert.equal(envelope.meta.command, 'delta');
+    assert.equal(envelope.meta.schemaVersion, 1);
+    const parsed = envelope.data;
 
     assert.equal(parsed.deltas.length, 1);
     assert.equal(parsed.deltas[0].kind, 'added');

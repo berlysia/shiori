@@ -10,6 +10,7 @@
  */
 
 import { assertNever } from '../core/types.ts';
+import { wrapOutputJson } from '../core/schema-envelope.ts';
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -255,7 +256,7 @@ export function formatCoachOutput(
     case 'prompt':
       return result.prompt;
     case 'json':
-      return JSON.stringify(result, null, 2);
+      return wrapOutputJson(result, { command: 'coach', schemaVersion: 1 });
     case 'github-issue':
       return formatAsGitHubIssue(result);
     default:

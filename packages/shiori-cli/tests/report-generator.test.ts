@@ -578,7 +578,11 @@ describe('formatWeeklyReport', () => {
 
   it('dispatches to json formatter', () => {
     const output = formatWeeklyReport(makeMetrics(), 'json', 'weekly');
-    const parsed = JSON.parse(output);
+    const envelope = JSON.parse(output);
+    assert.ok(envelope.meta, 'should have meta envelope');
+    assert.equal(envelope.meta.command, 'weekly-report');
+    assert.equal(envelope.meta.schemaVersion, 1);
+    const parsed = envelope.data;
     assert.equal(parsed.health.score, 100);
     assert.equal(parsed.period.since, '2026-03-11');
   });
@@ -596,7 +600,8 @@ describe('formatWeeklyReport', () => {
       maxScore: 100,
     };
     const output = formatWeeklyReport(metrics, 'json', 'weekly');
-    const parsed = JSON.parse(output);
+    const envelope = JSON.parse(output);
+    const parsed = envelope.data;
     assert.equal(parsed.trend.count, 4);
     assert.equal(parsed.trend.direction, 'improving');
     assert.equal(parsed.trend.scoreChange, 20);

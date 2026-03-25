@@ -1,28 +1,23 @@
 import { assertNever } from '../core/types.ts';
 import type { BulkResolveResult, ResolveOutputFormat } from '../core/types.ts';
-import { VERSION } from '../core/version.ts';
+import { wrapOutput, type OutputMeta } from '../core/schema-envelope.ts';
 
 export {
   RESOLVE_OUTPUT_FORMATS,
   type ResolveOutputFormat,
 } from '../core/types.ts';
 
+/** Extended meta for resolve command (adds mode + applied to standard OutputMeta) */
+export interface ResolveOutputMeta extends OutputMeta {
+  /** Resolve mode: "closed" (bulk auto-detect) */
+  mode: 'closed';
+  /** Whether --apply was used */
+  applied: boolean;
+}
+
 /** JSON output schema for resolve --closed (EP-0075, ADR 028) */
 export interface ResolveJsonOutput {
-  meta: {
-    /** Command that produced this output */
-    command: 'resolve';
-    /** Schema version for compatibility checks (ADR 028) */
-    schemaVersion: number;
-    /** Resolve mode: "closed" (bulk auto-detect) */
-    mode: 'closed';
-    /** Whether --apply was used */
-    applied: boolean;
-    /** ISO 8601 timestamp */
-    timestamp: string;
-    /** shiori CLI version */
-    version: string;
-  };
+  meta: ResolveOutputMeta;
   data: {
     /** Per-ref summary (deduplicated from perRef) */
     refs: ResolveJsonRefSummary[];
@@ -80,31 +75,33 @@ function formatResolveAsJson(
   bulkResult: BulkResolveResult,
   applied: boolean,
 ): string {
+  const dataPayload = {
+    refs: bulkResult.perRef.map((entry) => ({
+      ref: entry.ref,
+      actions: entry.result.actions.length,
+      filesAffected: entry.result.filesAffected,
+      registryRemoval: entry.result.registryRemovals.length > 0,
+      skipped: entry.result.skipped.length,
+    })),
+    summary: {
+      totalRefs: bulkResult.perRef.length,
+      totalActions: bulkResult.allActions.length,
+      totalFilesAffected: bulkResult.totalFilesAffected,
+      totalRegistryRemovals: bulkResult.allRegistryRemovals.length,
+      totalSkipped: bulkResult.allSkipped.length,
+    },
+  };
+
+  const base = wrapOutput(dataPayload, {
+    command: 'resolve',
+    schemaVersion: 1,
+    includeTimestamp: true,
+  });
+
+  // Extend meta with resolve-specific fields (mode, applied)
   const output: ResolveJsonOutput = {
-    meta: {
-      command: 'resolve',
-      schemaVersion: 1,
-      mode: 'closed',
-      applied,
-      timestamp: new Date().toISOString(),
-      version: VERSION,
-    },
-    data: {
-      refs: bulkResult.perRef.map((entry) => ({
-        ref: entry.ref,
-        actions: entry.result.actions.length,
-        filesAffected: entry.result.filesAffected,
-        registryRemoval: entry.result.registryRemovals.length > 0,
-        skipped: entry.result.skipped.length,
-      })),
-      summary: {
-        totalRefs: bulkResult.perRef.length,
-        totalActions: bulkResult.allActions.length,
-        totalFilesAffected: bulkResult.totalFilesAffected,
-        totalRegistryRemovals: bulkResult.allRegistryRemovals.length,
-        totalSkipped: bulkResult.allSkipped.length,
-      },
-    },
+    meta: { ...base.meta, mode: 'closed', applied },
+    data: base.data,
   };
 
   return JSON.stringify(output, null, 2);

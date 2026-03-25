@@ -12,6 +12,7 @@ import type {
   WeeklyReportFormat,
   ReportInsight,
 } from '../core/types.ts';
+import { wrapOutputJson } from '../core/schema-envelope.ts';
 import { formatWeeklyReportAsMarkdown } from './weekly-report-formatter.ts';
 import { escapeHtml, healthColorCss } from '../core/html-utils.ts';
 
@@ -30,7 +31,10 @@ export function formatWeeklyReport(
     case 'html':
       return formatWeeklyReportAsHtml(metrics, preset);
     case 'json':
-      return JSON.stringify(metrics, null, 2);
+      return wrapOutputJson(metrics, {
+        command: 'weekly-report',
+        schemaVersion: 1,
+      });
     default:
       return assertNever(format);
   }

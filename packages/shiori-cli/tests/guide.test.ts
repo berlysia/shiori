@@ -265,7 +265,11 @@ describe('guide', () => {
     it('produces valid JSON with all groups', () => {
       const grouped = groupUseCases();
       const json = formatUseCasesJson(grouped);
-      const parsed = JSON.parse(json);
+      const envelope = JSON.parse(json);
+      assert.ok(envelope.meta, 'should have meta envelope');
+      assert.equal(envelope.meta.command, 'guide');
+      assert.equal(envelope.meta.schemaVersion, 1);
+      const parsed = envelope.data;
       assert.ok(Array.isArray(parsed));
       assert.equal(parsed.length, grouped.length);
     });
@@ -273,7 +277,8 @@ describe('guide', () => {
     it('each group in JSON has category and useCases', () => {
       const grouped = groupUseCases();
       const json = formatUseCasesJson(grouped);
-      const parsed = JSON.parse(json) as Array<{
+      const envelope = JSON.parse(json);
+      const parsed = envelope.data as Array<{
         category: string;
         categoryLabel: string;
         useCases: Array<{ id: string }>;
@@ -289,7 +294,8 @@ describe('guide', () => {
     it('includes options and recipes in JSON output', () => {
       const grouped = groupUseCases();
       const json = formatUseCasesJson(grouped);
-      const parsed = JSON.parse(json) as Array<{
+      const envelope = JSON.parse(json);
+      const parsed = envelope.data as Array<{
         useCases: Array<{
           id: string;
           options?: string[];
@@ -669,7 +675,11 @@ describe('wizard: formatWizardResultJson', () => {
     const ctx: GuideContext = { maturity: 2, healthScore: 85 };
     const result = rankUseCasesByContext(ctx);
     const json = formatWizardResultJson(result);
-    const parsed = JSON.parse(json) as {
+    const envelope = JSON.parse(json);
+    assert.ok(envelope.meta, 'should have meta envelope');
+    assert.equal(envelope.meta.command, 'guide');
+    assert.equal(envelope.meta.schemaVersion, 1);
+    const parsed = envelope.data as {
       context: GuideContext;
       recommendations: Array<{
         id: string;

@@ -13,6 +13,7 @@ import {
 } from './doctor.ts';
 import { assessMaturity } from './doctor/maturity.ts';
 import { loadConfigOnce } from './doctor/checks.ts';
+import { wrapOutputJson } from '../core/schema-envelope.ts';
 import { createFormatValidator } from '../core/cli-validation.ts';
 import {
   createInitContext,
@@ -328,7 +329,10 @@ export const doctorCommand = define({
 
       if (format === 'json') {
         console.log(
-          JSON.stringify({ ...result, upgrade: upgradeResult }, null, 2),
+          wrapOutputJson(
+            { ...result, upgrade: upgradeResult },
+            { command: 'doctor', schemaVersion: 1 },
+          ),
         );
       } else {
         console.error('');

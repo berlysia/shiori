@@ -414,7 +414,11 @@ describe('formatAnnotateAsJson', () => {
       existingRegistry: emptyRegistry,
     });
     const jsonStr = formatAnnotateAsJson({ file: 'app.ts', line: 1 }, result);
-    const output: AnnotateJsonOutput = JSON.parse(jsonStr);
+    const envelope = JSON.parse(jsonStr);
+    assert.ok(envelope.meta, 'should have meta envelope');
+    assert.equal(envelope.meta.command, 'annotate');
+    assert.equal(envelope.meta.schemaVersion, 1);
+    const output: AnnotateJsonOutput = envelope.data;
 
     assert.equal(output.file, 'app.ts');
     assert.equal(output.line, 1);
@@ -439,7 +443,11 @@ describe('formatAnnotateAsJson', () => {
       existingRegistry: emptyRegistry,
     });
     const jsonStr = formatAnnotateAsJson({ file: 'app.ts', line: 1 }, result);
-    const output: AnnotateJsonOutput = JSON.parse(jsonStr);
+    const envelope = JSON.parse(jsonStr);
+    assert.ok(envelope.meta, 'should have meta envelope');
+    assert.equal(envelope.meta.command, 'annotate');
+    assert.equal(envelope.meta.schemaVersion, 1);
+    const output: AnnotateJsonOutput = envelope.data;
 
     assert.equal(output.action, 'append');
     assert.equal(output.lineInserted, false);
@@ -459,7 +467,11 @@ describe('formatAnnotateAsJson', () => {
       existingRegistry: emptyRegistry,
     });
     const jsonStr = formatAnnotateAsJson({ file: 'app.ts', line: 1 }, result);
-    const output: AnnotateJsonOutput = JSON.parse(jsonStr);
+    const envelope = JSON.parse(jsonStr);
+    assert.ok(envelope.meta, 'should have meta envelope');
+    assert.equal(envelope.meta.command, 'annotate');
+    assert.equal(envelope.meta.schemaVersion, 1);
+    const output: AnnotateJsonOutput = envelope.data;
 
     assert.equal(output.registryEntry.reason, 'workaround');
     assert.equal(output.registryEntry.expires, '2026-12');
@@ -478,7 +490,11 @@ describe('formatAnnotateAsJson', () => {
       existingRegistry: emptyRegistry,
     });
     const jsonStr = formatAnnotateAsJson({ file: 'app.ts', line: 1 }, result);
-    const output: AnnotateJsonOutput = JSON.parse(jsonStr);
+    const envelope = JSON.parse(jsonStr);
+    assert.ok(envelope.meta, 'should have meta envelope');
+    assert.equal(envelope.meta.command, 'annotate');
+    assert.equal(envelope.meta.schemaVersion, 1);
+    const output: AnnotateJsonOutput = envelope.data;
 
     assert.ok(output.warnings.length > 0);
     assert.ok(output.warnings[0]!.includes('line length'));

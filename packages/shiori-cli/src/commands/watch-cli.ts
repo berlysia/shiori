@@ -21,6 +21,7 @@ import { ExitCode } from '../core/exit-codes.ts';
 import { computeDelta } from './delta.ts';
 import { verify } from './verify.ts';
 import type { ScanResult } from '../core/types.ts';
+import { wrapOutputJson } from '../core/schema-envelope.ts';
 
 function parseList(value: string | undefined, fallback: string[]): string[] {
   if (!value) return fallback;
@@ -273,7 +274,7 @@ export const watchCommand = define({
       await mkdir(dirname(outputPath), { recursive: true });
       await writeFile(
         outputPath,
-        JSON.stringify(result, null, 2) + '\n',
+        wrapOutputJson(result, { command: 'scan', schemaVersion: 1 }) + '\n',
         'utf-8',
       );
 

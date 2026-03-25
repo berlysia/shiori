@@ -122,6 +122,27 @@ export async function loadScanResult(
 }
 
 /**
+ * Unwrap ADR 028 envelope if present.
+ * Returns `data.data` when the object looks like `{ meta: {...}, data: {...} }`,
+ * otherwise returns the input unchanged. This allows scan-result-loader to
+ * transparently handle both envelope-wrapped and raw scan results.
+ */
+function maybeUnwrapEnvelope(data: unknown): unknown {
+  if (typeof data !== 'object' || data === null || Array.isArray(data)) {
+    return data;
+  }
+  const obj = data as Record<string, unknown>;
+  if (
+    typeof obj['meta'] === 'object' &&
+    obj['meta'] !== null &&
+    'data' in obj
+  ) {
+    return obj['data'];
+  }
+  return data;
+}
+
+/**
  * Minimal shape validation for parsed scan result JSON.
  * Ensures the top-level structure has an `annotations` array.
  */
@@ -173,8 +194,9 @@ export async function loadScanResultFromFile(
     );
   }
 
-  assertScanResultShape(parsed, filePath);
-  return parsed;
+  const unwrapped = maybeUnwrapEnvelope(parsed);
+  assertScanResultShape(unwrapped, filePath);
+  return unwrapped;
 }
 
 async function readFromStdin(): Promise<ScanResult> {
@@ -200,6 +222,7 @@ async function readFromStdin(): Promise<ScanResult> {
     );
   }
 
-  assertScanResultShape(parsed, 'stdin');
-  return parsed;
+  const unwrapped = maybeUnwrapEnvelope(parsed);
+  assertScanResultShape(unwrapped, 'stdin');
+  return unwrapped;
 }

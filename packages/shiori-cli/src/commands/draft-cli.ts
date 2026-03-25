@@ -4,6 +4,7 @@ import { dirname, resolve } from 'node:path';
 import { loadConfig } from '../core/config.ts';
 import { loadScanResult } from '../core/scan-result-loader.ts';
 import { listDrafts } from './draft.ts';
+import { wrapOutputJson } from '../core/schema-envelope.ts';
 import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
 import { ExitCode } from '../core/exit-codes.ts';
 
@@ -53,7 +54,7 @@ export const draftCommand = define({
     });
 
     const result = listDrafts(scanResult.annotations);
-    const json = JSON.stringify(result, null, 2);
+    const json = wrapOutputJson(result, { command: 'draft', schemaVersion: 1 });
 
     if (ctx.values.output) {
       const outputPath = resolve(cwd, ctx.values.output);

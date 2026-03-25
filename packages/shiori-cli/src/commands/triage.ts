@@ -8,6 +8,7 @@ import {
   type VerifyResult,
   type TriageFormat,
 } from '../core/types.ts';
+import { wrapOutputJson } from '../core/schema-envelope.ts';
 import { resolveRefUrl } from '../core/ref-pattern.ts';
 import { verify, type VerifyOptions } from './verify.ts';
 import { ACTION_HINTS } from '../core/action-hints.ts';
@@ -437,7 +438,10 @@ export function formatTriageOutput(
     case 'markdown':
       return formatTriageAsMarkdown(result);
     case 'json':
-      return JSON.stringify(result, null, 2);
+      return wrapOutputJson(result, {
+        command: 'triage',
+        schemaVersion: 1,
+      });
     default:
       return assertNever(format);
   }

@@ -188,7 +188,8 @@ describe('formatResolveOutput', () => {
       });
 
       const parsed: ResolveJsonOutput = JSON.parse(output);
-      // Verify ISO 8601 format (Date constructor should parse it)
+      // Verify timestamp is present and valid ISO 8601
+      assert.ok(parsed.meta.timestamp, 'timestamp should be present');
       const date = new Date(parsed.meta.timestamp);
       assert.ok(!isNaN(date.getTime()), 'timestamp should be valid ISO 8601');
     });

@@ -299,7 +299,11 @@ describe('formatSummary', () => {
 
   it('formats as JSON', () => {
     const output = formatSummary(cleanResult, 'json');
-    const parsed = JSON.parse(output);
+    const envelope = JSON.parse(output);
+    assert.ok(envelope.meta, 'should have meta envelope');
+    assert.equal(envelope.meta.command, 'summary');
+    assert.equal(envelope.meta.schemaVersion, 1);
+    const parsed = envelope.data;
     assert.equal(parsed.health.health.score, 100);
     assert.equal(parsed.health.health.level, 'healthy');
     assert.ok(parsed.timestamp);
@@ -432,11 +436,11 @@ describe('summary _reportResult', () => {
     });
 
     const json = formatSummary(result, 'json');
-    const parsed = JSON.parse(json);
-    assert.equal(parsed._reportResult, undefined);
+    const envelope = JSON.parse(json);
+    assert.equal(envelope.data._reportResult, undefined);
     // Other fields should still be present
-    assert.ok(parsed.health);
-    assert.ok(parsed.timestamp);
+    assert.ok(envelope.data.health);
+    assert.ok(envelope.data.timestamp);
   });
 });
 

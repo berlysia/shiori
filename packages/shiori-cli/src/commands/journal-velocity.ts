@@ -10,6 +10,7 @@
  */
 
 import { assertNever } from '../core/types.ts';
+import { wrapOutputJson } from '../core/schema-envelope.ts';
 import type {
   CliJournalEntry,
   JournalVelocityPoint,
@@ -310,7 +311,10 @@ export function formatJournalVelocity(
     case 'spark':
       return formatVelocityAsSpark(result);
     case 'json':
-      return JSON.stringify(result, null, 2);
+      return wrapOutputJson(result, {
+        command: 'journal-velocity',
+        schemaVersion: 1,
+      });
     default:
       return assertNever(format);
   }

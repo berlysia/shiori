@@ -8,6 +8,7 @@ import {
   type ScanResult,
   type ReportResult,
 } from '../core/types.ts';
+import { wrapOutputJson } from '../core/schema-envelope.ts';
 import { healthEmoji, trendArrow } from '../core/emoji.ts';
 import { buildSparkline } from '../core/sparkline.ts';
 import { renderBox, type BoxSection } from '../core/box-drawing.ts';
@@ -524,7 +525,10 @@ export function formatSummary(
     case 'json': {
       // Exclude internal _reportResult from JSON serialization
       const { _reportResult: _, ...serializable } = result;
-      return JSON.stringify(serializable, null, 2);
+      return wrapOutputJson(serializable, {
+        command: 'summary',
+        schemaVersion: 1,
+      });
     }
     case 'pulse':
       return formatSummaryAsPulse(result);

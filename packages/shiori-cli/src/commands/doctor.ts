@@ -8,6 +8,7 @@ import {
   type MaturityResult,
   type MaturityLevel,
 } from '../core/types.ts';
+import { wrapOutputJson } from '../core/schema-envelope.ts';
 import type { DoctorOptions } from './doctor/types.ts';
 import {
   loadConfigOnce,
@@ -215,7 +216,10 @@ export function formatDoctor(
 ): string {
   switch (format) {
     case 'json':
-      return JSON.stringify(result, null, 2);
+      return wrapOutputJson(result, {
+        command: 'doctor',
+        schemaVersion: 1,
+      });
     case 'text':
       return formatDoctorText(result, showFix);
     default:

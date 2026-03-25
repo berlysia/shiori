@@ -613,7 +613,11 @@ describe('formatTriageOutput', () => {
     });
 
     const output = formatTriageOutput(result, 'json');
-    const parsed = JSON.parse(output);
+    const envelope = JSON.parse(output);
+    assert.ok(envelope.meta, 'should have meta envelope');
+    assert.equal(envelope.meta.command, 'triage');
+    assert.equal(envelope.meta.schemaVersion, 1);
+    const parsed = envelope.data;
 
     assert.equal(parsed.summary.total, 0);
   });

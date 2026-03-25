@@ -1,4 +1,5 @@
 import type { RegistryEntry, AnnotateResult } from '../core/types.ts';
+import { wrapOutputJson } from '../core/schema-envelope.ts';
 
 /**
  * JSON output schema for annotate command.
@@ -52,5 +53,8 @@ export function formatAnnotateAsJson(
     warnings: result.warnings,
   };
 
-  return JSON.stringify(output, null, 2);
+  return wrapOutputJson(output, {
+    command: 'annotate',
+    schemaVersion: 1,
+  });
 }

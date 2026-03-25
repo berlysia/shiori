@@ -7,6 +7,7 @@ import {
   type ShioriCandidate,
   type VerifyResult,
 } from '../core/types.ts';
+import { wrapOutputJson } from '../core/schema-envelope.ts';
 import { formatVerifyResultAsMarkdown } from './markdown.ts';
 import { formatDeltaAsMarkdown } from './delta-markdown.ts';
 import { formatAsDiagnostic } from './diagnostic.ts';
@@ -86,7 +87,10 @@ export function formatVerifyOutput(options: FormatVerifyOutputOptions): string {
     case 'github-summary':
       return formatVerifyAsGitHubSummary(verifyResult);
     case 'json':
-      return JSON.stringify(verifyResult, null, 2);
+      return wrapOutputJson(verifyResult, {
+        command: 'verify',
+        schemaVersion: 1,
+      });
     default:
       return assertNever(format);
   }
@@ -106,7 +110,10 @@ export function formatDeltaOutput(options: FormatDeltaOutputOptions): string {
     case 'markdown':
       return formatDeltaAsMarkdown(deltaResult, { maxIncrease });
     case 'json':
-      return JSON.stringify(deltaResult, null, 2);
+      return wrapOutputJson(deltaResult, {
+        command: 'delta',
+        schemaVersion: 1,
+      });
     default:
       return assertNever(format);
   }

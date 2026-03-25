@@ -489,7 +489,11 @@ describe('formatJournalVelocity', () => {
       makeEntry({ timestamp: '2026-03-18T10:00:00.000Z' }),
     ]);
     const output = formatJournalVelocity(result, 'json');
-    const parsed = JSON.parse(output) as JournalVelocityResult;
+    const envelope = JSON.parse(output);
+    assert.ok(envelope.meta, 'should have meta envelope');
+    assert.equal(envelope.meta.command, 'journal-velocity');
+    assert.equal(envelope.meta.schemaVersion, 1);
+    const parsed = envelope.data as JournalVelocityResult;
 
     assert.equal(parsed.points.length, 1);
     assert.equal(parsed.summary.direction, 'shrinking');

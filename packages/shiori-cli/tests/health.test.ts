@@ -289,7 +289,11 @@ describe('formatHealth', () => {
     });
 
     const output = formatHealth(result, 'json');
-    const parsed = JSON.parse(output);
+    const envelope = JSON.parse(output);
+    assert.ok(envelope.meta, 'should have meta envelope');
+    assert.equal(envelope.meta.command, 'health');
+    assert.equal(envelope.meta.schemaVersion, 1);
+    const parsed = envelope.data;
     assert.equal(parsed.health.score, 100);
     assert.equal(parsed.health.level, 'healthy');
     assert.equal(parsed.issues.total, 0);

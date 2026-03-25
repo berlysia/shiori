@@ -6,6 +6,7 @@ import type {
   DeltaResult,
   ComputeDeltaOptions,
 } from '../core/types.ts';
+import { wrapOutputJson } from '../core/schema-envelope.ts';
 
 // Re-export types for backward compatibility
 export type {
@@ -129,5 +130,8 @@ export function filterDelta(
  * Format a DeltaResult as JSON string.
  */
 export function formatDeltaAsJson(result: DeltaResult): string {
-  return JSON.stringify(result, null, 2);
+  return wrapOutputJson(result, {
+    command: 'delta',
+    schemaVersion: 1,
+  });
 }

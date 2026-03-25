@@ -5,6 +5,7 @@ import {
 } from '../core/registry-loader.ts';
 import { loadScanResult } from '../core/scan-result-loader.ts';
 import { show, isFound } from './show.ts';
+import { wrapOutputJson } from '../core/schema-envelope.ts';
 import { ExitCode } from '../core/exit-codes.ts';
 
 export const showCommand = define({
@@ -69,7 +70,7 @@ export const showCommand = define({
       refPatterns: config.refPatterns,
     });
 
-    console.log(JSON.stringify(result, null, 2));
+    console.log(wrapOutputJson(result, { command: 'show', schemaVersion: 1 }));
 
     if (!isFound(result)) {
       process.exitCode = ExitCode.USAGE_ERROR;

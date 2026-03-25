@@ -13,6 +13,7 @@ import type {
   MaturityLevel,
   ReportResult,
 } from '../core/types.ts';
+import { wrapOutputJson } from '../core/schema-envelope.ts';
 
 // ── Use-case mapping data ─────────────────────────────────────
 
@@ -483,7 +484,7 @@ export function formatAllUseCases(grouped: GroupedUseCases): string {
  * Format grouped use cases as JSON — for pipe/scripting.
  */
 export function formatUseCasesJson(grouped: GroupedUseCases): string {
-  return JSON.stringify(grouped, null, 2);
+  return wrapOutputJson(grouped, { command: 'guide', schemaVersion: 1 });
 }
 
 // ── Wizard logic (EP-0100) ──────────────────────────────────
@@ -657,7 +658,7 @@ export function formatWizardResult(result: WizardResult): string {
  * Format wizard result as JSON — for pipe/scripting.
  */
 export function formatWizardResultJson(result: WizardResult): string {
-  return JSON.stringify(
+  return wrapOutputJson(
     {
       context: result.context,
       recommendations: result.recommendations.map((r) => ({
@@ -669,8 +670,7 @@ export function formatWizardResultJson(result: WizardResult): string {
         score: r.score,
       })),
     },
-    null,
-    2,
+    { command: 'guide', schemaVersion: 1 },
   );
 }
 

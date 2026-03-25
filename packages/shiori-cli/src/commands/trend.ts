@@ -1,4 +1,5 @@
 import { assertNever } from '../core/types.ts';
+import { wrapOutputJson } from '../core/schema-envelope.ts';
 import type {
   TrendPoint,
   TrendDirection,
@@ -238,7 +239,10 @@ export function formatTrend(result: TrendResult, format: TrendFormat): string {
     case 'spark':
       return formatTrendAsSpark(result);
     case 'json':
-      return JSON.stringify(result, null, 2);
+      return wrapOutputJson(result, {
+        command: 'trend',
+        schemaVersion: 1,
+      });
     default:
       return assertNever(format);
   }

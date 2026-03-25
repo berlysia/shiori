@@ -162,3 +162,28 @@ export async function createTempBase(prefix: string): Promise<{
     cleanup: () => rm(baseDir, { recursive: true, force: true }),
   };
 }
+
+/**
+ * Unwrap ADR 028 schema envelope from CLI JSON output.
+ * Parses the JSON string, validates the envelope structure, and returns the data payload.
+ */
+export function unwrapEnvelope<T = unknown>(
+  jsonString: string,
+  expectedCommand?: string,
+): T {
+  const envelope = JSON.parse(jsonString);
+  if (!envelope.meta || typeof envelope.meta.schemaVersion !== 'number') {
+    throw new Error(
+      `Expected ADR 028 envelope but got: ${JSON.stringify(envelope).slice(0, 200)}`,
+    );
+  }
+  if (
+    expectedCommand !== undefined &&
+    envelope.meta.command !== expectedCommand
+  ) {
+    throw new Error(
+      `Expected command "${expectedCommand}" but got "${envelope.meta.command}"`,
+    );
+  }
+  return envelope.data as T;
+}

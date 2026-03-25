@@ -11,6 +11,7 @@ import {
 } from './health.ts';
 import { formatHealthAsGitHubSummary } from '../formatters/github-summary-formatter.ts';
 import { assertNever } from '../core/types.ts';
+import { wrapOutputJson } from '../core/schema-envelope.ts';
 import {
   triage,
   formatTriageOutput,
@@ -55,7 +56,10 @@ export function formatHealth(
     case 'github-summary':
       return formatHealthAsGitHubSummary(result);
     case 'json':
-      return JSON.stringify(result, null, 2);
+      return wrapOutputJson(result, {
+        command: 'health',
+        schemaVersion: 1,
+      });
     default:
       return assertNever(format);
   }

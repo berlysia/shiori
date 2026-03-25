@@ -13,6 +13,7 @@ import {
 import { assertWithinCwd, PathBoundaryError } from '../core/path-boundary.ts';
 import { writeOutput } from '../core/cli-output.ts';
 import { detectWorkspaces } from '../core/workspace.ts';
+import { wrapOutputJson } from '../core/schema-envelope.ts';
 import { scanWorkspaces, type PackageScanResult } from './scan-workspaces.ts';
 import { resolveRefStatusMap } from '../core/ref-status-providers/index.ts';
 import {
@@ -207,7 +208,8 @@ export const checkCommand = define({
       await mkdir(dirname(scanOutputPath), { recursive: true });
       await writeFile(
         scanOutputPath,
-        JSON.stringify(scanResult, null, 2) + '\n',
+        wrapOutputJson(scanResult, { command: 'scan', schemaVersion: 1 }) +
+          '\n',
         'utf-8',
       );
       console.error(`Scan result saved to ${regCtx.config.paths.scanResult}`);
@@ -265,7 +267,10 @@ export const checkCommand = define({
         packages: packageSummaries,
         verifyResult,
       };
-      output = JSON.stringify(workspaceOutput, null, 2);
+      output = wrapOutputJson(workspaceOutput, {
+        command: 'check',
+        schemaVersion: 1,
+      });
     } else {
       output = formatVerifyOutput({
         format,

@@ -5,6 +5,7 @@ import {
 } from '../core/registry-loader.ts';
 import { loadScanResult } from '../core/scan-result-loader.ts';
 import { why, isFound } from './why.ts';
+import { wrapOutputJson } from '../core/schema-envelope.ts';
 import { ExitCode } from '../core/exit-codes.ts';
 
 export const whyCommand = define({
@@ -78,7 +79,7 @@ export const whyCommand = define({
     });
 
     if (ctx.values.json) {
-      console.log(JSON.stringify(result, null, 2));
+      console.log(wrapOutputJson(result, { command: 'why', schemaVersion: 1 }));
     } else {
       for (const line of result.summary) {
         console.error(line);

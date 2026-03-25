@@ -309,7 +309,11 @@ describe('annotate-cli: --format json (EP-0058)', () => {
     ]);
 
     assert.equal(exitCode, 0);
-    const output = JSON.parse(stdout);
+    const envelope = JSON.parse(stdout);
+    assert.ok(envelope.meta, 'should have meta envelope');
+    assert.equal(envelope.meta.command, 'annotate');
+    assert.equal(envelope.meta.schemaVersion, 1);
+    const output = envelope.data;
     assert.equal(output.file, 'src/app.ts');
     assert.equal(output.line, 1);
     assert.equal(output.ref, 'SUP-1234');
@@ -340,7 +344,10 @@ describe('annotate-cli: --format json (EP-0058)', () => {
     ]);
 
     assert.equal(exitCode, 0);
-    const output = JSON.parse(stdout);
+    const envelope2 = JSON.parse(stdout);
+    assert.ok(envelope2.meta, 'should have meta envelope');
+    assert.equal(envelope2.meta.command, 'annotate');
+    const output = envelope2.data;
     assert.equal(output.file, 'src/util.ts');
     assert.equal(output.ref, 'DEV-001');
     assert.equal(output.action, 'insert');
@@ -380,9 +387,12 @@ describe('annotate-cli: --format json (EP-0058)', () => {
 
     // Verify output file was written
     const outputContent = await readFile(join(dir, 'result.json'), 'utf-8');
-    const output = JSON.parse(outputContent);
-    assert.equal(output.file, 'src/app.ts');
-    assert.equal(output.ref, 'SUP-9999');
+    const envelope3 = JSON.parse(outputContent);
+    assert.ok(envelope3.meta, 'should have meta envelope');
+    assert.equal(envelope3.meta.command, 'annotate');
+    const output3 = envelope3.data;
+    assert.equal(output3.file, 'src/app.ts');
+    assert.equal(output3.ref, 'SUP-9999');
   });
 
   it('rejects invalid --format value', async () => {

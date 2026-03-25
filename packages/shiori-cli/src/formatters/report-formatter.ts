@@ -6,6 +6,7 @@ import type {
   MaturityLevel,
   MaturityStage,
 } from '../core/types.ts';
+import { wrapOutputJson } from '../core/schema-envelope.ts';
 import { healthEmoji, insightIcon } from '../core/emoji.ts';
 import {
   formatReportAsHtml,
@@ -187,7 +188,10 @@ export function formatReportOutput(
     case 'github-summary':
       return formatReportAsGitHubSummary(result);
     case 'json':
-      return JSON.stringify(result, null, 2);
+      return wrapOutputJson(result, {
+        command: 'report',
+        schemaVersion: 1,
+      });
     default:
       return assertNever(format);
   }

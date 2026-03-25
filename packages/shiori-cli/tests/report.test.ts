@@ -787,7 +787,11 @@ describe('formatReport', () => {
   it('formats as JSON', () => {
     const result = makeReportResult();
     const output = formatReport(result, 'json');
-    const parsed = JSON.parse(output) as ReportResult;
+    const envelope = JSON.parse(output);
+    assert.ok(envelope.meta, 'should have meta envelope');
+    assert.equal(envelope.meta.command, 'report');
+    assert.equal(envelope.meta.schemaVersion, 1);
+    const parsed = envelope.data as ReportResult;
     assert.equal(parsed.health.level, result.health.level);
     assert.equal(parsed.totals.annotations, 2);
   });

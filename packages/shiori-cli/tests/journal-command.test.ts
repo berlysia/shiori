@@ -301,7 +301,11 @@ describe('formatJournalAsJson', () => {
     };
 
     const output = formatJournalAsJson(input);
-    const parsed = JSON.parse(output);
+    const envelope = JSON.parse(output);
+    assert.ok(envelope.meta, 'should have meta envelope');
+    assert.equal(envelope.meta.command, 'journal');
+    assert.equal(envelope.meta.schemaVersion, 1);
+    const parsed = envelope.data;
 
     assert.equal(parsed.entries.length, 1);
     assert.equal(parsed.totalCount, 5);
@@ -341,7 +345,11 @@ describe('formatJournal', () => {
 
   it('dispatches to json format', () => {
     const result = formatJournal(input, 'json');
-    const parsed = JSON.parse(result);
+    const envelope = JSON.parse(result);
+    assert.ok(envelope.meta, 'should have meta envelope');
+    assert.equal(envelope.meta.command, 'journal');
+    assert.equal(envelope.meta.schemaVersion, 1);
+    const parsed = envelope.data;
     assert.equal(parsed.entries.length, 1);
   });
 });

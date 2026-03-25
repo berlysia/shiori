@@ -27,6 +27,7 @@ import {
   DEFAULT_SCAN_PATTERNS,
   DEFAULT_SCAN_IGNORE,
 } from '../core/scan-defaults.ts';
+import { wrapOutputJson } from '../core/schema-envelope.ts';
 import {
   DEFAULT_CANDIDATE_PATTERNS,
   resolveCandidatePatterns,
@@ -219,7 +220,7 @@ export async function stepScan(
   await mkdir(dirname(ctx.scanResultPath), { recursive: true });
   await writeFile(
     ctx.scanResultPath,
-    JSON.stringify(scanResult, null, 2) + '\n',
+    wrapOutputJson(scanResult, { command: 'scan', schemaVersion: 1 }) + '\n',
     'utf-8',
   );
 }

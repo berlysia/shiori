@@ -324,7 +324,11 @@ describe('formatDoctor', () => {
     };
 
     const output = formatDoctor(result, 'json', false);
-    const parsed = JSON.parse(output);
+    const envelope = JSON.parse(output);
+    assert.ok(envelope.meta, 'should have meta envelope');
+    assert.equal(envelope.meta.command, 'doctor');
+    assert.equal(envelope.meta.schemaVersion, 1);
+    const parsed = envelope.data;
     assert.equal(parsed.checks.length, 1);
     assert.equal(parsed.checks[0].status, 'pass');
     assert.equal(parsed.summary.pass, 1);

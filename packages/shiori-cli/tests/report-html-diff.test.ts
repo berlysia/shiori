@@ -121,8 +121,11 @@ describe('formatReportOutput with htmlOptions', () => {
 
     const output = formatReportOutput(result, 'json', { delta });
 
-    // Should be valid JSON without delta sections
-    const parsed = JSON.parse(output) as ReportResult;
+    // Should be valid JSON with envelope
+    const envelope = JSON.parse(output);
+    assert.ok(envelope.meta, 'should have meta envelope');
+    assert.equal(envelope.meta.command, 'report');
+    const parsed = envelope.data as ReportResult;
     assert.equal(parsed.health.level, result.health.level);
     assert.equal(parsed.totals.annotations, 2);
   });

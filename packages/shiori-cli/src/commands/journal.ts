@@ -11,6 +11,7 @@ import type {
   CliOperationType,
   JournalFormat,
 } from '../core/types.ts';
+import { wrapOutputJson } from '../core/schema-envelope.ts';
 
 /** Options for filtering journal entries */
 export interface JournalFilterOptions {
@@ -144,14 +145,16 @@ export function formatJournalAsTable(result: JournalFilterResult): string {
  * Format journal filter result as JSON string.
  */
 export function formatJournalAsJson(result: JournalFilterResult): string {
-  return JSON.stringify(
+  return wrapOutputJson(
     {
       entries: result.entries,
       totalCount: result.totalCount,
       filteredOutCount: result.filteredOutCount,
     },
-    null,
-    2,
+    {
+      command: 'journal',
+      schemaVersion: 1,
+    },
   );
 }
 

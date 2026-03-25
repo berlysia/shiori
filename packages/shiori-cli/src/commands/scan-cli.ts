@@ -16,6 +16,7 @@ import {
   DEFAULT_SCAN_PATTERNS,
   DEFAULT_SCAN_IGNORE,
 } from '../core/scan-defaults.ts';
+import { wrapOutputJson } from '../core/schema-envelope.ts';
 import { loadConfigAndRegistry } from '../core/registry-loader.ts';
 import { RegistryNotFoundError } from '../core/errors.ts';
 import { ExitCode } from '../core/exit-codes.ts';
@@ -128,7 +129,7 @@ export const scanCommand = define({
       cwd,
       providerOptions: { candidatePatterns: config.candidatePatterns },
     });
-    const json = JSON.stringify(result, null, 2);
+    const json = wrapOutputJson(result, { command: 'scan', schemaVersion: 1 });
 
     if (ctx.values.output) {
       // Explicit --output: write to specified path (resolved against cwd)
