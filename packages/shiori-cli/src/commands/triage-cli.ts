@@ -34,6 +34,7 @@ import {
   DEFAULT_SCAN_IGNORE,
 } from '../core/scan-defaults.ts';
 import { writeOutput } from '../core/cli-output.ts';
+import { wrapOutputJson } from '../core/schema-envelope.ts';
 import {
   resolveExpiringThreshold,
   warnIfGitDirty,
@@ -262,7 +263,10 @@ export const triageCommand = define({
       const actionable = sessionResult.processed.filter((p) => p.actionType);
       if (actionable.length === 0) {
         // No executable actions — output session result as JSON and exit
-        const wizardOutput = JSON.stringify(sessionResult, null, 2);
+        const wizardOutput = wrapOutputJson(sessionResult, {
+          command: 'triage',
+          schemaVersion: 1,
+        });
         process.stdout.write(wizardOutput + '\n');
         if (verifyResult.summary.errors > 0) {
           process.exitCode = ExitCode.GOVERNANCE_VIOLATION;
@@ -308,7 +312,10 @@ export const triageCommand = define({
       rl.close();
       if (answer.trim().toLowerCase() !== 'y') {
         console.error('Aborted. No changes applied.');
-        const wizardOutput = JSON.stringify(sessionResult, null, 2);
+        const wizardOutput = wrapOutputJson(sessionResult, {
+          command: 'triage',
+          schemaVersion: 1,
+        });
         process.stdout.write(wizardOutput + '\n');
         if (verifyResult.summary.errors > 0) {
           process.exitCode = ExitCode.GOVERNANCE_VIOLATION;
@@ -380,7 +387,10 @@ export const triageCommand = define({
       );
 
       // Output session result as JSON to stdout
-      const wizardOutput = JSON.stringify(sessionResult, null, 2);
+      const wizardOutput = wrapOutputJson(sessionResult, {
+        command: 'triage',
+        schemaVersion: 1,
+      });
       process.stdout.write(wizardOutput + '\n');
 
       // Exit code: fail when --fail-on issues produce errors

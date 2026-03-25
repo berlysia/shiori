@@ -34,6 +34,8 @@ jobs:
         if: matrix.node-version == 22
       - run: pnpm --filter @berlysia/shiori run lint:boundaries
         if: matrix.node-version == 22
+      - run: pnpm --filter @berlysia/shiori run lint:envelope
+        if: matrix.node-version == 22
       - run: pnpm format:check
         if: matrix.node-version == 22
       - run: pnpm test

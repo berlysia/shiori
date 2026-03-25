@@ -24,6 +24,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm --filter @berlysia/shiori run lint:boundaries
+      - run: pnpm --filter @berlysia/shiori run lint:envelope
       - run: pnpm format:check
       - run: pnpm test
 

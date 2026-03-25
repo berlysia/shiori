@@ -58,6 +58,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "oxlint src/ tests/ --ignore-pattern 'tests/fixtures/**'",
     "lint:boundaries": "depcruise 'src/**/*.ts' --config .dependency-cruiser.cjs",
+    "lint:envelope": "bash scripts/lint-envelope.sh",
     "link:local": "pnpm build && pnpm link --global",
     "unlink:local": "pnpm unlink --global",
     "build:bundle": "esbuild src/cli.ts --bundle --format=esm --target=es2022 --outfile=dist/shiori-bundle.mjs --platform=node --banner:js=\"import{createRequire}from'module';const require=createRequire(import.meta.url);\"",
