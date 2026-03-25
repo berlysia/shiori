@@ -315,6 +315,8 @@ export const summaryCommand = define({
           console.error(`Warning: No JSON files found in ${dir}`),
         onLoaded: (count, dir) =>
           console.error(`Loaded ${count} report(s) from ${dir}`),
+        onSkipped: (file, reason) =>
+          console.error(`Warning: Skipped ${file}: ${reason}`),
       });
       if (reports !== null) {
         trendReports = reports;

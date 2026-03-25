@@ -143,6 +143,25 @@ describe('loadReportFiles', () => {
     assert.equal(result.length, 1);
   });
 
+  it('calls onSkipped for invalid JSON files', async () => {
+    await writeFile(join(tmpDir, 'bad.json'), 'not valid json{{{');
+    await writeFile(
+      join(tmpDir, 'good.json'),
+      makeReportJson({ timestamp: '2026-01-01T00:00:00.000Z' }),
+    );
+
+    const skipped: Array<{ fileName: string; reason: string }> = [];
+    const result = await loadReportFiles(tmpDir, {
+      onSkipped: (fileName, reason) => skipped.push({ fileName, reason }),
+    });
+
+    assert.ok(result);
+    assert.equal(result.length, 1);
+    assert.equal(skipped.length, 1);
+    assert.equal(skipped[0]!.fileName, 'bad.json');
+    assert.ok(skipped[0]!.reason.startsWith('JSON parse error:'));
+  });
+
   it('skips JSON files without required fields', async () => {
     await writeFile(
       join(tmpDir, 'incomplete.json'),
@@ -157,6 +176,28 @@ describe('loadReportFiles', () => {
 
     assert.ok(result);
     assert.equal(result.length, 1);
+  });
+
+  it('calls onSkipped for files with invalid shape', async () => {
+    await writeFile(
+      join(tmpDir, 'incomplete.json'),
+      JSON.stringify({ foo: 'bar' }),
+    );
+    await writeFile(
+      join(tmpDir, 'valid.json'),
+      makeReportJson({ timestamp: '2026-01-01T00:00:00.000Z' }),
+    );
+
+    const skipped: Array<{ fileName: string; reason: string }> = [];
+    const result = await loadReportFiles(tmpDir, {
+      onSkipped: (fileName, reason) => skipped.push({ fileName, reason }),
+    });
+
+    assert.ok(result);
+    assert.equal(result.length, 1);
+    assert.equal(skipped.length, 1);
+    assert.equal(skipped[0]!.fileName, 'incomplete.json');
+    assert.ok(skipped[0]!.reason.includes('Invalid report shape'));
   });
 
   it('returns null when all JSON files are invalid', async () => {
@@ -308,6 +349,24 @@ describe('isReportShape', () => {
         timestamp: '2026-01-01T00:00:00.000Z',
         health: { level: 'excellent', score: 100 },
         totals: { annotations: 5, candidates: 0, issues: 0 },
+      }),
+      false,
+    );
+  });
+
+  it('rejects NaN health.score', () => {
+    assert.equal(
+      isReportShape({
+        timestamp: '2026-01-01T00:00:00.000Z',
+        health: { level: 'healthy', score: NaN },
+        totals: {
+          annotations: 5,
+          candidates: 0,
+          issues: 0,
+          registryEntries: 5,
+          errors: 0,
+          warnings: 0,
+        },
       }),
       false,
     );

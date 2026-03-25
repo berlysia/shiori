@@ -307,6 +307,9 @@ export const coachCommand = define({
           onLoaded: (count, dir) => {
             console.error(`Narrative: loaded ${count} snapshot(s) from ${dir}`);
           },
+          onSkipped: (file, reason) => {
+            console.error(`Warning: Skipped ${file}: ${reason}`);
+          },
         });
 
         if (reports === null) {

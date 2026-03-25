@@ -152,6 +152,11 @@ const COMBINED_PROMPT = `あなたはソフトウェアガバナンスの専門�
 {{WEEKLY_REPORT_JSON}}
 \`\`\`
 
+## Health レポート
+\`\`\`json
+{{HEALTH_JSON}}
+\`\`\`
+
 ## ガバナンス変動ナラティブ
 \`\`\`json
 {{NARRATIVE}}

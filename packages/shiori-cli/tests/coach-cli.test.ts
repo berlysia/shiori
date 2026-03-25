@@ -1,12 +1,77 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
   runCli,
   createTempBase,
   createFixtureDir,
 } from './helpers/cli-test-utils.ts';
+
+/** Create a minimal valid ReportResult JSON for snapshot tests */
+function makeReportJson(overrides: {
+  timestamp?: string;
+  score?: number;
+}): string {
+  const timestamp = overrides.timestamp ?? '2026-01-01T00:00:00.000Z';
+  const score = overrides.score ?? 100;
+  const level = score >= 80 ? 'healthy' : score >= 50 ? 'warning' : 'critical';
+  return JSON.stringify(
+    {
+      timestamp,
+      health: { level, score, summary: `Score: ${score}/100` },
+      totals: {
+        annotations: 5,
+        candidates: 0,
+        registryEntries: 5,
+        issues: 0,
+        errors: 0,
+        warnings: 0,
+      },
+      insights: [],
+      byType: {
+        'missing-in-registry': 0,
+        'unused-in-source': 0,
+        expired: 0,
+        'syntax-error': 0,
+        'ref-format': 0,
+        'ref-collision': 0,
+        'unrouted-ref': 0,
+        'registry-routing-mismatch': 0,
+        'expiring-soon': 0,
+        'ref-status-closed': 0,
+      },
+      byRule: [],
+      byKind: [],
+      byOwner: [],
+      verifyResult: {
+        timestamp,
+        issues: [],
+        summary: {
+          total: 0,
+          errors: 0,
+          warnings: 0,
+          byType: {
+            'missing-in-registry': 0,
+            'unused-in-source': 0,
+            expired: 0,
+            'syntax-error': 0,
+            'ref-format': 0,
+            'ref-collision': 0,
+            'unrouted-ref': 0,
+            'registry-routing-mismatch': 0,
+            'expiring-soon': 0,
+            'ref-status-closed': 0,
+          },
+        },
+        scannedRecords: 5,
+        registryEntries: 5,
+      },
+    },
+    null,
+    2,
+  );
+}
 
 describe('coach-cli: integration tests', () => {
   let baseDir: string;
@@ -299,6 +364,166 @@ describe('coach-cli: integration tests', () => {
       // Verify file was written
       const content = await readFile(outputPath, 'utf-8');
       assert.ok(content.includes('ガバナンスの専門家'));
+    });
+  });
+
+  describe('narrative flags (EP-0151)', () => {
+    /** Create snapshot history directory with two report files */
+    async function createSnapshotHistory(dir: string): Promise<string> {
+      const historyDir = join(dir, 'reports');
+      await mkdir(historyDir, { recursive: true });
+      await writeFile(
+        join(historyDir, 'report-old.json'),
+        makeReportJson({
+          timestamp: '2026-01-01T00:00:00.000Z',
+          score: 70,
+        }),
+      );
+      await writeFile(
+        join(historyDir, 'report-new.json'),
+        makeReportJson({
+          timestamp: '2026-02-01T00:00:00.000Z',
+          score: 90,
+        }),
+      );
+      return historyDir;
+    }
+
+    it('embeds narrative from --narrative-history into combined template', async () => {
+      const dir = await createCoachFixture('narr-history');
+      const historyDir = await createSnapshotHistory(dir);
+      const { exitCode, stdout, stderr } = await runCli(
+        [
+          'coach',
+          '--cwd',
+          dir,
+          '--patterns',
+          'src/**/*.ts',
+          '--template',
+          'combined',
+          '--narrative-history',
+          historyDir,
+        ],
+        { baseDir },
+      );
+
+      assert.equal(exitCode, 0);
+      assert.ok(
+        stderr.includes('Narrative:'),
+        `Expected narrative summary on stderr, got: ${stderr}`,
+      );
+      assert.ok(
+        stdout.includes('Triage レポート'),
+        'Expected combined template content',
+      );
+    });
+
+    it('embeds narrative from --narrative-base and --narrative-head', async () => {
+      const dir = await createCoachFixture('narr-base-head');
+      const historyDir = await createSnapshotHistory(dir);
+      const { exitCode, stderr } = await runCli(
+        [
+          'coach',
+          '--cwd',
+          dir,
+          '--patterns',
+          'src/**/*.ts',
+          '--template',
+          'combined',
+          '--narrative-base',
+          join(historyDir, 'report-old.json'),
+          '--narrative-head',
+          join(historyDir, 'report-new.json'),
+        ],
+        { baseDir },
+      );
+
+      assert.equal(exitCode, 0);
+      assert.ok(
+        stderr.includes('Narrative:'),
+        `Expected narrative summary on stderr, got: ${stderr}`,
+      );
+    });
+
+    it('rejects --narrative-history with --narrative-base/--narrative-head', async () => {
+      const dir = await createCoachFixture('narr-conflict');
+      const historyDir = await createSnapshotHistory(dir);
+      const { exitCode, stderr } = await runCli(
+        [
+          'coach',
+          '--cwd',
+          dir,
+          '--patterns',
+          'src/**/*.ts',
+          '--narrative-history',
+          historyDir,
+          '--narrative-base',
+          join(historyDir, 'report-old.json'),
+          '--narrative-head',
+          join(historyDir, 'report-new.json'),
+        ],
+        { baseDir },
+      );
+
+      assert.notEqual(exitCode, 0);
+      assert.ok(
+        stderr.includes('cannot be used together'),
+        `Expected mutual exclusion error, got: ${stderr}`,
+      );
+    });
+
+    it('rejects --narrative-base without --narrative-head', async () => {
+      const dir = await createCoachFixture('narr-base-only');
+      const historyDir = await createSnapshotHistory(dir);
+      const { exitCode, stderr } = await runCli(
+        [
+          'coach',
+          '--cwd',
+          dir,
+          '--patterns',
+          'src/**/*.ts',
+          '--narrative-base',
+          join(historyDir, 'report-old.json'),
+        ],
+        { baseDir },
+      );
+
+      assert.notEqual(exitCode, 0);
+      assert.ok(
+        stderr.includes('must be used together'),
+        `Expected pair requirement error, got: ${stderr}`,
+      );
+    });
+
+    it('rejects --narrative-history with only 1 snapshot', async () => {
+      const dir = await createCoachFixture('narr-single');
+      const historyDir = join(dir, 'reports');
+      await mkdir(historyDir, { recursive: true });
+      await writeFile(
+        join(historyDir, 'only-one.json'),
+        makeReportJson({ timestamp: '2026-01-01T00:00:00.000Z' }),
+      );
+
+      const { exitCode, stderr } = await runCli(
+        [
+          'coach',
+          '--cwd',
+          dir,
+          '--patterns',
+          'src/**/*.ts',
+          '--template',
+          'combined',
+          '--narrative-history',
+          historyDir,
+        ],
+        { baseDir },
+      );
+
+      assert.notEqual(exitCode, 0);
+      assert.ok(
+        stderr.includes('At least 2 snapshots'),
+        `Expected minimum snapshot error, got: ${stderr}`,
+      );
     });
   });
 });

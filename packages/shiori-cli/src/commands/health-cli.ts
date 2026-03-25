@@ -319,6 +319,10 @@ export const healthCommand = define({
           : undefined,
         onLoaded: (count, dir) =>
           console.error(`Loaded ${count} report(s) from ${dir}`),
+        onSkipped: ctx.values.history
+          ? (file, reason) =>
+              console.error(`Warning: Skipped ${file}: ${reason}`)
+          : undefined,
       });
       if (reports !== null) {
         trendResult = computeTrend(reports);

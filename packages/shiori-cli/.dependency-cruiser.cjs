@@ -64,6 +64,7 @@ module.exports = {
     //   doctor → doctor/* sub-modules
     //   summary → health/delta/trend/triage
     //   aggregate → summary
+    //   triage-wizard-apply → triage-interactive/resolve
     // Composition targets: higher-level commands that compose lower-level ones.
     //   check → verify, report → verify, health → report, adopt → migrate
     //   health/delta/trend/triage (consumed by summary)
@@ -83,6 +84,7 @@ module.exports = {
           'doctor/.*\\.ts$',
           'summary\\.ts$',
           'aggregate\\.ts$',
+          'triage-wizard-apply\\.ts$',
         ],
       },
       to: {

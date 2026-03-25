@@ -43,19 +43,24 @@ describe('buildCoachPrompt', () => {
     assert.deepEqual(result.sources.health, healthJson);
   });
 
-  it('builds combined prompt with triage and weekly JSON', () => {
+  it('builds combined prompt with triage, weekly, and health JSON', () => {
     const triageJson = '{"items":[]}';
     const weeklyReportJson = '{"health":{"score":90}}';
+    const healthJson = '{"health":{"score":72,"level":"warning"}}';
     const result = buildCoachPrompt('combined', {
       triageJson,
       weeklyReportJson,
+      healthJson,
     });
 
     assert.equal(result.template, 'combined');
     assert.ok(result.prompt.includes(triageJson));
     assert.ok(result.prompt.includes(weeklyReportJson));
+    assert.ok(result.prompt.includes(healthJson));
     assert.ok(!result.prompt.includes('{{TRIAGE_JSON}}'));
     assert.ok(!result.prompt.includes('{{WEEKLY_REPORT_JSON}}'));
+    assert.ok(!result.prompt.includes('{{HEALTH_JSON}}'));
+    assert.deepEqual(result.sources.health, healthJson);
   });
 
   it('leaves unreplaced placeholders when data is missing', () => {

@@ -148,6 +148,9 @@ export const narrativeCommand = define({
         onLoaded: (count, dir) => {
           console.error(`Loaded ${count} report(s) from ${dir}`);
         },
+        onSkipped: (file, reason) => {
+          console.error(`Warning: Skipped ${file}: ${reason}`);
+        },
       });
 
       if (reports === null) {

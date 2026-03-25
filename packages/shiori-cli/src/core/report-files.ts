@@ -18,7 +18,8 @@ export function isReportShape(value: Record<string, unknown>): boolean {
 
   const health = value.health as Record<string, unknown> | undefined;
   if (!health) return false;
-  if (typeof health.score !== 'number') return false;
+  if (typeof health.score !== 'number' || Number.isNaN(health.score))
+    return false;
   if (!VALID_HEALTH_LEVELS.includes(health.level as string)) return false;
 
   const totals = value.totals as Record<string, unknown> | undefined;
@@ -41,6 +42,8 @@ export interface ReportFilesCallbacks {
   onDirectoryError?: (message: string) => void;
   onNoFiles?: (dir: string) => void;
   onLoaded?: (count: number, dir: string) => void;
+  /** Called when a JSON file is skipped due to parse error or invalid shape */
+  onSkipped?: (fileName: string, reason: string) => void;
 }
 
 /**
@@ -80,9 +83,17 @@ export async function loadReportFiles(
       if (isReportShape(parsed)) {
         // shiori: DEV-018 reason="runtime JSON shape validated by isReportShape but static type requires assertion"
         reports.push(parsed as unknown as ReportResult);
+      } else {
+        callbacks?.onSkipped?.(
+          file,
+          'Invalid report shape: missing required fields',
+        );
       }
-    } catch {
-      // Skip invalid files silently
+    } catch (err) {
+      callbacks?.onSkipped?.(
+        file,
+        `JSON parse error: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 
