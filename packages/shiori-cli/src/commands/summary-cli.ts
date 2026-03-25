@@ -57,6 +57,10 @@ export const summaryCommand = define({
   # Markdown output for PR comments
   shiori summary --format markdown
 
+  # Slack Block Kit JSON (for webhook integration)
+  shiori summary --format slack
+  shiori summary --format slack | curl -X POST -H 'Content-Type: application/json' -d @- "$SLACK_WEBHOOK_URL"
+
   # Use pre-computed scan result (avoids re-scanning in CI)
   shiori summary --scan head-scan.json
 
@@ -124,7 +128,7 @@ export const summaryCommand = define({
       type: 'string',
       short: 'f',
       description:
-        'Output format: "json", "markdown", "pulse" (compact TTY dashboard). Default: "json"',
+        'Output format: "json", "markdown", "pulse" (compact TTY dashboard), "slack" (Block Kit JSON). Default: "json"',
       default: 'json',
     },
     output: {

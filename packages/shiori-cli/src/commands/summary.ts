@@ -319,6 +319,198 @@ export function formatSummaryAsPulse(result: SummaryResult): string {
   return renderBox(sections);
 }
 
+// ── Slack Block Kit types (EP-0161) ──────────────────────────
+
+/**
+ * Slack Block Kit block type subset used by the formatter.
+ * Only the types shiori actually emits are defined here.
+ */
+interface SlackTextObject {
+  type: 'plain_text' | 'mrkdwn';
+  text: string;
+  emoji?: boolean;
+}
+
+interface SlackHeaderBlock {
+  type: 'header';
+  text: SlackTextObject;
+}
+
+interface SlackSectionBlock {
+  type: 'section';
+  text?: SlackTextObject;
+  fields?: SlackTextObject[];
+}
+
+interface SlackDividerBlock {
+  type: 'divider';
+}
+
+interface SlackContextBlock {
+  type: 'context';
+  elements: SlackTextObject[];
+}
+
+type SlackBlock =
+  | SlackHeaderBlock
+  | SlackSectionBlock
+  | SlackDividerBlock
+  | SlackContextBlock;
+
+/**
+ * Format SummaryResult as Slack Block Kit JSON (EP-0161).
+ *
+ * Produces a Slack-compatible `{ blocks: [...] }` payload that can be
+ * POSTed directly to a Slack incoming webhook URL.
+ *
+ * Sections:
+ *  1. Header with health score and emoji
+ *  2. Health + issues overview
+ *  3. Top-3 triage items (when available)
+ *  4. Trend sparkline summary (when available)
+ *  5. CTA footer
+ */
+export function formatSummaryAsSlack(result: SummaryResult): string {
+  const blocks: SlackBlock[] = [];
+
+  // ── Header ──────────────────────────────────────────────
+  const emoji =
+    result.health.health.level === 'healthy'
+      ? ':large_green_circle:'
+      : result.health.health.level === 'warning'
+        ? ':large_yellow_circle:'
+        : ':red_circle:';
+
+  blocks.push({
+    type: 'header',
+    text: {
+      type: 'plain_text',
+      text: `${emoji} Shiori Governance: ${result.health.health.score}/100 (${result.health.health.level})`,
+      emoji: true,
+    },
+  });
+
+  // ── Health + Issues overview ────────────────────────────
+  const fields: SlackTextObject[] = [
+    {
+      type: 'mrkdwn',
+      text: `*Health Score*\n${result.health.health.score}/100`,
+    },
+    {
+      type: 'mrkdwn',
+      text: `*Issues*\n${result.health.issues.total} (${result.health.issues.errors} errors, ${result.health.issues.warnings} warnings)`,
+    },
+  ];
+
+  if (
+    result.health.expiring.expired > 0 ||
+    result.health.expiring.expiringSoon > 0
+  ) {
+    fields.push({
+      type: 'mrkdwn',
+      text: `*Expired*\n${result.health.expiring.expired}`,
+    });
+    fields.push({
+      type: 'mrkdwn',
+      text: `*Expiring Soon*\n${result.health.expiring.expiringSoon}`,
+    });
+  }
+
+  if (result.delta) {
+    const { added, removed, net } = result.delta.summary;
+    const netSign = net >= 0 ? '+' : '';
+    fields.push({
+      type: 'mrkdwn',
+      text: `*Delta*\n+${added} / -${removed} (net ${netSign}${net})`,
+    });
+  }
+
+  blocks.push({ type: 'section', fields });
+
+  // ── Trend section ──────────────────────────────────────
+  if (result.trend && result.trend.points.length > 0) {
+    const { summary: ts } = result.trend;
+    const sign = ts.scoreChange >= 0 ? '+' : '';
+    const arrow =
+      ts.direction === 'improving'
+        ? ':chart_with_upwards_trend:'
+        : ts.direction === 'declining'
+          ? ':chart_with_downwards_trend:'
+          : ':left_right_arrow:';
+
+    blocks.push({ type: 'divider' });
+    blocks.push({
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `${arrow} *Trend:* ${ts.direction} (${sign}${ts.scoreChange}) — ${ts.latestScore}/100 over ${ts.count} data points`,
+      },
+    });
+  }
+
+  // ── Top-3 triage items ─────────────────────────────────
+  if (result.triage && result.triage.items.length > 0) {
+    blocks.push({ type: 'divider' });
+
+    const { byPriority, total } = result.triage.summary;
+    const prioritySummary = [
+      byPriority.critical > 0 ? `:red_circle: ${byPriority.critical}` : null,
+      byPriority.high > 0 ? `:large_yellow_circle: ${byPriority.high}` : null,
+      byPriority.medium > 0 ? `:large_blue_circle: ${byPriority.medium}` : null,
+      byPriority.low > 0 ? `:white_circle: ${byPriority.low}` : null,
+    ]
+      .filter(Boolean)
+      .join('  ');
+
+    blocks.push({
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `*Triage:* ${total} items — ${prioritySummary}`,
+      },
+    });
+
+    const top3 = result.triage.items.slice(0, 3);
+    const triageLines = top3
+      .map((item) => `• \`${item.ref}\` [${item.priority}] → ${item.action}`)
+      .join('\n');
+
+    blocks.push({
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: triageLines,
+      },
+    });
+
+    if (result.triage.items.length > 3) {
+      blocks.push({
+        type: 'context',
+        elements: [
+          {
+            type: 'mrkdwn',
+            text: `_...and ${result.triage.items.length - 3} more. Run \`shiori triage\` for the full list._`,
+          },
+        ],
+      });
+    }
+  }
+
+  // ── CTA footer ─────────────────────────────────────────
+  blocks.push({ type: 'divider' });
+  blocks.push({
+    type: 'context',
+    elements: [
+      {
+        type: 'mrkdwn',
+        text: `_Generated by shiori at ${result.timestamp}_`,
+      },
+    ],
+  });
+
+  return JSON.stringify({ blocks }, null, 2);
+}
+
 /**
  * Format SummaryResult based on output format.
  */
@@ -336,6 +528,8 @@ export function formatSummary(
     }
     case 'pulse':
       return formatSummaryAsPulse(result);
+    case 'slack':
+      return formatSummaryAsSlack(result);
     default:
       return assertNever(format);
   }
