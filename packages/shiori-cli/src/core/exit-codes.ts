@@ -85,6 +85,7 @@ export const REGISTERED_COMMANDS: readonly string[] = [
   'guide',
   'fix',
   'coach',
+  'narrative',
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -207,6 +208,10 @@ export const EXIT_CODE_POLICIES: Record<string, ExitCodePolicy> = {
     category: 'usage',
     failCondition:
       'validation failures (invalid --template, --format), environment errors (registry/template file not found)',
+  },
+  narrative: {
+    category: 'usage',
+    failCondition: 'validation failures, missing snapshot data',
   },
 
   // -- Passthrough commands (always exit 0) --

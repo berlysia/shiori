@@ -29,6 +29,7 @@ import { aggregateCommand } from './commands/aggregate-cli.ts';
 import { guideCommand } from './commands/guide-cli.ts';
 import { fixCommand } from './commands/fix-cli.ts';
 import { coachCommand } from './commands/coach-cli.ts';
+import { narrativeCommand } from './commands/narrative-cli.ts';
 import { VERSION } from './core/version.ts';
 import { ExitCode } from './core/exit-codes.ts';
 
@@ -72,6 +73,7 @@ Workflow:
   shiori migrate                 Auto-migrate lint disable comments
   shiori watch                   Refresh scan result on each save
   shiori delta                   Compare scan results for PR review
+  shiori narrative               Governance narrative from snapshots
   shiori journal                 Browse CLI operation journal
   shiori aggregate               Aggregate multi-repo summaries
   shiori check --fail-on ...     Enforce governance in CI
@@ -132,6 +134,7 @@ try {
       guide: guideCommand,
       fix: fixCommand,
       coach: coachCommand,
+      narrative: narrativeCommand,
     },
   });
 } catch (err) {

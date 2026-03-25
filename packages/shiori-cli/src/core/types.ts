@@ -1112,6 +1112,14 @@ export const CANDIDATES_OUTPUT_FORMATS = ['json', 'markdown'] as const;
 /** Candidates output format (derived from CANDIDATES_OUTPUT_FORMATS) */
 export type CandidatesOutputFormat = (typeof CANDIDATES_OUTPUT_FORMATS)[number];
 
+// ── Narrative types (EP-0146) ─────────────────────────────────
+
+/** Canonical list of all narrative output formats (derived → NarrativeFormat) */
+export const NARRATIVE_FORMATS = ['json', 'markdown'] as const;
+
+/** Output format for narrative command (derived from NARRATIVE_FORMATS) */
+export type NarrativeFormat = (typeof NARRATIVE_FORMATS)[number];
+
 /** Result of aggregating multiple repository summaries */
 export interface AggregateResult {
   /** ISO timestamp when the aggregate was generated */
