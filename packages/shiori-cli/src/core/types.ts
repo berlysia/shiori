@@ -1220,12 +1220,29 @@ export const PITCH_FORMATS = ['json', 'markdown'] as const;
 /** Output format for pitch command (derived from PITCH_FORMATS) */
 export type PitchFormat = (typeof PITCH_FORMATS)[number];
 
+/**
+ * Canonical list of all pitch highlight categories.
+ * Single source of truth — PitchHighlightCategory is derived from this array.
+ */
+export const PITCH_HIGHLIGHT_CATEGORIES = [
+  'health',
+  'coverage',
+  'trend',
+  'risk',
+  'expired',
+  'expiring',
+] as const;
+
+/** Pitch highlight category (derived from PITCH_HIGHLIGHT_CATEGORIES) */
+export type PitchHighlightCategory =
+  (typeof PITCH_HIGHLIGHT_CATEGORIES)[number];
+
 /** A single data-driven talking point for governance adoption pitch */
 export interface PitchHighlight {
   /** Emoji indicator for visual scanning */
   emoji: string;
-  /** Category label (e.g. "health", "trend", "risk", "coverage") */
-  category: string;
+  /** Category of this highlight */
+  category: PitchHighlightCategory;
   /** Human-readable summary of this highlight */
   message: string;
 }

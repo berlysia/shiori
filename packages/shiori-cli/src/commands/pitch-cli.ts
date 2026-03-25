@@ -202,6 +202,7 @@ export const pitchCommand = define({
     }
 
     // Triage (for priority distribution in pitch)
+    // Inject reportResult.verifyResult to avoid duplicate verify() execution
     const triageResult = triage({
       scanResult,
       registry: regCtx.registry,
@@ -211,6 +212,7 @@ export const pitchCommand = define({
       refPatterns: regCtx.config.refPatterns,
       refOrigins: regCtx.refOrigins,
       expiringThresholdDays,
+      verifyResult: reportResult.verifyResult,
     });
 
     // Team name: --team flag, or cwd basename
