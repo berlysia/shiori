@@ -8,6 +8,7 @@ import {
 import { doctor } from './doctor.ts';
 import type { MaturityLevel } from '../core/types.ts';
 import { wrapOutputJson } from '../core/schema-envelope.ts';
+import { ExitCode } from '../core/exit-codes.ts';
 
 export const recipesCommand = define({
   name: 'recipes',
@@ -76,7 +77,7 @@ export const recipesCommand = define({
       const parsed = parseInt(ctx.values.level, 10);
       if (Number.isNaN(parsed) || parsed < 0 || parsed > 4) {
         console.error('Error: --level must be 0-4');
-        process.exitCode = 1;
+        process.exitCode = ExitCode.USAGE_ERROR;
         return;
       }
       level = parsed as MaturityLevel;

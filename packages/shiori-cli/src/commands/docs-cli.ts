@@ -2,8 +2,9 @@ import { define } from 'gunshi';
 import { readFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { ExitCode } from '../core/exit-codes.ts';
 
-async function findPackageRoot(startDir: string): Promise<string> {
+async function findPackageRoot(startDir: string): Promise<string | null> {
   let dir = startDir;
   for (;;) {
     try {
@@ -12,7 +13,7 @@ async function findPackageRoot(startDir: string): Promise<string> {
     } catch {
       const parent = dirname(dir);
       if (parent === dir) {
-        return null as unknown as string;
+        return null;
       }
       dir = parent;
     }
@@ -53,7 +54,7 @@ export const docsCommand = define({
       console.error(
         'Could not load documentation. View online: https://github.com/berlysia/shiori#readme',
       );
-      process.exitCode = 1;
+      process.exitCode = ExitCode.ENVIRONMENT_ERROR;
       return;
     }
     console.log(await res.text());

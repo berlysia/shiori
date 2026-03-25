@@ -86,6 +86,7 @@ export const REGISTERED_COMMANDS: readonly string[] = [
   'fix',
   'coach',
   'narrative',
+  'recipes',
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -213,6 +214,10 @@ export const EXIT_CODE_POLICIES: Record<string, ExitCodePolicy> = {
     category: 'usage',
     failCondition: 'validation failures, missing snapshot data',
   },
+  recipes: {
+    category: 'usage',
+    failCondition: 'invalid --level value',
+  },
 
   // -- Passthrough commands (always exit 0) --
   update: {
@@ -228,8 +233,8 @@ export const EXIT_CODE_POLICIES: Record<string, ExitCodePolicy> = {
     failCondition: null,
   },
   docs: {
-    category: 'passthrough',
-    failCondition: null,
+    category: 'usage',
+    failCondition: 'local README not found and remote fetch failed',
   },
 } as const;
 

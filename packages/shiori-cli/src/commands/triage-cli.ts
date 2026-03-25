@@ -235,7 +235,7 @@ export const triageCommand = define({
         console.error(
           'Error: --wizard requires an interactive terminal (TTY).',
         );
-        process.exitCode = 1;
+        process.exitCode = ExitCode.USAGE_ERROR;
         return;
       }
 

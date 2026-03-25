@@ -65,6 +65,7 @@ module.exports = {
     //   summary → health/delta/trend/triage
     //   aggregate → summary
     //   triage-wizard-apply → triage-interactive/resolve
+    //   scan-demo → scan/verify/report/health (demo orchestration)
     // Composition targets: higher-level commands that compose lower-level ones.
     //   check → verify, report → verify, health → report, adopt → migrate
     //   health/delta/trend/triage (consumed by summary)
@@ -85,6 +86,7 @@ module.exports = {
           'summary\\.ts$',
           'aggregate\\.ts$',
           'triage-wizard-apply\\.ts$',
+          'scan-demo\\.ts$',
         ],
       },
       to: {

@@ -20,11 +20,15 @@ import { wrapOutputJson } from '../core/schema-envelope.ts';
 import { loadConfigAndRegistry } from '../core/registry-loader.ts';
 import { RegistryNotFoundError } from '../core/errors.ts';
 import { ExitCode } from '../core/exit-codes.ts';
+import { runDemo, formatDemoResult } from './scan-demo.ts';
 
 export const scanCommand = define({
   name: 'scan',
   description: 'Scan source files for shiori annotations',
-  examples: `  # Scan and auto-save to .config/shiori/scan-result.json
+  examples: `  # Try shiori with built-in sample files (no setup required)
+  shiori scan --demo
+
+  # Scan and auto-save to .config/shiori/scan-result.json
   shiori scan
 
   # Quick scan without registry (no shiori init required)
@@ -84,8 +88,57 @@ export const scanCommand = define({
       description:
         'Run scan without requiring registry initialization. Shows a quick summary instead of Governance Report Card',
     },
+    demo: {
+      type: 'boolean',
+      description:
+        'Run with built-in sample files to experience shiori without setup. Incompatible with --patterns, --cwd, --ignore',
+    },
   },
   run: async (ctx) => {
+    // ── Demo mode ──────────────────────────────────────────────
+    if (ctx.values.demo) {
+      // Flag exclusivity: --demo is incompatible with scan-target options
+      const incompatible: string[] = [];
+      if (ctx.values.patterns) incompatible.push('--patterns');
+      if (ctx.values.cwd) incompatible.push('--cwd');
+      if (ctx.values.ignore) incompatible.push('--ignore');
+      if (incompatible.length > 0) {
+        console.error(
+          `Error: --demo cannot be combined with ${incompatible.join(', ')}`,
+        );
+        process.exitCode = ExitCode.USAGE_ERROR;
+        return;
+      }
+
+      const demoResult = await runDemo();
+      const json = wrapOutputJson(
+        {
+          scanResult: demoResult.scanResult,
+          verifyResult: demoResult.verifyResult,
+          healthScore: demoResult.healthScore,
+          healthLevel: demoResult.healthLevel,
+        },
+        { command: 'scan', schemaVersion: 1 },
+      );
+
+      if (ctx.values.output) {
+        const outputPath = resolve(
+          ctx.values.cwd ?? process.cwd(),
+          ctx.values.output,
+        );
+        await mkdir(dirname(outputPath), { recursive: true });
+        await writeFile(outputPath, json + '\n', 'utf-8');
+        console.error(`Demo results written to ${outputPath}`);
+      } else if (process.stdout.isTTY) {
+        console.log(formatDemoResult(demoResult));
+      } else {
+        console.log(json);
+      }
+      return;
+    }
+
+    // ── Standard scan mode ─────────────────────────────────────
+
     // Validate options early
     if (validateProvider(ctx.values.provider) === null) return;
 
