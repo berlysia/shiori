@@ -7,11 +7,13 @@ export {
   type ResolveOutputFormat,
 } from '../core/types.ts';
 
-/** JSON output schema for resolve --closed (EP-0075) */
+/** JSON output schema for resolve --closed (EP-0075, ADR 028) */
 export interface ResolveJsonOutput {
   meta: {
     /** Command that produced this output */
     command: 'resolve';
+    /** Schema version for compatibility checks (ADR 028) */
+    schemaVersion: number;
     /** Resolve mode: "closed" (bulk auto-detect) */
     mode: 'closed';
     /** Whether --apply was used */
@@ -81,6 +83,7 @@ function formatResolveAsJson(
   const output: ResolveJsonOutput = {
     meta: {
       command: 'resolve',
+      schemaVersion: 1,
       mode: 'closed',
       applied,
       timestamp: new Date().toISOString(),

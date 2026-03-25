@@ -1,4 +1,5 @@
 import type { FixPlan, FixApplyResult } from '../core/types.ts';
+import { wrapOutputJson } from '../core/schema-envelope.ts';
 
 /**
  * Format a fix plan for human-readable dry-run output.
@@ -31,10 +32,13 @@ export function formatFixPlan(plan: FixPlan): string {
 }
 
 /**
- * Format a fix plan as JSON.
+ * Format a fix plan as JSON with ADR 028 envelope.
  */
 export function formatFixPlanJson(plan: FixPlan): string {
-  return JSON.stringify(plan, null, 2);
+  return wrapOutputJson(plan, {
+    command: 'fix',
+    schemaVersion: 1,
+  });
 }
 
 /**
@@ -112,8 +116,11 @@ export function formatFixApplyResult(result: FixApplyResult): string {
 }
 
 /**
- * Format a fix apply result as JSON.
+ * Format a fix apply result as JSON with ADR 028 envelope.
  */
 export function formatFixApplyResultJson(result: FixApplyResult): string {
-  return JSON.stringify(result, null, 2);
+  return wrapOutputJson(result, {
+    command: 'fix',
+    schemaVersion: 1,
+  });
 }

@@ -115,6 +115,7 @@ describe('formatResolveOutput', () => {
 
       // meta fields
       assert.equal(parsed.meta.command, 'resolve');
+      assert.equal(parsed.meta.schemaVersion, 1);
       assert.equal(parsed.meta.mode, 'closed');
       assert.equal(parsed.meta.applied, false);
       assert.ok(parsed.meta.timestamp);

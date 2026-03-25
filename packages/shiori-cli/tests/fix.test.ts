@@ -20,6 +20,7 @@ import {
   formatFixApplyResultJson,
 } from '../src/formatters/fix-formatter.ts';
 import { report } from '../src/commands/report.ts';
+import { VERSION } from '../src/core/version.ts';
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -266,7 +267,7 @@ describe('formatFixPlan', () => {
 // ── formatFixPlanJson ───────────────────────────────────────
 
 describe('formatFixPlanJson', () => {
-  it('returns valid JSON', () => {
+  it('returns valid JSON with ADR 028 envelope', () => {
     const plan: FixPlan = {
       actions: [{ type: 'update', description: 'test', refs: ['A'] }],
       manualSuggestions: [],
@@ -275,8 +276,15 @@ describe('formatFixPlanJson', () => {
 
     const json = formatFixPlanJson(plan);
     const parsed = JSON.parse(json);
-    assert.equal(parsed.actions.length, 1);
-    assert.equal(parsed.summary.automatable, 1);
+
+    // Envelope meta (ADR 028)
+    assert.equal(parsed.meta.command, 'fix');
+    assert.equal(parsed.meta.schemaVersion, 1);
+    assert.equal(parsed.meta.version, VERSION);
+
+    // Data payload
+    assert.equal(parsed.data.actions.length, 1);
+    assert.equal(parsed.data.summary.automatable, 1);
   });
 });
 
@@ -421,7 +429,7 @@ describe('formatFixApplyResult', () => {
 // ── formatFixApplyResultJson ────────────────────────────────
 
 describe('formatFixApplyResultJson', () => {
-  it('returns valid JSON', () => {
+  it('returns valid JSON with ADR 028 envelope', () => {
     const result: FixApplyResult = {
       applied: [{ type: 'update', description: 'test', refs: ['A'] }],
       registryChanges: { added: ['A'] },
@@ -431,8 +439,15 @@ describe('formatFixApplyResultJson', () => {
 
     const json = formatFixApplyResultJson(result);
     const parsed = JSON.parse(json);
-    assert.equal(parsed.scoreBefore, 50);
-    assert.equal(parsed.scoreAfter, 70);
-    assert.deepEqual(parsed.registryChanges.added, ['A']);
+
+    // Envelope meta (ADR 028)
+    assert.equal(parsed.meta.command, 'fix');
+    assert.equal(parsed.meta.schemaVersion, 1);
+    assert.equal(parsed.meta.version, VERSION);
+
+    // Data payload
+    assert.equal(parsed.data.scoreBefore, 50);
+    assert.equal(parsed.data.scoreAfter, 70);
+    assert.deepEqual(parsed.data.registryChanges.added, ['A']);
   });
 });
