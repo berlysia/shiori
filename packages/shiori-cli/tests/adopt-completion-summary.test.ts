@@ -75,17 +75,16 @@ describe('buildNextStepCTA', () => {
     assert.equal(cta.command, 'shiori health --triage');
   });
 
-  it('recommends health for score = 90', () => {
+  it('recommends report --snapshot for score = 90', () => {
     const cta = buildNextStepCTA(90);
-    assert.equal(cta.command, 'shiori health');
-    assert.ok(cta.message.includes('shiori health'));
-    // Should not contain --triage
+    assert.equal(cta.command, 'shiori report --snapshot');
+    assert.ok(cta.message.includes('shiori report --snapshot'));
     assert.ok(!cta.message.includes('--triage'));
   });
 
-  it('recommends health for score = 100', () => {
+  it('recommends report --snapshot for score = 100', () => {
     const cta = buildNextStepCTA(100);
-    assert.equal(cta.command, 'shiori health');
+    assert.equal(cta.command, 'shiori report --snapshot');
   });
 });
 
@@ -207,7 +206,7 @@ describe('formatAdoptCompletionSummary', () => {
       afterScore: 95,
     });
 
-    assert.ok(summary.includes('shiori health'));
+    assert.ok(summary.includes('shiori report --snapshot'));
     // Should not include --triage for high scores
     assert.ok(!summary.includes('--triage'));
   });

@@ -115,7 +115,7 @@ export function filterCandidatesByGroups(
  * Thresholds follow onboarding-guidance.ts's adopt → health → triage flow:
  * - score < 60  → direct triage for critical issues
  * - score 60-89 → combined health+triage for moderate issues
- * - score >= 90 → simple health check for confirmation
+ * - score >= 90 → save snapshot to start tracking trend history (Day 2 retention)
  */
 export function buildNextStepCTA(score: number): {
   command: string;
@@ -136,8 +136,9 @@ export function buildNextStepCTA(score: number): {
     };
   }
   return {
-    command: 'shiori health',
-    message: 'Run "shiori health" to confirm your governance status.',
+    command: 'shiori report --snapshot',
+    message:
+      'Looking good! Run "shiori report --snapshot" to save a baseline for trend tracking.',
   };
 }
 
