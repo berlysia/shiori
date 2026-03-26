@@ -228,9 +228,10 @@ describe('doctor', () => {
       const scanResultPath = join(dir, '.config', 'shiori', 'scan-result.json');
       await writeFile(scanResultPath, '[]', 'utf-8');
       const result = await doctor({ cwd: dir });
-      // node-version, config, registry, ref-patterns, expired-entries, registry-completeness, gitignore, scan-result, exit-code-policies, command-registration
-      assert.equal(result.checks.length, 10);
-      assert.ok(result.summary.pass >= 6); // node-version, config, registry, ref-patterns, exit-code-policies, command-registration at minimum
+      // node-version, config, registry, ref-patterns, expired-entries, registry-completeness, gitignore, scan-result, exit-code-policies
+      // (command-registration moved to test-only — ADR 030)
+      assert.equal(result.checks.length, 9);
+      assert.ok(result.summary.pass >= 5); // node-version, config, registry, ref-patterns, exit-code-policies at minimum
       assert.equal(result.summary.fail, 0);
     } finally {
       await cleanup();

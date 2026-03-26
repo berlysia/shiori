@@ -1,11 +1,13 @@
 /**
- * CLI subcommand registration map.
+ * CLI subcommand registration map (ADR 030).
  *
- * Extracted from cli.ts to avoid circular dependency:
- * cli.ts → doctor-cli.ts → doctor.ts → cli.ts
+ * This module is classified as CLI-registration infrastructure, not command
+ * pure-logic.  It is therefore exempt from the "commands-no-import-cli-wrappers"
+ * boundary rule — importing every *-cli.ts wrapper is its sole purpose.
  *
  * cli.ts imports subCommandMap from here.
- * doctor.ts imports CLI_SUBCOMMAND_KEYS from here.
+ * CLI_SUBCOMMAND_KEYS is test-only: three-way consistency is verified in
+ * exit-codes.test.ts and doctor.test.ts, not at runtime.
  */
 import { scanCommand } from './scan-cli.ts';
 import { verifyCommand } from './verify-cli.ts';
@@ -44,7 +46,7 @@ import { onboardCommand } from './onboard-cli.ts';
 /**
  * All CLI subcommand registrations.
  * Keys must stay in sync with REGISTERED_COMMANDS and EXIT_CODE_POLICIES.
- * doctor self-verification detects drift via checkCommandRegistrationConsistency().
+ * Three-way consistency is verified by tests (exit-codes.test.ts, doctor.test.ts).
  */
 export const subCommandMap = {
   init: initCommand,
@@ -83,8 +85,8 @@ export const subCommandMap = {
 } as const;
 
 /**
- * CLI subcommand keys for doctor self-verification.
- * Third point in the three-way consistency check
+ * CLI subcommand keys — test-only export.
+ * Used by exit-codes.test.ts and doctor.test.ts for three-way consistency
  * (REGISTERED_COMMANDS ↔ EXIT_CODE_POLICIES ↔ CLI_SUBCOMMAND_KEYS).
  */
 export const CLI_SUBCOMMAND_KEYS: readonly string[] =

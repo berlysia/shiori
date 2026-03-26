@@ -25,6 +25,7 @@ module.exports = {
     },
 
     // Rule 3: Command pure logic (non-cli) must not import CLI wrappers
+    // command-map.ts is excluded: its sole purpose is CLI registration (ADR 030).
     {
       name: 'commands-no-import-cli-wrappers',
       comment:
@@ -32,7 +33,7 @@ module.exports = {
       severity: 'error',
       from: {
         path: '^src/commands/',
-        pathNot: '-cli\\.ts$',
+        pathNot: ['-cli\\.ts$', 'command-map\\.ts$'],
       },
       to: { path: '-cli\\.ts$' },
     },
@@ -66,10 +67,12 @@ module.exports = {
     //   aggregate → summary
     //   triage-wizard-apply → triage-interactive/resolve
     //   scan-demo → scan/verify/report/health (demo orchestration)
+    //   governance-pipeline → scan/report (ADR 031)
     // Composition targets: higher-level commands that compose lower-level ones.
     //   check → verify, report → verify, health → report, adopt → migrate
     //   health/delta/trend/triage (consumed by summary)
     //   summary (consumed by aggregate)
+    //   onboard (consumed by onboard-interactive)
     {
       name: 'commands-no-horizontal-deps',
       comment:
@@ -87,6 +90,7 @@ module.exports = {
           'aggregate\\.ts$',
           'triage-wizard-apply\\.ts$',
           'scan-demo\\.ts$',
+          'governance-pipeline\\.ts$',
         ],
       },
       to: {
@@ -100,6 +104,7 @@ module.exports = {
           'trend\\.ts$',
           'triage\\.ts$',
           'summary\\.ts$',
+          'onboard\\.ts$',
           '-cli\\.ts$',
         ],
       },

@@ -31,7 +31,7 @@ import { wrapOutputJson } from '../core/schema-envelope.ts';
 import { writeOutput } from '../core/cli-output.ts';
 import { ExitCode } from '../core/exit-codes.ts';
 import { buildRecommendedActions } from '../core/recommended-actions.ts';
-import { runGovernancePipeline } from '../core/governance-pipeline.ts';
+import { runGovernancePipeline } from './governance-pipeline.ts';
 import { ONBOARD_FORMATS, type OnboardFormat } from '../core/types.ts';
 
 const validateOnboardFormat = createFormatValidator<OnboardFormat>(

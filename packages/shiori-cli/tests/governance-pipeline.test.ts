@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { writeFile, mkdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { runGovernancePipeline } from '../src/core/governance-pipeline.ts';
+import { runGovernancePipeline } from '../src/commands/governance-pipeline.ts';
 
 // ── Helpers ──────────────────────────────────────────────────
 
