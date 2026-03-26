@@ -755,6 +755,8 @@ function stubReportResult(
     health: {
       level: overrides.level ?? 'healthy',
       score: overrides.score ?? 100,
+      coverage: 100,
+      hygiene: overrides.score ?? 100,
       summary: 'test',
     },
     totals: {

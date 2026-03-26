@@ -21,6 +21,8 @@ function makeHealthResult(overrides: Partial<HealthResult> = {}): HealthResult {
     health: {
       level: 'healthy',
       score: 100,
+      coverage: 100,
+      hygiene: 100,
       summary: 'All annotations are healthy',
     },
     issues: { total: 0, errors: 0, warnings: 0 },
@@ -33,7 +35,13 @@ function makeHealthResult(overrides: Partial<HealthResult> = {}): HealthResult {
 function makeReportResult(): ReportResult {
   return {
     timestamp: '2026-01-01T00:00:00.000Z',
-    health: { level: 'healthy', score: 100, summary: 'All healthy' },
+    health: {
+      level: 'healthy',
+      score: 100,
+      coverage: 100,
+      hygiene: 100,
+      summary: 'All healthy',
+    },
     totals: {
       annotations: 1,
       candidates: 0,
@@ -166,7 +174,13 @@ describe('formatSummaryAsSlack', () => {
   it('uses yellow circle emoji for warning level', () => {
     const result = makeSummaryResult({
       health: makeHealthResult({
-        health: { level: 'warning', score: 60, summary: 'Some issues' },
+        health: {
+          level: 'warning',
+          score: 60,
+          coverage: 100,
+          hygiene: 60,
+          summary: 'Some issues',
+        },
       }),
     });
     const output = formatSummaryAsSlack(result);
@@ -181,7 +195,13 @@ describe('formatSummaryAsSlack', () => {
   it('uses red circle emoji for critical level', () => {
     const result = makeSummaryResult({
       health: makeHealthResult({
-        health: { level: 'critical', score: 20, summary: 'Critical issues' },
+        health: {
+          level: 'critical',
+          score: 20,
+          coverage: 100,
+          hygiene: 20,
+          summary: 'Critical issues',
+        },
       }),
     });
     const output = formatSummaryAsSlack(result);

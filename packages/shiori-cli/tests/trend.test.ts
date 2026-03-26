@@ -31,6 +31,8 @@ function makeReportResult(overrides: {
     health: {
       level,
       score,
+      coverage: 100,
+      hygiene: score,
       summary: `Score: ${score}/100`,
     },
     totals: {

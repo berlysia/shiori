@@ -27,7 +27,13 @@ const ZERO_BY_TYPE: Record<VerifyIssueType, number> = {
 function makeReportResult(overrides: Partial<ReportResult> = {}): ReportResult {
   return {
     timestamp: '2026-03-26T00:00:00.000Z',
-    health: { level: 'healthy', score: 100, summary: 'All clear' },
+    health: {
+      level: 'healthy',
+      score: 100,
+      coverage: 100,
+      hygiene: 100,
+      summary: 'All clear',
+    },
     totals: {
       annotations: 1,
       candidates: 0,
@@ -106,7 +112,13 @@ describe('buildRecommendedActions', () => {
   it('generates update action for missing-in-registry refs', () => {
     const report = makeReportResult({
       byType: { ...ZERO_BY_TYPE, 'missing-in-registry': 2 },
-      health: { level: 'warning', score: 70, summary: 'Missing refs' },
+      health: {
+        level: 'warning',
+        score: 70,
+        coverage: 100,
+        hygiene: 70,
+        summary: 'Missing refs',
+      },
     });
 
     const actions = buildRecommendedActions(report);
@@ -139,7 +151,13 @@ describe('buildRecommendedActions', () => {
 
   it('generates check action for healthy score (>= 80)', () => {
     const report = makeReportResult({
-      health: { level: 'healthy', score: 85, summary: 'Healthy' },
+      health: {
+        level: 'healthy',
+        score: 85,
+        coverage: 100,
+        hygiene: 85,
+        summary: 'Healthy',
+      },
     });
 
     const actions = buildRecommendedActions(report);
@@ -158,7 +176,13 @@ describe('buildRecommendedActions', () => {
 
   it('does not generate check action for score < 80', () => {
     const report = makeReportResult({
-      health: { level: 'warning', score: 70, summary: 'Warning' },
+      health: {
+        level: 'warning',
+        score: 70,
+        coverage: 100,
+        hygiene: 70,
+        summary: 'Warning',
+      },
     });
 
     const actions = buildRecommendedActions(report);
@@ -227,7 +251,13 @@ describe('buildRecommendedActions', () => {
         errors: 3,
         warnings: 0,
       },
-      health: { level: 'healthy', score: 85, summary: 'Test' },
+      health: {
+        level: 'healthy',
+        score: 85,
+        coverage: 100,
+        hygiene: 85,
+        summary: 'Test',
+      },
     });
 
     const actions = buildRecommendedActions(report);
@@ -244,7 +274,13 @@ describe('buildRecommendedActions', () => {
   it('falls back to health --trend when no other actions match', () => {
     // Healthy, no expired, no missing, no candidates, has trend data
     const report = makeReportResult({
-      health: { level: 'warning', score: 70, summary: 'OK' },
+      health: {
+        level: 'warning',
+        score: 70,
+        coverage: 100,
+        hygiene: 70,
+        summary: 'OK',
+      },
     });
     const trend = makeTrendResult();
 

@@ -21,6 +21,7 @@ function makePrescription(
     command: 'shiori update',
     scoreImpact: 5,
     actionType: 'update',
+    axis: 'hygiene' as const,
     ...overrides,
   };
 }

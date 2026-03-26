@@ -22,6 +22,8 @@ function makeHealthResult(overrides: Partial<HealthResult> = {}): HealthResult {
     health: {
       level: 'healthy',
       score: 100,
+      coverage: 100,
+      hygiene: 100,
       summary: 'All annotations are healthy',
     },
     issues: { total: 0, errors: 0, warnings: 0 },
@@ -34,7 +36,13 @@ function makeHealthResult(overrides: Partial<HealthResult> = {}): HealthResult {
 function makeReportResult(): ReportResult {
   return {
     timestamp: '2026-01-01T00:00:00.000Z',
-    health: { level: 'healthy', score: 100, summary: 'All healthy' },
+    health: {
+      level: 'healthy',
+      score: 100,
+      coverage: 100,
+      hygiene: 100,
+      summary: 'All healthy',
+    },
     totals: {
       annotations: 1,
       candidates: 0,
@@ -258,6 +266,7 @@ describe('formatSummaryAsPulse', () => {
         command: 'shiori resolve EXP-001',
         scoreImpact: 10,
         actionType: 'update',
+        axis: 'hygiene' as const,
       },
     ];
     const result = makeSummaryResult({
@@ -278,6 +287,7 @@ describe('formatSummaryAsPulse', () => {
         command: `shiori fix ${i}`,
         scoreImpact: 5,
         actionType: 'update' as const,
+        axis: 'hygiene' as const,
       }),
     );
     const result = makeSummaryResult({

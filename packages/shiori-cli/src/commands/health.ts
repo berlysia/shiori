@@ -95,9 +95,10 @@ export function formatHealthSummary(result: HealthResult): string {
   // Build content lines (without box decorations) as sections
   const sections: string[][] = [];
 
-  // Header section
+  // Header section: dual-axis display (ADR 024 Phase 2)
   sections.push([
     `${emoji} Health: ${result.health.score}/100 (${result.health.level})`,
+    `  Coverage: ${result.health.coverage}/100  Hygiene: ${result.health.hygiene}/100`,
   ]);
 
   // Info section

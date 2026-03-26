@@ -34,6 +34,8 @@ function makeReportResult(overrides: Partial<ReportResult> = {}): ReportResult {
     health: {
       level: 'healthy',
       score: 85,
+      coverage: 100,
+      hygiene: 85,
       summary: 'Governance is in good shape',
     },
     totals: {
@@ -110,7 +112,13 @@ describe('formatReportAsHtml', () => {
   it('renders health section with correct score', () => {
     const html = formatReportAsHtml(
       makeReportResult({
-        health: { level: 'healthy', score: 92, summary: 'All good' },
+        health: {
+          level: 'healthy',
+          score: 92,
+          coverage: 100,
+          hygiene: 92,
+          summary: 'All good',
+        },
       }),
     );
 
@@ -122,7 +130,13 @@ describe('formatReportAsHtml', () => {
   it('uses correct health color for warning level', () => {
     const html = formatReportAsHtml(
       makeReportResult({
-        health: { level: 'warning', score: 55, summary: 'Some issues' },
+        health: {
+          level: 'warning',
+          score: 55,
+          coverage: 100,
+          hygiene: 55,
+          summary: 'Some issues',
+        },
       }),
     );
 
@@ -133,7 +147,13 @@ describe('formatReportAsHtml', () => {
   it('uses correct health color for critical level', () => {
     const html = formatReportAsHtml(
       makeReportResult({
-        health: { level: 'critical', score: 20, summary: 'Bad state' },
+        health: {
+          level: 'critical',
+          score: 20,
+          coverage: 100,
+          hygiene: 20,
+          summary: 'Bad state',
+        },
       }),
     );
 
@@ -361,6 +381,8 @@ describe('formatReportAsHtml', () => {
       health: {
         level: 'warning',
         score: 50,
+        coverage: 100,
+        hygiene: 50,
         summary: 'Contains <script>alert("xss")</script> & "quotes"',
       },
       insights: [

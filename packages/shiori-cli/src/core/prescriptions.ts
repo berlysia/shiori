@@ -3,6 +3,7 @@ import type {
   HealthPrescription,
   VerifyIssueType,
   PrescriptionActionType,
+  PrescriptionAxis,
 } from './types.ts';
 import { ACTION_HINTS } from './action-hints.ts';
 import { DEDUCTION_TIERS } from './deduction-tiers.ts';
@@ -134,16 +135,19 @@ export function buildPrescriptions(
         command: buildCommand(issueType),
         scoreImpact,
         actionType: buildActionType(issueType),
+        axis: 'hygiene' as PrescriptionAxis,
       });
     }
   }
 
-  // Add candidate ratio prescription if applicable
+  // Add candidate ratio prescription if applicable (Coverage axis)
   const { totals } = reportResult;
   if (totals.candidates > 0 && totals.annotations + totals.candidates > 0) {
-    const untrackedRatio =
-      totals.candidates / (totals.annotations + totals.candidates);
-    const candidateImpact = Math.round(untrackedRatio * 20);
+    // Impact = how much coverage would improve if all candidates were tracked
+    const currentCoverage = Math.round(
+      (totals.annotations / (totals.annotations + totals.candidates)) * 100,
+    );
+    const candidateImpact = 100 - currentCoverage;
     if (candidateImpact > 0) {
       prescriptions.push({
         urgency: 'suggestion',
@@ -151,6 +155,7 @@ export function buildPrescriptions(
         command: 'shiori candidates',
         scoreImpact: candidateImpact,
         actionType: 'candidates',
+        axis: 'coverage',
       });
     }
   }

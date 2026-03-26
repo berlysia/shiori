@@ -344,8 +344,15 @@ export interface ReportResult {
   /** Overall governance health assessment */
   health: {
     level: HealthLevel;
-    /** Health score 0-100 (100 = fully healthy) */
+    /**
+     * Convenience score: min(coverage, hygiene).
+     * For display/backward compat only — CI should use per-axis thresholds.
+     */
     score: number;
+    /** Coverage axis: tracked / (tracked + candidates) as 0-100 (ADR 024 Phase 2) */
+    coverage: number;
+    /** Hygiene axis: 100 minus DEDUCTION_TIERS deductions (ADR 024 Phase 2) */
+    hygiene: number;
     /** Short summary of governance state */
     summary: string;
   };
@@ -1001,7 +1008,15 @@ export interface HealthResult {
   /** Overall governance health (from report) */
   health: {
     level: HealthLevel;
+    /**
+     * Convenience score: min(coverage, hygiene).
+     * For display/backward compat only — CI should use per-axis thresholds.
+     */
     score: number;
+    /** Coverage axis: tracked / (tracked + candidates) as 0-100 (ADR 024 Phase 2) */
+    coverage: number;
+    /** Hygiene axis: 100 minus DEDUCTION_TIERS deductions (ADR 024 Phase 2) */
+    hygiene: number;
     summary: string;
   };
   /** Issue counts */
@@ -1026,6 +1041,9 @@ export interface HealthResult {
 /** Urgency level for health prescriptions */
 export type PrescriptionUrgency = 'critical' | 'recommended' | 'suggestion';
 
+/** Which scoring axis a prescription impacts (ADR 024 Phase 2) */
+export type PrescriptionAxis = 'coverage' | 'hygiene';
+
 /** Action type for programmatic dispatch of prescriptions (EP-0112) */
 export type PrescriptionActionType =
   | 'update'
@@ -1046,6 +1064,8 @@ export interface HealthPrescription {
   scoreImpact: number;
   /** Action type for programmatic dispatch (EP-0112) */
   actionType: PrescriptionActionType;
+  /** Which scoring axis this prescription impacts (ADR 024 Phase 2) */
+  axis: PrescriptionAxis;
 }
 
 // ── Demo output types (EP-0174) ──────────────────────────────

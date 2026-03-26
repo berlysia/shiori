@@ -48,7 +48,9 @@ export function report(options: ReportOptions): ReportResult {
   const byType = verifyResult.summary.byType;
 
   const insights = buildInsights(annotations, candidates, registry, byType);
-  const score = calculateScore(annotations, candidates, byType);
+  const coverage = calculateCoverage(annotations, candidates);
+  const hygiene = calculateHygiene(byType);
+  const score = calculateConvenienceScore(coverage, hygiene);
   const level = scoreToLevel(score);
   const summary = buildHealthSummary(level, score, verifyResult.summary.total);
 
@@ -59,7 +61,7 @@ export function report(options: ReportOptions): ReportResult {
 
   return {
     timestamp: verifyResult.timestamp,
-    health: { level, score, summary },
+    health: { level, score, coverage, hygiene, summary },
     totals: {
       annotations: annotations.length,
       candidates: candidates.length,
@@ -174,35 +176,66 @@ function buildInsights(
 }
 
 /**
+ * Calculate coverage axis: tracked / (tracked + candidates) as 0-100.
+ *
+ * "tracked" = all annotations with `shiori:` marker (including drafts,
+ * missing-in-registry). Measures what percentage of lint disable comments
+ * are under shiori management. (ADR 024 Phase 2)
+ */
+export function calculateCoverage(
+  annotations: ShioriAnnotation[],
+  candidates: ShioriCandidate[],
+): number {
+  const total = annotations.length + candidates.length;
+  if (total === 0) return 100; // No disables at all = full coverage
+  return Math.round((annotations.length / total) * 100);
+}
+
+/**
+ * Calculate hygiene axis: 100 minus DEDUCTION_TIERS deductions.
+ *
+ * Measures lifecycle management quality of tracked annotations:
+ * expired, missing-in-registry, unused-in-source, etc. (ADR 024 Phase 2)
+ */
+export function calculateHygiene(
+  byType: Record<VerifyIssueType, number>,
+): number {
+  let score = 100;
+  for (const tier of DEDUCTION_TIERS) {
+    const tierTotal = tier.types.reduce((sum, t) => sum + byType[t], 0);
+    score -= Math.min(tierTotal * tier.perIssue, tier.maxDeduction);
+  }
+  return Math.max(0, Math.min(100, score));
+}
+
+/**
+ * Calculate convenience score: min(coverage, hygiene).
+ *
+ * For display/backward compat only — CI should use per-axis thresholds.
+ * min() ensures the weaker axis pulls the score down, preventing
+ * one-axis-only improvement strategies. (ADR 024 Phase 2)
+ */
+export function calculateConvenienceScore(
+  coverage: number,
+  hygiene: number,
+): number {
+  return Math.min(coverage, hygiene);
+}
+
+/**
  * Calculate governance health score (0-100).
  *
- * Scoring:
- * - Start at 100
- * - Each error-level issue type deducts points proportional to severity
- * - Untracked candidates reduce score (less impact than actual issues)
+ * @deprecated Use calculateCoverage() + calculateHygiene() + calculateConvenienceScore()
+ * instead. This function delegates to the dual-axis functions for backward compat.
  */
 export function calculateScore(
   annotations: ShioriAnnotation[],
   candidates: ShioriCandidate[],
   byType: Record<VerifyIssueType, number>,
 ): number {
-  let score = 100;
-  const totalTracked = annotations.length;
-
-  // Apply deduction tiers from Single Source of Truth
-  for (const tier of DEDUCTION_TIERS) {
-    const tierTotal = tier.types.reduce((sum, t) => sum + byType[t], 0);
-    score -= Math.min(tierTotal * tier.perIssue, tier.maxDeduction);
-  }
-
-  // Candidate ratio penalty (max 20)
-  if (totalTracked + candidates.length > 0) {
-    const untrackedRatio =
-      candidates.length / (totalTracked + candidates.length);
-    score -= Math.round(untrackedRatio * 20);
-  }
-
-  return Math.max(0, Math.min(100, score));
+  const coverage = calculateCoverage(annotations, candidates);
+  const hygiene = calculateHygiene(byType);
+  return calculateConvenienceScore(coverage, hygiene);
 }
 
 function scoreToLevel(score: number): HealthLevel {

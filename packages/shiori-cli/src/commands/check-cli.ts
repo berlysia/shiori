@@ -23,6 +23,7 @@ import {
   resolveExpiringThreshold,
 } from '../core/cli-context.ts';
 import { ExitCode } from '../core/exit-codes.ts';
+import { calculateCoverage, calculateHygiene } from './report.ts';
 
 export const checkCommand = define({
   name: 'check',
@@ -40,7 +41,10 @@ export const checkCommand = define({
   shiori check -f markdown -o report.md
 
   # Scan all packages in monorepo workspace
-  shiori check --workspace`,
+  shiori check --workspace
+
+  # Fail if coverage or hygiene is below threshold (ADR 024 Phase 2)
+  shiori check --coverage-threshold 80 --hygiene-threshold 70`,
   rendering: { header: null },
   args: {
     patterns: {
@@ -118,6 +122,18 @@ export const checkCommand = define({
       toKebab: true,
       description:
         'External command to check ref statuses. Receives refs on stdin (newline-delimited), returns JSONL with {ref, status} on stdout. Note: command path must not contain spaces',
+    },
+    coverageThreshold: {
+      type: 'string',
+      toKebab: true,
+      description:
+        'Minimum coverage score (0-100). Fail if coverage is below this threshold. (ADR 024 Phase 2)',
+    },
+    hygieneThreshold: {
+      type: 'string',
+      toKebab: true,
+      description:
+        'Minimum hygiene score (0-100). Fail if hygiene is below this threshold. (ADR 024 Phase 2)',
     },
   },
   run: async (ctx) => {
@@ -294,6 +310,60 @@ export const checkCommand = define({
 
     if (verifyResult.summary.errors > 0) {
       process.exitCode = ExitCode.GOVERNANCE_VIOLATION;
+    }
+
+    // Dual-axis threshold checks (ADR 024 Phase 2)
+    const covThresholdRaw = ctx.values.coverageThreshold;
+    const hygThresholdRaw = ctx.values.hygieneThreshold;
+
+    if (covThresholdRaw !== undefined || hygThresholdRaw !== undefined) {
+      const coverage = calculateCoverage(
+        scanResult.annotations,
+        scanResult.candidates,
+      );
+      const hygiene = calculateHygiene(verifyResult.summary.byType);
+
+      if (covThresholdRaw !== undefined) {
+        const covThreshold = Number(covThresholdRaw);
+        if (
+          Number.isNaN(covThreshold) ||
+          covThreshold < 0 ||
+          covThreshold > 100
+        ) {
+          console.error(
+            `Error: Invalid --coverage-threshold value "${covThresholdRaw}". Must be a number between 0 and 100.`,
+          );
+          process.exitCode = ExitCode.USAGE_ERROR;
+          return;
+        }
+        if (coverage < covThreshold) {
+          console.error(
+            `Coverage ${coverage}/100 is below threshold ${covThreshold}`,
+          );
+          process.exitCode = ExitCode.GOVERNANCE_VIOLATION;
+        }
+      }
+
+      if (hygThresholdRaw !== undefined) {
+        const hygThreshold = Number(hygThresholdRaw);
+        if (
+          Number.isNaN(hygThreshold) ||
+          hygThreshold < 0 ||
+          hygThreshold > 100
+        ) {
+          console.error(
+            `Error: Invalid --hygiene-threshold value "${hygThresholdRaw}". Must be a number between 0 and 100.`,
+          );
+          process.exitCode = ExitCode.USAGE_ERROR;
+          return;
+        }
+        if (hygiene < hygThreshold) {
+          console.error(
+            `Hygiene ${hygiene}/100 is below threshold ${hygThreshold}`,
+          );
+          process.exitCode = ExitCode.GOVERNANCE_VIOLATION;
+        }
+      }
     }
   },
 });

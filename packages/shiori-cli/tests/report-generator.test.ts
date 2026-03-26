@@ -39,7 +39,13 @@ function makeEntry(overrides?: Partial<CliJournalEntry>): CliJournalEntry {
 function makeReportResult(overrides?: Partial<ReportResult>): ReportResult {
   return {
     timestamp: '2026-03-18T12:00:00.000Z',
-    health: { level: 'healthy', score: 85, summary: 'All good' },
+    health: {
+      level: 'healthy',
+      score: 85,
+      coverage: 100,
+      hygiene: 85,
+      summary: 'All good',
+    },
     totals: {
       annotations: 10,
       candidates: 2,

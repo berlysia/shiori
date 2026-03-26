@@ -235,6 +235,184 @@ describe('check-cli: argument validation and error paths', () => {
     });
   });
 
+  describe('--coverage-threshold validation', () => {
+    it('rejects non-numeric --coverage-threshold with exit code 2', async () => {
+      const dir = await createFixtureDir(baseDir, 'cov-invalid', {
+        sourceFiles: {
+          'src/sample.ts':
+            '// eslint-disable-next-line no-console -- shiori: CHK-001\nconsole.log("test");\n',
+        },
+        registryEntries: {
+          'CHK-001': { reason: 'test annotation', target: 'all' },
+        },
+      });
+      const { exitCode, stderr } = await runCli([
+        'check',
+        '--cwd',
+        dir,
+        '--patterns',
+        'src/**/*.ts',
+        '--coverage-threshold',
+        'abc',
+      ]);
+
+      assert.equal(exitCode, 2);
+      assert.ok(stderr.includes('Invalid --coverage-threshold'));
+    });
+
+    it('rejects --coverage-threshold > 100 with exit code 2', async () => {
+      const dir = await createFixtureDir(baseDir, 'cov-over', {
+        sourceFiles: {
+          'src/sample.ts':
+            '// eslint-disable-next-line no-console -- shiori: CHK-001\nconsole.log("test");\n',
+        },
+        registryEntries: {
+          'CHK-001': { reason: 'test annotation', target: 'all' },
+        },
+      });
+      const { exitCode, stderr } = await runCli([
+        'check',
+        '--cwd',
+        dir,
+        '--patterns',
+        'src/**/*.ts',
+        '--coverage-threshold',
+        '101',
+      ]);
+
+      assert.equal(exitCode, 2);
+      assert.ok(stderr.includes('Invalid --coverage-threshold'));
+    });
+
+    it('passes when coverage meets threshold', async () => {
+      const dir = await createFixtureDir(baseDir, 'cov-pass', {
+        sourceFiles: {
+          'src/sample.ts':
+            '// eslint-disable-next-line no-console -- shiori: CHK-001\nconsole.log("test");\n',
+        },
+        registryEntries: {
+          'CHK-001': { reason: 'test annotation', target: 'all' },
+        },
+      });
+      const { exitCode } = await runCli([
+        'check',
+        '--cwd',
+        dir,
+        '--patterns',
+        'src/**/*.ts',
+        '--coverage-threshold',
+        '50',
+      ]);
+
+      // 1 annotation, 0 candidates → 100% coverage, meets threshold 50
+      assert.equal(exitCode, 0);
+    });
+
+    it('fails when coverage is below threshold', async () => {
+      // Source file has a candidate (no shiori:) that lowers coverage
+      const dir = await createFixtureDir(baseDir, 'cov-fail', {
+        sourceFiles: {
+          'src/tracked.ts':
+            '// eslint-disable-next-line no-console -- shiori: CHK-001\nconsole.log("test");\n',
+          'src/untracked.ts':
+            '// eslint-disable-next-line no-console\nconsole.log("test");\n',
+        },
+        registryEntries: {
+          'CHK-001': { reason: 'test annotation', target: 'all' },
+        },
+      });
+      const { exitCode, stderr } = await runCli([
+        'check',
+        '--cwd',
+        dir,
+        '--patterns',
+        'src/**/*.ts',
+        '--coverage-threshold',
+        '80',
+      ]);
+
+      // 1 annotation + 1 candidate → 50% coverage, below 80 threshold
+      assert.equal(exitCode, 1);
+      assert.ok(stderr.includes('Coverage'));
+      assert.ok(stderr.includes('below threshold'));
+    });
+  });
+
+  describe('--hygiene-threshold validation', () => {
+    it('rejects non-numeric --hygiene-threshold with exit code 2', async () => {
+      const dir = await createFixtureDir(baseDir, 'hyg-invalid', {
+        sourceFiles: {
+          'src/sample.ts':
+            '// eslint-disable-next-line no-console -- shiori: CHK-001\nconsole.log("test");\n',
+        },
+        registryEntries: {
+          'CHK-001': { reason: 'test annotation', target: 'all' },
+        },
+      });
+      const { exitCode, stderr } = await runCli([
+        'check',
+        '--cwd',
+        dir,
+        '--patterns',
+        'src/**/*.ts',
+        '--hygiene-threshold',
+        'xyz',
+      ]);
+
+      assert.equal(exitCode, 2);
+      assert.ok(stderr.includes('Invalid --hygiene-threshold'));
+    });
+
+    it('passes when hygiene meets threshold', async () => {
+      const dir = await createFixtureDir(baseDir, 'hyg-pass', {
+        sourceFiles: {
+          'src/sample.ts':
+            '// eslint-disable-next-line no-console -- shiori: CHK-001\nconsole.log("test");\n',
+        },
+        registryEntries: {
+          'CHK-001': { reason: 'test annotation', target: 'all' },
+        },
+      });
+      const { exitCode } = await runCli([
+        'check',
+        '--cwd',
+        dir,
+        '--patterns',
+        'src/**/*.ts',
+        '--hygiene-threshold',
+        '90',
+      ]);
+
+      // No issues → hygiene=100, meets threshold 90
+      assert.equal(exitCode, 0);
+    });
+
+    it('fails when hygiene is below threshold', async () => {
+      // Annotation not in registry → missing-in-registry → lowers hygiene
+      const dir = await createFixtureDir(baseDir, 'hyg-fail', {
+        sourceFiles: {
+          'src/sample.ts':
+            '// eslint-disable-next-line no-console -- shiori: CHK-MISSING\nconsole.log("test");\n',
+        },
+        registryEntries: {},
+      });
+      const { exitCode, stderr } = await runCli([
+        'check',
+        '--cwd',
+        dir,
+        '--patterns',
+        'src/**/*.ts',
+        '--hygiene-threshold',
+        '100',
+      ]);
+
+      // 1 missing-in-registry → hygiene=95, below threshold 100
+      assert.equal(exitCode, 1);
+      assert.ok(stderr.includes('Hygiene'));
+      assert.ok(stderr.includes('below threshold'));
+    });
+  });
+
   describe('--output file writing', () => {
     it('writes report to specified file instead of stdout', async () => {
       const dir = await createFixtureDir(baseDir, 'output', {

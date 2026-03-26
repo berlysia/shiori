@@ -8,7 +8,13 @@ import type {
   ShioriCandidate,
   ReportResult,
 } from '../src/core/types.ts';
-import { report, calculateScore } from '../src/commands/report.ts';
+import {
+  report,
+  calculateScore,
+  calculateCoverage,
+  calculateHygiene,
+  calculateConvenienceScore,
+} from '../src/commands/report.ts';
 import { VERIFY_ISSUE_TYPES } from '../src/core/types.ts';
 import {
   formatReportOutput as formatReport,
@@ -955,5 +961,237 @@ describe('calculateScore', () => {
       byType as Record<(typeof VERIFY_ISSUE_TYPES)[number], number>,
     );
     assert.equal(score, 60);
+  });
+});
+
+describe('calculateCoverage', () => {
+  it('returns 100 when no annotations and no candidates', () => {
+    assert.equal(calculateCoverage([], []), 100);
+  });
+
+  it('returns 100 when all are tracked (no candidates)', () => {
+    const annotations = [
+      makeAnnotation({ ref: 'A' }),
+      makeAnnotation({ ref: 'B' }),
+    ];
+    assert.equal(calculateCoverage(annotations, []), 100);
+  });
+
+  it('returns 0 when all are candidates (no annotations)', () => {
+    const candidates: ShioriCandidate[] = [
+      { pattern: 'eslint', location: { file: 'a.ts', line: 1 } },
+    ];
+    assert.equal(calculateCoverage([], candidates), 0);
+  });
+
+  it('calculates correct ratio for mixed annotations and candidates', () => {
+    const annotations = [makeAnnotation({ ref: 'A' })];
+    const candidates: ShioriCandidate[] = [
+      { pattern: 'eslint', location: { file: 'b.ts', line: 1 } },
+      { pattern: 'eslint', location: { file: 'c.ts', line: 1 } },
+    ];
+    // 1 / (1 + 2) = 33.33... → rounds to 33
+    assert.equal(calculateCoverage(annotations, candidates), 33);
+  });
+
+  it('rounds to nearest integer', () => {
+    const annotations = [
+      makeAnnotation({ ref: 'A' }),
+      makeAnnotation({ ref: 'B' }),
+    ];
+    const candidates: ShioriCandidate[] = [
+      { pattern: 'eslint', location: { file: 'c.ts', line: 1 } },
+    ];
+    // 2 / (2 + 1) = 66.66... → rounds to 67
+    assert.equal(calculateCoverage(annotations, candidates), 67);
+  });
+});
+
+describe('calculateHygiene', () => {
+  /** Build a zero-initialized byType record */
+  function zeroBytType(): Record<string, number> {
+    const byType: Record<string, number> = {};
+    for (const t of VERIFY_ISSUE_TYPES) {
+      byType[t] = 0;
+    }
+    return byType;
+  }
+
+  it('returns 100 with no issues', () => {
+    const byType = zeroBytType();
+    assert.equal(
+      calculateHygiene(
+        byType as Record<(typeof VERIFY_ISSUE_TYPES)[number], number>,
+      ),
+      100,
+    );
+  });
+
+  it('deducts 10pt per critical issue (expired)', () => {
+    const byType = zeroBytType();
+    byType['expired'] = 2;
+    // 100 - min(2*10, 40) = 80
+    assert.equal(
+      calculateHygiene(
+        byType as Record<(typeof VERIFY_ISSUE_TYPES)[number], number>,
+      ),
+      80,
+    );
+  });
+
+  it('caps critical tier deduction at 40', () => {
+    const byType = zeroBytType();
+    byType['expired'] = 5;
+    // Raw: 5*10=50, capped at 40 → 100-40=60
+    assert.equal(
+      calculateHygiene(
+        byType as Record<(typeof VERIFY_ISSUE_TYPES)[number], number>,
+      ),
+      60,
+    );
+  });
+
+  it('deducts 5pt per major issue (missing-in-registry)', () => {
+    const byType = zeroBytType();
+    byType['missing-in-registry'] = 3;
+    // 100 - min(3*5, 30) = 85
+    assert.equal(
+      calculateHygiene(
+        byType as Record<(typeof VERIFY_ISSUE_TYPES)[number], number>,
+      ),
+      85,
+    );
+  });
+
+  it('caps major tier deduction at 30', () => {
+    const byType = zeroBytType();
+    byType['missing-in-registry'] = 7;
+    // Raw: 7*5=35, capped at 30 → 100-30=70
+    assert.equal(
+      calculateHygiene(
+        byType as Record<(typeof VERIFY_ISSUE_TYPES)[number], number>,
+      ),
+      70,
+    );
+  });
+
+  it('deducts 2pt per minor issue', () => {
+    const byType = zeroBytType();
+    byType['ref-format'] = 3;
+    // 100 - min(3*2, 10) = 94
+    assert.equal(
+      calculateHygiene(
+        byType as Record<(typeof VERIFY_ISSUE_TYPES)[number], number>,
+      ),
+      94,
+    );
+  });
+
+  it('accumulates deductions across all tiers', () => {
+    const byType = zeroBytType();
+    byType['expired'] = 2; // Critical: 2*10=20
+    byType['missing-in-registry'] = 3; // Major: 3*5=15
+    byType['ref-format'] = 2; // Minor: 2*2=4
+    // 100 - 20 - 15 - 4 = 61
+    assert.equal(
+      calculateHygiene(
+        byType as Record<(typeof VERIFY_ISSUE_TYPES)[number], number>,
+      ),
+      61,
+    );
+  });
+
+  it('floors at 0 (never goes negative)', () => {
+    const byType = zeroBytType();
+    byType['expired'] = 5; // Critical: capped 40
+    byType['missing-in-registry'] = 7; // Major: capped 30
+    byType['ref-format'] = 6; // Minor: capped 10
+    // 100 - 40 - 30 - 10 = 20
+    assert.equal(
+      calculateHygiene(
+        byType as Record<(typeof VERIFY_ISSUE_TYPES)[number], number>,
+      ),
+      20,
+    );
+  });
+});
+
+describe('calculateConvenienceScore', () => {
+  it('returns the minimum of coverage and hygiene', () => {
+    assert.equal(calculateConvenienceScore(80, 90), 80);
+    assert.equal(calculateConvenienceScore(90, 80), 80);
+  });
+
+  it('returns equal value when both are the same', () => {
+    assert.equal(calculateConvenienceScore(75, 75), 75);
+  });
+
+  it('returns 0 when either axis is 0', () => {
+    assert.equal(calculateConvenienceScore(0, 100), 0);
+    assert.equal(calculateConvenienceScore(100, 0), 0);
+  });
+
+  it('returns 100 when both axes are 100', () => {
+    assert.equal(calculateConvenienceScore(100, 100), 100);
+  });
+});
+
+describe('report() dual-axis output', () => {
+  it('returns coverage and hygiene in health object', () => {
+    const result = report({
+      scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
+      registry: {
+        'TEST-001': makeRegistryEntry(),
+      },
+      failOn: [],
+      warnOn: [],
+    });
+
+    // Clean codebase: coverage=100 (no candidates), hygiene=100 (no issues)
+    assert.equal(result.health.coverage, 100);
+    assert.equal(result.health.hygiene, 100);
+    assert.equal(result.health.score, 100);
+  });
+
+  it('reflects low coverage when candidates exist', () => {
+    const candidates: ShioriCandidate[] = [
+      { pattern: 'eslint', location: { file: 'a.ts', line: 1 } },
+      { pattern: 'eslint', location: { file: 'b.ts', line: 2 } },
+    ];
+    const result = report({
+      scanResult: makeScanResult(
+        [makeAnnotation({ ref: 'TEST-001' })],
+        candidates,
+      ),
+      registry: {
+        'TEST-001': makeRegistryEntry(),
+      },
+      failOn: [],
+      warnOn: [],
+    });
+
+    // 1 tracked / (1 + 2) = 33%
+    assert.equal(result.health.coverage, 33);
+    // No verify issues → hygiene stays 100
+    assert.equal(result.health.hygiene, 100);
+    // Convenience score = min(33, 100) = 33
+    assert.equal(result.health.score, 33);
+  });
+
+  it('reflects low hygiene when verify issues exist', () => {
+    // Annotation not in registry → missing-in-registry issue
+    const result = report({
+      scanResult: makeScanResult([makeAnnotation({ ref: 'MISSING-001' })]),
+      registry: {},
+      failOn: [],
+      warnOn: [],
+    });
+
+    // No candidates → coverage=100
+    assert.equal(result.health.coverage, 100);
+    // 1 missing-in-registry (major tier, 5pt) → hygiene=95
+    assert.equal(result.health.hygiene, 95);
+    // score = min(100, 95) = 95
+    assert.equal(result.health.score, 95);
   });
 });

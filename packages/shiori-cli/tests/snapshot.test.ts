@@ -17,7 +17,13 @@ import type { ReportResult } from '../src/core/types.ts';
 function createReportResult(overrides?: Partial<ReportResult>): ReportResult {
   return {
     timestamp: '2026-03-04T10:00:00.000Z',
-    health: { level: 'healthy', score: 85, summary: 'Test summary' },
+    health: {
+      level: 'healthy',
+      score: 85,
+      coverage: 100,
+      hygiene: 85,
+      summary: 'Test summary',
+    },
     totals: {
       annotations: 10,
       candidates: 2,
@@ -312,11 +318,23 @@ describe('auto-save integration (saveSnapshot + loadSnapshots roundtrip)', () =>
 
     const report1 = createReportResult({
       timestamp: '2026-03-18T10:00:00.000Z',
-      health: { level: 'warning', score: 60, summary: 'Week 1' },
+      health: {
+        level: 'warning',
+        score: 60,
+        coverage: 100,
+        hygiene: 60,
+        summary: 'Week 1',
+      },
     });
     const report2 = createReportResult({
       timestamp: '2026-03-25T10:00:00.000Z',
-      health: { level: 'healthy', score: 80, summary: 'Week 2' },
+      health: {
+        level: 'healthy',
+        score: 80,
+        coverage: 100,
+        hygiene: 80,
+        summary: 'Week 2',
+      },
     });
 
     await saveSnapshot(report1, reportsDir, tempDir);

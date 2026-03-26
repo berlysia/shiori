@@ -43,7 +43,13 @@ function makeVerifyResult(overrides: Partial<VerifyResult> = {}): VerifyResult {
 function makeReportResult(overrides: Partial<ReportResult> = {}): ReportResult {
   return {
     timestamp: '2026-03-23T00:00:00.000Z',
-    health: { level: 'healthy', score: 100, summary: 'All clear' },
+    health: {
+      level: 'healthy',
+      score: 100,
+      coverage: 100,
+      hygiene: 100,
+      summary: 'All clear',
+    },
     totals: {
       annotations: 5,
       candidates: 2,
@@ -277,7 +283,13 @@ describe('formatReportAsGitHubSummary', () => {
 
   it('shows warning health emoji', () => {
     const result = makeReportResult({
-      health: { level: 'warning', score: 55, summary: 'Needs attention' },
+      health: {
+        level: 'warning',
+        score: 55,
+        coverage: 100,
+        hygiene: 55,
+        summary: 'Needs attention',
+      },
     });
     const output = formatReportAsGitHubSummary(result);
     assert.match(output, /### 🟡/);
@@ -285,7 +297,13 @@ describe('formatReportAsGitHubSummary', () => {
 
   it('shows critical health emoji', () => {
     const result = makeReportResult({
-      health: { level: 'critical', score: 20, summary: 'Critical issues' },
+      health: {
+        level: 'critical',
+        score: 20,
+        coverage: 100,
+        hygiene: 20,
+        summary: 'Critical issues',
+      },
     });
     const output = formatReportAsGitHubSummary(result);
     assert.match(output, /### 🔴/);
@@ -361,7 +379,13 @@ describe('formatReportAsGitHubSummary', () => {
 
   it('health summary appears as blockquote', () => {
     const result = makeReportResult({
-      health: { level: 'healthy', score: 95, summary: 'Looking good' },
+      health: {
+        level: 'healthy',
+        score: 95,
+        coverage: 100,
+        hygiene: 95,
+        summary: 'Looking good',
+      },
     });
     const output = formatReportAsGitHubSummary(result);
     assert.ok(output.includes('> Looking good'));
@@ -371,7 +395,13 @@ describe('formatReportAsGitHubSummary', () => {
 function makeHealthResult(overrides: Partial<HealthResult> = {}): HealthResult {
   return {
     timestamp: '2026-03-23T00:00:00.000Z',
-    health: { level: 'healthy', score: 100, summary: 'All clear' },
+    health: {
+      level: 'healthy',
+      score: 100,
+      coverage: 100,
+      hygiene: 100,
+      summary: 'All clear',
+    },
     issues: { total: 0, errors: 0, warnings: 0 },
     expiring: { expired: 0, expiringSoon: 0 },
     insights: [],
@@ -388,7 +418,13 @@ describe('formatHealthAsGitHubSummary', () => {
 
   it('shows warning emoji for warning level', () => {
     const result = makeHealthResult({
-      health: { level: 'warning', score: 55, summary: 'Needs attention' },
+      health: {
+        level: 'warning',
+        score: 55,
+        coverage: 100,
+        hygiene: 55,
+        summary: 'Needs attention',
+      },
     });
     const output = formatHealthAsGitHubSummary(result);
     assert.match(output, /### 🟡/);
@@ -396,7 +432,13 @@ describe('formatHealthAsGitHubSummary', () => {
 
   it('shows critical emoji for critical level', () => {
     const result = makeHealthResult({
-      health: { level: 'critical', score: 20, summary: 'Critical issues' },
+      health: {
+        level: 'critical',
+        score: 20,
+        coverage: 100,
+        hygiene: 20,
+        summary: 'Critical issues',
+      },
     });
     const output = formatHealthAsGitHubSummary(result);
     assert.match(output, /### 🔴/);
@@ -404,7 +446,13 @@ describe('formatHealthAsGitHubSummary', () => {
 
   it('renders health summary as blockquote', () => {
     const result = makeHealthResult({
-      health: { level: 'healthy', score: 90, summary: 'Looking good' },
+      health: {
+        level: 'healthy',
+        score: 90,
+        coverage: 100,
+        hygiene: 90,
+        summary: 'Looking good',
+      },
     });
     const output = formatHealthAsGitHubSummary(result);
     assert.ok(output.includes('> Looking good'));
@@ -496,6 +544,7 @@ describe('formatHealthAsGitHubSummary', () => {
           command: 'shiori update',
           scoreImpact: 15,
           actionType: 'update',
+          axis: 'hygiene' as const,
         },
         {
           urgency: 'recommended',
@@ -503,6 +552,7 @@ describe('formatHealthAsGitHubSummary', () => {
           command: 'shiori triage',
           scoreImpact: 5,
           actionType: 'triage',
+          axis: 'hygiene' as const,
         },
       ],
     });
