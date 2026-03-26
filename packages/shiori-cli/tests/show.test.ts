@@ -118,7 +118,7 @@ describe('isFound', () => {
           ticket: undefined,
           owner: undefined,
           notes: undefined,
-          kind: undefined,
+          kind: 'intentional',
         },
         sourceLocations: [],
         url: undefined,

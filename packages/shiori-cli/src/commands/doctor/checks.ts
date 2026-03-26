@@ -8,10 +8,10 @@ import {
   DEFAULT_SCAN_RESULT_PATH,
 } from '../../core/config.ts';
 import type { ResolvedConfig } from '../../core/config.ts';
-import type { Registry } from '../../core/types.ts';
+import type { Registry, DoctorCheck } from '../../core/types.ts';
+import { resolveKind, REGISTRY_KIND_VALUES } from '../../core/types.ts';
 import { loadMultiRegistry } from '../../core/registry.ts';
 import { matchRefPattern } from '../../core/ref-pattern.ts';
-import type { DoctorCheck } from '../../core/types.ts';
 import type { ConfigLoadResult, RegistryCheckResult } from './types.ts';
 import {
   findMissingPolicies,
@@ -619,5 +619,84 @@ export function checkCommandRegistrationConsistency(
     status: 'warn',
     message: parts.join('; '),
     fix: 'Ensure REGISTERED_COMMANDS, EXIT_CODE_POLICIES, and cli.ts subCommands all list the same commands',
+  };
+}
+
+/**
+ * Check that registry entries use recognized kind values and satisfy
+ * the kind-specific requirements (ADR 024).
+ *
+ * - Unrecognized kind values: warn (not error — allows gradual adoption)
+ * - kind=intentional without reason: warn
+ * - kind=temporary (or unspecified) without expires: warn
+ */
+export function checkKindSemantics(registry: Registry): DoctorCheck {
+  const entries = Object.entries(registry);
+  if (entries.length === 0) {
+    return {
+      name: 'kind-semantics',
+      label: 'Kind semantics',
+      status: 'pass',
+      message: 'No registry entries to check',
+    };
+  }
+
+  const unrecognized: string[] = [];
+  const intentionalNoReason: string[] = [];
+  const temporaryNoExpires: string[] = [];
+
+  for (const [ref, entry] of entries) {
+    // Check for unrecognized kind values
+    if (
+      entry.kind !== undefined &&
+      !(REGISTRY_KIND_VALUES as readonly string[]).includes(entry.kind)
+    ) {
+      unrecognized.push(ref);
+    }
+
+    const effectiveKind = resolveKind(entry.kind);
+    if (effectiveKind === 'intentional' && !entry.reason) {
+      intentionalNoReason.push(ref);
+    }
+    if (effectiveKind === 'temporary' && !entry.expires) {
+      temporaryNoExpires.push(ref);
+    }
+  }
+
+  const issues: string[] = [];
+  if (unrecognized.length > 0) {
+    const examples = unrecognized.slice(0, 3).join(', ');
+    issues.push(
+      `${unrecognized.length} entry/entries with unrecognized kind: ${examples}`,
+    );
+  }
+  if (intentionalNoReason.length > 0) {
+    const examples = intentionalNoReason.slice(0, 3).join(', ');
+    issues.push(
+      `${intentionalNoReason.length} intentional entry/entries without reason: ${examples}`,
+    );
+  }
+  if (temporaryNoExpires.length > 0) {
+    const examples = temporaryNoExpires.slice(0, 3).join(', ');
+    issues.push(
+      `${temporaryNoExpires.length} temporary entry/entries without expires: ${examples}`,
+    );
+  }
+
+  if (issues.length === 0) {
+    return {
+      name: 'kind-semantics',
+      label: 'Kind semantics',
+      status: 'pass',
+      message: `All ${entries.length} entries have valid kind semantics`,
+    };
+  }
+
+  return {
+    name: 'kind-semantics',
+    label: 'Kind semantics',
+    status: 'warn',
+    message: issues.join('; '),
+    fix: 'Set kind=temporary with expires, or kind=intentional with reason for each entry',
   };
 }

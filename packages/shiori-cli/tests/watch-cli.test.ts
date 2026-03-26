@@ -666,6 +666,7 @@ describe('watch-cli: argument validation and error paths', () => {
           'CLEAN-001': {
             reason: 'test',
             target: 'all',
+            kind: 'intentional',
           },
         }),
         'utf-8',

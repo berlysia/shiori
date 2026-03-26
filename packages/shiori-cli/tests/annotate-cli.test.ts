@@ -257,7 +257,7 @@ describe('annotate-cli: error handling', () => {
           ticket: undefined,
           owner: undefined,
           notes: undefined,
-          kind: undefined,
+          kind: 'intentional',
         },
       },
     });

@@ -59,6 +59,10 @@ const RULE_DESCRIPTIONS: Record<VerifyIssueType, string> = {
   'expiring-soon': 'Registry entry is approaching its expiration date',
   'ref-status-closed':
     'Referenced issue/ticket reported as closed by external status command',
+  'intentional-without-reason':
+    'Registry entry has kind=intentional but no reason explaining the permanent suppression',
+  'temporary-without-expires':
+    'Registry entry is temporary but has no expiration date set',
 };
 
 /**

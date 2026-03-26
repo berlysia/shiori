@@ -2,10 +2,12 @@
   "SUP-600": {
     "reason": "expired workaround",
     "target": "all",
-    "expires": "2025-01-15"
+    "expires": "2025-01-15",
+    "kind": "temporary"
   },
   "SUP-700": {
     "reason": "standalone annotation",
-    "target": "all"
+    "target": "all",
+    "kind": "intentional"
   }
 }

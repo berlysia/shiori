@@ -76,6 +76,18 @@ const MESSAGE_TEMPLATES: Record<
       `Ref "${ref}" references a closed issue/ticket — annotation may be removable`,
     hasRef: true,
   },
+
+  // kind semantics (ADR 024)
+  'intentional-without-reason': {
+    template: (ref) =>
+      `ID "${ref}" has kind=intentional but no reason — add reason to explain permanent suppression`,
+    hasRef: true,
+  },
+  'temporary-without-expires': {
+    template: (ref) =>
+      `ID "${ref}" has kind=temporary (or unspecified) but no expires — set expires date or change to kind=intentional with reason`,
+    hasRef: true,
+  },
 };
 
 describe('alert-to-ref ref extraction', () => {

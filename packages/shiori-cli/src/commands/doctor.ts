@@ -22,6 +22,7 @@ import {
   checkRegistryCompleteness,
   checkExitCodePolicies,
   checkCommandRegistrationConsistency,
+  checkKindSemantics,
 } from './doctor/checks.ts';
 import { assessMaturity } from './doctor/maturity.ts';
 import { buildUpgradePlan } from './doctor/upgrade.ts';
@@ -40,6 +41,7 @@ export {
   checkRegistryCompleteness,
   checkExitCodePolicies,
   checkCommandRegistrationConsistency,
+  checkKindSemantics,
 } from './doctor/checks.ts';
 export { assessMaturity } from './doctor/maturity.ts';
 export { buildUpgradePlan } from './doctor/upgrade.ts';
@@ -98,6 +100,7 @@ export async function doctor(options: DoctorOptions): Promise<DoctorResult> {
   if (registryCheck.registry) {
     checks.push(checkExpiredEntries(registryCheck.registry));
     checks.push(checkRegistryCompleteness(registryCheck.registry));
+    checks.push(checkKindSemantics(registryCheck.registry));
   }
 
   checks.push(gitignoreCheck);

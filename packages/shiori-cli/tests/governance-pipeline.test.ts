@@ -81,7 +81,11 @@ describe('runGovernancePipeline', () => {
     before(async () => {
       tmpDir = await createTmpProject();
       await writeRegistry(tmpDir, {
-        'TEST-001': { reason: 'workaround for upstream bug', target: 'src/' },
+        'TEST-001': {
+          reason: 'workaround for upstream bug',
+          target: 'src/',
+          kind: 'intentional',
+        },
       });
       await writeSourceFile(
         tmpDir,
@@ -223,7 +227,7 @@ describe('runGovernancePipeline', () => {
     before(async () => {
       tmpDir = await createTmpProject();
       await writeRegistry(tmpDir, {
-        'PAT-001': { reason: 'test', target: 'src/' },
+        'PAT-001': { reason: 'test', target: 'src/', kind: 'intentional' },
       });
       // Two files — only one matches the restricted pattern
       await writeSourceFile(

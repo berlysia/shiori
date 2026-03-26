@@ -1,11 +1,13 @@
 {
   "SUP-001": {
     "reason": "logging for debug",
-    "target": "all"
+    "target": "all",
+    "kind": "intentional"
   },
   "SUP-002": {
     "reason": "legacy color usage",
     "target": "all",
-    "expires": "2027-12"
+    "expires": "2027-12",
+    "kind": "temporary"
   }
 }

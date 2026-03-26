@@ -268,7 +268,7 @@ describe('CLI E2E', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       };
       const outputPath = join(tmpDir, 'updated-registry.json');
       await writeFile(

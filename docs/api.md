@@ -161,7 +161,9 @@ type VerifyIssueType =
   | 'unrouted-ref'
   | 'registry-routing-mismatch'
   | 'expiring-soon'
-  | 'ref-status-closed';
+  | 'ref-status-closed'
+  | 'intentional-without-reason'
+  | 'temporary-without-expires';
 
 type IssueSeverity = 'error' | 'warning';
 ```

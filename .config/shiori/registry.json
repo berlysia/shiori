@@ -4,14 +4,14 @@
     "target": "src/core/path-boundary.ts",
     "owner": "berlysia",
     "notes": "while(true) pattern is idiomatic for walk-up-until-found; suppress is permanent",
-    "kind": "lint-suppress"
+    "kind": "intentional"
   },
   "DEV-003": {
     "reason": "TODO placeholder values in scaffold generation are intentional design, not missing implementation",
     "target": "src/commands/registry-generator.ts",
     "owner": "berlysia",
     "notes": "initRegistry generates placeholder entries for new refs; users fill in real values",
-    "kind": "design-decision"
+    "kind": "intentional"
   },
   "DEV-007": {
     "reason": "Config file parsed from JSON/YAML cast to ShioriConfig without schema validation",
@@ -20,55 +20,55 @@
     "ticket": "EP-0011",
     "owner": "berlysia",
     "notes": "JSON Schema validation (EP-0011) would provide structural guarantee before cast",
-    "kind": "type-assertion"
+    "kind": "temporary"
   },
   "DEV-009": {
     "reason": "Registry entry type guard checks typeof=object but TS does not narrow to Record<string, unknown>",
     "target": "src/core/registry.ts",
     "owner": "berlysia",
     "notes": "Structural limitation of TypeScript narrowing; assertion is safe after null/typeof check",
-    "kind": "type-assertion"
+    "kind": "intentional"
   },
   "DEV-011": {
     "reason": "Object.fromEntries() returns Record<string, number> but VerifyIssueType keys needed for type-safe access",
     "target": "src/commands/verify.ts",
     "owner": "berlysia",
     "notes": "TypeScript cannot infer key types from const array .map() in Object.fromEntries; assertion is safe because keys come from VERIFY_ISSUE_TYPES",
-    "kind": "type-assertion"
+    "kind": "intentional"
   },
   "DEV-012": {
     "reason": "Object.entries() requires Record cast after typeof/null/Array guard narrows parsed to non-null object",
     "target": "src/core/registry.ts",
     "owner": "berlysia",
     "notes": "TypeScript typeof narrowing does not produce Record<string, unknown> from unknown; assertion bridges the gap after runtime guards",
-    "kind": "type-assertion"
+    "kind": "intentional"
   },
   "DEV-013": {
     "reason": "Array.includes() guard filters invalid types but TS cannot narrow string[] to VerifyIssueType[]",
     "target": "src/core/cli-validation.ts",
     "owner": "berlysia",
     "notes": "Validated by filtering against VERIFY_ISSUE_TYPES",
-    "kind": "type-assertion"
+    "kind": "intentional"
   },
   "DEV-015": {
     "reason": "process.stdin async iterator yields Buffer|string but type is not narrowed; default binary mode yields Buffer",
     "target": "src/core/scan-result-loader.ts",
     "owner": "berlysia",
     "notes": "Node.js stdin without setEncoding() yields Buffer; type system does not reflect encoding state",
-    "kind": "type-assertion"
+    "kind": "intentional"
   },
   "DEV-018": {
     "reason": "runtime JSON shape validated by isReportShape but static type requires assertion",
     "target": "src/core/report-files.ts",
     "owner": "berlysia",
     "notes": "isReportShape() validates structure at runtime; TypeScript cannot narrow from Record<string, unknown> to ReportResult through type predicate",
-    "kind": "type-assertion"
+    "kind": "intentional"
   },
   "DEV-019": {
     "reason": "runtime JSON shape validated by isSummaryShape but static type requires assertion",
     "target": "src/commands/aggregate-cli.ts",
     "owner": "berlysia",
     "notes": "isSummaryShape() validates structure at runtime; TypeScript cannot narrow from Record<string, unknown> to SummaryResult through type predicate",
-    "kind": "type-assertion"
+    "kind": "intentional"
   }
 }

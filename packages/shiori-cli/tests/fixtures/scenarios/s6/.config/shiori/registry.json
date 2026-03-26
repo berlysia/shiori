@@ -1,14 +1,17 @@
 {
   "ADR:0007": {
     "reason": "architectural decision",
-    "target": "all"
+    "target": "all",
+    "kind": "intentional"
   },
   "UNKNOWN-999": {
     "reason": "unrouted namespace",
-    "target": "all"
+    "target": "all",
+    "kind": "intentional"
   },
   "SUP-500": {
     "reason": "standard suppression",
-    "target": "all"
+    "target": "all",
+    "kind": "intentional"
   }
 }

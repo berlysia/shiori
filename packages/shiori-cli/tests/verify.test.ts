@@ -31,7 +31,7 @@ function makeRegistryEntry(
     ticket: undefined,
     owner: undefined,
     notes: undefined,
-    kind: undefined,
+    kind: 'intentional',
     ...overrides,
   };
 }
@@ -1494,6 +1494,299 @@ describe('verify', () => {
         VERIFY_ISSUE_TYPES.includes('ref-status-closed'),
         'ref-status-closed must be in VERIFY_ISSUE_TYPES',
       );
+    });
+
+    it('VERIFY_ISSUE_TYPES includes intentional-without-reason', async () => {
+      const { VERIFY_ISSUE_TYPES } = await import('../src/core/types.ts');
+      assert.ok(
+        VERIFY_ISSUE_TYPES.includes('intentional-without-reason'),
+        'intentional-without-reason must be in VERIFY_ISSUE_TYPES',
+      );
+    });
+
+    it('VERIFY_ISSUE_TYPES includes temporary-without-expires', async () => {
+      const { VERIFY_ISSUE_TYPES } = await import('../src/core/types.ts');
+      assert.ok(
+        VERIFY_ISSUE_TYPES.includes('temporary-without-expires'),
+        'temporary-without-expires must be in VERIFY_ISSUE_TYPES',
+      );
+    });
+  });
+
+  describe('intentional-without-reason', () => {
+    it('detects kind=intentional without reason', () => {
+      const records = [makeAnnotation({ ref: 'SUP-INT' })];
+      const registry: Registry = {
+        'SUP-INT': makeRegistryEntry({
+          kind: 'intentional',
+          reason: '',
+        }),
+      };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+      });
+      const issues = result.issues.filter(
+        (i) => i.type === 'intentional-without-reason',
+      );
+      assert.equal(issues.length, 1);
+      assert.equal(issues[0]!.ref, 'SUP-INT');
+      assert.equal(issues[0]!.severity, 'warning');
+    });
+
+    it('does not flag intentional with reason', () => {
+      const records = [makeAnnotation({ ref: 'SUP-OK' })];
+      const registry: Registry = {
+        'SUP-OK': makeRegistryEntry({
+          kind: 'intentional',
+          reason: 'Justified permanent suppression',
+        }),
+      };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+      });
+      const issues = result.issues.filter(
+        (i) => i.type === 'intentional-without-reason',
+      );
+      assert.equal(issues.length, 0);
+    });
+
+    it('respects failOn for severity', () => {
+      const records = [makeAnnotation({ ref: 'SUP-INT' })];
+      const registry: Registry = {
+        'SUP-INT': makeRegistryEntry({
+          kind: 'intentional',
+          reason: '',
+        }),
+      };
+      const result = verify({
+        records,
+        registry,
+        failOn: ['intentional-without-reason'],
+        warnOn: [],
+        now: referenceDate,
+      });
+      const issues = result.issues.filter(
+        (i) => i.type === 'intentional-without-reason',
+      );
+      assert.equal(issues[0]!.severity, 'error');
+    });
+
+    it('includes intentional-without-reason in summary byType', () => {
+      const records = [makeAnnotation({ ref: 'SUP-INT' })];
+      const registry: Registry = {
+        'SUP-INT': makeRegistryEntry({
+          kind: 'intentional',
+          reason: '',
+        }),
+      };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+      });
+      assert.equal(result.summary.byType['intentional-without-reason'], 1);
+    });
+  });
+
+  describe('temporary-without-expires', () => {
+    it('detects kind=temporary without expires', () => {
+      const records = [makeAnnotation({ ref: 'SUP-TMP' })];
+      const registry: Registry = {
+        'SUP-TMP': makeRegistryEntry({
+          kind: 'temporary',
+          expires: undefined,
+        }),
+      };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+      });
+      const issues = result.issues.filter(
+        (i) => i.type === 'temporary-without-expires',
+      );
+      assert.equal(issues.length, 1);
+      assert.equal(issues[0]!.ref, 'SUP-TMP');
+      assert.equal(issues[0]!.severity, 'warning');
+    });
+
+    it('detects kind=undefined (defaults to temporary) without expires', () => {
+      const records = [makeAnnotation({ ref: 'SUP-NOEXP' })];
+      const registry: Registry = {
+        'SUP-NOEXP': makeRegistryEntry({
+          kind: undefined,
+          expires: undefined,
+        }),
+      };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+      });
+      const issues = result.issues.filter(
+        (i) => i.type === 'temporary-without-expires',
+      );
+      assert.equal(issues.length, 1);
+      assert.ok(issues[0]!.message.includes('unspecified'));
+    });
+
+    it('does not flag temporary with expires', () => {
+      const records = [makeAnnotation({ ref: 'SUP-OK' })];
+      const registry: Registry = {
+        'SUP-OK': makeRegistryEntry({
+          kind: 'temporary',
+          expires: '2027-12-31',
+        }),
+      };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+      });
+      const issues = result.issues.filter(
+        (i) => i.type === 'temporary-without-expires',
+      );
+      assert.equal(issues.length, 0);
+    });
+
+    it('does not flag kind=undefined with expires', () => {
+      const records = [makeAnnotation({ ref: 'SUP-OK' })];
+      const registry: Registry = {
+        'SUP-OK': makeRegistryEntry({
+          kind: undefined,
+          expires: '2027-12-31',
+        }),
+      };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+      });
+      const issues = result.issues.filter(
+        (i) => i.type === 'temporary-without-expires',
+      );
+      assert.equal(issues.length, 0);
+    });
+
+    it('does not flag intentional without expires', () => {
+      const records = [makeAnnotation({ ref: 'SUP-INT' })];
+      const registry: Registry = {
+        'SUP-INT': makeRegistryEntry({
+          kind: 'intentional',
+          reason: 'Design decision',
+          expires: undefined,
+        }),
+      };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+      });
+      const issues = result.issues.filter(
+        (i) => i.type === 'temporary-without-expires',
+      );
+      assert.equal(issues.length, 0);
+    });
+
+    it('respects failOn for severity', () => {
+      const records = [makeAnnotation({ ref: 'SUP-TMP' })];
+      const registry: Registry = {
+        'SUP-TMP': makeRegistryEntry({
+          kind: 'temporary',
+          expires: undefined,
+        }),
+      };
+      const result = verify({
+        records,
+        registry,
+        failOn: ['temporary-without-expires'],
+        warnOn: [],
+        now: referenceDate,
+      });
+      const issues = result.issues.filter(
+        (i) => i.type === 'temporary-without-expires',
+      );
+      assert.equal(issues[0]!.severity, 'error');
+    });
+
+    it('includes temporary-without-expires in summary byType', () => {
+      const records = [makeAnnotation({ ref: 'SUP-TMP' })];
+      const registry: Registry = {
+        'SUP-TMP': makeRegistryEntry({
+          kind: 'temporary',
+          expires: undefined,
+        }),
+      };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+      });
+      assert.equal(result.summary.byType['temporary-without-expires'], 1);
+    });
+  });
+
+  describe('formatActionHints for kind semantics', () => {
+    it('shows hint for intentional-without-reason', () => {
+      const records = [makeAnnotation({ ref: 'SUP-INT' })];
+      const registry: Registry = {
+        'SUP-INT': makeRegistryEntry({
+          kind: 'intentional',
+          reason: '',
+        }),
+      };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+      });
+      const hints = formatActionHints(result);
+      assert.ok(hints.some((h) => h.includes('intentional-without-reason')));
+      assert.ok(hints.some((h) => h.includes('reason')));
+    });
+
+    it('shows hint for temporary-without-expires', () => {
+      const records = [makeAnnotation({ ref: 'SUP-TMP' })];
+      const registry: Registry = {
+        'SUP-TMP': makeRegistryEntry({
+          kind: 'temporary',
+          expires: undefined,
+        }),
+      };
+      const result = verify({
+        records,
+        registry,
+        failOn: [],
+        warnOn: [],
+        now: referenceDate,
+      });
+      const hints = formatActionHints(result);
+      assert.ok(hints.some((h) => h.includes('temporary-without-expires')));
+      assert.ok(hints.some((h) => h.includes('expires')));
     });
   });
 

@@ -193,7 +193,7 @@ describe('planResolve', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
     };
 
@@ -274,7 +274,7 @@ describe('planResolve', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
     };
 
@@ -378,7 +378,7 @@ describe('planResolve', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
     };
 
@@ -727,7 +727,7 @@ describe('planBulkResolve', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
       'SUP-5678': {
         reason: 'eval workaround',
@@ -736,7 +736,7 @@ describe('planBulkResolve', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
     };
 
@@ -798,7 +798,7 @@ describe('planBulkResolve', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
     };
 

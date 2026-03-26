@@ -730,6 +730,8 @@ function stubVerifyResult(
         'registry-routing-mismatch': 0,
         'expiring-soon': 0,
         'ref-status-closed': 0,
+        'intentional-without-reason': 0,
+        'temporary-without-expires': 0,
         ...overrides,
       },
     },

@@ -57,6 +57,8 @@ function buildActionType(issueType: VerifyIssueType): PrescriptionActionType {
       return 'verify';
     case 'unrouted-ref':
     case 'registry-routing-mismatch':
+    case 'intentional-without-reason':
+    case 'temporary-without-expires':
       return 'doctor';
   }
 }
@@ -88,6 +90,9 @@ function buildCommand(issueType: VerifyIssueType): string {
       return 'shiori doctor';
     case 'ref-status-closed':
       return 'shiori triage';
+    case 'intentional-without-reason':
+    case 'temporary-without-expires':
+      return 'shiori doctor';
   }
 }
 

@@ -333,6 +333,8 @@ Detects:
 - **registry-routing-mismatch** — Registry entry in a file that does not match its routing pattern
 - **expiring-soon** — Registry entry approaching its `expires` date (default: within 14 days)
 - **ref-status-closed** — Referenced issue/ticket reported as closed by external status command
+- **intentional-without-reason** — Registry entry has `kind=intentional` but no `reason` explaining the permanent suppression
+- **temporary-without-expires** — Registry entry is temporary (default kind) but has no `expires` date
 
 Options:
 
@@ -583,18 +585,20 @@ shiori check --fail-on expired --warn-on unused-in-source
 
 In SARIF output, `error` severity maps to error annotations and `warning` maps to warning annotations in the GitHub Code Scanning UI.
 
-| Issue type                  | Default severity | Description                                   |
-| --------------------------- | ---------------- | --------------------------------------------- |
-| `missing-in-registry`       | warning          | Ref in source but not in registry             |
-| `unused-in-source`          | warning          | Ref in registry but not in source             |
-| `expired`                   | warning          | Registry entry past its `expires` date        |
-| `syntax-error`              | warning          | Annotation with `shiori:` but invalid syntax  |
-| `ref-format`                | warning          | Annotation ref has invalid format             |
-| `ref-collision`             | warning          | Ref defined in multiple registry files        |
-| `unrouted-ref`              | warning          | Ref doesn't match any routing pattern         |
-| `registry-routing-mismatch` | warning          | Registry entry in wrong file per routing rule |
-| `expiring-soon`             | warning          | Registry entry approaching expiration         |
-| `ref-status-closed`         | warning          | Referenced issue/ticket is closed             |
+| Issue type                   | Default severity | Description                                   |
+| ---------------------------- | ---------------- | --------------------------------------------- |
+| `missing-in-registry`        | warning          | Ref in source but not in registry             |
+| `unused-in-source`           | warning          | Ref in registry but not in source             |
+| `expired`                    | warning          | Registry entry past its `expires` date        |
+| `syntax-error`               | warning          | Annotation with `shiori:` but invalid syntax  |
+| `ref-format`                 | warning          | Annotation ref has invalid format             |
+| `ref-collision`              | warning          | Ref defined in multiple registry files        |
+| `unrouted-ref`               | warning          | Ref doesn't match any routing pattern         |
+| `registry-routing-mismatch`  | warning          | Registry entry in wrong file per routing rule |
+| `expiring-soon`              | warning          | Registry entry approaching expiration         |
+| `ref-status-closed`          | warning          | Referenced issue/ticket is closed             |
+| `intentional-without-reason` | warning          | Intentional entry without reason              |
+| `temporary-without-expires`  | warning          | Temporary entry without expiration date       |
 
 ### Output Formats
 

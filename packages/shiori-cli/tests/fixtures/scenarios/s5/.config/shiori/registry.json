@@ -1,10 +1,12 @@
 {
   "SUP-400": {
     "reason": "legacy any usage",
-    "target": "all"
+    "target": "all",
+    "kind": "intentional"
   },
   "JIRA-DUP": {
     "reason": "duplicated in default",
-    "target": "all"
+    "target": "all",
+    "kind": "intentional"
   }
 }

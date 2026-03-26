@@ -15,4 +15,7 @@ export const ACTION_HINTS: Record<VerifyIssueType, string> = {
   'unrouted-ref': 'add refPattern or rename',
   'registry-routing-mismatch': 'move to correct registry file',
   'ref-status-closed': 'shiori resolve --ref <ref> (issue/ticket is closed)',
+  'intentional-without-reason': 'add reason to explain permanent suppression',
+  'temporary-without-expires':
+    'set expires date or change to kind=intentional with reason',
 };

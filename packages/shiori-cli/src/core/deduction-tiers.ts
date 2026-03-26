@@ -33,6 +33,8 @@ export const DEDUCTION_TIERS: DeductionTier[] = [
       'unrouted-ref',
       'registry-routing-mismatch',
       'expiring-soon',
+      'intentional-without-reason',
+      'temporary-without-expires',
     ],
     perIssue: 2,
     maxDeduction: 10,

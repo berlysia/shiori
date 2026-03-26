@@ -14,7 +14,7 @@ const sampleRegistry: Registry = {
     ticket: 'JIRA-100',
     owner: undefined,
     notes: undefined,
-    kind: undefined,
+    kind: 'intentional',
   },
   'SUP-1002': {
     reason: 'grid not supported in old browsers',
@@ -23,7 +23,7 @@ const sampleRegistry: Registry = {
     ticket: undefined,
     owner: undefined,
     notes: undefined,
-    kind: undefined,
+    kind: 'intentional',
   },
 };
 
@@ -132,7 +132,7 @@ describe('registry', () => {
           ticket: undefined,
           owner: undefined,
           notes: undefined,
-          kind: undefined,
+          kind: 'intentional',
         },
       };
       await saveRegistry(filePath, registry);

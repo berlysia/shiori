@@ -62,7 +62,7 @@ describe('planMigration', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
       'MIG-003': {
         reason: 'existing',
@@ -71,7 +71,7 @@ describe('planMigration', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
     };
     const candidates = [makeCandidate()];

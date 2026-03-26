@@ -62,6 +62,9 @@ function buildSuggestionCommand(issueType: VerifyIssueType): string {
       return 'shiori doctor';
     case 'missing-in-registry':
       return 'shiori update';
+    case 'intentional-without-reason':
+    case 'temporary-without-expires':
+      return 'shiori doctor';
   }
 }
 

@@ -6,6 +6,7 @@ import {
   type VerifyIssue,
   type VerifyIssueType,
   type VerifyResult,
+  resolveKind,
 } from '../core/types.ts';
 import type { RegistryDuplicateWarning } from '../core/registry.ts';
 import type { RefPatternConfig } from '../core/ref-pattern.ts';
@@ -293,6 +294,39 @@ export function verify(options: VerifyOptions): VerifyResult {
     }
   }
 
+  // Check kind semantics (ADR 024: intentional-without-reason, temporary-without-expires)
+  for (const [ref, entry] of Object.entries(registry)) {
+    const effectiveKind = resolveKind(entry.kind);
+    if (effectiveKind === 'intentional' && !entry.reason) {
+      issues.push({
+        type: 'intentional-without-reason',
+        severity: determineSeverity(
+          'intentional-without-reason',
+          failOn,
+          warnOn,
+        ),
+        ref,
+        message: `Ref "${ref}" has kind=intentional but no reason — permanent suppression should explain why`,
+        file: undefined,
+        line: undefined,
+      });
+    }
+    if (effectiveKind === 'temporary' && !entry.expires) {
+      issues.push({
+        type: 'temporary-without-expires',
+        severity: determineSeverity(
+          'temporary-without-expires',
+          failOn,
+          warnOn,
+        ),
+        ref,
+        message: `Ref "${ref}" is temporary (kind=${entry.kind ?? 'unspecified'}) but has no expires — set an expiration date or mark as kind=intentional with a reason`,
+        file: undefined,
+        line: undefined,
+      });
+    }
+  }
+
   return {
     timestamp: now.toISOString(),
     issues,
@@ -369,6 +403,16 @@ export function formatActionHints(result: VerifyResult): string[] {
   if (byType['ref-status-closed'] > 0) {
     hints.push(
       `  ref-status-closed (${byType['ref-status-closed']}): Referenced issue/ticket is closed. Run "shiori resolve --ref <ref>" to clean up the annotation.`,
+    );
+  }
+  if (byType['intentional-without-reason'] > 0) {
+    hints.push(
+      `  intentional-without-reason (${byType['intentional-without-reason']}): Entries with kind=intentional need a reason. Add reason to explain why this suppression is permanent.`,
+    );
+  }
+  if (byType['temporary-without-expires'] > 0) {
+    hints.push(
+      `  temporary-without-expires (${byType['temporary-without-expires']}): Temporary entries need an expires date. Set expires or change kind to intentional (with reason).`,
     );
   }
 

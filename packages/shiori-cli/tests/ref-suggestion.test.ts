@@ -23,7 +23,7 @@ describe('extractPrefixesFromRegistry', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
       'ADOPT-002': {
         reason: 'test',
@@ -32,7 +32,7 @@ describe('extractPrefixesFromRegistry', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
       'SUP-1234': {
         reason: 'test',
@@ -41,7 +41,7 @@ describe('extractPrefixesFromRegistry', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
     };
 
@@ -60,7 +60,7 @@ describe('extractPrefixesFromRegistry', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
     };
 
@@ -82,7 +82,7 @@ describe('extractPrefixesFromRegistry', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
     };
 
@@ -169,7 +169,7 @@ describe('suggestPrefixes', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
       'SUP-002': {
         reason: 'test',
@@ -178,7 +178,7 @@ describe('suggestPrefixes', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
     };
 
@@ -197,7 +197,7 @@ describe('suggestPrefixes', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
     };
     const refPatterns: RefPatternConfig[] = [
@@ -224,7 +224,7 @@ describe('suggestPrefixes', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
     };
 
@@ -246,7 +246,7 @@ describe('suggestPrefixes', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
       'SUP-001': {
         reason: 'test',
@@ -255,7 +255,7 @@ describe('suggestPrefixes', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
       'SUP-002': {
         reason: 'test',
@@ -264,7 +264,7 @@ describe('suggestPrefixes', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
       'SUP-003': {
         reason: 'test',
@@ -273,7 +273,7 @@ describe('suggestPrefixes', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
     };
 
@@ -305,7 +305,7 @@ describe('findNextAvailableNumber', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
       'ADOPT-003': {
         reason: 'test',
@@ -314,7 +314,7 @@ describe('findNextAvailableNumber', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
     };
 
@@ -330,7 +330,7 @@ describe('findNextAvailableNumber', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
     };
 
@@ -346,7 +346,7 @@ describe('findNextAvailableNumber', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
     };
 
@@ -374,7 +374,7 @@ describe('suggestNextRef', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
       'ADOPT-002': {
         reason: 'test',
@@ -383,7 +383,7 @@ describe('suggestNextRef', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
     };
 

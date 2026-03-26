@@ -179,7 +179,7 @@ describe('buildChronicle', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
     };
     const result = buildChronicle({

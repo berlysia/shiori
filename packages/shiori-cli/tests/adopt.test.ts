@@ -105,7 +105,7 @@ describe('planAdoption', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
       'ADOPT-003': {
         reason: 'existing',
@@ -114,7 +114,7 @@ describe('planAdoption', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
     };
     const candidates = [makeCandidate()];

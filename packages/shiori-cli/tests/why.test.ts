@@ -111,7 +111,7 @@ describe('why', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
     };
     const expiredAnnotations = [makeAnnotation('EXP-001', 'src/hack.ts', 5)];
@@ -220,7 +220,7 @@ describe('why', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
     };
 
@@ -251,7 +251,7 @@ describe('why — expiringThresholdDays propagation', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
     };
     const soonAnnotations = [
@@ -297,7 +297,7 @@ describe('why — duplicates and refOrigins propagation', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
     };
     const ann = [makeAnnotation('DUP-001', 'src/dup.ts', 1)];
@@ -332,7 +332,7 @@ describe('why — duplicates and refOrigins propagation', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
     };
     const ann = [makeAnnotation('CLEAN-001', 'src/clean.ts', 1)];
@@ -367,7 +367,7 @@ describe('why — duplicates and refOrigins propagation', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
     };
     const ann = [makeAnnotation('JIRA:ROUTE-001', 'src/route.ts', 1)];
@@ -412,7 +412,7 @@ describe('isFound (why)', () => {
           ticket: undefined,
           owner: undefined,
           notes: undefined,
-          kind: undefined,
+          kind: 'intentional',
         },
         sourceLocations: [],
         url: undefined,

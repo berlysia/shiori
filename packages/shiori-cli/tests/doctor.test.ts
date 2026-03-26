@@ -228,9 +228,9 @@ describe('doctor', () => {
       const scanResultPath = join(dir, '.config', 'shiori', 'scan-result.json');
       await writeFile(scanResultPath, '[]', 'utf-8');
       const result = await doctor({ cwd: dir });
-      // node-version, config, registry, ref-patterns, expired-entries, registry-completeness, gitignore, scan-result, exit-code-policies
+      // node-version, config, registry, ref-patterns, expired-entries, registry-completeness, kind-semantics, gitignore, scan-result, exit-code-policies
       // (command-registration moved to test-only — ADR 030)
-      assert.equal(result.checks.length, 9);
+      assert.equal(result.checks.length, 10);
       assert.ok(result.summary.pass >= 5); // node-version, config, registry, ref-patterns, exit-code-policies at minimum
       assert.equal(result.summary.fail, 0);
     } finally {
@@ -494,7 +494,7 @@ describe('checkExpiredEntries', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
     };
     const result = checkExpiredEntries(registry, now);
@@ -511,7 +511,7 @@ describe('checkExpiredEntries', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
       'DEV-002': {
         reason: 'test2',
@@ -520,7 +520,7 @@ describe('checkExpiredEntries', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
     };
     const result = checkExpiredEntries(registry, now);
@@ -539,7 +539,7 @@ describe('checkExpiredEntries', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
     };
     const result = checkExpiredEntries(registry, now);
@@ -556,7 +556,7 @@ describe('checkExpiredEntries', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       };
     }
     const result = checkExpiredEntries(registry, now);
@@ -583,7 +583,7 @@ describe('checkRegistryCompleteness', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
     };
     const result = checkRegistryCompleteness(registry);
@@ -600,7 +600,7 @@ describe('checkRegistryCompleteness', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
       'DEV-002': {
         reason: 'real reason',
@@ -609,7 +609,7 @@ describe('checkRegistryCompleteness', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
     };
     const result = checkRegistryCompleteness(registry);
@@ -629,7 +629,7 @@ describe('checkRegistryCompleteness', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       };
     }
     const result = checkRegistryCompleteness(registry);

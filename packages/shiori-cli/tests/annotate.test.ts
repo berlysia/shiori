@@ -241,7 +241,7 @@ describe('planAnnotation', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
     };
     const content = 'const x = 1;\n';

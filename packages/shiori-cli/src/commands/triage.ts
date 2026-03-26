@@ -72,6 +72,8 @@ const ISSUE_TYPE_PRIORITY: Record<VerifyIssueType, TriagePriority> = {
   'unrouted-ref': 'low',
   'registry-routing-mismatch': 'low',
   'ref-status-closed': 'high',
+  'intentional-without-reason': 'low',
+  'temporary-without-expires': 'low',
 };
 
 // ── Priority helpers ─────────────────────────────────────────

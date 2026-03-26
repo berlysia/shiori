@@ -91,6 +91,27 @@ export interface RegistryEntry {
 /** Full registry keyed by annotation ref */
 export type Registry = Record<string, RegistryEntry>;
 
+// ── Kind semantics (ADR 024) ─────────────────────────────────
+
+/**
+ * Canonical kind vocabulary for registry entries.
+ * - temporary: one-time suppression, expects resolution (expires required)
+ * - intentional: justified permanent disable (reason required)
+ */
+export const REGISTRY_KIND_VALUES = ['temporary', 'intentional'] as const;
+
+/** Semantic kind for a registry entry (derived from REGISTRY_KIND_VALUES) */
+export type RegistryKind = (typeof REGISTRY_KIND_VALUES)[number];
+
+/**
+ * Resolve the effective kind for a registry entry.
+ * Unspecified kind defaults to 'temporary' (ADR 024).
+ */
+export function resolveKind(kind: string | undefined): RegistryKind {
+  if (kind === 'intentional') return 'intentional';
+  return 'temporary';
+}
+
 /**
  * Canonical list of all verify issue types.
  * Single source of truth — VerifyIssueType is derived from this array.
@@ -106,6 +127,8 @@ export const VERIFY_ISSUE_TYPES = [
   'registry-routing-mismatch',
   'expiring-soon',
   'ref-status-closed',
+  'intentional-without-reason',
+  'temporary-without-expires',
 ] as const;
 
 /** Verify issue type (derived from VERIFY_ISSUE_TYPES) */

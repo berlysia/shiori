@@ -361,7 +361,7 @@ describe('routeRegistryByPattern', () => {
       ticket: undefined,
       owner: undefined,
       notes: undefined,
-      kind: undefined,
+      kind: 'intentional',
     },
     'ADR:0007': {
       reason: 'adr entry',
@@ -370,7 +370,7 @@ describe('routeRegistryByPattern', () => {
       ticket: undefined,
       owner: undefined,
       notes: undefined,
-      kind: undefined,
+      kind: 'intentional',
     },
     'SUP-1234': {
       reason: 'default entry',
@@ -379,7 +379,7 @@ describe('routeRegistryByPattern', () => {
       ticket: undefined,
       owner: undefined,
       notes: undefined,
-      kind: undefined,
+      kind: 'intentional',
     },
   };
 
@@ -494,7 +494,7 @@ describe('initRegistry ref validation', () => {
         ticket: undefined,
         owner: undefined,
         notes: undefined,
-        kind: undefined,
+        kind: 'intentional',
       },
     };
     const registry = initRegistry({ records, existingRegistry });
