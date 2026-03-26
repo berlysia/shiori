@@ -4,6 +4,7 @@ import type {
   PitchResult,
   PitchHighlight,
   HealthLevel,
+  RecommendedAction,
 } from '../core/types.ts';
 import { PITCH_FORMATS, type PitchFormat } from '../core/types.ts';
 import type { TriageResult } from './triage.ts';
@@ -38,6 +39,7 @@ export function pitch(options: PitchOptions): PitchResult {
   const highlights = buildHighlights(reportResult, trendResult, triageResult);
   const headline = buildHeadline(teamName, score, level);
   const nextSteps = buildNextSteps(reportResult, trendResult);
+  const recommendedActions = buildRecommendedActions(reportResult, trendResult);
 
   const result: PitchResult = {
     timestamp: reportResult.timestamp,
@@ -46,6 +48,7 @@ export function pitch(options: PitchOptions): PitchResult {
     health: { score, level },
     highlights,
     nextSteps,
+    recommendedActions,
   };
 
   if (trendResult && trendResult.points.length > 0) {
@@ -202,6 +205,87 @@ function buildNextSteps(
   }
 
   return steps;
+}
+
+// ── Recommended Actions (EP-0179) ───────────────────────────
+
+/**
+ * Build machine-readable recommended actions from report and trend data.
+ * Mirrors buildNextSteps conditions but produces structured RecommendedAction[].
+ */
+function buildRecommendedActions(
+  reportResult: ReportResult,
+  trendResult?: TrendResult,
+): RecommendedAction[] {
+  const actions: RecommendedAction[] = [];
+  const { score } = reportResult.health;
+  const { candidates } = reportResult.totals;
+  const expired = reportResult.byType['expired'];
+  const missing = reportResult.byType['missing-in-registry'];
+  let priority = 1;
+
+  if (expired > 0) {
+    actions.push({
+      action: 'triage',
+      command: 'shiori triage --expired-only',
+      args: ['--expired-only'],
+      reason: 'Review and resolve expired annotations',
+      priority: priority++,
+    });
+  }
+
+  if (missing > 0) {
+    actions.push({
+      action: 'update',
+      command: 'shiori update',
+      args: [],
+      reason: 'Register untracked annotations',
+      priority: priority++,
+    });
+  }
+
+  if (candidates > 0) {
+    actions.push({
+      action: 'adopt',
+      command: 'shiori adopt',
+      args: [],
+      reason: 'Convert lint disables to tracked annotations',
+      priority: priority++,
+    });
+  }
+
+  if (score >= 80) {
+    actions.push({
+      action: 'check',
+      command: 'shiori check --fail-on expired,missing-in-registry',
+      args: ['--fail-on', 'expired,missing-in-registry'],
+      reason: 'Enforce in CI',
+      priority: priority++,
+    });
+  }
+
+  if (!trendResult || trendResult.points.length === 0) {
+    actions.push({
+      action: 'health',
+      command: 'shiori health --snapshot',
+      args: ['--snapshot'],
+      reason: 'Start accumulating trend data',
+      priority: priority++,
+    });
+  }
+
+  // Fallback: suggest monitoring when no other actions apply
+  if (actions.length === 0) {
+    actions.push({
+      action: 'health',
+      command: 'shiori health --trend',
+      args: ['--trend'],
+      reason: 'Monitor governance trend',
+      priority: 1,
+    });
+  }
+
+  return actions;
 }
 
 // ── Markdown Formatter ──────────────────────────────────────

@@ -1270,7 +1270,46 @@ export interface PitchResult {
   };
   /** Recommended next steps (copy-paste ready commands) */
   nextSteps: string[];
+  /** Machine-readable recommended actions for onboard pipeline (EP-0179) */
+  recommendedActions?: RecommendedAction[];
 }
+
+// ── Onboard types (EP-0179) ─────────────────────────────────
+
+/**
+ * Canonical list of onboard action types.
+ * Single source of truth — OnboardActionType is derived from this array.
+ */
+export const ONBOARD_ACTION_TYPES = [
+  'triage',
+  'update',
+  'adopt',
+  'check',
+  'health',
+] as const;
+
+/** Onboard action type (derived from ONBOARD_ACTION_TYPES) */
+export type OnboardActionType = (typeof ONBOARD_ACTION_TYPES)[number];
+
+/** Machine-readable recommended action generated from pitch analysis */
+export interface RecommendedAction {
+  /** Action type corresponding to a shiori subcommand */
+  action: OnboardActionType;
+  /** Full command string to execute */
+  command: string;
+  /** Command arguments (excluding the subcommand name) */
+  args: string[];
+  /** Human-readable reason for this recommendation */
+  reason: string;
+  /** Execution priority (lower = higher priority, 1-based) */
+  priority: number;
+}
+
+/** Output formats for onboard command */
+export const ONBOARD_FORMATS = ['text', 'json'] as const;
+
+/** Output format for onboard command (derived from ONBOARD_FORMATS) */
+export type OnboardFormat = (typeof ONBOARD_FORMATS)[number];
 
 // ── Aggregate types ──────────────────────────────────────────
 

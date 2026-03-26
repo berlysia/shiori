@@ -32,6 +32,7 @@ import { coachCommand } from './commands/coach-cli.ts';
 import { narrativeCommand } from './commands/narrative-cli.ts';
 import { recipesCommand } from './commands/recipes-cli.ts';
 import { pitchCommand } from './commands/pitch-cli.ts';
+import { onboardCommand } from './commands/onboard-cli.ts';
 import { VERSION } from './core/version.ts';
 import { ExitCode } from './core/exit-codes.ts';
 
@@ -82,6 +83,7 @@ Workflow:
 
 Adoption:
   shiori pitch                   Generate a governance adoption pitch for your team
+  shiori onboard --from-pitch    Generate onboarding steps from pitch report
 
 Coaching:
   shiori coach                   Generate LLM prompts for governance coaching
@@ -143,6 +145,7 @@ try {
       narrative: narrativeCommand,
       recipes: recipesCommand,
       pitch: pitchCommand,
+      onboard: onboardCommand,
     },
   });
 } catch (err) {
