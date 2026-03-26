@@ -117,7 +117,7 @@ describe('formatOnboardAsText', () => {
   it('shows empty message when no steps', () => {
     const output = formatOnboardAsText([]);
     assert.ok(output.includes('No recommended actions'));
-    assert.ok(output.includes('shiori pitch -f json'));
+    assert.ok(output.includes('governance looks clean'));
   });
 
   it('formats steps with team name', () => {
