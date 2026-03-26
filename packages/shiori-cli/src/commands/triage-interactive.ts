@@ -4,13 +4,10 @@
  * Separated from triage-cli.ts for testability — accepts abstract input/output
  * streams so tests can simulate user responses without a real TTY.
  *
- * Follows the InteractiveFixContext pattern from fix-interactive.ts.
+ * Uses the shared InteractiveContext base from core/ (EP-0184).
  */
 
-import {
-  createInterface,
-  type Interface as ReadlineInterface,
-} from 'node:readline/promises';
+import type { Interface as ReadlineInterface } from 'node:readline/promises';
 import type {
   WizardQueue,
   WizardQueueItem,
@@ -19,14 +16,16 @@ import type {
 } from './triage.ts';
 import type { VerifyIssueType } from '../core/types.ts';
 import { extendExpires } from '../core/date-utils.ts';
+import type { InteractiveContext } from '../core/interactive-context.ts';
+import {
+  writeTo,
+  createReadlineInterface,
+} from '../core/interactive-context.ts';
 
 // ── Types ────────────────────────────────────────────────────
 
-/** Abstracted I/O context for interactive wizard prompts */
-export interface InteractiveTriageContext {
-  input: NodeJS.ReadableStream;
-  output: NodeJS.WritableStream;
-}
+/** Abstracted I/O context for interactive wizard prompts (alias for InteractiveContext) */
+export type InteractiveTriageContext = InteractiveContext;
 
 /** User's choice for a wizard triage item */
 export type WizardChoice = 'act' | 'skip' | 'defer' | 'quit';

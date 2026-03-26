@@ -5,19 +5,18 @@
  * streams so tests can simulate user responses without a real TTY.
  */
 
-import {
-  createInterface,
-  type Interface as ReadlineInterface,
-} from 'node:readline/promises';
+import type { Interface as ReadlineInterface } from 'node:readline/promises';
 import type { FixAction } from '../core/types.ts';
+import type { InteractiveContext } from '../core/interactive-context.ts';
+import {
+  writeTo,
+  createReadlineInterface,
+} from '../core/interactive-context.ts';
 
 // ── Types ────────────────────────────────────────────────────
 
-/** Abstracted I/O context for interactive prompts */
-export interface InteractiveFixContext {
-  input: NodeJS.ReadableStream;
-  output: NodeJS.WritableStream;
-}
+/** Abstracted I/O context for interactive fix prompts (alias for InteractiveContext) */
+export type InteractiveFixContext = InteractiveContext;
 
 /** User's choice for a fix action */
 export type InteractiveChoice = 'approve' | 'skip' | 'quit';
@@ -39,15 +38,6 @@ function parseChoice(input: string): InteractiveChoice | null {
     default:
       return null;
   }
-}
-
-function writeTo(output: NodeJS.WritableStream, text: string): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    output.write(text, (err) => {
-      if (err) reject(err);
-      else resolve();
-    });
-  });
 }
 
 // ── Prompt ───────────────────────────────────────────────────
@@ -93,8 +83,5 @@ export async function promptFixAction(
 export function createFixReadline(
   ctx: InteractiveFixContext,
 ): ReadlineInterface {
-  return createInterface({
-    input: ctx.input,
-    output: ctx.output,
-  });
+  return createReadlineInterface(ctx);
 }
