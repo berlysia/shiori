@@ -105,10 +105,10 @@ export function buildOnboardStepsFromActions(
 }
 
 /**
- * Determine CTA based on health score (EP-0186).
+ * Determine CTA based on health score (EP-0186, EP-0192).
  *
  * Score-based tier:
- * - < 40: critical — CI check を導入して品質ゲートを確立
+ * - < 40: critical — `init --ci` で CI 品質ゲートを確立（Adoption Completion Loop）
  * - 40-70: growing — snapshot cron で定期観測を開始
  * - > 70: healthy — watch dashboard で継続モニタリング
  */
@@ -117,9 +117,9 @@ export function buildOnboardCTA(score: number): OnboardCTA {
     return {
       tier: 'critical',
       label: 'Establish CI quality gate',
-      command: 'shiori check --fail-on expired,missing-in-registry',
+      command: 'shiori init --ci basic --ci-only',
       reason:
-        'Score is below 40. Adding CI enforcement prevents further degradation.',
+        'Score is below 40. Set up CI enforcement with `init --ci` to prevent further degradation.',
     };
   }
   if (score <= 70) {

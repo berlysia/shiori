@@ -115,7 +115,7 @@ describe('buildOnboardCTA', () => {
   it('returns critical CTA for score < 40', () => {
     const cta = buildOnboardCTA(20);
     assert.equal(cta.tier, 'critical');
-    assert.ok(cta.command.includes('check'));
+    assert.ok(cta.command.includes('init --ci'));
     assert.ok(cta.reason.includes('40'));
   });
 
