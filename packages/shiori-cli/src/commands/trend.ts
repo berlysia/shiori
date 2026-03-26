@@ -17,7 +17,7 @@ export { valueToBlock, buildSparkline };
  * Uses the timestamp field as the canonical key (no filename dependency).
  */
 export function extractTrendPoint(report: ReportResult): TrendPoint {
-  return {
+  const point: TrendPoint = {
     timestamp: report.timestamp,
     score: report.health.score,
     level: report.health.level,
@@ -26,6 +26,14 @@ export function extractTrendPoint(report: ReportResult): TrendPoint {
     candidates: report.totals.candidates,
     registryEntries: report.totals.registryEntries,
   };
+  // ADR 024 Phase 2: extract dual-axis scores when available
+  if (report.health.coverage !== undefined) {
+    point.coverage = report.health.coverage;
+  }
+  if (report.health.hygiene !== undefined) {
+    point.hygiene = report.health.hygiene;
+  }
+  return point;
 }
 
 /**
@@ -147,20 +155,38 @@ export function formatTrendAsMarkdown(result: TrendResult): string {
   lines.push(`| Max score | ${result.summary.maxScore} |`);
   lines.push('');
 
-  // Timeline table
+  // Timeline table — add coverage/hygiene columns when any point has them
+  const hasDualAxis = result.points.some(
+    (p) => p.coverage !== undefined || p.hygiene !== undefined,
+  );
   lines.push('## Timeline');
   lines.push('');
-  lines.push(
-    '| Timestamp | Score | Level | Issues | Annotations | Candidates |',
-  );
-  lines.push(
-    '|-----------|-------|-------|--------|-------------|------------|',
-  );
-  for (const p of result.points) {
-    const levelEmoji = healthEmoji(p.level);
+  if (hasDualAxis) {
     lines.push(
-      `| ${p.timestamp} | ${p.score}/100 | ${levelEmoji} ${p.level} | ${p.issues} | ${p.annotations} | ${p.candidates} |`,
+      '| Timestamp | Score | Coverage | Hygiene | Level | Issues | Annotations | Candidates |',
     );
+    lines.push(
+      '|-----------|-------|----------|---------|-------|--------|-------------|------------|',
+    );
+    for (const p of result.points) {
+      const levelEmoji = healthEmoji(p.level);
+      lines.push(
+        `| ${p.timestamp} | ${p.score}/100 | ${p.coverage ?? '-'} | ${p.hygiene ?? '-'} | ${levelEmoji} ${p.level} | ${p.issues} | ${p.annotations} | ${p.candidates} |`,
+      );
+    }
+  } else {
+    lines.push(
+      '| Timestamp | Score | Level | Issues | Annotations | Candidates |',
+    );
+    lines.push(
+      '|-----------|-------|-------|--------|-------------|------------|',
+    );
+    for (const p of result.points) {
+      const levelEmoji = healthEmoji(p.level);
+      lines.push(
+        `| ${p.timestamp} | ${p.score}/100 | ${levelEmoji} ${p.level} | ${p.issues} | ${p.annotations} | ${p.candidates} |`,
+      );
+    }
   }
   lines.push('');
 
@@ -208,7 +234,25 @@ export function formatTrendAsSpark(result: TrendResult): string {
   const latestUntracked = untrackedValues[untrackedValues.length - 1]!;
   const untrackedLine = `Untracked: ${untrackedSpark}  ${latestUntracked.toFixed(0)}%`;
 
-  return [scoreLine, issueLine, untrackedLine].join('\n');
+  const seriesLines = [scoreLine, issueLine, untrackedLine];
+
+  // Series 4-5: Coverage/Hygiene (ADR 024 Phase 2, shown when available)
+  const hasDualAxis = points.some(
+    (p) => p.coverage !== undefined || p.hygiene !== undefined,
+  );
+  if (hasDualAxis) {
+    const coverageValues = points.map((p) => p.coverage ?? 0);
+    const coverageSpark = buildSparkline(coverageValues);
+    const latestCoverage = coverageValues[coverageValues.length - 1]!;
+    seriesLines.push(`Coverage:  ${coverageSpark}  ${latestCoverage}`);
+
+    const hygieneValues = points.map((p) => p.hygiene ?? 0);
+    const hygieneSpark = buildSparkline(hygieneValues);
+    const latestHygiene = hygieneValues[hygieneValues.length - 1]!;
+    seriesLines.push(`Hygiene:   ${hygieneSpark}  ${latestHygiene}`);
+  }
+
+  return seriesLines.join('\n');
 }
 
 /**
@@ -216,13 +260,27 @@ export function formatTrendAsSpark(result: TrendResult): string {
  */
 export function formatTrendAsCsv(result: TrendResult): string {
   const lines: string[] = [];
-  lines.push(
-    'timestamp,score,level,issues,annotations,candidates,registryEntries',
+  const hasDualAxis = result.points.some(
+    (p) => p.coverage !== undefined || p.hygiene !== undefined,
   );
-  for (const p of result.points) {
+  if (hasDualAxis) {
     lines.push(
-      `${p.timestamp},${p.score},${p.level},${p.issues},${p.annotations},${p.candidates},${p.registryEntries}`,
+      'timestamp,score,coverage,hygiene,level,issues,annotations,candidates,registryEntries',
     );
+    for (const p of result.points) {
+      lines.push(
+        `${p.timestamp},${p.score},${p.coverage ?? ''},${p.hygiene ?? ''},${p.level},${p.issues},${p.annotations},${p.candidates},${p.registryEntries}`,
+      );
+    }
+  } else {
+    lines.push(
+      'timestamp,score,level,issues,annotations,candidates,registryEntries',
+    );
+    for (const p of result.points) {
+      lines.push(
+        `${p.timestamp},${p.score},${p.level},${p.issues},${p.annotations},${p.candidates},${p.registryEntries}`,
+      );
+    }
   }
   return lines.join('\n');
 }

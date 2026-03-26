@@ -320,7 +320,7 @@ export function verify(options: VerifyOptions): VerifyResult {
           warnOn,
         ),
         ref,
-        message: `Ref "${ref}" is temporary (kind=${entry.kind ?? 'unspecified'}) but has no expires — set an expiration date or mark as kind=intentional with a reason`,
+        message: `Ref "${ref}" is temporary (${entry.kind ? `kind=${entry.kind}` : 'kind は分類されていません'}) but has no expires — set an expiration date or mark as kind=intentional with a reason`,
         file: undefined,
         line: undefined,
       });

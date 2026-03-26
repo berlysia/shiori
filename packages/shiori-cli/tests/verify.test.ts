@@ -1641,7 +1641,7 @@ describe('verify', () => {
         (i) => i.type === 'temporary-without-expires',
       );
       assert.equal(issues.length, 1);
-      assert.ok(issues[0]!.message.includes('unspecified'));
+      assert.ok(issues[0]!.message.includes('分類されていません'));
     });
 
     it('does not flag temporary with expires', () => {

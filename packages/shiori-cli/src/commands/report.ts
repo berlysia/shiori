@@ -162,6 +162,59 @@ function buildInsights(
     });
   }
 
+  // ADR 024: intentional entries without reason
+  if (byType['intentional-without-reason'] > 0) {
+    const refs = Object.entries(registry)
+      .filter(([, e]) => e.kind === 'intentional' && !e.reason)
+      .map(([r]) => r);
+    const refList =
+      refs.length <= 3
+        ? refs.join(', ')
+        : `${refs.slice(0, 3).join(', ')} and ${refs.length - 3} more`;
+    insights.push({
+      level: 'warning',
+      label: 'intentional-without-reason',
+      message: `${byType['intentional-without-reason']} intentional entry(ies) lack a reason (${refList}). Add reason to explain why this suppression is permanent.`,
+    });
+  }
+
+  // ADR 024: temporary entries without expires
+  if (byType['temporary-without-expires'] > 0) {
+    const refs = Object.entries(registry)
+      .filter(
+        ([, e]) =>
+          (e.kind === 'temporary' || e.kind === undefined) && !e.expires,
+      )
+      .map(([r]) => r);
+    const refList =
+      refs.length <= 3
+        ? refs.join(', ')
+        : `${refs.slice(0, 3).join(', ')} and ${refs.length - 3} more`;
+    insights.push({
+      level: 'warning',
+      label: 'temporary-without-expires',
+      message: `${byType['temporary-without-expires']} temporary entry(ies) have no expiration date (${refList}). Set expires or mark as kind=intentional with a reason.`,
+    });
+  }
+
+  // Kind not explicitly set on registry entries
+  {
+    const missingKindRefs = Object.entries(registry)
+      .filter(([, e]) => e.kind === undefined)
+      .map(([r]) => r);
+    if (missingKindRefs.length > 0) {
+      const refList =
+        missingKindRefs.length <= 3
+          ? missingKindRefs.join(', ')
+          : `${missingKindRefs.slice(0, 3).join(', ')} and ${missingKindRefs.length - 3} more`;
+      insights.push({
+        level: 'info',
+        label: 'missing-kind',
+        message: `${missingKindRefs.length} registry entry(ies) have no explicit kind (${refList}). Consider adding kind=temporary or kind=intentional for clearer lifecycle tracking.`,
+      });
+    }
+  }
+
   // All clear
   if (insights.length === 0) {
     insights.push({

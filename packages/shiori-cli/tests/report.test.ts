@@ -282,6 +282,81 @@ describe('report', () => {
       assert.ok(clean);
       assert.equal(clean.level, 'info');
     });
+
+    it('generates intentional-without-reason insight', () => {
+      const result = report({
+        scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
+        registry: {
+          'TEST-001': makeRegistryEntry({
+            kind: 'intentional',
+            reason: '',
+          }),
+        },
+        failOn: [],
+        warnOn: [],
+      });
+
+      const insight = result.insights.find(
+        (i) => i.label === 'intentional-without-reason',
+      );
+      assert.ok(insight);
+      assert.equal(insight.level, 'warning');
+      assert.ok(insight.message.includes('TEST-001'));
+    });
+
+    it('generates temporary-without-expires insight', () => {
+      const result = report({
+        scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
+        registry: {
+          'TEST-001': makeRegistryEntry({
+            kind: 'temporary',
+            expires: undefined,
+          }),
+        },
+        failOn: [],
+        warnOn: [],
+      });
+
+      const insight = result.insights.find(
+        (i) => i.label === 'temporary-without-expires',
+      );
+      assert.ok(insight);
+      assert.equal(insight.level, 'warning');
+      assert.ok(insight.message.includes('TEST-001'));
+    });
+
+    it('generates missing-kind insight for entries without explicit kind', () => {
+      const result = report({
+        scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
+        registry: {
+          'TEST-001': makeRegistryEntry({
+            kind: undefined,
+            expires: '2027-12-31',
+          }),
+        },
+        failOn: [],
+        warnOn: [],
+      });
+
+      const insight = result.insights.find((i) => i.label === 'missing-kind');
+      assert.ok(insight);
+      assert.equal(insight.level, 'info');
+      assert.ok(insight.message.includes('TEST-001'));
+    });
+
+    it('does not generate missing-kind insight when kind is set', () => {
+      const result = report({
+        scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
+        registry: {
+          'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
+        },
+        failOn: [],
+        warnOn: [],
+      });
+
+      const insight = result.insights.find((i) => i.label === 'missing-kind');
+      assert.equal(insight, undefined);
+    });
   });
 
   describe('breakdowns', () => {

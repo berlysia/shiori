@@ -238,6 +238,10 @@ export interface TrendPoint {
   candidates: number;
   /** Total registry entries */
   registryEntries: number;
+  /** Coverage axis: tracked / (tracked + candidates) as 0-100 (ADR 024 Phase 2) */
+  coverage?: number;
+  /** Hygiene axis: 100 minus deductions (ADR 024 Phase 2) */
+  hygiene?: number;
 }
 
 /** Score change direction */

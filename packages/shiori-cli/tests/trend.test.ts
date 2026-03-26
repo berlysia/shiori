@@ -109,6 +109,19 @@ describe('extractTrendPoint', () => {
     assert.equal(point.annotations, 10);
     assert.equal(point.candidates, 4);
     assert.equal(point.registryEntries, 8);
+    assert.equal(point.coverage, 100);
+    assert.equal(point.hygiene, 85);
+  });
+
+  it('omits coverage/hygiene when not present in report', () => {
+    const report = makeReportResult({ score: 80 });
+    // Simulate a pre-Phase-2 snapshot without dual-axis fields
+    (report.health as Record<string, unknown>).coverage = undefined;
+    (report.health as Record<string, unknown>).hygiene = undefined;
+    const point = extractTrendPoint(report);
+
+    assert.equal(point.coverage, undefined);
+    assert.equal(point.hygiene, undefined);
   });
 });
 
@@ -315,7 +328,7 @@ describe('formatTrend', () => {
     const csvLines = output.split('\n');
 
     assert.equal(csvLines.length, 3); // header + 2 data rows
-    assert.ok(csvLines[0]!.includes('timestamp,score,level'));
+    assert.ok(csvLines[0]!.includes('timestamp,score,coverage,hygiene,level'));
     assert.ok(csvLines[1]!.includes('2026-01-01'));
     assert.ok(csvLines[2]!.includes('2026-02-01'));
   });
@@ -385,7 +398,7 @@ describe('formatTrendAsMarkdown', () => {
 });
 
 describe('formatTrendAsCsv', () => {
-  it('includes all fields in CSV header', () => {
+  it('includes all fields in CSV header (with dual-axis)', () => {
     const result = computeTrend([
       makeReportResult({ timestamp: '2026-01-01T00:00:00.000Z', score: 80 }),
     ]);
@@ -394,11 +407,11 @@ describe('formatTrendAsCsv', () => {
 
     assert.equal(
       header,
-      'timestamp,score,level,issues,annotations,candidates,registryEntries',
+      'timestamp,score,coverage,hygiene,level,issues,annotations,candidates,registryEntries',
     );
   });
 
-  it('outputs correct data rows', () => {
+  it('outputs correct data rows (with dual-axis)', () => {
     const result = computeTrend([
       makeReportResult({
         timestamp: '2026-01-01T00:00:00.000Z',
@@ -412,7 +425,10 @@ describe('formatTrendAsCsv', () => {
     const csv = formatTrendAsCsv(result);
     const dataRow = csv.split('\n')[1]!;
 
-    assert.equal(dataRow, '2026-01-01T00:00:00.000Z,80,healthy,3,10,2,8');
+    assert.equal(
+      dataRow,
+      '2026-01-01T00:00:00.000Z,80,100,80,healthy,3,10,2,8',
+    );
   });
 
   it('handles empty result', () => {
@@ -477,10 +493,12 @@ describe('formatTrendAsSpark', () => {
     const spark = formatTrendAsSpark(result);
     const lines = spark.split('\n');
 
-    assert.equal(lines.length, 3);
+    assert.equal(lines.length, 5);
     assert.ok(lines[0]!.startsWith('Score:'));
     assert.ok(lines[1]!.startsWith('Issues:'));
     assert.ok(lines[2]!.startsWith('Untracked:'));
+    assert.ok(lines[3]!.startsWith('Coverage:'));
+    assert.ok(lines[4]!.startsWith('Hygiene:'));
   });
 
   it('renders single data point as middle block in score line', () => {
