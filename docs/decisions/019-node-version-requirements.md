@@ -1,5 +1,6 @@
 ---
 status: Accepted
+deps: []
 ---
 
 # ADR 019: Node.js バージョン要件の見直し

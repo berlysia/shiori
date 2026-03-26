@@ -1,5 +1,6 @@
 ---
 status: Accepted
+deps: []
 ---
 
 # ADR 005: Draft アノテーション

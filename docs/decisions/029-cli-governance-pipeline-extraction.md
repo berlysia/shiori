@@ -1,6 +1,7 @@
 ---
 status: Draft
 source_role: architect
+deps: []
 ---
 
 # ADR-029: CLI Governance Pipeline Extraction

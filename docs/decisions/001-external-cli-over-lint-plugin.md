@@ -1,5 +1,6 @@
 ---
 status: Accepted
+deps: []
 ---
 
 # ADR 001: External CLI over Lint Plugin

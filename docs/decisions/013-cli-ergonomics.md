@@ -1,5 +1,6 @@
 ---
 status: Accepted
+deps: []
 ---
 
 # ADR 013: CLI Ergonomics Improvement

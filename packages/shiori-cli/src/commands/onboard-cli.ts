@@ -31,13 +31,10 @@ import { writeOutput } from '../core/cli-output.ts';
 import { ExitCode } from '../core/exit-codes.ts';
 import { buildRecommendedActions } from '../core/recommended-actions.ts';
 import { runGovernancePipeline } from '../core/governance-pipeline.ts';
+import { ONBOARD_FORMATS, type OnboardFormat } from '../core/types.ts';
 
-// Extended formats: text, json, markdown
-const EXTENDED_ONBOARD_FORMATS = ['text', 'json', 'markdown'] as const;
-type ExtendedOnboardFormat = (typeof EXTENDED_ONBOARD_FORMATS)[number];
-
-const validateOnboardFormat = createFormatValidator<ExtendedOnboardFormat>(
-  EXTENDED_ONBOARD_FORMATS,
+const validateOnboardFormat = createFormatValidator<OnboardFormat>(
+  ONBOARD_FORMATS,
   'text',
 );
 
@@ -259,7 +256,7 @@ export const onboardCommand = define({
 async function runLegacyMode(
   fromPitch: string,
   cwd: string,
-  format: ExtendedOnboardFormat,
+  format: OnboardFormat,
   outputPath: string | undefined,
 ): Promise<void> {
   const pitchPath = resolve(cwd, fromPitch);
