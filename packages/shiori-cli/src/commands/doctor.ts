@@ -21,6 +21,7 @@ import {
   checkExpiredEntries,
   checkRegistryCompleteness,
   checkExitCodePolicies,
+  checkCommandRegistrationConsistency,
 } from './doctor/checks.ts';
 import { assessMaturity } from './doctor/maturity.ts';
 import { buildUpgradePlan } from './doctor/upgrade.ts';
@@ -38,6 +39,7 @@ export {
   checkExpiredEntries,
   checkRegistryCompleteness,
   checkExitCodePolicies,
+  checkCommandRegistrationConsistency,
 } from './doctor/checks.ts';
 export { assessMaturity } from './doctor/maturity.ts';
 export { buildUpgradePlan } from './doctor/upgrade.ts';
@@ -103,6 +105,16 @@ export async function doctor(options: DoctorOptions): Promise<DoctorResult> {
 
   // Exit code policy self-verification (ADR 027)
   checks.push(checkExitCodePolicies(REGISTERED_COMMANDS));
+
+  // Three-way command registration consistency (EP-0181)
+  // Dynamic import to avoid circular dependency: command-map.ts → doctor-cli.ts → doctor.ts
+  const { CLI_SUBCOMMAND_KEYS } = await import('./command-map.ts');
+  checks.push(
+    checkCommandRegistrationConsistency(
+      REGISTERED_COMMANDS,
+      CLI_SUBCOMMAND_KEYS,
+    ),
+  );
 
   const summary = {
     pass: checks.filter((c) => c.status === 'pass').length,

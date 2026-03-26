@@ -1,38 +1,6 @@
 #!/usr/bin/env node
 import { cli, define } from 'gunshi';
-import { scanCommand } from './commands/scan-cli.ts';
-import { verifyCommand } from './commands/verify-cli.ts';
-import { checkCommand } from './commands/check-cli.ts';
-import { initCommand } from './commands/init-cli.ts';
-import { updateCommand } from './commands/update-cli.ts';
-import { draftCommand } from './commands/draft-cli.ts';
-import { candidatesCommand } from './commands/candidates-cli.ts';
-import { showCommand } from './commands/show-cli.ts';
-import { docsCommand } from './commands/docs-cli.ts';
-import { jumpCommand } from './commands/jump-cli.ts';
-import { watchCommand } from './commands/watch-cli.ts';
-import { migrateCommand } from './commands/migrate-cli.ts';
-import { reportCommand } from './commands/report-cli.ts';
-import { deltaCommand } from './commands/delta-cli.ts';
-import { trendCommand } from './commands/trend-cli.ts';
-import { healthCommand } from './commands/health-cli.ts';
-import { adoptCommand } from './commands/adopt-cli.ts';
-import { doctorCommand } from './commands/doctor-cli.ts';
-import { resolveCommand } from './commands/resolve-cli.ts';
-import { whyCommand } from './commands/why-cli.ts';
-import { triageCommand } from './commands/triage-cli.ts';
-import { annotateCommand } from './commands/annotate-cli.ts';
-import { weeklyReportCommand } from './commands/weekly-report-cli.ts';
-import { journalCommand } from './commands/journal-cli.ts';
-import { summaryCommand } from './commands/summary-cli.ts';
-import { aggregateCommand } from './commands/aggregate-cli.ts';
-import { guideCommand } from './commands/guide-cli.ts';
-import { fixCommand } from './commands/fix-cli.ts';
-import { coachCommand } from './commands/coach-cli.ts';
-import { narrativeCommand } from './commands/narrative-cli.ts';
-import { recipesCommand } from './commands/recipes-cli.ts';
-import { pitchCommand } from './commands/pitch-cli.ts';
-import { onboardCommand } from './commands/onboard-cli.ts';
+import { subCommandMap } from './commands/command-map.ts';
 import { VERSION } from './core/version.ts';
 import { ExitCode } from './core/exit-codes.ts';
 
@@ -112,41 +80,7 @@ try {
     name: 'shiori',
     version: VERSION,
     description: 'Track and govern source code annotations',
-    subCommands: {
-      init: initCommand,
-      scan: scanCommand,
-      verify: verifyCommand,
-      check: checkCommand,
-      update: updateCommand,
-      adopt: adoptCommand,
-      migrate: migrateCommand,
-      draft: draftCommand,
-      candidates: candidatesCommand,
-      show: showCommand,
-      jump: jumpCommand,
-      watch: watchCommand,
-      health: healthCommand,
-      report: reportCommand,
-      trend: trendCommand,
-      delta: deltaCommand,
-      docs: docsCommand,
-      doctor: doctorCommand,
-      resolve: resolveCommand,
-      why: whyCommand,
-      triage: triageCommand,
-      annotate: annotateCommand,
-      'weekly-report': weeklyReportCommand,
-      journal: journalCommand,
-      summary: summaryCommand,
-      aggregate: aggregateCommand,
-      guide: guideCommand,
-      fix: fixCommand,
-      coach: coachCommand,
-      narrative: narrativeCommand,
-      recipes: recipesCommand,
-      pitch: pitchCommand,
-      onboard: onboardCommand,
-    },
+    subCommands: subCommandMap,
   });
 } catch (err) {
   const message = err instanceof Error ? err.message : String(err);

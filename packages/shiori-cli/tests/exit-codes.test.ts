@@ -7,8 +7,14 @@ import {
   getExitCodePolicy,
   findMissingPolicies,
   findStalePolicies,
+  findMissingCliSubCommands,
+  findStaleCliSubCommands,
 } from '../src/core/exit-codes.ts';
-import { checkExitCodePolicies } from '../src/commands/doctor/checks.ts';
+import {
+  checkExitCodePolicies,
+  checkCommandRegistrationConsistency,
+} from '../src/commands/doctor/checks.ts';
+import { CLI_SUBCOMMAND_KEYS } from '../src/commands/command-map.ts';
 
 describe('ExitCode constants', () => {
   it('defines SUCCESS as 0', () => {
@@ -175,6 +181,80 @@ describe('REGISTERED_COMMANDS sync with cli.ts', () => {
       unique.size,
       REGISTERED_COMMANDS.length,
       'REGISTERED_COMMANDS should have no duplicates',
+    );
+  });
+});
+
+describe('findMissingCliSubCommands', () => {
+  it('returns empty when all registered commands are in cli.ts', () => {
+    const result = findMissingCliSubCommands(
+      ['init', 'scan', 'verify'],
+      ['init', 'scan', 'verify'],
+    );
+    assert.deepEqual(result, []);
+  });
+
+  it('returns commands missing from cli.ts subCommands', () => {
+    const result = findMissingCliSubCommands(
+      ['init', 'scan', 'ghost'],
+      ['init', 'scan'],
+    );
+    assert.deepEqual(result, ['ghost']);
+  });
+});
+
+describe('findStaleCliSubCommands', () => {
+  it('returns empty when all cli.ts keys are in REGISTERED_COMMANDS', () => {
+    const result = findStaleCliSubCommands(
+      ['init', 'scan', 'verify'],
+      ['init', 'scan', 'verify'],
+    );
+    assert.deepEqual(result, []);
+  });
+
+  it('returns cli.ts keys not in REGISTERED_COMMANDS', () => {
+    const result = findStaleCliSubCommands(
+      ['init', 'scan'],
+      ['init', 'scan', 'extra'],
+    );
+    assert.deepEqual(result, ['extra']);
+  });
+});
+
+describe('Three-way consistency (integration)', () => {
+  it('REGISTERED_COMMANDS matches CLI_SUBCOMMAND_KEYS', () => {
+    const missing = findMissingCliSubCommands(
+      REGISTERED_COMMANDS,
+      CLI_SUBCOMMAND_KEYS,
+    );
+    assert.deepEqual(
+      missing,
+      [],
+      `Commands in REGISTERED_COMMANDS but missing from cli.ts: ${missing.join(', ')}`,
+    );
+
+    const stale = findStaleCliSubCommands(
+      REGISTERED_COMMANDS,
+      CLI_SUBCOMMAND_KEYS,
+    );
+    assert.deepEqual(
+      stale,
+      [],
+      `Commands in cli.ts but missing from REGISTERED_COMMANDS: ${stale.join(', ')}`,
+    );
+  });
+
+  it('all three sources have the same count', () => {
+    const policyKeys = Object.keys(EXIT_CODE_POLICIES);
+    assert.equal(
+      REGISTERED_COMMANDS.length,
+      CLI_SUBCOMMAND_KEYS.length,
+      `REGISTERED_COMMANDS (${REGISTERED_COMMANDS.length}) vs CLI_SUBCOMMAND_KEYS (${CLI_SUBCOMMAND_KEYS.length})`,
+    );
+    assert.equal(
+      REGISTERED_COMMANDS.length,
+      policyKeys.length,
+      `REGISTERED_COMMANDS (${REGISTERED_COMMANDS.length}) vs EXIT_CODE_POLICIES (${policyKeys.length})`,
     );
   });
 });

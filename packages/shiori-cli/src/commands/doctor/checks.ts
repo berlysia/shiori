@@ -16,6 +16,8 @@ import type { ConfigLoadResult, RegistryCheckResult } from './types.ts';
 import {
   findMissingPolicies,
   findStalePolicies,
+  findMissingCliSubCommands,
+  findStaleCliSubCommands,
 } from '../../core/exit-codes.ts';
 
 /** Minimum Node.js version required by shiori */
@@ -565,5 +567,57 @@ export function checkExitCodePolicies(
     status: 'warn',
     message: parts.join('; '),
     fix: 'Update EXIT_CODE_POLICIES in core/exit-codes.ts to match registered commands',
+  };
+}
+
+/**
+ * Three-way consistency check: REGISTERED_COMMANDS ↔ EXIT_CODE_POLICIES ↔ cli.ts subCommands.
+ *
+ * Verifies that the CLI subcommand map in cli.ts is consistent with the
+ * REGISTERED_COMMANDS list and EXIT_CODE_POLICIES registry.
+ * Reports warn when any of the three sources are out of sync.
+ *
+ * EP-0181: Command registration consistency auto-verification.
+ */
+export function checkCommandRegistrationConsistency(
+  registeredCommands: readonly string[],
+  cliSubCommandKeys: readonly string[],
+): DoctorCheck {
+  const missingFromCli = findMissingCliSubCommands(
+    registeredCommands,
+    cliSubCommandKeys,
+  );
+  const staleInCli = findStaleCliSubCommands(
+    registeredCommands,
+    cliSubCommandKeys,
+  );
+
+  if (missingFromCli.length === 0 && staleInCli.length === 0) {
+    return {
+      name: 'command-registration',
+      label: 'Command registration',
+      status: 'pass',
+      message: `All ${registeredCommands.length} commands are consistently registered across REGISTERED_COMMANDS, EXIT_CODE_POLICIES, and cli.ts`,
+    };
+  }
+
+  const parts: string[] = [];
+  if (missingFromCli.length > 0) {
+    parts.push(
+      `${missingFromCli.length} command(s) in REGISTERED_COMMANDS but missing from cli.ts: ${missingFromCli.join(', ')}`,
+    );
+  }
+  if (staleInCli.length > 0) {
+    parts.push(
+      `${staleInCli.length} command(s) in cli.ts but missing from REGISTERED_COMMANDS: ${staleInCli.join(', ')}`,
+    );
+  }
+
+  return {
+    name: 'command-registration',
+    label: 'Command registration',
+    status: 'warn',
+    message: parts.join('; '),
+    fix: 'Ensure REGISTERED_COMMANDS, EXIT_CODE_POLICIES, and cli.ts subCommands all list the same commands',
   };
 }

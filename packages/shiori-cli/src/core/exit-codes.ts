@@ -278,3 +278,29 @@ export function findStalePolicies(
   const commandSet = new Set(registeredCommands);
   return Object.keys(EXIT_CODE_POLICIES).filter((cmd) => !commandSet.has(cmd));
 }
+
+// ---------------------------------------------------------------------------
+// Three-way Consistency Check Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Find commands in REGISTERED_COMMANDS but missing from cli.ts subCommands.
+ */
+export function findMissingCliSubCommands(
+  registeredCommands: readonly string[],
+  cliSubCommandKeys: readonly string[],
+): string[] {
+  const cliSet = new Set(cliSubCommandKeys);
+  return registeredCommands.filter((cmd) => !cliSet.has(cmd));
+}
+
+/**
+ * Find commands in cli.ts subCommands but missing from REGISTERED_COMMANDS.
+ */
+export function findStaleCliSubCommands(
+  registeredCommands: readonly string[],
+  cliSubCommandKeys: readonly string[],
+): string[] {
+  const registeredSet = new Set(registeredCommands);
+  return cliSubCommandKeys.filter((cmd) => !registeredSet.has(cmd));
+}

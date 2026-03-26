@@ -13,6 +13,7 @@ import {
   checkScanResultFreshness,
   checkExpiredEntries,
   checkRegistryCompleteness,
+  checkCommandRegistrationConsistency,
   formatDoctor,
   formatDoctorText,
 } from '../src/commands/doctor.ts';
@@ -227,9 +228,9 @@ describe('doctor', () => {
       const scanResultPath = join(dir, '.config', 'shiori', 'scan-result.json');
       await writeFile(scanResultPath, '[]', 'utf-8');
       const result = await doctor({ cwd: dir });
-      // node-version, config, registry, ref-patterns, expired-entries, registry-completeness, gitignore, scan-result, exit-code-policies
-      assert.equal(result.checks.length, 9);
-      assert.ok(result.summary.pass >= 5); // node-version, config, registry, ref-patterns, exit-code-policies at minimum
+      // node-version, config, registry, ref-patterns, expired-entries, registry-completeness, gitignore, scan-result, exit-code-policies, command-registration
+      assert.equal(result.checks.length, 10);
+      assert.ok(result.summary.pass >= 6); // node-version, config, registry, ref-patterns, exit-code-policies, command-registration at minimum
       assert.equal(result.summary.fail, 0);
     } finally {
       await cleanup();
@@ -633,5 +634,69 @@ describe('checkRegistryCompleteness', () => {
     const result = checkRegistryCompleteness(registry);
     assert.equal(result.status, 'warn');
     assert.ok(result.message.includes('5 total'));
+  });
+});
+
+describe('checkCommandRegistrationConsistency', () => {
+  it('returns pass when all three sources are consistent', () => {
+    const commands = ['init', 'scan', 'verify', 'doctor'];
+    const cliKeys = ['init', 'scan', 'verify', 'doctor'];
+    const result = checkCommandRegistrationConsistency(commands, cliKeys);
+    assert.equal(result.name, 'command-registration');
+    assert.equal(result.status, 'pass');
+    assert.ok(
+      result.message.includes(
+        'consistently registered across REGISTERED_COMMANDS, EXIT_CODE_POLICIES, and cli.ts',
+      ),
+    );
+  });
+
+  it('returns warn when REGISTERED_COMMANDS has commands missing from cli.ts', () => {
+    const commands = ['init', 'scan', 'verify', 'doctor', 'ghost-cmd'];
+    const cliKeys = ['init', 'scan', 'verify', 'doctor'];
+    const result = checkCommandRegistrationConsistency(commands, cliKeys);
+    assert.equal(result.status, 'warn');
+    assert.ok(result.message.includes('ghost-cmd'));
+    assert.ok(result.message.includes('missing from cli.ts'));
+    assert.ok(result.fix);
+  });
+
+  it('returns warn when cli.ts has commands missing from REGISTERED_COMMANDS', () => {
+    const commands = ['init', 'scan', 'verify'];
+    const cliKeys = ['init', 'scan', 'verify', 'extra-cmd'];
+    const result = checkCommandRegistrationConsistency(commands, cliKeys);
+    assert.equal(result.status, 'warn');
+    assert.ok(result.message.includes('extra-cmd'));
+    assert.ok(result.message.includes('missing from REGISTERED_COMMANDS'));
+  });
+
+  it('returns warn with both missing and extra commands', () => {
+    const commands = ['init', 'scan', 'ghost-cmd'];
+    const cliKeys = ['init', 'scan', 'extra-cmd'];
+    const result = checkCommandRegistrationConsistency(commands, cliKeys);
+    assert.equal(result.status, 'warn');
+    assert.ok(result.message.includes('ghost-cmd'));
+    assert.ok(result.message.includes('extra-cmd'));
+  });
+
+  it('handles empty inputs gracefully', () => {
+    const result = checkCommandRegistrationConsistency([], []);
+    assert.equal(result.status, 'pass');
+  });
+
+  it('verifies actual REGISTERED_COMMANDS and CLI_SUBCOMMAND_KEYS consistency', async () => {
+    // Integration test: verify the real codebase is consistent
+    const { REGISTERED_COMMANDS } = await import('../src/core/exit-codes.ts');
+    const { CLI_SUBCOMMAND_KEYS } =
+      await import('../src/commands/command-map.ts');
+    const result = checkCommandRegistrationConsistency(
+      REGISTERED_COMMANDS,
+      CLI_SUBCOMMAND_KEYS,
+    );
+    assert.equal(
+      result.status,
+      'pass',
+      `Command registration inconsistency detected: ${result.message}`,
+    );
   });
 });
