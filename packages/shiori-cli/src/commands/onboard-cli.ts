@@ -8,7 +8,7 @@
  *
  * Flags:
  * - --interactive: launch interactive wizard for step-by-step guidance
- * - --format: text | json | markdown
+ * - --format: text | json | markdown | slack
  * - --from-pitch: path to pitch JSON (legacy mode)
  */
 
@@ -21,6 +21,7 @@ import {
   buildOnboardSummary,
   formatOnboardAsText,
   formatOnboardSummaryAsMarkdown,
+  formatOnboardSummaryAsSlack,
   formatOnboardSummaryAsText,
   isPitchEnvelope,
 } from './onboard.ts';
@@ -51,8 +52,11 @@ export const onboardCommand = define({
   # JSON output for automation
   shiori onboard -f json
 
-  # Markdown summary for sharing (Slack/GitHub)
+  # Markdown summary for sharing (GitHub)
   shiori onboard -f markdown
+
+  # Slack Block Kit JSON for webhook integration
+  shiori onboard -f slack
 
   # Legacy: from pitch JSON output (backward compatible)
   shiori onboard --from-pitch pitch.json`,
@@ -67,7 +71,8 @@ export const onboardCommand = define({
     format: {
       type: 'string',
       short: 'f',
-      description: 'Output format: "text", "json", "markdown". Default: "text"',
+      description:
+        'Output format: "text", "json", "markdown", "slack". Default: "text"',
       default: 'text',
     },
     output: {
@@ -212,6 +217,14 @@ export const onboardCommand = define({
           label: 'Onboard summary',
         });
         if (!written) return;
+      } else if (format === 'slack') {
+        const output = formatOnboardSummaryAsSlack(summary);
+        const written = await writeOutput(output, {
+          outputPath: ctx.values.output,
+          cwd,
+          label: 'Onboard summary',
+        });
+        if (!written) return;
       }
 
       return;
@@ -233,6 +246,8 @@ export const onboardCommand = define({
       });
     } else if (format === 'markdown') {
       output = formatOnboardSummaryAsMarkdown(summary);
+    } else if (format === 'slack') {
+      output = formatOnboardSummaryAsSlack(summary);
     } else {
       output = formatOnboardAsText(steps, teamName);
     }
@@ -304,8 +319,8 @@ async function runLegacyMode(
       command: 'onboard',
       schemaVersion: 1,
     });
-  } else if (format === 'markdown') {
-    // Build summary for markdown output from pitch data
+  } else if (format === 'markdown' || format === 'slack') {
+    // Build summary for markdown/slack output from pitch data
     const pitchScore = pitchResult.health?.score ?? 0;
     const summary = buildOnboardSummary({
       teamName: pitchResult.teamName,
@@ -313,7 +328,10 @@ async function runLegacyMode(
       afterScore: pitchScore,
       steps,
     });
-    output = formatOnboardSummaryAsMarkdown(summary);
+    output =
+      format === 'slack'
+        ? formatOnboardSummaryAsSlack(summary)
+        : formatOnboardSummaryAsMarkdown(summary);
   } else {
     output = formatOnboardAsText(steps, pitchResult.teamName);
   }

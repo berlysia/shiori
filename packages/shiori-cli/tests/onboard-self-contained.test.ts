@@ -12,6 +12,7 @@ import {
   buildOnboardCTA,
   buildOnboardSummary,
   formatOnboardSummaryAsMarkdown,
+  formatOnboardSummaryAsSlack,
   formatOnboardSummaryAsText,
   type OnboardStep,
   type OnboardSummary,
@@ -234,6 +235,183 @@ describe('formatOnboardSummaryAsText', () => {
     const text = formatOnboardSummaryAsText(makeSummary());
     assert.ok(text.includes('Next:'));
     assert.ok(text.includes('$'));
+  });
+});
+
+// ── formatOnboardSummaryAsSlack ──────────────────────────────
+
+describe('formatOnboardSummaryAsSlack', () => {
+  it('produces valid JSON with blocks array', () => {
+    const output = formatOnboardSummaryAsSlack(makeSummary());
+    const parsed = JSON.parse(output);
+
+    assert.ok(Array.isArray(parsed.blocks));
+    assert.ok(parsed.blocks.length > 0);
+  });
+
+  it('includes header block with team name', () => {
+    const output = formatOnboardSummaryAsSlack(makeSummary());
+    const parsed = JSON.parse(output);
+
+    const header = parsed.blocks.find(
+      (b: { type: string }) => b.type === 'header',
+    );
+    assert.ok(header);
+    assert.ok(header.text.text.includes('Onboard Summary: Test Team'));
+  });
+
+  it('uses yellow circle emoji for growing tier', () => {
+    const output = formatOnboardSummaryAsSlack(makeSummary());
+    const parsed = JSON.parse(output);
+
+    const header = parsed.blocks.find(
+      (b: { type: string }) => b.type === 'header',
+    );
+    assert.ok(header.text.text.includes(':large_yellow_circle:'));
+  });
+
+  it('uses red circle emoji for critical tier', () => {
+    const summary = makeSummary({
+      afterScore: 20,
+      scoreDelta: -30,
+      cta: buildOnboardCTA(20),
+    });
+    const output = formatOnboardSummaryAsSlack(summary);
+    const parsed = JSON.parse(output);
+
+    const header = parsed.blocks.find(
+      (b: { type: string }) => b.type === 'header',
+    );
+    assert.ok(header.text.text.includes(':red_circle:'));
+  });
+
+  it('uses green circle emoji for healthy tier', () => {
+    const summary = makeSummary({
+      afterScore: 90,
+      scoreDelta: 40,
+      cta: buildOnboardCTA(90),
+    });
+    const output = formatOnboardSummaryAsSlack(summary);
+    const parsed = JSON.parse(output);
+
+    const header = parsed.blocks.find(
+      (b: { type: string }) => b.type === 'header',
+    );
+    assert.ok(header.text.text.includes(':large_green_circle:'));
+  });
+
+  it('includes before/after/delta score fields', () => {
+    const summary = makeSummary({
+      beforeScore: 40,
+      afterScore: 65,
+      scoreDelta: 25,
+    });
+    const output = formatOnboardSummaryAsSlack(summary);
+    const parsed = JSON.parse(output);
+
+    const section = parsed.blocks.find(
+      (b: { type: string; fields?: unknown }) =>
+        b.type === 'section' && b.fields,
+    );
+    assert.ok(section);
+
+    const beforeField = section.fields.find((f: { text: string }) =>
+      f.text.includes('*Before*'),
+    );
+    assert.ok(beforeField);
+    assert.ok(beforeField.text.includes('40'));
+
+    const afterField = section.fields.find((f: { text: string }) =>
+      f.text.includes('*After*'),
+    );
+    assert.ok(afterField);
+    assert.ok(afterField.text.includes('65'));
+
+    const deltaField = section.fields.find((f: { text: string }) =>
+      f.text.includes('*Delta*'),
+    );
+    assert.ok(deltaField);
+    assert.ok(deltaField.text.includes('+25'));
+  });
+
+  it('formats negative delta', () => {
+    const summary = makeSummary({
+      beforeScore: 80,
+      afterScore: 60,
+      scoreDelta: -20,
+    });
+    const output = formatOnboardSummaryAsSlack(summary);
+    const parsed = JSON.parse(output);
+
+    const section = parsed.blocks.find(
+      (b: { type: string; fields?: unknown }) =>
+        b.type === 'section' && b.fields,
+    );
+    const deltaField = section.fields.find((f: { text: string }) =>
+      f.text.includes('*Delta*'),
+    );
+    assert.ok(deltaField);
+    assert.ok(deltaField.text.includes('-20'));
+  });
+
+  it('includes recommended steps section', () => {
+    const output = formatOnboardSummaryAsSlack(makeSummary());
+    const parsed = JSON.parse(output);
+
+    const stepsSection = parsed.blocks.find(
+      (b: { type: string; text?: { text: string } }) =>
+        b.type === 'section' && b.text?.text?.includes('*Recommended Steps*'),
+    );
+    assert.ok(stepsSection);
+    assert.ok(stepsSection.text.text.includes('Reason for step 1'));
+    assert.ok(stepsSection.text.text.includes('shiori step-1'));
+  });
+
+  it('omits steps section when no steps', () => {
+    const summary = makeSummary({ steps: [] });
+    const output = formatOnboardSummaryAsSlack(summary);
+    const parsed = JSON.parse(output);
+
+    const stepsSection = parsed.blocks.find(
+      (b: { type: string; text?: { text: string } }) =>
+        b.type === 'section' && b.text?.text?.includes('*Recommended Steps*'),
+    );
+    assert.equal(stepsSection, undefined);
+  });
+
+  it('includes CTA section', () => {
+    const output = formatOnboardSummaryAsSlack(makeSummary());
+    const parsed = JSON.parse(output);
+
+    const ctaSection = parsed.blocks.find(
+      (b: { type: string; text?: { text: string } }) =>
+        b.type === 'section' && b.text?.text?.includes('*Next Step:*'),
+    );
+    assert.ok(ctaSection);
+    assert.ok(ctaSection.text.text.includes(makeSummary().cta.label));
+    assert.ok(ctaSection.text.text.includes(makeSummary().cta.command));
+  });
+
+  it('includes footer context block', () => {
+    const output = formatOnboardSummaryAsSlack(makeSummary());
+    const parsed = JSON.parse(output);
+
+    const footer = parsed.blocks.find(
+      (b: { type: string; elements?: Array<{ text: string }> }) =>
+        b.type === 'context' &&
+        b.elements?.some((e) => e.text.includes('Generated by shiori onboard')),
+    );
+    assert.ok(footer);
+  });
+
+  it('includes divider blocks for visual separation', () => {
+    const output = formatOnboardSummaryAsSlack(makeSummary());
+    const parsed = JSON.parse(output);
+
+    const dividers = parsed.blocks.filter(
+      (b: { type: string }) => b.type === 'divider',
+    );
+    assert.ok(dividers.length >= 1);
   });
 });
 

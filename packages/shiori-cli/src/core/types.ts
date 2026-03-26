@@ -1306,7 +1306,7 @@ export interface RecommendedAction {
 }
 
 /** Output formats for onboard command */
-export const ONBOARD_FORMATS = ['text', 'json', 'markdown'] as const;
+export const ONBOARD_FORMATS = ['text', 'json', 'markdown', 'slack'] as const;
 
 /** Output format for onboard command (derived from ONBOARD_FORMATS) */
 export type OnboardFormat = (typeof ONBOARD_FORMATS)[number];
