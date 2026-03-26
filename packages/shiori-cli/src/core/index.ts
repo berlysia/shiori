@@ -59,6 +59,9 @@ export type {
   ExitCodePolicy,
 } from './exit-codes.ts';
 
+// ── Recommended Actions ────────────────────────────────────
+export { buildRecommendedActions } from './recommended-actions.ts';
+
 // ── Types ───────────────────────────────────────────────────
 export { isAtOrBelowLevel } from './types.ts';
 export type {
@@ -74,4 +77,7 @@ export type {
   HealthLevel,
   FileBreakdownEntry,
   DirectoryBreakdownEntry,
+  RecommendedAction,
+  ReportResult,
+  TrendResult,
 } from './types.ts';
