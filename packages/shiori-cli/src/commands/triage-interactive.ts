@@ -125,15 +125,6 @@ function parseSubChoice(input: string): 'resolve' | 'extend' | null {
   }
 }
 
-function writeTo(output: NodeJS.WritableStream, text: string): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    output.write(text, (err) => {
-      if (err) reject(err);
-      else resolve();
-    });
-  });
-}
-
 function formatDaysToExpiry(days: number | null): string {
   if (days === null) return 'no expiry';
   if (days < 0) return `${Math.abs(days)}d overdue`;
@@ -334,10 +325,7 @@ export async function promptTriageAction(
 export function createTriageReadline(
   ctx: InteractiveTriageContext,
 ): ReadlineInterface {
-  return createInterface({
-    input: ctx.input,
-    output: ctx.output,
-  });
+  return createReadlineInterface(ctx);
 }
 
 // ── Session ──────────────────────────────────────────────────
