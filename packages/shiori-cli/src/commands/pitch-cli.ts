@@ -1,8 +1,6 @@
 import { basename } from 'node:path';
 import { define } from 'gunshi';
-import { scan } from './scan.ts';
-import { CommentProvider } from '../core/providers/CommentProvider.ts';
-import { report } from './report.ts';
+import { runGovernancePipeline } from './governance-pipeline.ts';
 import { computeTrend } from './trend.ts';
 import { triage } from './triage.ts';
 import {
@@ -16,12 +14,6 @@ import { wrapOutputJson } from '../core/schema-envelope.ts';
 import { createFormatValidator } from '../core/cli-validation.ts';
 import { loadSnapshots, DEFAULT_REPORTS_DIR } from '../core/snapshot.ts';
 import { writeOutput } from '../core/cli-output.ts';
-import {
-  createBaseContext,
-  withRegistry,
-  resolveScanPatterns,
-  resolveExpiringThreshold,
-} from '../core/cli-context.ts';
 
 export function formatPitch(
   result: import('../core/types.ts').PitchResult,
@@ -131,48 +123,22 @@ export const pitchCommand = define({
     const format = validatePitchFormat(ctx.values.format);
     if (format === null) return;
 
-    const base = createBaseContext(ctx.values.cwd);
-    const regCtx = await withRegistry(base, {
+    // Shared governance pipeline: scan → report (ADR 031)
+    const pipeline = await runGovernancePipeline({
+      cwd: ctx.values.cwd,
       configDir: ctx.values.config,
       registryPath: ctx.values.registry,
+      patterns: ctx.values.patterns,
+      ignore: ctx.values.ignore,
+      expiringThreshold: ctx.values.expiringThreshold,
     });
 
-    const { patterns, ignore } = resolveScanPatterns(
-      ctx.values.patterns,
-      ctx.values.ignore,
-      regCtx.config,
-    );
-
-    // Scan
-    const provider = new CommentProvider();
-    const scanResult = await scan({
-      patterns,
-      ignore,
-      provider,
-      cwd: base.cwd,
-      providerOptions: { candidatePatterns: regCtx.config.candidatePatterns },
-    });
-
-    console.error(
-      `Scanned ${scanResult.filesScanned} files, found ${scanResult.annotations.length} annotation(s), ${scanResult.candidates.length} candidate(s)`,
-    );
-
-    // Report
-    const expiringThresholdDays = resolveExpiringThreshold(
-      ctx.values.expiringThreshold,
-      regCtx.config,
-    );
-
-    const reportResult = report({
+    const {
       scanResult,
-      registry: regCtx.registry,
-      failOn: [],
-      warnOn: [],
-      duplicates: regCtx.duplicates,
-      refPatterns: regCtx.config.refPatterns,
-      refOrigins: regCtx.refOrigins,
+      reportResult,
+      registryContext: regCtx,
       expiringThresholdDays,
-    });
+    } = pipeline;
 
     // Trend (optional)
     let trendResult = undefined;
@@ -180,7 +146,7 @@ export const pitchCommand = define({
       ctx.values.history ??
       (ctx.values.trend ? DEFAULT_REPORTS_DIR : undefined);
     if (trendDir) {
-      const reports = await loadSnapshots(trendDir, base.cwd, {
+      const reports = await loadSnapshots(trendDir, regCtx.cwd, {
         onDirectoryError: ctx.values.history
           ? (msg) => console.error(`Warning: ${msg}`)
           : () => {
@@ -216,7 +182,7 @@ export const pitchCommand = define({
     });
 
     // Team name: --team flag, or cwd basename
-    const teamName = ctx.values.team || basename(base.cwd);
+    const teamName = ctx.values.team || basename(regCtx.cwd);
 
     // Compute pitch
     const result = pitch({
@@ -231,7 +197,7 @@ export const pitchCommand = define({
 
     const written = await writeOutput(output, {
       outputPath: ctx.values.output,
-      cwd: base.cwd,
+      cwd: regCtx.cwd,
       label: 'Pitch report',
     });
     if (!written) return;

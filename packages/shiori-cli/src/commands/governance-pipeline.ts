@@ -54,6 +54,8 @@ export interface GovernancePipelineResult {
   registry: Registry;
   registryPath: string;
   registryContext: RegistryContext;
+  /** Resolved expiring threshold in days (used by downstream triage, pitch) */
+  expiringThresholdDays: number;
 }
 
 // ── Pipeline ─────────────────────────────────────────────────
@@ -118,5 +120,6 @@ export async function runGovernancePipeline(
     registry: regCtx.registry,
     registryPath: regCtx.registryPath,
     registryContext: regCtx,
+    expiringThresholdDays,
   };
 }
