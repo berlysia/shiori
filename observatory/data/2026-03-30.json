@@ -1,0 +1,53 @@
+{
+  "timestamp": "2026-03-30T00:35:05.254Z",
+  "period": {
+    "since": "2026-03-23",
+    "until": "2026-03-30"
+  },
+  "activity": {
+    "totalOperations": 0,
+    "successfulOperations": 0,
+    "failedOperations": 0,
+    "successRate": 0,
+    "netChange": 0,
+    "uniqueRefs": [],
+    "byEventType": {}
+  },
+  "health": {
+    "level": "warning",
+    "score": 73,
+    "summary": "Governance health: 73/100. 3 issue(s) require attention."
+  },
+  "registryOverview": {
+    "totalEntries": 10,
+    "totalAnnotations": 13,
+    "totalCandidates": 12,
+    "totalIssues": 3
+  },
+  "insights": [
+    {
+      "level": "warning",
+      "label": "unregistered",
+      "message": "1 annotation(s) are not registered. Run \"shiori update\" to add them."
+    },
+    {
+      "level": "info",
+      "label": "candidates",
+      "message": "12 lint disable comment(s) detected without shiori tracking (48% untracked). Run \"shiori candidates\" to review."
+    },
+    {
+      "level": "error",
+      "label": "syntax",
+      "message": "1 annotation(s) have syntax errors. Fix annotation format: \"shiori: <ref> [key=value ...]\""
+    }
+  ],
+  "velocity": {
+    "count": 2,
+    "oldest": "2026-03-18T00:00:00.000Z",
+    "newest": "2026-03-19T00:00:00.000Z",
+    "totalOperations": 69,
+    "successRate": 100,
+    "totalNetChange": 69,
+    "direction": "growing"
+  }
+}
