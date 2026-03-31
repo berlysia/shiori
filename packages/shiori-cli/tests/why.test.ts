@@ -562,6 +562,114 @@ describe('computeRefScoreImpact (EP-0199)', () => {
     assert.equal(impact.hygieneDeduction, 12);
     assert.equal(impact.deductionSources.length, 2);
   });
+
+  it('caps tier-1 deduction at maxDeduction (40)', () => {
+    // 5 expired issues × 10pt = 50pt raw, but tier-1 maxDeduction = 40
+    const issues: VerifyIssue[] = Array.from({ length: 5 }, (_, i) => ({
+      type: 'expired' as const,
+      severity: 'error' as const,
+      ref: 'X',
+      message: `expired ${i}`,
+      file: 'a.ts',
+      line: i + 1,
+    }));
+    const impact = computeRefScoreImpact({
+      refAnnotationCount: 1,
+      totalAnnotations: 5,
+      totalCandidates: 0,
+      issues,
+    });
+    assert.equal(impact.hygieneDeduction, 40); // capped at 40, not 50
+  });
+
+  it('caps tier-2 deduction at maxDeduction (30)', () => {
+    // 7 missing-in-registry issues × 5pt = 35pt raw, tier-2 maxDeduction = 30
+    const issues: VerifyIssue[] = Array.from({ length: 7 }, (_, i) => ({
+      type: 'missing-in-registry' as const,
+      severity: 'warning' as const,
+      ref: 'X',
+      message: `missing ${i}`,
+      file: 'a.ts',
+      line: i + 1,
+    }));
+    const impact = computeRefScoreImpact({
+      refAnnotationCount: 1,
+      totalAnnotations: 5,
+      totalCandidates: 0,
+      issues,
+    });
+    assert.equal(impact.hygieneDeduction, 30); // capped at 30, not 35
+  });
+
+  it('caps tier-3 deduction at maxDeduction (10)', () => {
+    // 6 ref-format issues × 2pt = 12pt raw, tier-3 maxDeduction = 10
+    const issues: VerifyIssue[] = Array.from({ length: 6 }, (_, i) => ({
+      type: 'ref-format' as const,
+      severity: 'warning' as const,
+      ref: 'X',
+      message: `ref-format ${i}`,
+      file: 'a.ts',
+      line: i + 1,
+    }));
+    const impact = computeRefScoreImpact({
+      refAnnotationCount: 1,
+      totalAnnotations: 5,
+      totalCandidates: 0,
+      issues,
+    });
+    assert.equal(impact.hygieneDeduction, 10); // capped at 10, not 12
+  });
+
+  it('applies maxDeduction caps per tier independently', () => {
+    // tier-1: 5 expired × 10 = 50 → capped 40
+    // tier-3: 6 ref-format × 2 = 12 → capped 10
+    // total = 50 (40 + 10)
+    const issues: VerifyIssue[] = [
+      ...Array.from({ length: 5 }, (_, i) => ({
+        type: 'expired' as const,
+        severity: 'error' as const,
+        ref: 'X',
+        message: `expired ${i}`,
+        file: 'a.ts',
+        line: i + 1,
+      })),
+      ...Array.from({ length: 6 }, (_, i) => ({
+        type: 'ref-format' as const,
+        severity: 'warning' as const,
+        ref: 'X',
+        message: `ref-format ${i}`,
+        file: 'a.ts',
+        line: i + 10,
+      })),
+    ];
+    const impact = computeRefScoreImpact({
+      refAnnotationCount: 1,
+      totalAnnotations: 5,
+      totalCandidates: 0,
+      issues,
+    });
+    assert.equal(impact.hygieneDeduction, 50); // 40 + 10
+  });
+
+  it('does not cap when under maxDeduction', () => {
+    // 3 expired × 10 = 30 < 40 → no capping
+    const issues: VerifyIssue[] = Array.from({ length: 3 }, (_, i) => ({
+      type: 'expired' as const,
+      severity: 'error' as const,
+      ref: 'X',
+      message: `expired ${i}`,
+      file: 'a.ts',
+      line: i + 1,
+    }));
+    const impact = computeRefScoreImpact({
+      refAnnotationCount: 1,
+      totalAnnotations: 5,
+      totalCandidates: 0,
+      issues,
+    });
+    assert.equal(impact.hygieneDeduction, 30); // 3 × 10 = 30, under 40 cap
+    assert.equal(impact.deductionSources[0]!.points, 30); // not scaled
+  });
 });
 
 describe('why — scoreImpact integration (EP-0199)', () => {

@@ -264,14 +264,29 @@ export function computeRefScoreImpact(input: RefScoreImpactInput): ScoreImpact {
   let hygieneDeduction = 0;
 
   for (const tier of DEDUCTION_TIERS) {
+    let tierRawTotal = 0;
+    const tierSources: ScoreImpact['deductionSources'] = [];
     for (const issueType of tier.types) {
       const count = issueTypeCounts.get(issueType) ?? 0;
       if (count > 0) {
         const points = count * tier.perIssue;
-        deductionSources.push({ type: issueType, points });
-        hygieneDeduction += points;
+        tierSources.push({ type: issueType, points });
+        tierRawTotal += points;
       }
     }
+    // Apply tier-level maxDeduction cap (consistent with calculateHygiene)
+    const tierCapped = Math.min(tierRawTotal, tier.maxDeduction);
+    if (tierSources.length > 0) {
+      // Scale individual source points proportionally when capped
+      if (tierRawTotal > tier.maxDeduction) {
+        const scale = tier.maxDeduction / tierRawTotal;
+        for (const source of tierSources) {
+          source.points = Math.round(source.points * scale);
+        }
+      }
+      deductionSources.push(...tierSources);
+    }
+    hygieneDeduction += tierCapped;
   }
 
   return {
