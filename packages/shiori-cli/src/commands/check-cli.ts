@@ -145,6 +145,42 @@ export const checkCommand = define({
     const format = validateOutputFormat(ctx.values.format);
     if (format === null) return;
 
+    // Validate dual-axis thresholds early (before scan/verify)
+    const covThresholdRaw = ctx.values.coverageThreshold;
+    const hygThresholdRaw = ctx.values.hygieneThreshold;
+    let covThreshold: number | undefined;
+    let hygThreshold: number | undefined;
+
+    if (covThresholdRaw !== undefined) {
+      covThreshold = Number(covThresholdRaw);
+      if (
+        Number.isNaN(covThreshold) ||
+        covThreshold < 0 ||
+        covThreshold > 100
+      ) {
+        console.error(
+          `Error: Invalid --coverage-threshold value "${covThresholdRaw}". Must be a number between 0 and 100.`,
+        );
+        process.exitCode = ExitCode.USAGE_ERROR;
+        return;
+      }
+    }
+
+    if (hygThresholdRaw !== undefined) {
+      hygThreshold = Number(hygThresholdRaw);
+      if (
+        Number.isNaN(hygThreshold) ||
+        hygThreshold < 0 ||
+        hygThreshold > 100
+      ) {
+        console.error(
+          `Error: Invalid --hygiene-threshold value "${hygThresholdRaw}". Must be a number between 0 and 100.`,
+        );
+        process.exitCode = ExitCode.USAGE_ERROR;
+        return;
+      }
+    }
+
     const base = createBaseContext(ctx.values.cwd);
     const regCtx = await withRegistry(base, {
       configDir: ctx.values.config,
@@ -313,56 +349,26 @@ export const checkCommand = define({
     }
 
     // Dual-axis threshold checks (ADR 024 Phase 2)
-    const covThresholdRaw = ctx.values.coverageThreshold;
-    const hygThresholdRaw = ctx.values.hygieneThreshold;
-
-    if (covThresholdRaw !== undefined || hygThresholdRaw !== undefined) {
+    // Validation already done early — use pre-parsed covThreshold/hygThreshold
+    if (covThreshold !== undefined || hygThreshold !== undefined) {
       const coverage = calculateCoverage(
         scanResult.annotations,
         scanResult.candidates,
       );
       const hygiene = calculateHygiene(verifyResult.summary.byType);
 
-      if (covThresholdRaw !== undefined) {
-        const covThreshold = Number(covThresholdRaw);
-        if (
-          Number.isNaN(covThreshold) ||
-          covThreshold < 0 ||
-          covThreshold > 100
-        ) {
-          console.error(
-            `Error: Invalid --coverage-threshold value "${covThresholdRaw}". Must be a number between 0 and 100.`,
-          );
-          process.exitCode = ExitCode.USAGE_ERROR;
-          return;
-        }
-        if (coverage < covThreshold) {
-          console.error(
-            `Coverage ${coverage}/100 is below threshold ${covThreshold}`,
-          );
-          process.exitCode = ExitCode.GOVERNANCE_VIOLATION;
-        }
+      if (covThreshold !== undefined && coverage < covThreshold) {
+        console.error(
+          `Coverage ${coverage}/100 is below threshold ${covThreshold}`,
+        );
+        process.exitCode = ExitCode.GOVERNANCE_VIOLATION;
       }
 
-      if (hygThresholdRaw !== undefined) {
-        const hygThreshold = Number(hygThresholdRaw);
-        if (
-          Number.isNaN(hygThreshold) ||
-          hygThreshold < 0 ||
-          hygThreshold > 100
-        ) {
-          console.error(
-            `Error: Invalid --hygiene-threshold value "${hygThresholdRaw}". Must be a number between 0 and 100.`,
-          );
-          process.exitCode = ExitCode.USAGE_ERROR;
-          return;
-        }
-        if (hygiene < hygThreshold) {
-          console.error(
-            `Hygiene ${hygiene}/100 is below threshold ${hygThreshold}`,
-          );
-          process.exitCode = ExitCode.GOVERNANCE_VIOLATION;
-        }
+      if (hygThreshold !== undefined && hygiene < hygThreshold) {
+        console.error(
+          `Hygiene ${hygiene}/100 is below threshold ${hygThreshold}`,
+        );
+        process.exitCode = ExitCode.GOVERNANCE_VIOLATION;
       }
     }
   },
