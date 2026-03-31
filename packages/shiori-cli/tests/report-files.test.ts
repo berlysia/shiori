@@ -488,4 +488,77 @@ describe('isReportShape', () => {
   it('rejects empty object', () => {
     assert.equal(isReportShape({}), false);
   });
+
+  // EP-0193: coverage/hygiene validation
+  it('accepts report with coverage and hygiene', () => {
+    assert.equal(
+      isReportShape({
+        timestamp: '2026-01-01T00:00:00.000Z',
+        health: { level: 'healthy', score: 85, coverage: 100, hygiene: 85 },
+        totals: {
+          annotations: 5,
+          candidates: 0,
+          registryEntries: 5,
+          issues: 0,
+          errors: 0,
+          warnings: 0,
+        },
+      }),
+      true,
+    );
+  });
+
+  it('accepts report without coverage and hygiene (backward compat)', () => {
+    assert.equal(
+      isReportShape({
+        timestamp: '2026-01-01T00:00:00.000Z',
+        health: { level: 'healthy', score: 100, summary: 'ok' },
+        totals: {
+          annotations: 5,
+          candidates: 0,
+          registryEntries: 5,
+          issues: 0,
+          errors: 0,
+          warnings: 0,
+        },
+      }),
+      true,
+    );
+  });
+
+  it('rejects non-number coverage', () => {
+    assert.equal(
+      isReportShape({
+        timestamp: '2026-01-01T00:00:00.000Z',
+        health: { level: 'healthy', score: 85, coverage: 'high' },
+        totals: {
+          annotations: 5,
+          candidates: 0,
+          registryEntries: 5,
+          issues: 0,
+          errors: 0,
+          warnings: 0,
+        },
+      }),
+      false,
+    );
+  });
+
+  it('rejects non-number hygiene', () => {
+    assert.equal(
+      isReportShape({
+        timestamp: '2026-01-01T00:00:00.000Z',
+        health: { level: 'healthy', score: 85, hygiene: 'good' },
+        totals: {
+          annotations: 5,
+          candidates: 0,
+          registryEntries: 5,
+          issues: 0,
+          errors: 0,
+          warnings: 0,
+        },
+      }),
+      false,
+    );
+  });
 });

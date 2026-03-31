@@ -108,6 +108,9 @@ describe('saveSnapshot', () => {
       const parsed = JSON.parse(content);
       assert.equal(parsed.timestamp, '2026-03-04T10:00:00.000Z');
       assert.equal(parsed.health.score, 85);
+      // EP-0193: coverage/hygiene are persisted in snapshot JSON
+      assert.equal(parsed.health.coverage, 100);
+      assert.equal(parsed.health.hygiene, 85);
       // Trailing newline
       assert.ok(content.endsWith('\n'));
     }
@@ -308,6 +311,9 @@ describe('auto-save integration (saveSnapshot + loadSnapshots roundtrip)', () =>
     assert.ok(first !== undefined);
     assert.equal(first.timestamp, report.timestamp);
     assert.equal(first.health.score, report.health.score);
+    // EP-0193: verify coverage/hygiene survive roundtrip
+    assert.equal(first.health.coverage, report.health.coverage);
+    assert.equal(first.health.hygiene, report.health.hygiene);
 
     await rm(tempDir, { recursive: true, force: true });
   });

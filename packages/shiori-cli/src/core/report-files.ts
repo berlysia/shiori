@@ -22,6 +22,10 @@ export function isReportShape(value: Record<string, unknown>): boolean {
     return false;
   if (!VALID_HEALTH_LEVELS.includes(health.level as string)) return false;
 
+  // EP-0193: validate coverage/hygiene when present (optional for backward compat)
+  if ('coverage' in health && typeof health.coverage !== 'number') return false;
+  if ('hygiene' in health && typeof health.hygiene !== 'number') return false;
+
   const totals = value.totals as Record<string, unknown> | undefined;
   if (!totals) return false;
   if (typeof totals.issues !== 'number') return false;
