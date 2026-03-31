@@ -561,4 +561,40 @@ describe('isReportShape', () => {
       false,
     );
   });
+
+  it('rejects NaN coverage', () => {
+    assert.equal(
+      isReportShape({
+        timestamp: '2026-01-01T00:00:00.000Z',
+        health: { level: 'healthy', score: 85, coverage: NaN },
+        totals: {
+          annotations: 5,
+          candidates: 0,
+          registryEntries: 5,
+          issues: 0,
+          errors: 0,
+          warnings: 0,
+        },
+      }),
+      false,
+    );
+  });
+
+  it('rejects NaN hygiene', () => {
+    assert.equal(
+      isReportShape({
+        timestamp: '2026-01-01T00:00:00.000Z',
+        health: { level: 'healthy', score: 85, hygiene: NaN },
+        totals: {
+          annotations: 5,
+          candidates: 0,
+          registryEntries: 5,
+          issues: 0,
+          errors: 0,
+          warnings: 0,
+        },
+      }),
+      false,
+    );
+  });
 });

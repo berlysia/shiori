@@ -54,12 +54,14 @@ Source Files → CommentProvider.scan() → ShioriAnnotation[]
 
 ### Commands (`packages/shiori-cli/src/commands/`)
 
-Pattern: `scan.ts` (logic) + `scan-cli.ts` (CLI wrapper). Framework: gunshi. Commands (23):
+Pattern: `scan.ts` (logic) + `scan-cli.ts` (CLI wrapper). Framework: gunshi. Commands (34):
 
 - **Workflow**: `init`, `scan`, `verify`, `check`, `update`, `adopt`, `resolve`, `migrate`, `watch`, `draft`, `candidates`, `annotate`
-- **Governance & Insights**: `health`, `triage`, `report`, `trend`, `delta`, `weekly-report`
+- **Governance & Insights**: `health`, `triage`, `report`, `trend`, `delta`, `weekly-report`, `impact`, `summary`
+- **Remediation**: `fix`, `recipes`
+- **Narrative & Coaching**: `narrative`, `coach`, `pitch`, `guide`, `onboard`
 - **Journal**: `journal`
-- **Diagnostics**: `doctor`
+- **Diagnostics**: `doctor`, `aggregate`
 - **Information**: `show`, `why`, `jump`, `docs`
 
 ### CommentProvider Classification Paths
@@ -83,8 +85,9 @@ Positional ref syntax: first token is the tracking reference, remaining tokens a
 
 ### Design Decisions
 
-ADRs in `docs/decisions/` (001-024). Read specific ADRs when relevant to current task.
+ADRs in `docs/decisions/` (001-033). Read specific ADRs when relevant to current task.
 Key ADRs for annotation parsing: 003 (key=value syntax), 005 (drafts), 006 (candidates), 007 (positional ref).
+Key ADRs for dual-axis governance: 024 (two-axis scoring), 033 (HealthNextStep type design).
 
 ## Dogfooding (`shiori verify` で自己追跡)
 
