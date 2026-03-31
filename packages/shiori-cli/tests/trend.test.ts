@@ -11,6 +11,7 @@ import {
   formatTrendAsSpark,
   valueToBlock,
   buildSparkline,
+  type TrendFormatOptions,
 } from '../src/commands/trend.ts';
 
 function makeReportResult(overrides: {
@@ -724,5 +725,222 @@ describe('computeTrendFromPoints', () => {
     // Input array order should not be changed
     assert.equal(points[0]!.timestamp, original[0]!.timestamp);
     assert.equal(points[1]!.timestamp, original[1]!.timestamp);
+  });
+});
+
+// ── --axis filter tests (ADR 024 Phase 2) ─────────────────────
+
+describe('axis filter: formatTrendAsSpark', () => {
+  function makeDualAxisResult(): TrendResult {
+    return computeTrend([
+      makeReportResult({ timestamp: '2026-01-01T00:00:00.000Z', score: 70 }),
+      makeReportResult({ timestamp: '2026-02-01T00:00:00.000Z', score: 85 }),
+    ]);
+  }
+
+  it('shows all series when axis is undefined', () => {
+    const result = makeDualAxisResult();
+    const spark = formatTrendAsSpark(result);
+    const lines = spark.split('\n');
+
+    assert.equal(lines.length, 5);
+    assert.ok(lines[0]!.startsWith('Score:'));
+    assert.ok(lines[1]!.startsWith('Issues:'));
+    assert.ok(lines[2]!.startsWith('Untracked:'));
+    assert.ok(lines[3]!.startsWith('Coverage:'));
+    assert.ok(lines[4]!.startsWith('Hygiene:'));
+  });
+
+  it('shows only score series when axis=score', () => {
+    const result = makeDualAxisResult();
+    const spark = formatTrendAsSpark(result, { axis: 'score' });
+    const lines = spark.split('\n');
+
+    assert.equal(lines.length, 3);
+    assert.ok(lines[0]!.startsWith('Score:'));
+    assert.ok(lines[1]!.startsWith('Issues:'));
+    assert.ok(lines[2]!.startsWith('Untracked:'));
+  });
+
+  it('shows only coverage series when axis=coverage', () => {
+    const result = makeDualAxisResult();
+    const spark = formatTrendAsSpark(result, { axis: 'coverage' });
+    const lines = spark.split('\n');
+
+    assert.equal(lines.length, 1);
+    assert.ok(lines[0]!.startsWith('Coverage:'));
+  });
+
+  it('shows only hygiene series when axis=hygiene', () => {
+    const result = makeDualAxisResult();
+    const spark = formatTrendAsSpark(result, { axis: 'hygiene' });
+    const lines = spark.split('\n');
+
+    assert.equal(lines.length, 1);
+    assert.ok(lines[0]!.startsWith('Hygiene:'));
+  });
+});
+
+describe('axis filter: formatTrendAsCsv', () => {
+  function makeDualAxisResult(): TrendResult {
+    return computeTrend([
+      makeReportResult({
+        timestamp: '2026-01-01T00:00:00.000Z',
+        score: 80,
+        issues: 3,
+        annotations: 10,
+        candidates: 2,
+        registryEntries: 8,
+      }),
+    ]);
+  }
+
+  it('includes all columns when axis is undefined', () => {
+    const result = makeDualAxisResult();
+    const csv = formatTrendAsCsv(result);
+    const header = csv.split('\n')[0]!;
+
+    assert.equal(
+      header,
+      'timestamp,score,coverage,hygiene,level,issues,annotations,candidates,registryEntries',
+    );
+  });
+
+  it('excludes coverage/hygiene columns when axis=score', () => {
+    const result = makeDualAxisResult();
+    const csv = formatTrendAsCsv(result, { axis: 'score' });
+    const header = csv.split('\n')[0]!;
+
+    assert.equal(
+      header,
+      'timestamp,score,level,issues,annotations,candidates,registryEntries',
+    );
+    assert.ok(!header.includes('coverage'));
+    assert.ok(!header.includes('hygiene'));
+  });
+
+  it('shows only coverage column when axis=coverage', () => {
+    const result = makeDualAxisResult();
+    const csv = formatTrendAsCsv(result, { axis: 'coverage' });
+    const header = csv.split('\n')[0]!;
+
+    assert.equal(
+      header,
+      'timestamp,coverage,level,issues,annotations,candidates,registryEntries',
+    );
+    assert.ok(!header.includes(',score,'));
+    assert.ok(!header.includes('hygiene'));
+  });
+
+  it('shows only hygiene column when axis=hygiene', () => {
+    const result = makeDualAxisResult();
+    const csv = formatTrendAsCsv(result, { axis: 'hygiene' });
+    const header = csv.split('\n')[0]!;
+
+    assert.equal(
+      header,
+      'timestamp,hygiene,level,issues,annotations,candidates,registryEntries',
+    );
+    assert.ok(!header.includes(',score,'));
+    assert.ok(!header.includes('coverage'));
+  });
+
+  it('includes correct data values for axis=coverage', () => {
+    const result = makeDualAxisResult();
+    const csv = formatTrendAsCsv(result, { axis: 'coverage' });
+    const dataRow = csv.split('\n')[1]!;
+
+    // coverage=100 for this test data
+    assert.equal(dataRow, '2026-01-01T00:00:00.000Z,100,healthy,3,10,2,8');
+  });
+});
+
+describe('axis filter: formatTrendAsMarkdown', () => {
+  function makeDualAxisResult(): TrendResult {
+    return computeTrend([
+      makeReportResult({ timestamp: '2026-01-01T00:00:00.000Z', score: 80 }),
+    ]);
+  }
+
+  it('shows all columns when axis is undefined', () => {
+    const result = makeDualAxisResult();
+    const md = formatTrendAsMarkdown(result);
+
+    assert.ok(md.includes('Score'));
+    assert.ok(md.includes('Coverage'));
+    assert.ok(md.includes('Hygiene'));
+  });
+
+  it('hides dual-axis columns when axis=score', () => {
+    const result = makeDualAxisResult();
+    const md = formatTrendAsMarkdown(result, { axis: 'score' });
+
+    assert.ok(md.includes('Score'));
+    assert.ok(!md.includes('Coverage'));
+    assert.ok(!md.includes('Hygiene'));
+  });
+
+  it('shows only coverage column when axis=coverage', () => {
+    const result = makeDualAxisResult();
+    const md = formatTrendAsMarkdown(result, { axis: 'coverage' });
+    const timelineSection = md.split('## Timeline')[1]!;
+
+    assert.ok(timelineSection.includes('Coverage'));
+    assert.ok(!timelineSection.includes('Hygiene'));
+    // Score column should be hidden in Timeline when filtering to coverage
+    assert.ok(!timelineSection.includes('| Score'));
+  });
+
+  it('shows only hygiene column when axis=hygiene', () => {
+    const result = makeDualAxisResult();
+    const md = formatTrendAsMarkdown(result, { axis: 'hygiene' });
+    const timelineSection = md.split('## Timeline')[1]!;
+
+    assert.ok(timelineSection.includes('Hygiene'));
+    assert.ok(!timelineSection.includes('Coverage'));
+    assert.ok(!timelineSection.includes('| Score'));
+  });
+});
+
+describe('axis filter: formatTrend router', () => {
+  it('passes axis to spark formatter', () => {
+    const result = computeTrend([
+      makeReportResult({ timestamp: '2026-01-01T00:00:00.000Z', score: 80 }),
+    ]);
+    const viaDirect = formatTrendAsSpark(result, { axis: 'coverage' });
+    const viaRouter = formatTrend(result, 'spark', { axis: 'coverage' });
+
+    assert.equal(viaRouter, viaDirect);
+  });
+
+  it('passes axis to csv formatter', () => {
+    const result = computeTrend([
+      makeReportResult({ timestamp: '2026-01-01T00:00:00.000Z', score: 80 }),
+    ]);
+    const viaDirect = formatTrendAsCsv(result, { axis: 'hygiene' });
+    const viaRouter = formatTrend(result, 'csv', { axis: 'hygiene' });
+
+    assert.equal(viaRouter, viaDirect);
+  });
+
+  it('passes axis to markdown formatter', () => {
+    const result = computeTrend([
+      makeReportResult({ timestamp: '2026-01-01T00:00:00.000Z', score: 80 }),
+    ]);
+    const viaDirect = formatTrendAsMarkdown(result, { axis: 'score' });
+    const viaRouter = formatTrend(result, 'markdown', { axis: 'score' });
+
+    assert.equal(viaRouter, viaDirect);
+  });
+
+  it('ignores axis for json format (full data always)', () => {
+    const result = computeTrend([
+      makeReportResult({ timestamp: '2026-01-01T00:00:00.000Z', score: 80 }),
+    ]);
+    const withAxis = formatTrend(result, 'json', { axis: 'coverage' });
+    const withoutAxis = formatTrend(result, 'json');
+
+    // JSON always outputs the full TrendResult regardless of axis
+    assert.equal(withAxis, withoutAxis);
   });
 });

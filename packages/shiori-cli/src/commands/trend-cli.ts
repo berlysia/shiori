@@ -7,7 +7,9 @@ import {
 import { readJournalEntries, resolveJournalPath } from '../core/journal.ts';
 import {
   TREND_FORMATS,
+  TREND_AXES,
   type TrendFormat,
+  type TrendAxis,
   type VelocityBucket,
 } from '../core/types.ts';
 import { createFormatValidator } from '../core/cli-validation.ts';
@@ -52,6 +54,12 @@ export const trendCommand = define({
   # Velocity trend with weekly granularity, last 4 weeks
   shiori trend --from-journal --bucket week --last 4
 
+  # Filter to coverage axis only (sparkline)
+  shiori trend --history ./reports/ --format spark --axis coverage
+
+  # Filter to hygiene axis only (CSV)
+  shiori trend --history ./reports/ --format csv --axis hygiene
+
   # CI recipe: save report, then compare trend
   shiori report -f json -o ./reports/$(date +%Y%m%dT%H%M%S).json
   shiori trend --history ./reports/ --last 10`,
@@ -92,6 +100,12 @@ export const trendCommand = define({
       type: 'string',
       short: 'o',
       description: 'Output file path. If omitted, writes to stdout',
+    },
+    axis: {
+      type: 'string',
+      short: 'a',
+      description:
+        'Filter trend output to a single metric axis: score, coverage, hygiene. If omitted, all axes are shown.',
     },
     cwd: {
       type: 'string',
@@ -138,8 +152,29 @@ export const trendCommand = define({
       }
     }
 
+    // Validate --axis (optional, undefined = show all)
+    let axis: TrendAxis | undefined;
+    if (ctx.values.axis !== undefined) {
+      if (!TREND_AXES.includes(ctx.values.axis as TrendAxis)) {
+        console.error(
+          `Error: Invalid --axis value "${ctx.values.axis}". Valid values: ${TREND_AXES.join(', ')}`,
+        );
+        process.exitCode = ExitCode.USAGE_ERROR;
+        return;
+      }
+      axis = ctx.values.axis as TrendAxis;
+    }
+
     // ── Journal velocity path ──────────────────────────────────
     if (fromJournal) {
+      // --axis is not applicable to journal velocity trends
+      if (axis !== undefined) {
+        console.error(
+          'Error: --axis is not supported with --from-journal (journal shows velocity, not governance axes)',
+        );
+        process.exitCode = ExitCode.USAGE_ERROR;
+        return;
+      }
       // Validate --bucket
       let bucket: VelocityBucket = 'day';
       if (ctx.values.bucket !== undefined) {
@@ -230,7 +265,7 @@ export const trendCommand = define({
 
     // Compute trend
     const result = computeTrend(reports, { last });
-    const output = formatTrend(result, format);
+    const output = formatTrend(result, format, { axis });
 
     // Write output
     const written = await writeOutput(output, {

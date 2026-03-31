@@ -405,6 +405,12 @@ export const TREND_FORMATS = ['json', 'markdown', 'csv', 'spark'] as const;
 /** Output format for trend command (derived from TREND_FORMATS) */
 export type TrendFormat = (typeof TREND_FORMATS)[number];
 
+/** Canonical list of all trend axis filter values (derived → TrendAxis) */
+export const TREND_AXES = ['score', 'coverage', 'hygiene'] as const;
+
+/** Axis filter for trend command: show only the specified metric series */
+export type TrendAxis = (typeof TREND_AXES)[number];
+
 // ── CI template types ────────────────────────────────────────
 
 /** Available CI template kinds */
