@@ -1046,6 +1046,8 @@ export interface HealthResult {
   trend?: TrendResult['summary'];
   /** Actionable prescriptions derived from health analysis (EP-0104) */
   prescriptions?: HealthPrescription[];
+  /** Dual-axis pattern diagnosis message (EP-0198) */
+  diagnosis?: string;
 }
 
 /** Urgency level for health prescriptions */

@@ -12,6 +12,7 @@ import {
   health,
   buildHealthResult,
   formatHealthSummary,
+  interpretDualAxis,
 } from '../src/commands/health.ts';
 import { formatHealth } from '../src/commands/health-cli.ts';
 import { isAtOrBelowLevel } from '../src/core/types.ts';
@@ -506,6 +507,71 @@ describe('formatHealthSummary', () => {
       assert.ok(cl.startsWith('│'), `content line should start with │: ${cl}`);
       assert.ok(cl.endsWith('│'), `content line should end with │: ${cl}`);
     }
+  });
+});
+
+describe('interpretDualAxis (EP-0198)', () => {
+  it('returns well-tracked message for both high', () => {
+    const msg = interpretDualAxis(80, 90);
+    assert.ok(msg.includes('well-tracked'));
+  });
+
+  it('returns hygiene gap message for high coverage / low hygiene', () => {
+    const msg = interpretDualAxis(80, 50);
+    assert.ok(msg.includes('lack expires or reason'));
+    assert.ok(msg.includes('shiori triage'));
+  });
+
+  it('returns coverage gap message for low coverage / high hygiene', () => {
+    const msg = interpretDualAxis(40, 90);
+    assert.ok(msg.includes('Not all lint disables are tracked yet'));
+    assert.ok(msg.includes('shiori adopt'));
+  });
+
+  it('returns both-low message for both below threshold', () => {
+    const msg = interpretDualAxis(30, 40);
+    assert.ok(msg.includes('both need improvement'));
+  });
+
+  it('treats exactly 70 as high', () => {
+    const msg = interpretDualAxis(70, 70);
+    assert.ok(msg.includes('well-tracked'));
+  });
+
+  it('treats 69 as low', () => {
+    const msg = interpretDualAxis(69, 69);
+    assert.ok(msg.includes('both need improvement'));
+  });
+});
+
+describe('health diagnosis integration (EP-0198)', () => {
+  it('includes diagnosis in HealthResult', () => {
+    const result = health({
+      scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
+      registry: {
+        'TEST-001': makeRegistryEntry(),
+      },
+      failOn: [],
+      warnOn: [],
+    });
+
+    assert.ok(result.diagnosis);
+    assert.ok(typeof result.diagnosis === 'string');
+    assert.ok(result.diagnosis.length > 0);
+  });
+
+  it('shows diagnosis in formatHealthSummary', () => {
+    const result = health({
+      scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
+      registry: {
+        'TEST-001': makeRegistryEntry(),
+      },
+      failOn: [],
+      warnOn: [],
+    });
+
+    const output = formatHealthSummary(result);
+    assert.ok(output.includes('📊'));
   });
 });
 

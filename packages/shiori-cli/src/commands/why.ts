@@ -1,18 +1,23 @@
 import type {
   ShioriAnnotation,
+  ShioriCandidate,
   Registry,
   RegistryEntry,
   VerifyIssue,
+  VerifyIssueType,
 } from '../core/types.ts';
 import type { RegistryDuplicateWarning } from '../core/registry.ts';
 import type { RefPatternConfig } from '../core/ref-pattern.ts';
 import { resolveRefUrl } from '../core/ref-pattern.ts';
 import { verify } from './verify.ts';
+import { DEDUCTION_TIERS } from '../core/deduction-tiers.ts';
 
 export interface WhyInput {
   ref: string;
   registry: Registry;
   annotations: ShioriAnnotation[];
+  /** All candidates from scan (for coverage impact calculation, EP-0199) */
+  candidates?: ShioriCandidate[];
   refPatterns: RefPatternConfig[] | undefined;
   /** Reference date for expiry checks (default: now, injectable for tests) */
   now?: Date;
@@ -22,6 +27,16 @@ export interface WhyInput {
   duplicates?: RegistryDuplicateWarning[];
   /** Maps each ref to its origin registryFile (ADR 012 phase 2) */
   refOrigins?: Map<string, string | null>;
+}
+
+/** Per-ref score impact on Coverage/Hygiene axes (EP-0199) */
+export interface ScoreImpact {
+  /** Coverage contribution: percentage points this ref adds to coverage */
+  coverageContribution: number;
+  /** Hygiene deduction: points deducted from hygiene due to this ref's issues */
+  hygieneDeduction: number;
+  /** Issue types causing hygiene deductions */
+  deductionSources: Array<{ type: VerifyIssueType; points: number }>;
 }
 
 export interface WhyResult {
@@ -34,6 +49,8 @@ export interface WhyResult {
   url: string | undefined;
   /** Verify issues related to this ref */
   issues: VerifyIssue[];
+  /** Dual-axis score impact of this ref (EP-0199) */
+  scoreImpact?: ScoreImpact;
   /** Human-readable summary lines */
   summary: string[];
 }
@@ -88,6 +105,14 @@ export function why(input: WhyInput): WhyResult {
   });
   const issues = verifyResult.issues;
 
+  // Compute dual-axis score impact (EP-0199)
+  const scoreImpact = computeRefScoreImpact({
+    refAnnotationCount: sourceLocations.length,
+    totalAnnotations: annotations.length,
+    totalCandidates: input.candidates?.length ?? 0,
+    issues,
+  });
+
   // Build human-readable summary
   const summary = buildSummary({
     ref,
@@ -95,6 +120,7 @@ export function why(input: WhyInput): WhyResult {
     sourceLocations,
     url,
     issues,
+    scoreImpact,
   });
 
   return {
@@ -103,6 +129,7 @@ export function why(input: WhyInput): WhyResult {
     sourceLocations,
     url,
     issues,
+    scoreImpact,
     summary,
   };
 }
@@ -122,6 +149,7 @@ interface SummaryInput {
   sourceLocations: Array<{ file: string; line: number; rule?: string }>;
   url: string | undefined;
   issues: VerifyIssue[];
+  scoreImpact?: ScoreImpact;
 }
 
 function buildSummary(input: SummaryInput): string[] {
@@ -181,5 +209,74 @@ function buildSummary(input: SummaryInput): string[] {
     lines.push('issues: none');
   }
 
+  // Dual-axis score impact (EP-0199)
+  if (input.scoreImpact) {
+    const { coverageContribution, hygieneDeduction, deductionSources } =
+      input.scoreImpact;
+    lines.push(
+      `impact: coverage +${coverageContribution}pt, hygiene -${hygieneDeduction}pt`,
+    );
+    if (deductionSources.length > 0) {
+      for (const src of deductionSources) {
+        lines.push(`  -${src.points}pt from ${src.type}`);
+      }
+    }
+  }
+
   return lines;
+}
+
+// ── Dual-axis score impact (EP-0199) ────────────────────────
+
+interface RefScoreImpactInput {
+  /** Number of annotations for this ref */
+  refAnnotationCount: number;
+  /** Total annotations across the project */
+  totalAnnotations: number;
+  /** Total candidates across the project */
+  totalCandidates: number;
+  /** Verify issues for this ref */
+  issues: VerifyIssue[];
+}
+
+/**
+ * Compute how a single ref impacts Coverage/Hygiene scores.
+ *
+ * Coverage contribution: this ref's annotation count / total (annotations + candidates).
+ * Hygiene deduction: per-issue points from DEDUCTION_TIERS for this ref's issues.
+ */
+export function computeRefScoreImpact(input: RefScoreImpactInput): ScoreImpact {
+  const { refAnnotationCount, totalAnnotations, totalCandidates, issues } =
+    input;
+
+  // Coverage contribution (percentage points)
+  const total = totalAnnotations + totalCandidates;
+  const coverageContribution =
+    total > 0 ? Math.round((refAnnotationCount / total) * 100) : 0;
+
+  // Hygiene deduction from this ref's issues
+  const issueTypeCounts = new Map<VerifyIssueType, number>();
+  for (const issue of issues) {
+    issueTypeCounts.set(issue.type, (issueTypeCounts.get(issue.type) ?? 0) + 1);
+  }
+
+  const deductionSources: ScoreImpact['deductionSources'] = [];
+  let hygieneDeduction = 0;
+
+  for (const tier of DEDUCTION_TIERS) {
+    for (const issueType of tier.types) {
+      const count = issueTypeCounts.get(issueType) ?? 0;
+      if (count > 0) {
+        const points = count * tier.perIssue;
+        deductionSources.push({ type: issueType, points });
+        hygieneDeduction += points;
+      }
+    }
+  }
+
+  return {
+    coverageContribution,
+    hygieneDeduction,
+    deductionSources,
+  };
 }

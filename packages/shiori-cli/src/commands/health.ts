@@ -82,6 +82,12 @@ export function buildHealthResult(
     result.prescriptions = prescriptions;
   }
 
+  // Dual-axis pattern diagnosis (EP-0198)
+  result.diagnosis = interpretDualAxis(
+    reportResult.health.coverage,
+    reportResult.health.hygiene,
+  );
+
   return result;
 }
 
@@ -126,6 +132,11 @@ export function formatHealthSummary(result: HealthResult): string {
   }
   sections.push(infoLines);
 
+  // Dual-axis diagnosis (EP-0198)
+  if (result.diagnosis) {
+    sections.push([`📊 ${result.diagnosis}`]);
+  }
+
   // Prescriptions section (when present)
   if (result.prescriptions && result.prescriptions.length > 0) {
     const rxLines: string[] = [];
@@ -148,4 +159,30 @@ export function formatHealthSummary(result: HealthResult): string {
   }
 
   return renderBox(sections);
+}
+
+// ── Dual-axis pattern interpretation (EP-0198) ──────────────
+
+/** Threshold for "high" axis value */
+const AXIS_HIGH_THRESHOLD = 70;
+
+/**
+ * Interpret the Coverage/Hygiene ratio and return a diagnostic message.
+ * Four patterns based on whether each axis is above/below the threshold.
+ */
+export function interpretDualAxis(coverage: number, hygiene: number): string {
+  const covHigh = coverage >= AXIS_HIGH_THRESHOLD;
+  const hygHigh = hygiene >= AXIS_HIGH_THRESHOLD;
+
+  if (covHigh && hygHigh) {
+    return 'Governance is well-tracked and maintained.';
+  }
+  if (covHigh && !hygHigh) {
+    return 'Most annotations are tracked, but some lack expires or reason. Run "shiori triage" to address hygiene gaps.';
+  }
+  if (!covHigh && hygHigh) {
+    return 'Not all lint disables are tracked yet, but maintained ones are in good shape. Run "shiori adopt" to improve coverage.';
+  }
+  // Both low
+  return 'Governance coverage and maintenance both need improvement. Start with "shiori adopt" then "shiori triage".';
 }

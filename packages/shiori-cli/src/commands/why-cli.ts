@@ -72,6 +72,7 @@ export const whyCommand = define({
       ref: ctx.values.ref,
       registry,
       annotations: scanResult.annotations,
+      candidates: scanResult.candidates,
       refPatterns: config.refPatterns,
       expiringThresholdDays: config.verify.expiringThresholdDays,
       duplicates: configAndRegistry.duplicates,

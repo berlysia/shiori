@@ -3,7 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { scan } from './scan.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
-import { check } from './check.ts';
+import { check, checkThresholds, computeDualAxisScores } from './check.ts';
 import { formatActionHints } from './verify.ts';
 import { formatVerifyOutput } from '../formatters/index.ts';
 import {
@@ -23,7 +23,6 @@ import {
   resolveExpiringThreshold,
 } from '../core/cli-context.ts';
 import { ExitCode } from '../core/exit-codes.ts';
-import { calculateCoverage, calculateHygiene } from './report.ts';
 
 export const checkCommand = define({
   name: 'check',
@@ -349,25 +348,25 @@ export const checkCommand = define({
     }
 
     // Dual-axis threshold checks (ADR 024 Phase 2)
-    // Validation already done early — use pre-parsed covThreshold/hygThreshold
+    // Business logic delegated to check.ts; CLI handles I/O only.
     if (covThreshold !== undefined || hygThreshold !== undefined) {
-      const coverage = calculateCoverage(
-        scanResult.annotations,
-        scanResult.candidates,
+      const scores = computeDualAxisScores(
+        scanResult,
+        verifyResult.summary.byType,
       );
-      const hygiene = calculateHygiene(verifyResult.summary.byType);
+      const thresholdResult = checkThresholds({
+        ...scores,
+        coverageThreshold: covThreshold,
+        hygieneThreshold: hygThreshold,
+      });
 
-      if (covThreshold !== undefined && coverage < covThreshold) {
+      for (const v of thresholdResult.violations) {
+        const label = v.axis === 'coverage' ? 'Coverage' : 'Hygiene';
         console.error(
-          `Coverage ${coverage}/100 is below threshold ${covThreshold}`,
+          `${label} ${v.actual}/100 is below threshold ${v.threshold}`,
         );
-        process.exitCode = ExitCode.GOVERNANCE_VIOLATION;
       }
-
-      if (hygThreshold !== undefined && hygiene < hygThreshold) {
-        console.error(
-          `Hygiene ${hygiene}/100 is below threshold ${hygThreshold}`,
-        );
+      if (!thresholdResult.passed) {
         process.exitCode = ExitCode.GOVERNANCE_VIOLATION;
       }
     }

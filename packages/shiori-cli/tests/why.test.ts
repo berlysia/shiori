@@ -1,7 +1,11 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { why, isFound } from '../src/commands/why.ts';
-import type { ShioriAnnotation, Registry } from '../src/core/types.ts';
+import { why, isFound, computeRefScoreImpact } from '../src/commands/why.ts';
+import type {
+  ShioriAnnotation,
+  Registry,
+  VerifyIssue,
+} from '../src/core/types.ts';
 
 const makeAnnotation = (
   ref: string,
@@ -449,5 +453,202 @@ describe('isFound (why)', () => {
       }),
       false,
     );
+  });
+});
+
+describe('computeRefScoreImpact (EP-0199)', () => {
+  it('computes coverage contribution from annotation count', () => {
+    const impact = computeRefScoreImpact({
+      refAnnotationCount: 2,
+      totalAnnotations: 10,
+      totalCandidates: 0,
+      issues: [],
+    });
+    assert.equal(impact.coverageContribution, 20); // 2/10 * 100
+    assert.equal(impact.hygieneDeduction, 0);
+    assert.equal(impact.deductionSources.length, 0);
+  });
+
+  it('includes candidates in coverage calculation', () => {
+    const impact = computeRefScoreImpact({
+      refAnnotationCount: 1,
+      totalAnnotations: 3,
+      totalCandidates: 7,
+      issues: [],
+    });
+    assert.equal(impact.coverageContribution, 10); // 1/10 * 100
+  });
+
+  it('returns 0 coverage when totals are zero', () => {
+    const impact = computeRefScoreImpact({
+      refAnnotationCount: 0,
+      totalAnnotations: 0,
+      totalCandidates: 0,
+      issues: [],
+    });
+    assert.equal(impact.coverageContribution, 0);
+  });
+
+  it('computes hygiene deduction from expired issues', () => {
+    const issues: VerifyIssue[] = [
+      {
+        type: 'expired',
+        severity: 'error',
+        ref: 'X',
+        message: 'expired',
+        file: 'a.ts',
+        line: 1,
+      },
+    ];
+    const impact = computeRefScoreImpact({
+      refAnnotationCount: 1,
+      totalAnnotations: 5,
+      totalCandidates: 0,
+      issues,
+    });
+    assert.equal(impact.hygieneDeduction, 10); // expired is 10pt per issue
+    assert.equal(impact.deductionSources.length, 1);
+    assert.equal(impact.deductionSources[0]!.type, 'expired');
+    assert.equal(impact.deductionSources[0]!.points, 10);
+  });
+
+  it('computes hygiene deduction from missing-in-registry', () => {
+    const issues: VerifyIssue[] = [
+      {
+        type: 'missing-in-registry',
+        severity: 'warning',
+        ref: 'X',
+        message: 'missing',
+        file: 'a.ts',
+        line: 1,
+      },
+    ];
+    const impact = computeRefScoreImpact({
+      refAnnotationCount: 1,
+      totalAnnotations: 5,
+      totalCandidates: 0,
+      issues,
+    });
+    assert.equal(impact.hygieneDeduction, 5); // missing-in-registry is 5pt per issue
+    assert.equal(impact.deductionSources[0]!.type, 'missing-in-registry');
+  });
+
+  it('accumulates deductions from multiple issue types', () => {
+    const issues: VerifyIssue[] = [
+      {
+        type: 'expired',
+        severity: 'error',
+        ref: 'X',
+        message: 'expired',
+        file: 'a.ts',
+        line: 1,
+      },
+      {
+        type: 'temporary-without-expires',
+        severity: 'warning',
+        ref: 'X',
+        message: 'no expires',
+        file: 'a.ts',
+        line: 1,
+      },
+    ];
+    const impact = computeRefScoreImpact({
+      refAnnotationCount: 1,
+      totalAnnotations: 5,
+      totalCandidates: 0,
+      issues,
+    });
+    // expired = 10pt, temporary-without-expires = 2pt
+    assert.equal(impact.hygieneDeduction, 12);
+    assert.equal(impact.deductionSources.length, 2);
+  });
+});
+
+describe('why — scoreImpact integration (EP-0199)', () => {
+  it('includes scoreImpact in WhyResult', () => {
+    const ann = [makeAnnotation('TEST-001', 'src/a.ts', 1)];
+    const reg: Registry = {
+      'TEST-001': {
+        reason: 'test',
+        target: 'src/a.ts',
+        expires: undefined,
+        ticket: undefined,
+        owner: undefined,
+        notes: undefined,
+        kind: 'intentional',
+      },
+    };
+
+    const result = why({
+      ref: 'TEST-001',
+      registry: reg,
+      annotations: ann,
+      candidates: [
+        {
+          pattern: 'eslint',
+          directive: 'eslint-disable-next-line',
+          location: { file: 'src/b.ts', line: 2 },
+        },
+      ],
+      refPatterns: undefined,
+    });
+
+    assert.ok(result.scoreImpact);
+    assert.equal(result.scoreImpact.coverageContribution, 50); // 1/(1+1) * 100
+    assert.equal(result.scoreImpact.hygieneDeduction, 0); // no issues
+  });
+
+  it('shows impact in summary output', () => {
+    const ann = [makeAnnotation('EXP-001', 'src/a.ts', 1)];
+    const reg: Registry = {
+      'EXP-001': {
+        reason: 'expired workaround',
+        target: 'src/a.ts',
+        expires: '2020-01-01',
+        ticket: undefined,
+        owner: undefined,
+        notes: undefined,
+        kind: 'intentional',
+      },
+    };
+
+    const result = why({
+      ref: 'EXP-001',
+      registry: reg,
+      annotations: ann,
+      refPatterns: undefined,
+      now: new Date('2025-06-01'),
+    });
+
+    assert.ok(result.summary.some((line) => line.includes('impact:')));
+    assert.ok(result.summary.some((line) => line.includes('coverage +')));
+    assert.ok(result.summary.some((line) => line.includes('hygiene -')));
+  });
+
+  it('works without candidates (backward compat)', () => {
+    const ann = [makeAnnotation('TEST-001', 'src/a.ts', 1)];
+    const reg: Registry = {
+      'TEST-001': {
+        reason: 'test',
+        target: 'src/a.ts',
+        expires: undefined,
+        ticket: undefined,
+        owner: undefined,
+        notes: undefined,
+        kind: 'intentional',
+      },
+    };
+
+    const result = why({
+      ref: 'TEST-001',
+      registry: reg,
+      annotations: ann,
+      // candidates not provided
+      refPatterns: undefined,
+    });
+
+    assert.ok(result.scoreImpact);
+    // 1/(1+0) * 100 = 100
+    assert.equal(result.scoreImpact.coverageContribution, 100);
   });
 });
