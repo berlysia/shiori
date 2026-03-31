@@ -108,7 +108,7 @@ describe('formatFixPreview', () => {
     const output = formatFixPreview(preview);
     assert.ok(output.includes('Fix Preview'));
     assert.ok(output.includes('shiori update'));
-    assert.ok(output.includes('+10pt'));
+    assert.ok(output.includes('+10hyg'));
     assert.ok(output.includes('--fix --apply'));
   });
 

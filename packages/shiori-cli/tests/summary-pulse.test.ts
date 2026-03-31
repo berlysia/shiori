@@ -275,7 +275,7 @@ describe('formatSummaryAsPulse', () => {
     const output = formatSummaryAsPulse(result);
 
     assert.ok(output.includes('Prescriptions:'));
-    assert.ok(output.includes('+10pt: shiori resolve EXP-001'));
+    assert.ok(output.includes('+10hyg: shiori resolve EXP-001'));
   });
 
   it('limits prescriptions to 3', () => {

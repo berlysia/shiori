@@ -3,6 +3,7 @@ import type {
   ReportResult,
   HealthResult,
 } from '../core/types.ts';
+import { formatAxisSuffix } from '../core/types.ts';
 import { healthEmoji, insightIcon, trendArrow } from '../core/emoji.ts';
 
 /**
@@ -233,7 +234,7 @@ export function formatHealthAsGitHubSummary(result: HealthResult): string {
             ? '🟡'
             : '⚪';
       lines.push(
-        `| ${urgencyMark} ${rx.urgency} | +${rx.scoreImpact}pt | \`${rx.command}\` |`,
+        `| ${urgencyMark} ${rx.urgency} | +${rx.scoreImpact}${formatAxisSuffix(rx.axis)} | \`${rx.command}\` |`,
       );
     }
     lines.push('');

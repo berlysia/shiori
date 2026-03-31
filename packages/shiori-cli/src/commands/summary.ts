@@ -7,6 +7,7 @@ import {
   type SummaryFormat,
   type ScanResult,
   type ReportResult,
+  formatAxisSuffix,
 } from '../core/types.ts';
 import { wrapOutputJson } from '../core/schema-envelope.ts';
 import { healthEmoji, trendArrow } from '../core/emoji.ts';
@@ -307,7 +308,9 @@ export function formatSummaryAsPulse(result: SummaryResult): string {
           : rx.urgency === 'recommended'
             ? '\u{1F7E1}'
             : '\u26AA';
-      rxLines.push(` ${urgencyMark} +${rx.scoreImpact}pt: ${rx.command}`);
+      rxLines.push(
+        ` ${urgencyMark} +${rx.scoreImpact}${formatAxisSuffix(rx.axis)}: ${rx.command}`,
+      );
     }
     sections.push(rxLines);
   }

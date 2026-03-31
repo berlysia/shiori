@@ -1058,6 +1058,11 @@ export type PrescriptionUrgency = 'critical' | 'recommended' | 'suggestion';
 /** Which scoring axis a prescription impacts (ADR 024 Phase 2) */
 export type PrescriptionAxis = 'coverage' | 'hygiene';
 
+/** Short suffix for axis-specific impact display (EP-0202) */
+export function formatAxisSuffix(axis: PrescriptionAxis): string {
+  return axis === 'coverage' ? 'cov' : 'hyg';
+}
+
 /** Action type for programmatic dispatch of prescriptions (EP-0112) */
 export type PrescriptionActionType =
   | 'update'
@@ -1428,6 +1433,8 @@ export interface ImpactPrescription {
   command: string;
   /** Estimated hygiene score impact */
   scoreImpact: number;
+  /** Which scoring axis this prescription impacts (EP-0202) */
+  axis: PrescriptionAxis;
 }
 
 /** Result of computing an owner's governance impact */

@@ -561,7 +561,7 @@ describe('formatHealthAsGitHubSummary', () => {
       output.includes('<details><summary>💊 Prescriptions (2)</summary>'),
     );
     assert.ok(output.includes('🔴 critical'));
-    assert.ok(output.includes('+15pt'));
+    assert.ok(output.includes('+15hyg'));
     assert.ok(output.includes('`shiori update`'));
     assert.ok(output.includes('🟡 recommended'));
     assert.ok(output.includes('</details>'));

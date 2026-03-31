@@ -17,7 +17,7 @@ import {
   generateNextSteps,
 } from '../src/commands/health.ts';
 import { formatHealth } from '../src/commands/health-cli.ts';
-import { isAtOrBelowLevel } from '../src/core/types.ts';
+import { isAtOrBelowLevel, formatAxisSuffix } from '../src/core/types.ts';
 import { report } from '../src/commands/report.ts';
 
 function makeAnnotation(
@@ -755,6 +755,79 @@ describe('health nextSteps integration (EP-0201)', () => {
         bl.length,
         borderLength,
         `border line length mismatch: "${bl}" (${bl.length} vs ${borderLength})`,
+      );
+    }
+  });
+});
+
+describe('formatAxisSuffix (EP-0202)', () => {
+  it('returns cov for coverage axis', () => {
+    assert.equal(formatAxisSuffix('coverage'), 'cov');
+  });
+
+  it('returns hyg for hygiene axis', () => {
+    assert.equal(formatAxisSuffix('hygiene'), 'hyg');
+  });
+});
+
+describe('prescription axis display (EP-0202)', () => {
+  it('shows axis-specific suffix in formatHealthSummary prescriptions', () => {
+    const annotations = [makeAnnotation({ ref: 'EXP-001' })];
+    const registry: Registry = {
+      'EXP-001': makeRegistryEntry({ expires: '2020-01-01' }),
+    };
+
+    const result = health({
+      scanResult: makeScanResult(annotations, [
+        {
+          pattern: 'eslint',
+          rule: 'no-unused-vars',
+          location: { file: 'a.ts', line: 1 },
+          directive: 'eslint-disable-next-line',
+        },
+      ]),
+      registry,
+      failOn: [],
+      warnOn: [],
+    });
+
+    const output = formatHealthSummary(result);
+    // Should contain axis-specific suffixes, not generic "pt"
+    assert.ok(
+      !output.includes('pt:'),
+      'should not contain generic "pt" suffix',
+    );
+    assert.ok(
+      output.includes('hyg:') || output.includes('cov:'),
+      'should contain axis-specific suffix (hyg or cov)',
+    );
+  });
+
+  it('prescriptions in HealthResult have axis field', () => {
+    const annotations = [makeAnnotation({ ref: 'EXP-001' })];
+    const registry: Registry = {
+      'EXP-001': makeRegistryEntry({ expires: '2020-01-01' }),
+    };
+
+    const result = health({
+      scanResult: makeScanResult(annotations, [
+        {
+          pattern: 'eslint',
+          rule: 'no-unused-vars',
+          location: { file: 'a.ts', line: 1 },
+          directive: 'eslint-disable-next-line',
+        },
+      ]),
+      registry,
+      failOn: [],
+      warnOn: [],
+    });
+
+    assert.ok(result.prescriptions);
+    for (const rx of result.prescriptions!) {
+      assert.ok(
+        rx.axis === 'coverage' || rx.axis === 'hygiene',
+        `prescription axis should be coverage or hygiene, got: ${rx.axis}`,
       );
     }
   });

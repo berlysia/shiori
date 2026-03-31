@@ -10,6 +10,7 @@ import type {
   HealthPrescription,
   PrescriptionActionType,
 } from '../core/types.ts';
+import { formatAxisSuffix } from '../core/types.ts';
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -88,7 +89,9 @@ export function formatFixPreview(preview: FixPreview): string {
   const lines: string[] = [];
   lines.push('🔧 Fix Preview (dry-run):');
   lines.push(`  Action: ${preview.target.command}`);
-  lines.push(`  Impact: +${preview.target.scoreImpact}pt estimated`);
+  lines.push(
+    `  Impact: +${preview.target.scoreImpact}${formatAxisSuffix(preview.target.axis)} estimated`,
+  );
   lines.push(`  Detail: ${preview.target.message}`);
   lines.push('');
   lines.push('  Run with --fix --apply to execute.');

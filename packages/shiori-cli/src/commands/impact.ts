@@ -8,7 +8,11 @@ import type {
   ImpactPrescription,
   ImpactFormat,
 } from '../core/types.ts';
-import { IMPACT_FORMATS, resolveKind } from '../core/types.ts';
+import {
+  IMPACT_FORMATS,
+  resolveKind,
+  formatAxisSuffix,
+} from '../core/types.ts';
 import { DEDUCTION_TIERS } from '../core/deduction-tiers.ts';
 import { ACTION_HINTS } from '../core/action-hints.ts';
 import { wrapOutputJson } from '../core/schema-envelope.ts';
@@ -194,6 +198,7 @@ function buildOwnerPrescriptions(
         message: `${count} ${issueType} issue(s) for ${owner}: ${hint}`,
         command: buildOwnerCommand(issueType),
         scoreImpact,
+        axis: 'hygiene' as const,
       });
     }
   }
@@ -263,7 +268,7 @@ export function formatImpactMarkdown(result: ImpactResult): string {
             ? '🟡'
             : '⚪';
       lines.push(
-        `- ${urgencyMark} **+${rx.scoreImpact}pt**: ${rx.message} → \`${rx.command}\``,
+        `- ${urgencyMark} **+${rx.scoreImpact}${formatAxisSuffix(rx.axis)}**: ${rx.message} → \`${rx.command}\``,
       );
     }
     lines.push('');

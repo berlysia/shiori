@@ -504,6 +504,7 @@ describe('formatImpactMarkdown', () => {
           message: '1 expired issue(s) for alice: fix it',
           command: 'shiori triage --expired-only',
           scoreImpact: 10,
+          axis: 'hygiene',
         },
       ],
     };
@@ -511,7 +512,7 @@ describe('formatImpactMarkdown', () => {
     const md = formatImpactMarkdown(result);
 
     assert.ok(md.includes('## Prescriptions'));
-    assert.ok(md.includes('**+10pt**'));
+    assert.ok(md.includes('**+10hyg**'));
     assert.ok(md.includes('shiori triage --expired-only'));
   });
 

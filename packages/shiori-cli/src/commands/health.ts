@@ -6,6 +6,7 @@ import {
   type TrendResult,
   type HealthQuadrant,
   type HealthNextSteps,
+  formatAxisSuffix,
 } from '../core/types.ts';
 import { healthEmoji, trendArrow } from '../core/emoji.ts';
 import { buildSparkline } from '../core/sparkline.ts';
@@ -156,7 +157,9 @@ export function formatHealthSummary(result: HealthResult): string {
           : rx.urgency === 'recommended'
             ? '🟡'
             : '⚪';
-      rxLines.push(` ${urgencyMark} +${rx.scoreImpact}pt: ${rx.command}`);
+      rxLines.push(
+        ` ${urgencyMark} +${rx.scoreImpact}${formatAxisSuffix(rx.axis)}: ${rx.command}`,
+      );
     }
     sections.push(rxLines);
   }
