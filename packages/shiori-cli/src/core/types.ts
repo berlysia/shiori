@@ -1366,6 +1366,56 @@ export const ONBOARD_FORMATS = ['text', 'json', 'markdown', 'slack'] as const;
 /** Output format for onboard command (derived from ONBOARD_FORMATS) */
 export type OnboardFormat = (typeof ONBOARD_FORMATS)[number];
 
+// ── Impact types (EP-0200) ────────────────────────────────────
+
+/** Canonical list of all impact output formats (derived → ImpactFormat) */
+export const IMPACT_FORMATS = ['json', 'markdown'] as const;
+
+/** Output format for impact command (derived from IMPACT_FORMATS) */
+export type ImpactFormat = (typeof IMPACT_FORMATS)[number];
+
+/** Per-ref detail in an owner's impact view */
+export interface ImpactRefEntry {
+  /** Annotation ref */
+  ref: string;
+  /** Registry kind (resolved: 'temporary' or 'intentional') */
+  kind: RegistryKind;
+  /** Verify issues associated with this ref */
+  issues: VerifyIssueType[];
+  /** Source locations for this ref */
+  locations: Array<{ file: string; line: number }>;
+}
+
+/** An actionable suggestion scoped to a specific owner */
+export interface ImpactPrescription {
+  /** Urgency level */
+  urgency: PrescriptionUrgency;
+  /** Human-readable description */
+  message: string;
+  /** CLI command to run */
+  command: string;
+  /** Estimated hygiene score impact */
+  scoreImpact: number;
+}
+
+/** Result of computing an owner's governance impact */
+export interface ImpactResult {
+  /** ISO timestamp when impact was computed */
+  timestamp: string;
+  /** Owner name */
+  owner: string;
+  /** Owner-scoped coverage: owner's tracked / (owner's tracked + total candidates) */
+  coverage: number;
+  /** Owner-scoped hygiene: 100 minus deductions from owner's issues only */
+  hygiene: number;
+  /** Total annotations owned by this owner */
+  annotationCount: number;
+  /** Per-ref details */
+  refs: ImpactRefEntry[];
+  /** Owner-scoped prescriptions */
+  prescriptions: ImpactPrescription[];
+}
+
 // ── Aggregate types ──────────────────────────────────────────
 
 /** Result of aggregating multiple repository summaries */

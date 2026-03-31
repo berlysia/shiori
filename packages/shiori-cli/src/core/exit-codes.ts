@@ -89,6 +89,7 @@ export const REGISTERED_COMMANDS: readonly string[] = [
   'recipes',
   'pitch',
   'onboard',
+  'impact',
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -229,6 +230,11 @@ export const EXIT_CODE_POLICIES: Record<string, ExitCodePolicy> = {
     category: 'usage',
     failCondition:
       'validation failures (missing --from-pitch, invalid --format, invalid pitch JSON), environment errors (file not found)',
+  },
+  impact: {
+    category: 'usage',
+    failCondition:
+      'validation failures (invalid --format, --owner not found in registry)',
   },
 
   // -- Passthrough commands (always exit 0) --

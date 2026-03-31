@@ -42,6 +42,7 @@ import { narrativeCommand } from './narrative-cli.ts';
 import { recipesCommand } from './recipes-cli.ts';
 import { pitchCommand } from './pitch-cli.ts';
 import { onboardCommand } from './onboard-cli.ts';
+import { impactCommand } from './impact-cli.ts';
 
 /**
  * All CLI subcommand registrations.
@@ -82,6 +83,7 @@ export const subCommandMap = {
   recipes: recipesCommand,
   pitch: pitchCommand,
   onboard: onboardCommand,
+  impact: impactCommand,
 } as const;
 
 /**
