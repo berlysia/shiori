@@ -4,6 +4,8 @@ import {
   type HealthFormat,
   type ReportResult,
   type TrendResult,
+  type HealthQuadrant,
+  type HealthNextSteps,
 } from '../core/types.ts';
 import { healthEmoji, trendArrow } from '../core/emoji.ts';
 import { buildSparkline } from '../core/sparkline.ts';
@@ -88,6 +90,12 @@ export function buildHealthResult(
     reportResult.health.hygiene,
   );
 
+  // Quadrant-based next steps (EP-0201)
+  result.nextSteps = generateNextSteps(
+    reportResult.health.coverage,
+    reportResult.health.hygiene,
+  );
+
   return result;
 }
 
@@ -153,6 +161,17 @@ export function formatHealthSummary(result: HealthResult): string {
     sections.push(rxLines);
   }
 
+  // Next Steps section (EP-0201)
+  if (result.nextSteps && result.nextSteps.steps.length > 0) {
+    const nsLines: string[] = [];
+    nsLines.push(`🎯 Next Steps (${result.nextSteps.label}):`);
+    for (const step of result.nextSteps.steps) {
+      nsLines.push(`  → ${step.command}`);
+      nsLines.push(`    ${step.message}`);
+    }
+    sections.push(nsLines);
+  }
+
   // Triage suggestion (when issues exist)
   if (result.issues.total > 0) {
     sections.push(['💡 Run: shiori health --triage']);
@@ -186,3 +205,108 @@ export function interpretDualAxis(coverage: number, hygiene: number): string {
   // Both low
   return 'Governance coverage and maintenance both need improvement. Start with "shiori adopt" then "shiori triage".';
 }
+
+// ── Quadrant-based next steps (EP-0201) ──────────────────────
+
+/**
+ * Classify Coverage/Hygiene scores into a quadrant identifier.
+ */
+export function classifyQuadrant(
+  coverage: number,
+  hygiene: number,
+): HealthQuadrant {
+  const covHigh = coverage >= AXIS_HIGH_THRESHOLD;
+  const hygHigh = hygiene >= AXIS_HIGH_THRESHOLD;
+
+  if (covHigh && hygHigh) return 'high-coverage-high-hygiene';
+  if (covHigh && !hygHigh) return 'high-coverage-low-hygiene';
+  if (!covHigh && hygHigh) return 'low-coverage-high-hygiene';
+  return 'low-coverage-low-hygiene';
+}
+
+/** Human-readable labels for each quadrant */
+const QUADRANT_LABELS: Record<HealthQuadrant, string> = {
+  'high-coverage-high-hygiene': 'Well-governed',
+  'high-coverage-low-hygiene': 'Tracked but needs maintenance',
+  'low-coverage-high-hygiene': 'Clean but needs tracking',
+  'low-coverage-low-hygiene': 'Needs foundation work',
+};
+
+/**
+ * Generate structured next-step recommendations based on the Coverage/Hygiene quadrant.
+ * Each quadrant produces a distinct set of ordered CLI commands.
+ *
+ * Pure function — no I/O.
+ */
+export function generateNextSteps(
+  coverage: number,
+  hygiene: number,
+): HealthNextSteps {
+  const quadrant = classifyQuadrant(coverage, hygiene);
+
+  return {
+    quadrant,
+    label: QUADRANT_LABELS[quadrant],
+    steps: QUADRANT_STEPS[quadrant],
+  };
+}
+
+/** Ordered next-step recommendations for each quadrant */
+const QUADRANT_STEPS: Record<HealthQuadrant, HealthNextSteps['steps']> = {
+  'high-coverage-high-hygiene': [
+    {
+      message: 'Enforce governance in CI to prevent regressions.',
+      command: 'shiori check --fail-on expired,missing-in-registry',
+    },
+    {
+      message: 'Monitor score trends over time.',
+      command: 'shiori health --trend',
+    },
+  ],
+  'high-coverage-low-hygiene': [
+    {
+      message: 'Review and resolve expired or unmaintained annotations.',
+      command: 'shiori triage --expired-only',
+    },
+    {
+      message: 'Run diagnostics to fix missing metadata.',
+      command: 'shiori doctor',
+    },
+    {
+      message: 'Re-check health after cleanup.',
+      command: 'shiori health',
+    },
+  ],
+  'low-coverage-high-hygiene': [
+    {
+      message: 'Track unmanaged lint disable comments.',
+      command: 'shiori adopt',
+    },
+    {
+      message: 'Register newly adopted annotations.',
+      command: 'shiori update',
+    },
+    {
+      message: 'Verify coverage improvement.',
+      command: 'shiori health',
+    },
+  ],
+  'low-coverage-low-hygiene': [
+    {
+      message: 'Start by tracking unmanaged lint disable comments.',
+      command: 'shiori adopt',
+    },
+    {
+      message: 'Register adopted annotations in the registry.',
+      command: 'shiori update',
+    },
+    {
+      message: 'Review and prioritize hygiene issues.',
+      command: 'shiori triage',
+    },
+    {
+      message: 'Verify overall improvement.',
+      command: 'shiori health',
+    },
+  ],
+};

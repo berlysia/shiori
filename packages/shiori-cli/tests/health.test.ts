@@ -13,6 +13,8 @@ import {
   buildHealthResult,
   formatHealthSummary,
   interpretDualAxis,
+  classifyQuadrant,
+  generateNextSteps,
 } from '../src/commands/health.ts';
 import { formatHealth } from '../src/commands/health-cli.ts';
 import { isAtOrBelowLevel } from '../src/core/types.ts';
@@ -595,5 +597,165 @@ describe('isAtOrBelowLevel', () => {
 
   it('healthy is at or below healthy', () => {
     assert.equal(isAtOrBelowLevel('healthy', 'healthy'), true);
+  });
+});
+
+describe('classifyQuadrant (EP-0201)', () => {
+  it('classifies both high as high-coverage-high-hygiene', () => {
+    assert.equal(classifyQuadrant(80, 90), 'high-coverage-high-hygiene');
+  });
+
+  it('classifies high coverage / low hygiene', () => {
+    assert.equal(classifyQuadrant(80, 50), 'high-coverage-low-hygiene');
+  });
+
+  it('classifies low coverage / high hygiene', () => {
+    assert.equal(classifyQuadrant(40, 90), 'low-coverage-high-hygiene');
+  });
+
+  it('classifies both low as low-coverage-low-hygiene', () => {
+    assert.equal(classifyQuadrant(30, 40), 'low-coverage-low-hygiene');
+  });
+
+  it('treats exactly 70 as high on both axes', () => {
+    assert.equal(classifyQuadrant(70, 70), 'high-coverage-high-hygiene');
+  });
+
+  it('treats 69 as low on both axes', () => {
+    assert.equal(classifyQuadrant(69, 69), 'low-coverage-low-hygiene');
+  });
+});
+
+describe('generateNextSteps (EP-0201)', () => {
+  it('returns well-governed steps for both high', () => {
+    const result = generateNextSteps(80, 90);
+    assert.equal(result.quadrant, 'high-coverage-high-hygiene');
+    assert.equal(result.label, 'Well-governed');
+    assert.ok(result.steps.length >= 1);
+    // CI enforcement should be recommended
+    assert.ok(result.steps.some((s) => s.command.includes('check')));
+  });
+
+  it('returns triage-focused steps for high coverage / low hygiene', () => {
+    const result = generateNextSteps(80, 50);
+    assert.equal(result.quadrant, 'high-coverage-low-hygiene');
+    assert.equal(result.label, 'Tracked but needs maintenance');
+    // First step should address hygiene (triage)
+    assert.ok(result.steps[0]!.command.includes('triage'));
+  });
+
+  it('returns adopt-focused steps for low coverage / high hygiene', () => {
+    const result = generateNextSteps(40, 90);
+    assert.equal(result.quadrant, 'low-coverage-high-hygiene');
+    assert.equal(result.label, 'Clean but needs tracking');
+    // First step should address coverage (adopt)
+    assert.ok(result.steps[0]!.command.includes('adopt'));
+  });
+
+  it('returns foundation steps for both low', () => {
+    const result = generateNextSteps(30, 40);
+    assert.equal(result.quadrant, 'low-coverage-low-hygiene');
+    assert.equal(result.label, 'Needs foundation work');
+    // Should start with adopt (coverage first) then triage (hygiene)
+    assert.ok(result.steps[0]!.command.includes('adopt'));
+    assert.ok(result.steps.some((s) => s.command.includes('triage')));
+  });
+
+  it('every step has both message and command', () => {
+    for (const [cov, hyg] of [
+      [80, 90],
+      [80, 50],
+      [40, 90],
+      [30, 40],
+    ] as const) {
+      const result = generateNextSteps(cov, hyg);
+      for (const step of result.steps) {
+        assert.ok(step.message.length > 0, `empty message for ${cov}/${hyg}`);
+        assert.ok(
+          step.command.startsWith('shiori'),
+          `command should start with "shiori" for ${cov}/${hyg}: ${step.command}`,
+        );
+      }
+    }
+  });
+});
+
+describe('health nextSteps integration (EP-0201)', () => {
+  it('includes nextSteps in HealthResult', () => {
+    const result = health({
+      scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
+      registry: {
+        'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
+      },
+      failOn: [],
+      warnOn: [],
+    });
+
+    assert.ok(result.nextSteps);
+    assert.ok(result.nextSteps.quadrant);
+    assert.ok(result.nextSteps.label);
+    assert.ok(result.nextSteps.steps.length > 0);
+  });
+
+  it('shows Next Steps section in formatHealthSummary', () => {
+    const result = health({
+      scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
+      registry: {
+        'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
+      },
+      failOn: [],
+      warnOn: [],
+    });
+
+    const output = formatHealthSummary(result);
+    assert.ok(output.includes('🎯'), 'should contain Next Steps emoji');
+    assert.ok(
+      output.includes('Next Steps'),
+      'should contain Next Steps header',
+    );
+  });
+
+  it('includes nextSteps in JSON output', () => {
+    const result = health({
+      scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
+      registry: {
+        'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
+      },
+      failOn: [],
+      warnOn: [],
+    });
+
+    const output = formatHealth(result, 'json');
+    const parsed = JSON.parse(output);
+    assert.ok(parsed.data.nextSteps);
+    assert.ok(parsed.data.nextSteps.quadrant);
+    assert.ok(parsed.data.nextSteps.label);
+    assert.ok(Array.isArray(parsed.data.nextSteps.steps));
+  });
+
+  it('box width remains consistent with nextSteps section', () => {
+    const result = health({
+      scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
+      registry: {
+        'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
+      },
+      failOn: [],
+      warnOn: [],
+    });
+
+    const output = formatHealthSummary(result);
+    const lines = output.split('\n');
+
+    const borderLines = lines.filter(
+      (l) => l.startsWith('┌') || l.startsWith('├') || l.startsWith('└'),
+    );
+    const borderLength = borderLines[0]!.length;
+    for (const bl of borderLines) {
+      assert.equal(
+        bl.length,
+        borderLength,
+        `border line length mismatch: "${bl}" (${bl.length} vs ${borderLength})`,
+      );
+    }
   });
 });

@@ -1048,6 +1048,8 @@ export interface HealthResult {
   prescriptions?: HealthPrescription[];
   /** Dual-axis pattern diagnosis message (EP-0198) */
   diagnosis?: string;
+  /** Quadrant-based next step recommendations (EP-0201) */
+  nextSteps?: HealthNextSteps;
 }
 
 /** Urgency level for health prescriptions */
@@ -1078,6 +1080,36 @@ export interface HealthPrescription {
   actionType: PrescriptionActionType;
   /** Which scoring axis this prescription impacts (ADR 024 Phase 2) */
   axis: PrescriptionAxis;
+}
+
+// ── Health Next Steps types (EP-0201) ────────────────────────
+
+/**
+ * Quadrant identifier for Coverage/Hygiene dual-axis interpretation.
+ * Each quadrant maps to a distinct governance improvement strategy.
+ */
+export type HealthQuadrant =
+  | 'high-coverage-high-hygiene'
+  | 'high-coverage-low-hygiene'
+  | 'low-coverage-high-hygiene'
+  | 'low-coverage-low-hygiene';
+
+/** A single next-step recommendation derived from quadrant analysis (EP-0201) */
+export interface HealthNextStep {
+  /** Human-readable description of the action */
+  message: string;
+  /** Copy-paste ready CLI command */
+  command: string;
+}
+
+/** Quadrant-based next step recommendations for health command (EP-0201) */
+export interface HealthNextSteps {
+  /** Which quadrant the current scores fall into */
+  quadrant: HealthQuadrant;
+  /** Human-readable quadrant label */
+  label: string;
+  /** Ordered list of recommended actions */
+  steps: HealthNextStep[];
 }
 
 // ── Demo output types (EP-0174) ──────────────────────────────
