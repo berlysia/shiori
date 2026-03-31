@@ -1,10 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type {
-  ScanResult,
-  ShioriAnnotation,
-  RegistryEntry,
-} from '../src/core/types.ts';
+import type { ScanResult, ShioriAnnotation } from '../src/core/types.ts';
+import { makeRegistryEntry } from './helpers/registry.ts';
 import { watchReport } from '../src/commands/watch.ts';
 
 function makeAnnotation(
@@ -16,21 +13,6 @@ function makeAnnotation(
     tagged: true,
     ignored: false,
     location: { file: 'test.ts', line: 1 },
-    ...overrides,
-  };
-}
-
-function makeRegistryEntry(
-  overrides: Partial<RegistryEntry> = {},
-): RegistryEntry {
-  return {
-    reason: 'test reason',
-    target: 'test.ts',
-    expires: undefined,
-    ticket: undefined,
-    owner: undefined,
-    notes: undefined,
-    kind: 'intentional',
     ...overrides,
   };
 }
@@ -47,7 +29,7 @@ describe('watchReport', () => {
   it('generates a ReportResult from scan result and registry', () => {
     const annotation = makeAnnotation();
     const scanResult = makeScanResult([annotation]);
-    const registry = { 'TEST-001': makeRegistryEntry() };
+    const registry = { 'TEST-001': makeRegistryEntry({ kind: 'intentional' }) };
 
     const result = watchReport({
       scanResult,
@@ -83,7 +65,7 @@ describe('watchReport', () => {
   it('passes refPatterns through to verify', () => {
     const annotation = makeAnnotation({ ref: 'SUP-001' });
     const scanResult = makeScanResult([annotation]);
-    const registry = { 'SUP-001': makeRegistryEntry() };
+    const registry = { 'SUP-001': makeRegistryEntry({ kind: 'intentional' }) };
 
     const result = watchReport({
       scanResult,
@@ -101,7 +83,7 @@ describe('watchReport', () => {
   it('includes health insights in result', () => {
     const annotation = makeAnnotation();
     const scanResult = makeScanResult([annotation]);
-    const registry = { 'TEST-001': makeRegistryEntry() };
+    const registry = { 'TEST-001': makeRegistryEntry({ kind: 'intentional' }) };
 
     const result = watchReport({
       scanResult,

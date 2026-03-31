@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import type {
   ScanResult,
   Registry,
-  RegistryEntry,
   ShioriAnnotation,
   ShioriCandidate,
   TrendResult,
@@ -13,6 +12,7 @@ import { pitch, formatPitchAsMarkdown } from '../src/commands/pitch.ts';
 import { formatPitch } from '../src/commands/pitch-cli.ts';
 import { report } from '../src/commands/report.ts';
 import { triage } from '../src/commands/triage.ts';
+import { makeRegistryEntry } from './helpers/registry.ts';
 
 function makeAnnotation(
   overrides: Partial<ShioriAnnotation> = {},
@@ -23,21 +23,6 @@ function makeAnnotation(
     tagged: true,
     ignored: false,
     location: { file: 'test.ts', line: 1 },
-    ...overrides,
-  };
-}
-
-function makeRegistryEntry(
-  overrides: Partial<RegistryEntry> = {},
-): RegistryEntry {
-  return {
-    reason: 'test reason',
-    target: 'test.ts',
-    expires: undefined,
-    ticket: undefined,
-    owner: undefined,
-    notes: undefined,
-    kind: 'intentional',
     ...overrides,
   };
 }
@@ -96,7 +81,7 @@ describe('pitch', () => {
     it('returns pitch for healthy codebase', () => {
       const scanResult = makeScanResult([makeAnnotation({ ref: 'TEST-001' })]);
       const registry: Registry = {
-        'TEST-001': makeRegistryEntry(),
+        'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
       };
       const reportResult = report({
         scanResult,
@@ -124,7 +109,7 @@ describe('pitch', () => {
       const scanResult = makeScanResult([makeAnnotation({ ref: 'TEST-001' })]);
       const reportResult = report({
         scanResult,
-        registry: { 'TEST-001': makeRegistryEntry() },
+        registry: { 'TEST-001': makeRegistryEntry({ kind: 'intentional' }) },
         failOn: [],
         warnOn: [],
       });
@@ -147,7 +132,7 @@ describe('pitch', () => {
       const scanResult = makeScanResult([makeAnnotation({ ref: 'TEST-001' })]);
       const reportResult = report({
         scanResult,
-        registry: { 'TEST-001': makeRegistryEntry() },
+        registry: { 'TEST-001': makeRegistryEntry({ kind: 'intentional' }) },
         failOn: [],
         warnOn: [],
       });
@@ -222,7 +207,7 @@ describe('pitch', () => {
       );
       const reportResult = report({
         scanResult,
-        registry: { 'TEST-001': makeRegistryEntry() },
+        registry: { 'TEST-001': makeRegistryEntry({ kind: 'intentional' }) },
         failOn: [],
         warnOn: [],
       });
@@ -244,7 +229,7 @@ describe('pitch', () => {
       const scanResult = makeScanResult([makeAnnotation({ ref: 'TEST-001' })]);
       const reportResult = report({
         scanResult,
-        registry: { 'TEST-001': makeRegistryEntry() },
+        registry: { 'TEST-001': makeRegistryEntry({ kind: 'intentional' }) },
         failOn: [],
         warnOn: [],
       });
@@ -266,7 +251,7 @@ describe('pitch', () => {
       const scanResult = makeScanResult([makeAnnotation({ ref: 'TEST-001' })]);
       const reportResult = report({
         scanResult,
-        registry: { 'TEST-001': makeRegistryEntry() },
+        registry: { 'TEST-001': makeRegistryEntry({ kind: 'intentional' }) },
         failOn: [],
         warnOn: [],
       });
@@ -292,7 +277,7 @@ describe('pitch', () => {
       const scanResult = makeScanResult([makeAnnotation({ ref: 'TEST-001' })]);
       const reportResult = report({
         scanResult,
-        registry: { 'TEST-001': makeRegistryEntry() },
+        registry: { 'TEST-001': makeRegistryEntry({ kind: 'intentional' }) },
         failOn: [],
         warnOn: [],
       });
@@ -425,7 +410,7 @@ describe('pitch', () => {
       );
       const reportResult = report({
         scanResult,
-        registry: { 'TEST-001': makeRegistryEntry() },
+        registry: { 'TEST-001': makeRegistryEntry({ kind: 'intentional' }) },
         failOn: [],
         warnOn: [],
       });
@@ -437,7 +422,7 @@ describe('pitch', () => {
     it('suggests CI enforcement when healthy', () => {
       const reportResult = report({
         scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
-        registry: { 'TEST-001': makeRegistryEntry() },
+        registry: { 'TEST-001': makeRegistryEntry({ kind: 'intentional' }) },
         failOn: [],
         warnOn: [],
       });
@@ -449,7 +434,7 @@ describe('pitch', () => {
     it('suggests snapshot when no trend data', () => {
       const reportResult = report({
         scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
-        registry: { 'TEST-001': makeRegistryEntry() },
+        registry: { 'TEST-001': makeRegistryEntry({ kind: 'intentional' }) },
         failOn: [],
         warnOn: [],
       });
@@ -464,7 +449,7 @@ describe('formatPitchAsMarkdown', () => {
   it('generates valid markdown with headline', () => {
     const reportResult = report({
       scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
-      registry: { 'TEST-001': makeRegistryEntry() },
+      registry: { 'TEST-001': makeRegistryEntry({ kind: 'intentional' }) },
       failOn: [],
       warnOn: [],
     });
@@ -483,7 +468,7 @@ describe('formatPitchAsMarkdown', () => {
   it('includes trend section when available', () => {
     const reportResult = report({
       scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
-      registry: { 'TEST-001': makeRegistryEntry() },
+      registry: { 'TEST-001': makeRegistryEntry({ kind: 'intentional' }) },
       failOn: [],
       warnOn: [],
     });
@@ -499,7 +484,7 @@ describe('formatPitchAsMarkdown', () => {
   it('omits trend section when no trend', () => {
     const reportResult = report({
       scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
-      registry: { 'TEST-001': makeRegistryEntry() },
+      registry: { 'TEST-001': makeRegistryEntry({ kind: 'intentional' }) },
       failOn: [],
       warnOn: [],
     });
@@ -514,7 +499,7 @@ describe('formatPitch', () => {
   it('formats as JSON with schema envelope', () => {
     const reportResult = report({
       scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
-      registry: { 'TEST-001': makeRegistryEntry() },
+      registry: { 'TEST-001': makeRegistryEntry({ kind: 'intentional' }) },
       failOn: [],
       warnOn: [],
     });
@@ -533,7 +518,7 @@ describe('formatPitch', () => {
   it('formats as markdown', () => {
     const reportResult = report({
       scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
-      registry: { 'TEST-001': makeRegistryEntry() },
+      registry: { 'TEST-001': makeRegistryEntry({ kind: 'intentional' }) },
       failOn: [],
       warnOn: [],
     });
@@ -601,7 +586,7 @@ describe('recommendedActions (EP-0179)', () => {
     );
     const reportResult = report({
       scanResult,
-      registry: { 'TEST-001': makeRegistryEntry() },
+      registry: { 'TEST-001': makeRegistryEntry({ kind: 'intentional' }) },
       failOn: [],
       warnOn: [],
     });
@@ -618,7 +603,7 @@ describe('recommendedActions (EP-0179)', () => {
   it('generates check action for healthy score', () => {
     const reportResult = report({
       scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
-      registry: { 'TEST-001': makeRegistryEntry() },
+      registry: { 'TEST-001': makeRegistryEntry({ kind: 'intentional' }) },
       failOn: [],
       warnOn: [],
     });
@@ -638,7 +623,7 @@ describe('recommendedActions (EP-0179)', () => {
   it('generates health action when no trend data', () => {
     const reportResult = report({
       scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
-      registry: { 'TEST-001': makeRegistryEntry() },
+      registry: { 'TEST-001': makeRegistryEntry({ kind: 'intentional' }) },
       failOn: [],
       warnOn: [],
     });
@@ -655,7 +640,7 @@ describe('recommendedActions (EP-0179)', () => {
   it('omits health --snapshot when trend data exists', () => {
     const reportResult = report({
       scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
-      registry: { 'TEST-001': makeRegistryEntry() },
+      registry: { 'TEST-001': makeRegistryEntry({ kind: 'intentional' }) },
       failOn: [],
       warnOn: [],
     });
@@ -688,7 +673,7 @@ describe('recommendedActions (EP-0179)', () => {
     );
     const registry: Registry = {
       'EXP-001': makeRegistryEntry({ expires: '2020-01-01' }),
-      'TRACKED-001': makeRegistryEntry(),
+      'TRACKED-001': makeRegistryEntry({ kind: 'intentional' }),
     };
     const reportResult = report({
       scanResult,
@@ -715,7 +700,7 @@ describe('recommendedActions (EP-0179)', () => {
     // Healthy codebase with trend data → no expired, no missing, no candidates
     const reportResult = report({
       scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
-      registry: { 'TEST-001': makeRegistryEntry() },
+      registry: { 'TEST-001': makeRegistryEntry({ kind: 'intentional' }) },
       failOn: [],
       warnOn: [],
     });
@@ -732,7 +717,10 @@ describe('recommendedActions (EP-0179)', () => {
     const reportResult2 = report({
       scanResult: makeScanResult(annotations),
       registry: Object.fromEntries(
-        annotations.map((a) => [a.ref, makeRegistryEntry()]),
+        annotations.map((a) => [
+          a.ref,
+          makeRegistryEntry({ kind: 'intentional' }),
+        ]),
       ),
       failOn: [],
       warnOn: [],
@@ -788,7 +776,7 @@ describe('graceful degradation', () => {
   it('works without trendResult', () => {
     const reportResult = report({
       scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
-      registry: { 'TEST-001': makeRegistryEntry() },
+      registry: { 'TEST-001': makeRegistryEntry({ kind: 'intentional' }) },
       failOn: [],
       warnOn: [],
     });
@@ -800,7 +788,7 @@ describe('graceful degradation', () => {
   it('works without triageResult', () => {
     const reportResult = report({
       scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
-      registry: { 'TEST-001': makeRegistryEntry() },
+      registry: { 'TEST-001': makeRegistryEntry({ kind: 'intentional' }) },
       failOn: [],
       warnOn: [],
     });

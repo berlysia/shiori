@@ -7,6 +7,7 @@ import type {
   ShioriCandidate,
   ReportResult,
 } from '../src/core/types.ts';
+import { makeRegistryEntry } from './helpers/registry.ts';
 import { buildPrescriptions } from '../src/core/prescriptions.ts';
 import { report } from '../src/commands/report.ts';
 
@@ -19,21 +20,6 @@ function makeAnnotation(
     tagged: true,
     ignored: false,
     location: { file: 'test.ts', line: 1 },
-    ...overrides,
-  };
-}
-
-function makeRegistryEntry(
-  overrides: Partial<RegistryEntry> = {},
-): RegistryEntry {
-  return {
-    reason: 'test reason',
-    target: 'test.ts',
-    expires: undefined,
-    ticket: undefined,
-    owner: undefined,
-    notes: undefined,
-    kind: 'intentional',
     ...overrides,
   };
 }
@@ -71,7 +57,7 @@ describe('buildPrescriptions', () => {
   it('returns empty array for healthy codebase', () => {
     const reportResult = makeReport({
       annotations: [makeAnnotation({ ref: 'TEST-001' })],
-      registry: { 'TEST-001': makeRegistryEntry() },
+      registry: { 'TEST-001': makeRegistryEntry({ kind: 'intentional' }) },
     });
 
     const prescriptions = buildPrescriptions(reportResult);
@@ -122,7 +108,7 @@ describe('buildPrescriptions', () => {
           directive: 'eslint-disable-next-line',
         },
       ],
-      registry: { 'TEST-001': makeRegistryEntry() },
+      registry: { 'TEST-001': makeRegistryEntry({ kind: 'intentional' }) },
     });
 
     const prescriptions = buildPrescriptions(reportResult);

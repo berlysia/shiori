@@ -1,11 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import type {
-  Registry,
-  RegistryEntry,
-  ShioriAnnotation,
-} from '../src/core/types.ts';
+import type { Registry, ShioriAnnotation } from '../src/core/types.ts';
 import { verify, formatActionHints } from '../src/commands/verify.ts';
+import { makeRegistryEntry } from './helpers/registry.ts';
 import { formatVerifyResultAsMarkdown } from '../src/formatters/markdown.ts';
 
 function makeAnnotation(
@@ -17,21 +14,6 @@ function makeAnnotation(
     tagged: true,
     ignored: false,
     location: { file: 'test.ts', line: 1 },
-    ...overrides,
-  };
-}
-
-function makeRegistryEntry(
-  overrides: Partial<RegistryEntry> = {},
-): RegistryEntry {
-  return {
-    reason: 'test reason',
-    target: 'all',
-    expires: undefined,
-    ticket: undefined,
-    owner: undefined,
-    notes: undefined,
-    kind: 'intentional',
     ...overrides,
   };
 }
@@ -78,7 +60,9 @@ describe('verify', () => {
   describe('unused-in-source', () => {
     it('detects refs in registry but not in source', () => {
       const records: ShioriAnnotation[] = [];
-      const registry: Registry = { 'SUP-OLD': makeRegistryEntry() };
+      const registry: Registry = {
+        'SUP-OLD': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const result = verify({
         records,
         registry,
@@ -183,7 +167,9 @@ describe('verify', () => {
 
     it('does not report annotations without syntax errors', () => {
       const records = [makeAnnotation({ ref: 'SUP-OK', tagged: true })];
-      const registry: Registry = { 'SUP-OK': makeRegistryEntry() };
+      const registry: Registry = {
+        'SUP-OK': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const result = verify({
         records,
         registry,
@@ -220,10 +206,13 @@ describe('verify', () => {
         makeAnnotation({ ref: 'DEV-001' }),
       ];
       const registry: Registry = {
-        'SUP-1234': makeRegistryEntry(),
-        'ADR:0007': makeRegistryEntry(),
-        'JIRA:PROJ-123': makeRegistryEntry(),
-        'DEV-001': makeRegistryEntry(),
+        'SUP-1234': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+        'ADR:0007': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+        'JIRA:PROJ-123': makeRegistryEntry({
+          target: 'all',
+          kind: 'intentional',
+        }),
+        'DEV-001': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
       };
       const result = verify({
         records,
@@ -256,7 +245,9 @@ describe('verify', () => {
   describe('ref-collision', () => {
     it('detects duplicate refs from multi-registry loading', () => {
       const records = [makeAnnotation({ ref: 'SUP-DUP' })];
-      const registry: Registry = { 'SUP-DUP': makeRegistryEntry() };
+      const registry: Registry = {
+        'SUP-DUP': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const result = verify({
         records,
         registry,
@@ -283,7 +274,9 @@ describe('verify', () => {
 
     it('does not produce ref-collision when no duplicates', () => {
       const records = [makeAnnotation({ ref: 'SUP-OK' })];
-      const registry: Registry = { 'SUP-OK': makeRegistryEntry() };
+      const registry: Registry = {
+        'SUP-OK': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const result = verify({
         records,
         registry,
@@ -300,7 +293,9 @@ describe('verify', () => {
 
     it('does not produce ref-collision when duplicates is omitted', () => {
       const records = [makeAnnotation({ ref: 'SUP-OK' })];
-      const registry: Registry = { 'SUP-OK': makeRegistryEntry() };
+      const registry: Registry = {
+        'SUP-OK': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const result = verify({
         records,
         registry,
@@ -316,7 +311,9 @@ describe('verify', () => {
 
     it('respects failOn for ref-collision severity', () => {
       const records = [makeAnnotation({ ref: 'SUP-DUP' })];
-      const registry: Registry = { 'SUP-DUP': makeRegistryEntry() };
+      const registry: Registry = {
+        'SUP-DUP': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const result = verify({
         records,
         registry,
@@ -339,7 +336,9 @@ describe('verify', () => {
 
     it('includes ref-collision in summary byType', () => {
       const records = [makeAnnotation({ ref: 'SUP-DUP' })];
-      const registry: Registry = { 'SUP-DUP': makeRegistryEntry() };
+      const registry: Registry = {
+        'SUP-DUP': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const result = verify({
         records,
         registry,
@@ -363,8 +362,8 @@ describe('verify', () => {
         makeAnnotation({ ref: 'SUP-B' }),
       ];
       const registry: Registry = {
-        'SUP-A': makeRegistryEntry(),
-        'SUP-B': makeRegistryEntry(),
+        'SUP-A': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+        'SUP-B': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
       };
       const result = verify({
         records,
@@ -413,7 +412,9 @@ describe('verify', () => {
       const records = [
         makeAnnotation({ ref: 'SUP-IGN', tagged: true, ignored: true }),
       ];
-      const registry: Registry = { 'SUP-IGN': makeRegistryEntry() };
+      const registry: Registry = {
+        'SUP-IGN': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const result = verify({
         records,
         registry,
@@ -448,7 +449,9 @@ describe('verify', () => {
   describe('severity control', () => {
     it('applies failOn as error and default as warning', () => {
       const records = [makeAnnotation({ ref: 'SUP-MISS' })];
-      const registry: Registry = { 'SUP-UNUSED': makeRegistryEntry() };
+      const registry: Registry = {
+        'SUP-UNUSED': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const result = verify({
         records,
         registry,
@@ -476,7 +479,7 @@ describe('verify', () => {
         }),
       ];
       const registry: Registry = {
-        'SUP-UNUSED': makeRegistryEntry(),
+        'SUP-UNUSED': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
         'SUP-EXP': makeRegistryEntry({ expires: '2025-01-01' }),
       };
       const result = verify({
@@ -500,7 +503,9 @@ describe('verify', () => {
   describe('formatActionHints', () => {
     it('returns all-passed message when no issues', () => {
       const records = [makeAnnotation({ ref: 'SUP-OK' })];
-      const registry: Registry = { 'SUP-OK': makeRegistryEntry() };
+      const registry: Registry = {
+        'SUP-OK': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const result = verify({
         records,
         registry,
@@ -533,7 +538,9 @@ describe('verify', () => {
 
     it('shows hint for unused-in-source', () => {
       const records: ShioriAnnotation[] = [];
-      const registry: Registry = { 'SUP-OLD': makeRegistryEntry() };
+      const registry: Registry = {
+        'SUP-OLD': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const result = verify({
         records,
         registry,
@@ -586,7 +593,9 @@ describe('verify', () => {
 
     it('shows hint for ref-collision', () => {
       const records = [makeAnnotation({ ref: 'SUP-DUP' })];
-      const registry: Registry = { 'SUP-DUP': makeRegistryEntry() };
+      const registry: Registry = {
+        'SUP-DUP': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const result = verify({
         records,
         registry,
@@ -608,7 +617,9 @@ describe('verify', () => {
 
     it('shows hint for unrouted-ref', () => {
       const records = [makeAnnotation({ ref: 'JIRA-999' })];
-      const registry: Registry = { 'JIRA-999': makeRegistryEntry() };
+      const registry: Registry = {
+        'JIRA-999': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const result = verify({
         records,
         registry,
@@ -632,7 +643,7 @@ describe('verify', () => {
         }),
       ];
       const registry: Registry = {
-        'SUP-UNUSED': makeRegistryEntry(),
+        'SUP-UNUSED': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
         'SUP-EXP': makeRegistryEntry({ expires: '2025-01-01' }),
       };
       const result = verify({
@@ -675,7 +686,12 @@ describe('verify', () => {
 
     it('does not detect unrouted-ref when refPatterns is undefined', () => {
       const records = [makeAnnotation({ ref: 'UNKNOWN-001' })];
-      const registry: Registry = { 'UNKNOWN-001': makeRegistryEntry() };
+      const registry: Registry = {
+        'UNKNOWN-001': makeRegistryEntry({
+          target: 'all',
+          kind: 'intentional',
+        }),
+      };
       const result = verify({
         records,
         registry,
@@ -689,7 +705,12 @@ describe('verify', () => {
 
     it('does not detect unrouted-ref when refPatterns is empty', () => {
       const records = [makeAnnotation({ ref: 'UNKNOWN-001' })];
-      const registry: Registry = { 'UNKNOWN-001': makeRegistryEntry() };
+      const registry: Registry = {
+        'UNKNOWN-001': makeRegistryEntry({
+          target: 'all',
+          kind: 'intentional',
+        }),
+      };
       const result = verify({
         records,
         registry,
@@ -708,8 +729,8 @@ describe('verify', () => {
         makeAnnotation({ ref: 'ADR:0007' }),
       ];
       const registry: Registry = {
-        'SUP-1234': makeRegistryEntry(),
-        'ADR:0007': makeRegistryEntry(),
+        'SUP-1234': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+        'ADR:0007': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
       };
       const result = verify({
         records,
@@ -725,7 +746,9 @@ describe('verify', () => {
 
     it('detects unrouted-ref for non-matching refs', () => {
       const records = [makeAnnotation({ ref: 'JIRA-999' })];
-      const registry: Registry = { 'JIRA-999': makeRegistryEntry() };
+      const registry: Registry = {
+        'JIRA-999': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const result = verify({
         records,
         registry,
@@ -779,7 +802,9 @@ describe('verify', () => {
           location: { file: 'b.ts', line: 2 },
         }),
       ];
-      const registry: Registry = { 'JIRA-999': makeRegistryEntry() };
+      const registry: Registry = {
+        'JIRA-999': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const result = verify({
         records,
         registry,
@@ -794,7 +819,9 @@ describe('verify', () => {
 
     it('defaults to warning severity', () => {
       const records = [makeAnnotation({ ref: 'JIRA-999' })];
-      const registry: Registry = { 'JIRA-999': makeRegistryEntry() };
+      const registry: Registry = {
+        'JIRA-999': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const result = verify({
         records,
         registry,
@@ -809,7 +836,9 @@ describe('verify', () => {
 
     it('respects failOn for error severity', () => {
       const records = [makeAnnotation({ ref: 'JIRA-999' })];
-      const registry: Registry = { 'JIRA-999': makeRegistryEntry() };
+      const registry: Registry = {
+        'JIRA-999': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const result = verify({
         records,
         registry,
@@ -824,7 +853,9 @@ describe('verify', () => {
 
     it('includes unrouted-ref in summary byType', () => {
       const records = [makeAnnotation({ ref: 'JIRA-999' })];
-      const registry: Registry = { 'JIRA-999': makeRegistryEntry() };
+      const registry: Registry = {
+        'JIRA-999': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const result = verify({
         records,
         registry,
@@ -845,7 +876,9 @@ describe('verify', () => {
 
     it('detects ref in wrong registry file', () => {
       const records = [makeAnnotation({ ref: 'JIRA-123' })];
-      const registry: Registry = { 'JIRA-123': makeRegistryEntry() };
+      const registry: Registry = {
+        'JIRA-123': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       // Ref is in default registry (null) but should be in jira-registry.json
       const refOrigins = new Map<string, string | null>([['JIRA-123', null]]);
       const result = verify({
@@ -868,7 +901,9 @@ describe('verify', () => {
 
     it('does not report when ref is in correct registry file', () => {
       const records = [makeAnnotation({ ref: 'JIRA-123' })];
-      const registry: Registry = { 'JIRA-123': makeRegistryEntry() };
+      const registry: Registry = {
+        'JIRA-123': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const refOrigins = new Map<string, string | null>([
         ['JIRA-123', 'jira-registry.json'],
       ]);
@@ -889,7 +924,9 @@ describe('verify', () => {
 
     it('does not report when refPatterns is undefined', () => {
       const records = [makeAnnotation({ ref: 'JIRA-123' })];
-      const registry: Registry = { 'JIRA-123': makeRegistryEntry() };
+      const registry: Registry = {
+        'JIRA-123': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const refOrigins = new Map<string, string | null>([['JIRA-123', null]]);
       const result = verify({
         records,
@@ -907,7 +944,9 @@ describe('verify', () => {
 
     it('does not report when refPatterns is empty', () => {
       const records = [makeAnnotation({ ref: 'JIRA-123' })];
-      const registry: Registry = { 'JIRA-123': makeRegistryEntry() };
+      const registry: Registry = {
+        'JIRA-123': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const refOrigins = new Map<string, string | null>([['JIRA-123', null]]);
       const result = verify({
         records,
@@ -926,7 +965,9 @@ describe('verify', () => {
 
     it('does not report when refOrigins is undefined', () => {
       const records = [makeAnnotation({ ref: 'JIRA-123' })];
-      const registry: Registry = { 'JIRA-123': makeRegistryEntry() };
+      const registry: Registry = {
+        'JIRA-123': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const result = verify({
         records,
         registry,
@@ -943,7 +984,12 @@ describe('verify', () => {
 
     it('skips refs that do not match any pattern (handled by unrouted-ref)', () => {
       const records = [makeAnnotation({ ref: 'UNKNOWN-001' })];
-      const registry: Registry = { 'UNKNOWN-001': makeRegistryEntry() };
+      const registry: Registry = {
+        'UNKNOWN-001': makeRegistryEntry({
+          target: 'all',
+          kind: 'intentional',
+        }),
+      };
       const refOrigins = new Map<string, string | null>([
         ['UNKNOWN-001', null],
       ]);
@@ -966,7 +1012,9 @@ describe('verify', () => {
       // Pattern has no registryFile, so expected location is default (null)
       const patternsNoFile = [{ match: 'SUP-{id}' }];
       const records = [makeAnnotation({ ref: 'SUP-123' })];
-      const registry: Registry = { 'SUP-123': makeRegistryEntry() };
+      const registry: Registry = {
+        'SUP-123': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       // Ref is actually in a pattern file (wrong place)
       const refOrigins = new Map<string, string | null>([
         ['SUP-123', 'some-other.json'],
@@ -989,7 +1037,9 @@ describe('verify', () => {
 
     it('defaults to warning severity', () => {
       const records = [makeAnnotation({ ref: 'JIRA-123' })];
-      const registry: Registry = { 'JIRA-123': makeRegistryEntry() };
+      const registry: Registry = {
+        'JIRA-123': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const refOrigins = new Map<string, string | null>([['JIRA-123', null]]);
       const result = verify({
         records,
@@ -1008,7 +1058,9 @@ describe('verify', () => {
 
     it('respects failOn for error severity', () => {
       const records = [makeAnnotation({ ref: 'JIRA-123' })];
-      const registry: Registry = { 'JIRA-123': makeRegistryEntry() };
+      const registry: Registry = {
+        'JIRA-123': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const refOrigins = new Map<string, string | null>([['JIRA-123', null]]);
       const result = verify({
         records,
@@ -1027,7 +1079,9 @@ describe('verify', () => {
 
     it('includes registry-routing-mismatch in summary byType', () => {
       const records = [makeAnnotation({ ref: 'JIRA-123' })];
-      const registry: Registry = { 'JIRA-123': makeRegistryEntry() };
+      const registry: Registry = {
+        'JIRA-123': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const refOrigins = new Map<string, string | null>([['JIRA-123', null]]);
       const result = verify({
         records,
@@ -1045,7 +1099,9 @@ describe('verify', () => {
   describe('formatActionHints for registry-routing-mismatch', () => {
     it('shows hint for registry-routing-mismatch', () => {
       const records = [makeAnnotation({ ref: 'JIRA-123' })];
-      const registry: Registry = { 'JIRA-123': makeRegistryEntry() };
+      const registry: Registry = {
+        'JIRA-123': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const refOrigins = new Map<string, string | null>([['JIRA-123', null]]);
       const result = verify({
         records,
@@ -1252,7 +1308,9 @@ describe('verify', () => {
   describe('ref-status-closed', () => {
     it('detects closed ref status', () => {
       const records = [makeAnnotation({ ref: 'SUP-CLOSED' })];
-      const registry: Registry = { 'SUP-CLOSED': makeRegistryEntry() };
+      const registry: Registry = {
+        'SUP-CLOSED': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const refStatuses = new Map([['SUP-CLOSED', 'closed' as const]]);
       const result = verify({
         records,
@@ -1272,7 +1330,9 @@ describe('verify', () => {
 
     it('does not report open ref status', () => {
       const records = [makeAnnotation({ ref: 'SUP-OPEN' })];
-      const registry: Registry = { 'SUP-OPEN': makeRegistryEntry() };
+      const registry: Registry = {
+        'SUP-OPEN': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const refStatuses = new Map([['SUP-OPEN', 'open' as const]]);
       const result = verify({
         records,
@@ -1290,7 +1350,9 @@ describe('verify', () => {
 
     it('does not report unknown ref status', () => {
       const records = [makeAnnotation({ ref: 'SUP-UNK' })];
-      const registry: Registry = { 'SUP-UNK': makeRegistryEntry() };
+      const registry: Registry = {
+        'SUP-UNK': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const refStatuses = new Map([['SUP-UNK', 'unknown' as const]]);
       const result = verify({
         records,
@@ -1308,7 +1370,9 @@ describe('verify', () => {
 
     it('does not report when refStatuses is not provided', () => {
       const records = [makeAnnotation({ ref: 'SUP-001' })];
-      const registry: Registry = { 'SUP-001': makeRegistryEntry() };
+      const registry: Registry = {
+        'SUP-001': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const result = verify({
         records,
         registry,
@@ -1324,7 +1388,9 @@ describe('verify', () => {
 
     it('skips ignored annotations', () => {
       const records = [makeAnnotation({ ref: 'SUP-CLOSED', ignored: true })];
-      const registry: Registry = { 'SUP-CLOSED': makeRegistryEntry() };
+      const registry: Registry = {
+        'SUP-CLOSED': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const refStatuses = new Map([['SUP-CLOSED', 'closed' as const]]);
       const result = verify({
         records,
@@ -1368,7 +1434,9 @@ describe('verify', () => {
           location: { file: 'b.ts', line: 2 },
         }),
       ];
-      const registry: Registry = { 'SUP-CLOSED': makeRegistryEntry() };
+      const registry: Registry = {
+        'SUP-CLOSED': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const refStatuses = new Map([['SUP-CLOSED', 'closed' as const]]);
       const result = verify({
         records,
@@ -1386,7 +1454,9 @@ describe('verify', () => {
 
     it('defaults to warning severity', () => {
       const records = [makeAnnotation({ ref: 'SUP-CLOSED' })];
-      const registry: Registry = { 'SUP-CLOSED': makeRegistryEntry() };
+      const registry: Registry = {
+        'SUP-CLOSED': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const refStatuses = new Map([['SUP-CLOSED', 'closed' as const]]);
       const result = verify({
         records,
@@ -1404,7 +1474,9 @@ describe('verify', () => {
 
     it('respects failOn for error severity', () => {
       const records = [makeAnnotation({ ref: 'SUP-CLOSED' })];
-      const registry: Registry = { 'SUP-CLOSED': makeRegistryEntry() };
+      const registry: Registry = {
+        'SUP-CLOSED': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const refStatuses = new Map([['SUP-CLOSED', 'closed' as const]]);
       const result = verify({
         records,
@@ -1422,7 +1494,9 @@ describe('verify', () => {
 
     it('includes ref-status-closed in summary byType', () => {
       const records = [makeAnnotation({ ref: 'SUP-CLOSED' })];
-      const registry: Registry = { 'SUP-CLOSED': makeRegistryEntry() };
+      const registry: Registry = {
+        'SUP-CLOSED': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const refStatuses = new Map([['SUP-CLOSED', 'closed' as const]]);
       const result = verify({
         records,
@@ -1442,7 +1516,9 @@ describe('verify', () => {
           location: { file: 'foo.ts', line: 42 },
         }),
       ];
-      const registry: Registry = { 'SUP-CLOSED': makeRegistryEntry() };
+      const registry: Registry = {
+        'SUP-CLOSED': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const refStatuses = new Map([['SUP-CLOSED', 'closed' as const]]);
       const result = verify({
         records,
@@ -1463,7 +1539,9 @@ describe('verify', () => {
   describe('formatActionHints for ref-status-closed', () => {
     it('shows hint for ref-status-closed', () => {
       const records = [makeAnnotation({ ref: 'SUP-CLOSED' })];
-      const registry: Registry = { 'SUP-CLOSED': makeRegistryEntry() };
+      const registry: Registry = {
+        'SUP-CLOSED': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const refStatuses = new Map([['SUP-CLOSED', 'closed' as const]]);
       const result = verify({
         records,
@@ -1810,7 +1888,9 @@ describe('verify', () => {
 
     it('shows "No issues found" when clean', () => {
       const records = [makeAnnotation({ ref: 'SUP-OK' })];
-      const registry: Registry = { 'SUP-OK': makeRegistryEntry() };
+      const registry: Registry = {
+        'SUP-OK': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+      };
       const result = verify({
         records,
         registry,
@@ -1828,7 +1908,9 @@ describe('verify', () => {
       const now = new Date('2025-03-15T10:30:00.000Z');
       const result = verify({
         records: [makeAnnotation({ ref: 'META-001' })],
-        registry: { 'META-001': makeRegistryEntry() },
+        registry: {
+          'META-001': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+        },
         failOn: [],
         warnOn: [],
         now,
@@ -1846,9 +1928,9 @@ describe('verify', () => {
       const result = verify({
         records,
         registry: {
-          'CNT-001': makeRegistryEntry(),
-          'CNT-002': makeRegistryEntry(),
-          'CNT-003': makeRegistryEntry(),
+          'CNT-001': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+          'CNT-002': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+          'CNT-003': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
         },
         failOn: [],
         warnOn: [],
@@ -1862,8 +1944,8 @@ describe('verify', () => {
       const result = verify({
         records: [],
         registry: {
-          'REG-A': makeRegistryEntry(),
-          'REG-B': makeRegistryEntry(),
+          'REG-A': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
+          'REG-B': makeRegistryEntry({ target: 'all', kind: 'intentional' }),
         },
         failOn: [],
         warnOn: [],

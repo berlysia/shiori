@@ -6,8 +6,8 @@ import type {
   ShioriCandidate,
   ReportResult,
   DeltaResult,
-  RegistryEntry,
 } from '../src/core/types.ts';
+import { makeRegistryEntry } from './helpers/registry.ts';
 import { report } from '../src/commands/report.ts';
 import { formatReportOutput } from '../src/formatters/report-formatter.ts';
 import { formatReportAsHtml } from '../src/formatters/report-html-formatter.ts';
@@ -22,21 +22,6 @@ function makeAnnotation(
     tagged: true,
     ignored: false,
     location: { file: 'test.ts', line: 1 },
-    ...overrides,
-  };
-}
-
-function makeRegistryEntry(
-  overrides: Partial<RegistryEntry> = {},
-): RegistryEntry {
-  return {
-    reason: 'test reason',
-    target: 'test.ts',
-    expires: undefined,
-    ticket: undefined,
-    owner: undefined,
-    notes: undefined,
-    kind: 'intentional',
     ...overrides,
   };
 }
@@ -59,8 +44,8 @@ function makeReportResult(): ReportResult {
       makeAnnotation({ ref: 'TEST-002', rule: 'no-debugger' }),
     ]),
     registry: {
-      'TEST-001': makeRegistryEntry({ owner: 'team-a' }),
-      'TEST-002': makeRegistryEntry({ owner: 'team-b' }),
+      'TEST-001': makeRegistryEntry({ owner: 'team-a', kind: 'intentional' }),
+      'TEST-002': makeRegistryEntry({ owner: 'team-b', kind: 'intentional' }),
     },
     failOn: [],
     warnOn: [],

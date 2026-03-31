@@ -31,7 +31,7 @@ function makeRegistryEntry(
     ticket: undefined,
     owner: undefined,
     notes: undefined,
-    kind: 'intentional',
+    kind: undefined,
     ...overrides,
   };
 }

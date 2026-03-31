@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import type {
   ScanResult,
   Registry,
-  RegistryEntry,
   ShioriAnnotation,
   ShioriCandidate,
   ReportResult,
 } from '../src/core/types.ts';
+import { makeRegistryEntry } from './helpers/registry.ts';
 import {
   report,
   calculateScore,
@@ -35,21 +35,6 @@ function makeAnnotation(
   };
 }
 
-function makeRegistryEntry(
-  overrides: Partial<RegistryEntry> = {},
-): RegistryEntry {
-  return {
-    reason: 'test reason',
-    target: 'test.ts',
-    expires: undefined,
-    ticket: undefined,
-    owner: undefined,
-    notes: undefined,
-    kind: 'intentional',
-    ...overrides,
-  };
-}
-
 function makeScanResult(
   annotations: ShioriAnnotation[] = [],
   candidates: ShioriCandidate[] = [],
@@ -67,7 +52,7 @@ describe('report', () => {
       const result = report({
         scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
         registry: {
-          'TEST-001': makeRegistryEntry(),
+          'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
         },
         failOn: [],
         warnOn: [],
@@ -115,7 +100,7 @@ describe('report', () => {
           candidates,
         ),
         registry: {
-          'TEST-001': makeRegistryEntry(),
+          'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
         },
         failOn: [],
         warnOn: [],
@@ -185,9 +170,9 @@ describe('report', () => {
         { pattern: 'eslint', location: { file: 'a.ts', line: 1 } },
       ];
       const registry: Registry = {
-        'TEST-001': makeRegistryEntry(),
-        'TEST-002': makeRegistryEntry(),
-        'TEST-003': makeRegistryEntry(),
+        'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
+        'TEST-002': makeRegistryEntry({ kind: 'intentional' }),
+        'TEST-003': makeRegistryEntry({ kind: 'intentional' }),
       };
 
       const result = report({
@@ -238,7 +223,7 @@ describe('report', () => {
       const result = report({
         scanResult: makeScanResult([]),
         registry: {
-          'STALE-001': makeRegistryEntry(),
+          'STALE-001': makeRegistryEntry({ kind: 'intentional' }),
         },
         failOn: [],
         warnOn: [],
@@ -272,7 +257,7 @@ describe('report', () => {
       const result = report({
         scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
         registry: {
-          'TEST-001': makeRegistryEntry(),
+          'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
         },
         failOn: [],
         warnOn: [],
@@ -367,9 +352,9 @@ describe('report', () => {
         makeAnnotation({ ref: 'TEST-003', rule: 'no-debugger' }),
       ];
       const registry: Registry = {
-        'TEST-001': makeRegistryEntry(),
-        'TEST-002': makeRegistryEntry(),
-        'TEST-003': makeRegistryEntry(),
+        'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
+        'TEST-002': makeRegistryEntry({ kind: 'intentional' }),
+        'TEST-003': makeRegistryEntry({ kind: 'intentional' }),
       };
 
       const result = report({
@@ -389,9 +374,9 @@ describe('report', () => {
 
     it('aggregates by owner', () => {
       const registry: Registry = {
-        'TEST-001': makeRegistryEntry({ owner: 'team-a' }),
-        'TEST-002': makeRegistryEntry({ owner: 'team-a' }),
-        'TEST-003': makeRegistryEntry({ owner: 'team-b' }),
+        'TEST-001': makeRegistryEntry({ owner: 'team-a', kind: 'intentional' }),
+        'TEST-002': makeRegistryEntry({ owner: 'team-a', kind: 'intentional' }),
+        'TEST-003': makeRegistryEntry({ owner: 'team-b', kind: 'intentional' }),
       };
 
       const result = report({
@@ -459,7 +444,7 @@ describe('report', () => {
       const result = report({
         scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
         registry: {
-          'TEST-001': makeRegistryEntry(),
+          'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
         },
         failOn: [],
         warnOn: [],
@@ -516,9 +501,9 @@ describe('report', () => {
         }),
       ];
       const registry: Registry = {
-        'TEST-001': makeRegistryEntry(),
-        'TEST-002': makeRegistryEntry(),
-        'TEST-003': makeRegistryEntry(),
+        'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
+        'TEST-002': makeRegistryEntry({ kind: 'intentional' }),
+        'TEST-003': makeRegistryEntry({ kind: 'intentional' }),
       };
 
       const result = report({
@@ -550,7 +535,7 @@ describe('report', () => {
       ];
       const registry: Registry = {
         'EXP-001': makeRegistryEntry({ expires: '2020-01-01' }),
-        'OK-001': makeRegistryEntry(),
+        'OK-001': makeRegistryEntry({ kind: 'intentional' }),
       };
 
       const result = report({
@@ -602,7 +587,10 @@ describe('report', () => {
         }),
       ];
       const registry: Registry = {
-        'NOEXP-001': makeRegistryEntry({ expires: undefined }),
+        'NOEXP-001': makeRegistryEntry({
+          expires: undefined,
+          kind: 'intentional',
+        }),
       };
 
       const result = report({
@@ -676,8 +664,8 @@ describe('report', () => {
         }),
       ];
       const registry: Registry = {
-        'TEST-001': makeRegistryEntry(),
-        'IGN-001': makeRegistryEntry(),
+        'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
+        'IGN-001': makeRegistryEntry({ kind: 'intentional' }),
       };
 
       const result = report({
@@ -710,7 +698,7 @@ describe('report', () => {
         }),
       ];
       const registry: Registry = {
-        'TEST-001': makeRegistryEntry(),
+        'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
       };
 
       const result = report({
@@ -761,9 +749,9 @@ describe('report', () => {
         }),
       ];
       const registry: Registry = {
-        'TEST-001': makeRegistryEntry(),
-        'TEST-002': makeRegistryEntry(),
-        'TEST-003': makeRegistryEntry(),
+        'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
+        'TEST-002': makeRegistryEntry({ kind: 'intentional' }),
+        'TEST-003': makeRegistryEntry({ kind: 'intentional' }),
       };
 
       const result = report({
@@ -797,7 +785,7 @@ describe('report', () => {
         }),
       ];
       const registry: Registry = {
-        'TEST-001': makeRegistryEntry(),
+        'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
       };
 
       const result = report({
@@ -824,7 +812,7 @@ describe('report', () => {
       ];
       const registry: Registry = {
         'EXP-001': makeRegistryEntry({ expires: '2020-01-01' }),
-        'OK-001': makeRegistryEntry(),
+        'OK-001': makeRegistryEntry({ kind: 'intentional' }),
       };
 
       const result = report({
@@ -952,7 +940,7 @@ describe('formatReportAsMarkdown', () => {
     // Healthy
     const healthy = report({
       scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
-      registry: { 'TEST-001': makeRegistryEntry() },
+      registry: { 'TEST-001': makeRegistryEntry({ kind: 'intentional' }) },
       failOn: [],
       warnOn: [],
     });
@@ -1216,7 +1204,7 @@ describe('report() dual-axis output', () => {
     const result = report({
       scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
       registry: {
-        'TEST-001': makeRegistryEntry(),
+        'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
       },
       failOn: [],
       warnOn: [],
@@ -1239,7 +1227,7 @@ describe('report() dual-axis output', () => {
         candidates,
       ),
       registry: {
-        'TEST-001': makeRegistryEntry(),
+        'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
       },
       failOn: [],
       warnOn: [],

@@ -10,10 +10,10 @@ import type {
   ShioriAnnotation,
   ShioriCandidate,
   Registry,
-  RegistryEntry,
   ScanResult,
   VerifyResult,
 } from '../src/core/types.ts';
+import { makeRegistryEntry } from './helpers/registry.ts';
 
 // ── Test helpers ─────────────────────────────────────────────
 
@@ -29,21 +29,6 @@ function makeAnnotation(
     tagged: opts?.tagged ?? true,
     ignored: opts?.ignored ?? false,
     location: { file, line },
-  };
-}
-
-function makeRegistryEntry(
-  overrides: Partial<RegistryEntry> = {},
-): RegistryEntry {
-  return {
-    reason: 'test reason',
-    target: 'test.ts',
-    expires: undefined,
-    ticket: undefined,
-    owner: undefined,
-    notes: undefined,
-    kind: 'intentional',
-    ...overrides,
   };
 }
 
@@ -83,7 +68,7 @@ describe('triage', () => {
     it('returns empty result when no issues exist', () => {
       const annotations = [makeAnnotation('REF-001', 'src/a.ts', 1)];
       const registry: Registry = {
-        'REF-001': makeRegistryEntry(),
+        'REF-001': makeRegistryEntry({ kind: 'intentional' }),
       };
 
       const result = triage({
@@ -591,7 +576,7 @@ describe('formatTriageAsMarkdown', () => {
   it('generates markdown with no action items message for empty result', () => {
     const result = triage({
       scanResult: makeScanResult([makeAnnotation('REF-001', 'src/a.ts', 1)]),
-      registry: { 'REF-001': makeRegistryEntry() },
+      registry: { 'REF-001': makeRegistryEntry({ kind: 'intentional' }) },
       failOn: [],
       warnOn: [],
       now: new Date('2025-01-01'),

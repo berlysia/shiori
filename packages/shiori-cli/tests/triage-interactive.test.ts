@@ -13,24 +13,9 @@ import type {
   WizardQueueItem,
   TriageItem,
 } from '../src/commands/triage.ts';
-import type { RegistryEntry } from '../src/core/types.ts';
+import { makeRegistryEntry } from './helpers/registry.ts';
 
 // ── Test helpers ─────────────────────────────────────────────
-
-function makeRegistryEntry(
-  overrides: Partial<RegistryEntry> = {},
-): RegistryEntry {
-  return {
-    reason: 'test reason',
-    target: 'test.ts',
-    expires: undefined,
-    ticket: undefined,
-    owner: undefined,
-    notes: undefined,
-    kind: 'intentional',
-    ...overrides,
-  };
-}
 
 function makeTriageItem(
   ref: string,

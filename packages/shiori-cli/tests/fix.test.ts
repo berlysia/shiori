@@ -21,6 +21,7 @@ import {
 } from '../src/formatters/fix-formatter.ts';
 import { report } from '../src/commands/report.ts';
 import { VERSION } from '../src/core/version.ts';
+import { makeRegistryEntry } from './helpers/registry.ts';
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -33,21 +34,6 @@ function makeAnnotation(
     tagged: true,
     ignored: false,
     location: { file: 'test.ts', line: 1 },
-    ...overrides,
-  };
-}
-
-function makeRegistryEntry(
-  overrides: Partial<RegistryEntry> = {},
-): RegistryEntry {
-  return {
-    reason: 'test reason',
-    target: 'test.ts',
-    expires: undefined,
-    ticket: undefined,
-    owner: undefined,
-    notes: undefined,
-    kind: 'intentional',
     ...overrides,
   };
 }
@@ -87,7 +73,7 @@ describe('planFixActions', () => {
   it('returns empty plan for healthy codebase', () => {
     const reportResult = makeReport({
       annotations: [makeAnnotation({ ref: 'TEST-001' })],
-      registry: { 'TEST-001': makeRegistryEntry() },
+      registry: { 'TEST-001': makeRegistryEntry({ kind: 'intentional' }) },
     });
 
     const plan = planFixActions(reportResult);

@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import type {
   ScanResult,
   Registry,
-  RegistryEntry,
   ShioriAnnotation,
   ShioriCandidate,
   VerifyResult,
@@ -15,6 +14,7 @@ import {
   formatImpact,
   formatImpactMarkdown,
 } from '../src/commands/impact.ts';
+import { makeRegistryEntry } from './helpers/registry.ts';
 
 // ── Test helpers ────────────────────────────────────────────
 
@@ -27,21 +27,6 @@ function makeAnnotation(
     tagged: true,
     ignored: false,
     location: { file: 'test.ts', line: 1 },
-    ...overrides,
-  };
-}
-
-function makeRegistryEntry(
-  overrides: Partial<RegistryEntry> = {},
-): RegistryEntry {
-  return {
-    reason: 'test reason',
-    target: 'test.ts',
-    expires: undefined,
-    ticket: undefined,
-    owner: undefined,
-    notes: undefined,
-    kind: 'intentional',
     ...overrides,
   };
 }

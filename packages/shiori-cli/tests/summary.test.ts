@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import type {
   ScanResult,
   Registry,
-  RegistryEntry,
   ShioriAnnotation,
   ShioriCandidate,
   ReportResult,
 } from '../src/core/types.ts';
+import { makeRegistryEntry } from './helpers/registry.ts';
 import {
   summary,
   formatSummary,
@@ -26,21 +26,6 @@ function makeAnnotation(
     tagged: true,
     ignored: false,
     location: { file: 'test.ts', line: 1 },
-    ...overrides,
-  };
-}
-
-function makeRegistryEntry(
-  overrides: Partial<RegistryEntry> = {},
-): RegistryEntry {
-  return {
-    reason: 'test reason',
-    target: 'test.ts',
-    expires: undefined,
-    ticket: undefined,
-    owner: undefined,
-    notes: undefined,
-    kind: 'intentional',
     ...overrides,
   };
 }
@@ -76,7 +61,7 @@ describe('summary', () => {
       const result = summary({
         scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
         registry: {
-          'TEST-001': makeRegistryEntry(),
+          'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
         },
         failOn: [],
         warnOn: [],
@@ -94,7 +79,7 @@ describe('summary', () => {
       const result = summary({
         scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
         registry: {
-          'TEST-001': makeRegistryEntry(),
+          'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
         },
         failOn: [],
         warnOn: [],
@@ -108,7 +93,7 @@ describe('summary', () => {
       const result = summary({
         scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
         registry: {
-          'TEST-001': makeRegistryEntry(),
+          'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
         },
         failOn: [],
         warnOn: [],
@@ -132,8 +117,8 @@ describe('summary', () => {
       const result = summary({
         scanResult: headScan,
         registry: {
-          'OLD-001': makeRegistryEntry(),
-          'NEW-001': makeRegistryEntry(),
+          'OLD-001': makeRegistryEntry({ kind: 'intentional' }),
+          'NEW-001': makeRegistryEntry({ kind: 'intentional' }),
         },
         failOn: [],
         warnOn: [],
@@ -150,7 +135,7 @@ describe('summary', () => {
       const result = summary({
         scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
         registry: {
-          'TEST-001': makeRegistryEntry(),
+          'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
         },
         failOn: [],
         warnOn: [],
@@ -164,17 +149,17 @@ describe('summary', () => {
     it('includes trend when trendReports are provided', () => {
       const reports: ReportResult[] = [
         makeReportResult([makeAnnotation({ ref: 'TEST-001' })], {
-          'TEST-001': makeRegistryEntry(),
+          'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
         }),
         makeReportResult([makeAnnotation({ ref: 'TEST-001' })], {
-          'TEST-001': makeRegistryEntry(),
+          'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
         }),
       ];
 
       const result = summary({
         scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
         registry: {
-          'TEST-001': makeRegistryEntry(),
+          'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
         },
         failOn: [],
         warnOn: [],
@@ -189,7 +174,7 @@ describe('summary', () => {
       const result = summary({
         scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
         registry: {
-          'TEST-001': makeRegistryEntry(),
+          'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
         },
         failOn: [],
         warnOn: [],
@@ -203,7 +188,7 @@ describe('summary', () => {
       const result = summary({
         scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
         registry: {
-          'TEST-001': makeRegistryEntry(),
+          'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
         },
         failOn: [],
         warnOn: [],
@@ -232,7 +217,7 @@ describe('summary', () => {
       const result = summary({
         scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
         registry: {
-          'TEST-001': makeRegistryEntry(),
+          'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
         },
         failOn: [],
         warnOn: [],
@@ -291,7 +276,7 @@ describe('formatSummary', () => {
   const cleanResult = summary({
     scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
     registry: {
-      'TEST-001': makeRegistryEntry(),
+      'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
     },
     failOn: [],
     warnOn: [],
@@ -322,7 +307,7 @@ describe('formatSummaryAsMarkdown', () => {
     const result = summary({
       scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
       registry: {
-        'TEST-001': makeRegistryEntry(),
+        'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
       },
       failOn: [],
       warnOn: [],
@@ -340,7 +325,7 @@ describe('formatSummaryAsMarkdown', () => {
     const result = summary({
       scanResult: headScan,
       registry: {
-        'NEW-001': makeRegistryEntry(),
+        'NEW-001': makeRegistryEntry({ kind: 'intentional' }),
       },
       failOn: [],
       warnOn: [],
@@ -369,7 +354,7 @@ describe('formatSummaryAsMarkdown', () => {
     const result = summary({
       scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
       registry: {
-        'TEST-001': makeRegistryEntry(),
+        'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
       },
       failOn: [],
       warnOn: [],
@@ -413,7 +398,7 @@ describe('summary _reportResult', () => {
     const result = summary({
       scanResult: makeScanResult([makeAnnotation({ ref: 'RPT-001' })]),
       registry: {
-        'RPT-001': makeRegistryEntry(),
+        'RPT-001': makeRegistryEntry({ kind: 'intentional' }),
       },
       failOn: [],
       warnOn: [],
@@ -429,7 +414,7 @@ describe('summary _reportResult', () => {
     const result = summary({
       scanResult: makeScanResult([makeAnnotation({ ref: 'SER-001' })]),
       registry: {
-        'SER-001': makeRegistryEntry(),
+        'SER-001': makeRegistryEntry({ kind: 'intentional' }),
       },
       failOn: [],
       warnOn: [],

@@ -2,11 +2,11 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import type {
   Registry,
-  RegistryEntry,
   ShioriAnnotation,
   ShioriCandidate,
   VerifyResult,
 } from '../../src/core/types.ts';
+import { makeRegistryEntry } from '../helpers/registry.ts';
 import {
   formatAsSummary,
   type SummaryInput,
@@ -21,21 +21,6 @@ function makeAnnotation(
     tagged: true,
     ignored: false,
     location: { file: 'test.ts', line: 1 },
-    ...overrides,
-  };
-}
-
-function makeRegistryEntry(
-  overrides: Partial<RegistryEntry> = {},
-): RegistryEntry {
-  return {
-    reason: 'test reason',
-    target: 'all',
-    expires: undefined,
-    ticket: undefined,
-    owner: undefined,
-    notes: undefined,
-    kind: 'intentional',
     ...overrides,
   };
 }

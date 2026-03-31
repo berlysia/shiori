@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import type {
   ShioriAnnotation,
   ShioriCandidate,
-  RegistryEntry,
   Registry,
 } from '../src/core/types.ts';
 import {
@@ -13,6 +12,7 @@ import {
   type ScanResult,
 } from '../src/commands/scan.ts';
 import { report } from '../src/commands/report.ts';
+import { makeRegistryEntry } from './helpers/registry.ts';
 
 function makeAnnotation(
   overrides: Partial<ShioriAnnotation> = {},
@@ -191,21 +191,6 @@ describe('formatScanResultForDisplay', () => {
   });
 });
 
-function makeRegistryEntry(
-  overrides: Partial<RegistryEntry> = {},
-): RegistryEntry {
-  return {
-    reason: 'test reason',
-    target: 'test.ts',
-    expires: undefined,
-    ticket: undefined,
-    owner: undefined,
-    notes: undefined,
-    kind: 'intentional',
-    ...overrides,
-  };
-}
-
 describe('formatGovernanceReportCard', () => {
   it('shows health score and tracking rate for healthy codebase', () => {
     const scanResult = makeScanResult({
@@ -214,7 +199,7 @@ describe('formatGovernanceReportCard', () => {
       filesScanned: 10,
     });
     const registry: Registry = {
-      'TEST-001': makeRegistryEntry(),
+      'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
     };
     const reportResult = report({
       scanResult,
@@ -244,7 +229,7 @@ describe('formatGovernanceReportCard', () => {
       filesScanned: 10,
     });
     const registry: Registry = {
-      'TEST-001': makeRegistryEntry(),
+      'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
     };
     const reportResult = report({
       scanResult,
@@ -310,7 +295,7 @@ describe('formatGovernanceReportCard', () => {
       filesScanned: 10,
     });
     const registry: Registry = {
-      'TEST-001': makeRegistryEntry(),
+      'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
     };
     const reportResult = report({
       scanResult,
@@ -331,7 +316,7 @@ describe('formatGovernanceReportCard', () => {
       filesScanned: 10,
     });
     const registry: Registry = {
-      'TEST-001': makeRegistryEntry(),
+      'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
     };
     const reportResult = report({
       scanResult,

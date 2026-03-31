@@ -8,12 +8,12 @@ import {
 import type {
   ScanResult,
   Registry,
-  RegistryEntry,
   ShioriAnnotation,
   ShioriCandidate,
   ReportResult,
   MaturityLevel,
 } from '../src/core/types.ts';
+import { makeRegistryEntry } from './helpers/registry.ts';
 import { maturityStageFromLevel } from '../src/core/types.ts';
 
 function makeAnnotation(
@@ -25,21 +25,6 @@ function makeAnnotation(
     tagged: true,
     ignored: false,
     location: { file: 'test.ts', line: 1 },
-    ...overrides,
-  };
-}
-
-function makeRegistryEntry(
-  overrides: Partial<RegistryEntry> = {},
-): RegistryEntry {
-  return {
-    reason: 'test reason',
-    target: 'test.ts',
-    expires: undefined,
-    ticket: undefined,
-    owner: undefined,
-    notes: undefined,
-    kind: 'intentional',
     ...overrides,
   };
 }
@@ -62,7 +47,7 @@ function makeReport(overrides: {
   ];
   const candidates = overrides.candidates ?? [];
   const registry = overrides.registry ?? {
-    'TEST-001': makeRegistryEntry(),
+    'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
   };
   return report({
     scanResult: makeScanResult(annotations, candidates),

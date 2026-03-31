@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import type {
   ScanResult,
   Registry,
-  RegistryEntry,
   ShioriAnnotation,
   ShioriCandidate,
   TrendResult,
 } from '../src/core/types.ts';
+import { makeRegistryEntry } from './helpers/registry.ts';
 import {
   health,
   buildHealthResult,
@@ -27,21 +27,6 @@ function makeAnnotation(
     tagged: true,
     ignored: false,
     location: { file: 'test.ts', line: 1 },
-    ...overrides,
-  };
-}
-
-function makeRegistryEntry(
-  overrides: Partial<RegistryEntry> = {},
-): RegistryEntry {
-  return {
-    reason: 'test reason',
-    target: 'test.ts',
-    expires: undefined,
-    ticket: undefined,
-    owner: undefined,
-    notes: undefined,
-    kind: 'intentional',
     ...overrides,
   };
 }
@@ -101,7 +86,7 @@ describe('health', () => {
       const result = health({
         scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
         registry: {
-          'TEST-001': makeRegistryEntry(),
+          'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
         },
         failOn: [],
         warnOn: [],
@@ -176,7 +161,7 @@ describe('health', () => {
       const result = health({
         scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
         registry: {
-          'TEST-001': makeRegistryEntry(),
+          'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
         },
         failOn: [],
         warnOn: [],
@@ -194,7 +179,7 @@ describe('health', () => {
       const result = health({
         scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
         registry: {
-          'TEST-001': makeRegistryEntry(),
+          'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
         },
         failOn: [],
         warnOn: [],
@@ -225,7 +210,7 @@ describe('health', () => {
       const result = health({
         scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
         registry: {
-          'TEST-001': makeRegistryEntry(),
+          'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
         },
         failOn: [],
         warnOn: [],
@@ -242,7 +227,7 @@ describe('buildHealthResult', () => {
     const reportResult = report({
       scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
       registry: {
-        'TEST-001': makeRegistryEntry(),
+        'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
       },
       failOn: [],
       warnOn: [],
@@ -260,7 +245,7 @@ describe('buildHealthResult', () => {
     const reportResult = report({
       scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
       registry: {
-        'TEST-001': makeRegistryEntry(),
+        'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
       },
       failOn: [],
       warnOn: [],
@@ -283,7 +268,7 @@ describe('formatHealth', () => {
     const result = health({
       scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
       registry: {
-        'TEST-001': makeRegistryEntry(),
+        'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
       },
       failOn: [],
       warnOn: [],
@@ -305,7 +290,7 @@ describe('formatHealth', () => {
     const result = health({
       scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
       registry: {
-        'TEST-001': makeRegistryEntry(),
+        'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
       },
       failOn: [],
       warnOn: [],
@@ -323,7 +308,7 @@ describe('formatHealthSummary', () => {
     const result = health({
       scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
       registry: {
-        'TEST-001': makeRegistryEntry(),
+        'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
       },
       failOn: [],
       warnOn: [],
@@ -359,7 +344,7 @@ describe('formatHealthSummary', () => {
     const result = health({
       scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
       registry: {
-        'TEST-001': makeRegistryEntry(),
+        'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
       },
       failOn: [],
       warnOn: [],
@@ -382,7 +367,7 @@ describe('formatHealthSummary', () => {
     const result = health({
       scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
       registry: {
-        'TEST-001': makeRegistryEntry(),
+        'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
       },
       failOn: [],
       warnOn: [],
@@ -408,7 +393,7 @@ describe('formatHealthSummary', () => {
     const result = health({
       scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
       registry: {
-        'TEST-001': makeRegistryEntry(),
+        'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
       },
       failOn: [],
       warnOn: [],
@@ -549,7 +534,7 @@ describe('health diagnosis integration (EP-0198)', () => {
     const result = health({
       scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
       registry: {
-        'TEST-001': makeRegistryEntry(),
+        'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
       },
       failOn: [],
       warnOn: [],
@@ -564,7 +549,7 @@ describe('health diagnosis integration (EP-0198)', () => {
     const result = health({
       scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
       registry: {
-        'TEST-001': makeRegistryEntry(),
+        'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
       },
       failOn: [],
       warnOn: [],
