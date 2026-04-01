@@ -10,8 +10,13 @@ import {
   MATURITY_GUIDANCE_MAP,
   resolveMaturityStageName,
   resolveMaturityGuidance,
+  resolveDiffBlock,
+  resolveStageTransition,
 } from '../src/commands/coach.ts';
-import type { HealthMaturityStage } from '../src/core/types.ts';
+import type {
+  CoachDiffContext,
+  HealthMaturityStage,
+} from '../src/core/types.ts';
 
 describe('buildCoachPrompt', () => {
   it('builds triage prompt with JSON embedded', () => {
@@ -442,5 +447,241 @@ describe('COACH_PLACEHOLDERS (EP-0205 additions)', () => {
   it('has maturity-related placeholder tokens', () => {
     assert.equal(COACH_PLACEHOLDERS.MATURITY_STAGE, '{{MATURITY_STAGE}}');
     assert.equal(COACH_PLACEHOLDERS.MATURITY_GUIDANCE, '{{MATURITY_GUIDANCE}}');
+  });
+});
+
+// ── Remediation Journey Diff Template (EP-0207) ──────────────
+
+describe('resolveDiffBlock', () => {
+  it('returns empty string when diffContext is undefined', () => {
+    assert.equal(resolveDiffBlock(undefined), '');
+  });
+
+  it('returns empty string when no deltas (first run)', () => {
+    const ctx: CoachDiffContext = {
+      current: {
+        timestamp: '2026-04-01T10:00:00.000Z',
+        totalRefs: 5,
+        resolvedRefs: 0,
+        expiredRefs: 1,
+        healthScore: 65,
+        coverage: 70,
+        hygiene: 60,
+        maturityStage: 'Tracking',
+      },
+      diffSummaryOneLiner: 'baseline',
+    };
+    assert.equal(resolveDiffBlock(ctx), '');
+  });
+
+  it('returns diff table when deltas are present', () => {
+    const ctx: CoachDiffContext = {
+      current: {
+        timestamp: '2026-04-01T10:00:00.000Z',
+        totalRefs: 5,
+        resolvedRefs: 1,
+        expiredRefs: 1,
+        healthScore: 75,
+        coverage: 80,
+        hygiene: 70,
+        maturityStage: 'Maintained',
+      },
+      previous: {
+        timestamp: '2026-03-25T10:00:00.000Z',
+        totalRefs: 8,
+        resolvedRefs: 0,
+        expiredRefs: 3,
+        healthScore: 50,
+        coverage: 60,
+        hygiene: 55,
+        maturityStage: 'Tracking',
+      },
+      deltas: {
+        totalRefs: -3,
+        resolvedRefs: 1,
+        expiredRefs: -2,
+        healthScore: 25,
+        coverage: 20,
+        hygiene: 15,
+      },
+      diffSummaryOneLiner: 'score improved',
+    };
+    const block = resolveDiffBlock(ctx);
+    assert.ok(block.includes('前回からの変化'));
+    assert.ok(block.includes('健康スコア'));
+    assert.ok(block.includes('+25'));
+    assert.ok(block.includes('+20'));
+    assert.ok(block.includes('+15'));
+  });
+});
+
+describe('resolveStageTransition', () => {
+  it('returns empty string when no diffContext', () => {
+    assert.equal(resolveStageTransition(undefined), '');
+  });
+
+  it('returns empty string when no stage transition', () => {
+    const ctx: CoachDiffContext = {
+      current: {
+        timestamp: '2026-04-01T10:00:00.000Z',
+        totalRefs: 5,
+        resolvedRefs: 0,
+        expiredRefs: 0,
+        healthScore: 65,
+        coverage: 70,
+        hygiene: 60,
+        maturityStage: 'Tracking',
+      },
+      diffSummaryOneLiner: 'baseline',
+    };
+    assert.equal(resolveStageTransition(ctx), '');
+  });
+
+  it('returns celebration for advancement', () => {
+    const ctx: CoachDiffContext = {
+      current: {
+        timestamp: '2026-04-01T10:00:00.000Z',
+        totalRefs: 5,
+        resolvedRefs: 0,
+        expiredRefs: 0,
+        healthScore: 85,
+        coverage: 90,
+        hygiene: 80,
+        maturityStage: 'Maintained',
+      },
+      previous: {
+        timestamp: '2026-03-25T10:00:00.000Z',
+        totalRefs: 8,
+        resolvedRefs: 0,
+        expiredRefs: 3,
+        healthScore: 50,
+        coverage: 60,
+        hygiene: 55,
+        maturityStage: 'Tracking',
+      },
+      deltas: {
+        totalRefs: -3,
+        resolvedRefs: 0,
+        expiredRefs: -3,
+        healthScore: 35,
+        coverage: 30,
+        hygiene: 25,
+      },
+      stageTransition: { from: 'Tracking', to: 'Maintained' },
+      diffSummaryOneLiner: 'stage advanced',
+    };
+    const block = resolveStageTransition(ctx);
+    assert.ok(block.includes('おめでとう'));
+    assert.ok(block.includes('Tracking'));
+    assert.ok(block.includes('Maintained'));
+  });
+
+  it('returns warning for regression', () => {
+    const ctx: CoachDiffContext = {
+      current: {
+        timestamp: '2026-04-01T10:00:00.000Z',
+        totalRefs: 10,
+        resolvedRefs: 0,
+        expiredRefs: 5,
+        healthScore: 30,
+        coverage: 40,
+        hygiene: 35,
+        maturityStage: 'Foundation',
+      },
+      previous: {
+        timestamp: '2026-03-25T10:00:00.000Z',
+        totalRefs: 5,
+        resolvedRefs: 0,
+        expiredRefs: 1,
+        healthScore: 70,
+        coverage: 80,
+        hygiene: 65,
+        maturityStage: 'Tracking',
+      },
+      deltas: {
+        totalRefs: 5,
+        resolvedRefs: 0,
+        expiredRefs: 4,
+        healthScore: -40,
+        coverage: -40,
+        hygiene: -30,
+      },
+      stageTransition: { from: 'Tracking', to: 'Foundation' },
+      diffSummaryOneLiner: 'stage regressed',
+    };
+    const block = resolveStageTransition(ctx);
+    assert.ok(block.includes('ステージ変化'));
+    assert.ok(block.includes('Tracking'));
+    assert.ok(block.includes('Foundation'));
+  });
+});
+
+describe('diff placeholders in templates (EP-0207)', () => {
+  it('replaces {{DIFF_SUMMARY}} in all built-in templates', () => {
+    for (const tmpl of COACH_TEMPLATES) {
+      const result = buildCoachPrompt(tmpl, {
+        diffContext: {
+          current: {
+            timestamp: '2026-04-01T10:00:00.000Z',
+            totalRefs: 5,
+            resolvedRefs: 0,
+            expiredRefs: 0,
+            healthScore: 65,
+            coverage: 70,
+            hygiene: 60,
+            maturityStage: 'Tracking',
+          },
+          diffSummaryOneLiner: 'テストサマリー',
+        },
+      });
+      assert.ok(
+        !result.prompt.includes('{{DIFF_SUMMARY}}'),
+        `Template "${tmpl}" should not have unreplaced {{DIFF_SUMMARY}}`,
+      );
+      assert.ok(
+        result.prompt.includes('テストサマリー'),
+        `Template "${tmpl}" should contain diff summary`,
+      );
+    }
+  });
+
+  it('replaces {{DIFF_BLOCK}} and {{STAGE_TRANSITION}} when no diff data', () => {
+    const result = buildCoachPrompt('health', {
+      healthJson: '{"score":80}',
+    });
+    assert.ok(!result.prompt.includes('{{DIFF_BLOCK}}'));
+    assert.ok(!result.prompt.includes('{{STAGE_TRANSITION}}'));
+  });
+
+  it('custom templates can use diff placeholders', () => {
+    const templateContent =
+      'Summary: {{DIFF_SUMMARY}} | Block: {{DIFF_BLOCK}} | Trans: {{STAGE_TRANSITION}}';
+    const result = buildCoachPromptFromCustomTemplate(templateContent, {
+      diffContext: {
+        current: {
+          timestamp: '2026-04-01T10:00:00.000Z',
+          totalRefs: 5,
+          resolvedRefs: 0,
+          expiredRefs: 0,
+          healthScore: 65,
+          coverage: 70,
+          hygiene: 60,
+          maturityStage: 'Tracking',
+        },
+        diffSummaryOneLiner: 'カスタムサマリー',
+      },
+    });
+    assert.ok(result.prompt.includes('カスタムサマリー'));
+    assert.ok(!result.prompt.includes('{{DIFF_SUMMARY}}'));
+    assert.ok(!result.prompt.includes('{{DIFF_BLOCK}}'));
+    assert.ok(!result.prompt.includes('{{STAGE_TRANSITION}}'));
+  });
+});
+
+describe('COACH_PLACEHOLDERS (EP-0207 additions)', () => {
+  it('has diff-related placeholder tokens', () => {
+    assert.equal(COACH_PLACEHOLDERS.DIFF_SUMMARY, '{{DIFF_SUMMARY}}');
+    assert.equal(COACH_PLACEHOLDERS.DIFF_BLOCK, '{{DIFF_BLOCK}}');
+    assert.equal(COACH_PLACEHOLDERS.STAGE_TRANSITION, '{{STAGE_TRANSITION}}');
   });
 });

@@ -10,6 +10,8 @@
  */
 
 import { assertNever, type HealthMaturityStage } from '../core/types.ts';
+import type { CoachDiffContext } from '../core/types.ts';
+import { isStageAdvancement } from '../core/coach-diff.ts';
 import { wrapOutputJson } from '../core/schema-envelope.ts';
 
 // ── Types ────────────────────────────────────────────────────
@@ -42,6 +44,8 @@ export interface CoachInput {
   narrativeJson?: string;
   /** Governance maturity stage for stage-aware coaching (EP-0205) */
   maturityStage?: HealthMaturityStage;
+  /** Sprint diff context for remediation journey visualization (EP-0207) */
+  diffContext?: CoachDiffContext;
 }
 
 export interface CoachResult {
@@ -68,6 +72,12 @@ export const COACH_PLACEHOLDERS = {
   MATURITY_STAGE: '{{MATURITY_STAGE}}',
   /** Stage-specific coaching guidance block (EP-0205) */
   MATURITY_GUIDANCE: '{{MATURITY_GUIDANCE}}',
+  /** One-line diff summary (EP-0207) */
+  DIFF_SUMMARY: '{{DIFF_SUMMARY}}',
+  /** Conditional diff details block (EP-0207) */
+  DIFF_BLOCK: '{{DIFF_BLOCK}}',
+  /** Conditional stage transition celebration (EP-0207) */
+  STAGE_TRANSITION: '{{STAGE_TRANSITION}}',
 } as const;
 
 // ── Maturity-Aware Guidance (EP-0205) ────────────────────────
@@ -155,11 +165,73 @@ export function resolveMaturityGuidance(
   return MATURITY_GUIDANCE_MAP[stage];
 }
 
+// ── Diff Block Generation (EP-0207) ──────────────────────────
+
+/**
+ * Format a signed number for display in diff blocks.
+ */
+function formatSignedCoach(n: number): string {
+  if (n > 0) return `+${n}`;
+  if (n < 0) return `${n}`;
+  return '±0';
+}
+
+/**
+ * Generate the diff details block for template injection.
+ * Returns empty string when no diff data is available.
+ */
+export function resolveDiffBlock(
+  diffContext: CoachDiffContext | undefined,
+): string {
+  if (diffContext?.deltas == null || diffContext.previous == null) return '';
+
+  const d = diffContext.deltas;
+  return `## 📊 前回からの変化
+
+| 指標 | 前回 | 今回 | 変化 |
+| ---- | ---- | ---- | ---- |
+| 健康スコア | ${diffContext.previous.healthScore} | ${diffContext.current.healthScore} | ${formatSignedCoach(d.healthScore)} |
+| カバレッジ | ${diffContext.previous.coverage} | ${diffContext.current.coverage} | ${formatSignedCoach(d.coverage)} |
+| 衛生度 | ${diffContext.previous.hygiene} | ${diffContext.current.hygiene} | ${formatSignedCoach(d.hygiene)} |
+| 期限切れ | ${diffContext.previous.expiredRefs} | ${diffContext.current.expiredRefs} | ${formatSignedCoach(d.expiredRefs)} |
+
+この変化を踏まえて、改善のモメンタムを維持するためのアドバイスを含めてください。`;
+}
+
+/**
+ * Generate the stage transition celebration block for template injection.
+ * Returns empty string when no stage transition occurred.
+ */
+export function resolveStageTransition(
+  diffContext: CoachDiffContext | undefined,
+): string {
+  if (diffContext?.stageTransition == null) return '';
+
+  const { from, to } = diffContext.stageTransition;
+  const advanced = isStageAdvancement(diffContext.stageTransition);
+
+  if (advanced) {
+    return `## 🎉 ステージ昇格おめでとうございます！
+
+**${from}** → **${to}** へステージが昇格しました！
+
+これはガバナンス改善の大きなマイルストーンです。チームの継続的な取り組みが成果として表れています。
+この成果をチームで共有し、次のステージに向けたモチベーションにしてください。`;
+  }
+
+  return `## ⚠️ ステージ変化の検出
+
+**${from}** → **${to}** へステージが変化しました。
+
+この変化の原因を分析し、改善アクションを提案してください。`;
+}
+
 // ── Prompt Templates ─────────────────────────────────────────
 
 const TRIAGE_PROMPT = `あなたはソフトウェアガバナンスの専門家です。
 以下は shiori（アノテーション追跡ツール）の triage レポート JSON です。
 
+進捗サマリー: {{DIFF_SUMMARY}}
 現在の成熟度ステージ: {{MATURITY_STAGE}}
 
 \`\`\`json
@@ -167,6 +239,10 @@ const TRIAGE_PROMPT = `あなたはソフトウェアガバナンスの専門家
 \`\`\`
 
 {{MATURITY_GUIDANCE}}
+
+{{STAGE_TRANSITION}}
+
+{{DIFF_BLOCK}}
 
 この triage 結果を分析し、以下の形式でガバナンス改善提案を作成してください:
 
@@ -189,6 +265,7 @@ const TRIAGE_PROMPT = `あなたはソフトウェアガバナンスの専門家
 const WEEKLY_PROMPT = `あなたはソフトウェアチームのガバナンスコーチです。
 以下は shiori の週次ガバナンスレポート JSON です。
 
+進捗サマリー: {{DIFF_SUMMARY}}
 現在の成熟度ステージ: {{MATURITY_STAGE}}
 
 \`\`\`json
@@ -196,6 +273,10 @@ const WEEKLY_PROMPT = `あなたはソフトウェアチームのガバナンス
 \`\`\`
 
 {{MATURITY_GUIDANCE}}
+
+{{STAGE_TRANSITION}}
+
+{{DIFF_BLOCK}}
 
 このレポートを分析し、チームミーティングで共有できる形式のフィードバックを作成してください:
 
@@ -217,6 +298,7 @@ const WEEKLY_PROMPT = `あなたはソフトウェアチームのガバナンス
 const HEALTH_PROMPT = `あなたはコードベースの健全性を診断する専門家です。
 以下は shiori の health チェック結果です。
 
+進捗サマリー: {{DIFF_SUMMARY}}
 現在の成熟度ステージ: {{MATURITY_STAGE}}
 
 \`\`\`json
@@ -224,6 +306,10 @@ const HEALTH_PROMPT = `あなたはコードベースの健全性を診断する
 \`\`\`
 
 {{MATURITY_GUIDANCE}}
+
+{{STAGE_TRANSITION}}
+
+{{DIFF_BLOCK}}
 
 診断結果を以下の形式で出力してください:
 
@@ -246,6 +332,7 @@ const HEALTH_PROMPT = `あなたはコードベースの健全性を診断する
 const COMBINED_PROMPT = `あなたはソフトウェアガバナンスの専門家です。
 以下は shiori（アノテーション追跡ツール）の複数のレポートです。
 
+進捗サマリー: {{DIFF_SUMMARY}}
 現在の成熟度ステージ: {{MATURITY_STAGE}}
 
 ## Triage レポート
@@ -269,6 +356,10 @@ const COMBINED_PROMPT = `あなたはソフトウェアガバナンスの専門�
 \`\`\`
 
 {{MATURITY_GUIDANCE}}
+
+{{STAGE_TRANSITION}}
+
+{{DIFF_BLOCK}}
 
 これらのレポートを総合的に分析し、以下を出力してください:
 1. 現状の要約（2-3文、ナラティブの変動傾向を加味）
@@ -333,6 +424,21 @@ function replacePlaceholders(
   prompt = prompt.replaceAll(
     COACH_PLACEHOLDERS.MATURITY_GUIDANCE,
     resolveMaturityGuidance(input.maturityStage),
+  );
+
+  // Diff-aware placeholders (EP-0207): always replace to avoid
+  // leaving raw {{DIFF_*}} tokens in the output prompt.
+  prompt = prompt.replaceAll(
+    COACH_PLACEHOLDERS.DIFF_SUMMARY,
+    input.diffContext?.diffSummaryOneLiner ?? '',
+  );
+  prompt = prompt.replaceAll(
+    COACH_PLACEHOLDERS.DIFF_BLOCK,
+    resolveDiffBlock(input.diffContext),
+  );
+  prompt = prompt.replaceAll(
+    COACH_PLACEHOLDERS.STAGE_TRANSITION,
+    resolveStageTransition(input.diffContext),
   );
 
   return { prompt, sources };

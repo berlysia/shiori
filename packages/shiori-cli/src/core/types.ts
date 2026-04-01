@@ -1474,6 +1474,66 @@ export interface ImpactResult {
   prescriptions: ImpactPrescription[];
 }
 
+// ── Coach Diff types (EP-0207) ────────────────────────────────
+
+/**
+ * Lightweight snapshot of governance state at a point in time.
+ * Captured for sprint-to-sprint diff comparison in coach output.
+ */
+export interface CoachSnapshotData {
+  /** ISO timestamp of the snapshot */
+  timestamp: string;
+  /** Total tracked annotations */
+  totalRefs: number;
+  /** Annotations resolved (registry entries with ref-status-closed or removed) */
+  resolvedRefs: number;
+  /** Annotations with expired dates */
+  expiredRefs: number;
+  /** Health score (0-100) */
+  healthScore: number;
+  /** Coverage axis score (0-100) */
+  coverage: number;
+  /** Hygiene axis score (0-100) */
+  hygiene: number;
+  /** Governance maturity stage */
+  maturityStage: HealthMaturityStage | undefined;
+}
+
+/**
+ * Stage transition information between two snapshots.
+ * Enables celebration messaging when a project advances to a higher stage.
+ */
+export interface StageTransition {
+  /** Previous maturity stage */
+  from: HealthMaturityStage;
+  /** Current maturity stage */
+  to: HealthMaturityStage;
+}
+
+/**
+ * Diff context injected into coach templates for sprint-over-sprint comparison.
+ * When previous snapshot is unavailable (first run), diff fields are omitted.
+ */
+export interface CoachDiffContext {
+  /** Current snapshot data */
+  current: CoachSnapshotData;
+  /** Previous snapshot data (undefined on first run) */
+  previous?: CoachSnapshotData;
+  /** Numeric deltas between snapshots (undefined on first run) */
+  deltas?: {
+    totalRefs: number;
+    resolvedRefs: number;
+    expiredRefs: number;
+    healthScore: number;
+    coverage: number;
+    hygiene: number;
+  };
+  /** Stage transition info (present only when stage changed) */
+  stageTransition?: StageTransition;
+  /** One-line summary of the diff for template header */
+  diffSummaryOneLiner: string;
+}
+
 // ── Aggregate types ──────────────────────────────────────────
 
 /** Result of aggregating multiple repository summaries */

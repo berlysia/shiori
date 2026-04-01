@@ -53,7 +53,13 @@ import { isReportShape } from '../core/report-files.ts';
 import { computeSnapshotDiff } from '../core/diff-snapshots.ts';
 import { computeNarrative } from './narrative.ts';
 import { wrapOutputJson } from '../core/schema-envelope.ts';
-import type { ReportResult } from '../core/types.ts';
+import type { CoachDiffContext, ReportResult } from '../core/types.ts';
+import {
+  buildCoachDiffContext,
+  coachSnapshotFilename,
+  deserializeCoachSnapshot,
+  serializeCoachSnapshot,
+} from '../core/coach-diff.ts';
 
 const validateCoachFormat = createFormatValidator<CoachFormat>(
   COACH_FORMATS,
@@ -94,7 +100,10 @@ export const coachCommand = define({
   shiori coach --template combined --narrative-history ./reports/
 
   # Include narrative from specific snapshot files
-  shiori coach --template combined --narrative-base old.json --narrative-head new.json`,
+  shiori coach --template combined --narrative-base old.json --narrative-head new.json
+
+  # Include sprint-over-sprint diff from coach snapshots (EP-0207)
+  shiori coach --template health --snapshot-dir .config/shiori/coach-snapshots`,
   rendering: { header: null },
   args: {
     template: {
@@ -161,6 +170,12 @@ export const coachCommand = define({
       toKebab: true,
       description:
         'Path to the head (after) ReportResult JSON for narrative. Use with --narrative-base.',
+    },
+    snapshotDir: {
+      type: 'string',
+      toKebab: true,
+      description:
+        'Directory for coach snapshots. Loads latest as previous, saves current after prompt generation. Enables sprint-over-sprint diff in templates (EP-0207).',
     },
   },
   run: async (ctx) => {
@@ -401,13 +416,95 @@ export const coachCommand = define({
       );
     }
 
-    // Build coach prompt (EP-0205: pass maturityStage for stage-aware coaching)
+    // Build coach diff context (EP-0207: sprint-over-sprint comparison)
+    let diffContext: CoachDiffContext | undefined;
+    if (ctx.values.snapshotDir) {
+      const { readdir, readFile: readFileFs } =
+        await import('node:fs/promises');
+      const { join, resolve: pathResolve } = await import('node:path');
+      const snapshotDirResolved = pathResolve(cwd, ctx.values.snapshotDir);
+
+      try {
+        await assertWithinCwd(snapshotDirResolved, cwd);
+      } catch (err) {
+        if (err instanceof PathBoundaryError) {
+          console.error(`Error: ${err.message}`);
+          process.exitCode = ExitCode.ENVIRONMENT_ERROR;
+          return;
+        }
+        throw err;
+      }
+
+      // Load latest previous snapshot
+      let previousSnapshot;
+      try {
+        const files = await readdir(snapshotDirResolved);
+        const jsonFiles = files
+          .filter((f: string) => f.startsWith('coach-') && f.endsWith('.json'))
+          .sort();
+        if (jsonFiles.length > 0) {
+          const latestFile = join(
+            snapshotDirResolved,
+            jsonFiles[jsonFiles.length - 1]!,
+          );
+          const content = await readFileFs(latestFile, 'utf-8');
+          previousSnapshot = deserializeCoachSnapshot(content);
+          if (previousSnapshot) {
+            console.error(
+              `Coach diff: loaded previous snapshot from ${jsonFiles[jsonFiles.length - 1]}`,
+            );
+          } else {
+            console.error(
+              `Warning: Could not parse ${jsonFiles[jsonFiles.length - 1]} as coach snapshot`,
+            );
+          }
+        } else {
+          console.error(
+            'Coach diff: no previous snapshots found, creating baseline',
+          );
+        }
+      } catch (err) {
+        if (isNodeError(err) && err.code === 'ENOENT') {
+          console.error(
+            'Coach diff: snapshot directory does not exist, creating baseline',
+          );
+        } else {
+          console.error(
+            `Warning: Could not read snapshot directory: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+      }
+
+      diffContext = buildCoachDiffContext(healthResult, previousSnapshot);
+
+      // Save current snapshot for next run
+      try {
+        const { mkdir, writeFile: writeFileFs } =
+          await import('node:fs/promises');
+        await mkdir(snapshotDirResolved, { recursive: true });
+        const filename = coachSnapshotFilename(healthResult.timestamp);
+        const snapshotPath = join(snapshotDirResolved, filename);
+        await writeFileFs(
+          snapshotPath,
+          serializeCoachSnapshot(diffContext.current),
+          'utf-8',
+        );
+        console.error(`Coach diff: saved snapshot to ${filename}`);
+      } catch (err) {
+        console.error(
+          `Warning: Could not save coach snapshot: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+
+    // Build coach prompt (EP-0205: pass maturityStage, EP-0207: pass diffContext)
     const coachInput = {
       triageJson,
       weeklyReportJson,
       healthJson,
       narrativeJson,
       maturityStage: healthResult.maturityStage,
+      diffContext,
     };
     let result;
     if (ctx.values.templateFile) {
