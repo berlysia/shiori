@@ -10,10 +10,7 @@ import {
   findMissingCliSubCommands,
   findStaleCliSubCommands,
 } from '../src/core/exit-codes.ts';
-import {
-  checkExitCodePolicies,
-  checkCommandRegistrationConsistency,
-} from '../src/commands/doctor/checks.ts';
+import { checkExitCodePolicies } from '../src/commands/doctor/checks.ts';
 import { CLI_SUBCOMMAND_KEYS } from '../src/commands/command-map.ts';
 
 describe('ExitCode constants', () => {

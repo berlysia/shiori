@@ -335,7 +335,6 @@ export function formatTrendAsCsv(
     result.points,
     options?.axis,
   );
-  const showDualAxis = showCoverage || showHygiene;
 
   // Build header dynamically based on visible axes
   const headerCols = ['timestamp'];

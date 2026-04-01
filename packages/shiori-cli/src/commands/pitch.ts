@@ -67,7 +67,7 @@ export function pitch(options: PitchOptions): PitchResult {
 function buildHeadline(
   teamName: string,
   score: number,
-  level: HealthLevel,
+  _level: HealthLevel,
 ): string {
   if (score >= 80) {
     return `${teamName}: Governance score ${score}/100 -- ready to enforce in CI`;

@@ -6,7 +6,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { PassThrough } from 'node:stream';
-import type { RecommendedAction, ReportResult } from '../src/core/types.ts';
+import type { RecommendedAction } from '../src/core/types.ts';
 import {
   buildOnboardStepsFromActions,
   buildOnboardCTA,
@@ -20,7 +20,6 @@ import {
 import {
   wizardOnboardSession,
   type InteractiveOnboardContext,
-  type OnboardSessionResult,
 } from '../src/commands/onboard-interactive.ts';
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -460,7 +459,7 @@ function createMockOnboardContext(responses: string[]): {
 
 describe('wizardOnboardSession', () => {
   it('processes all steps with run choices', async () => {
-    const { ctx, getOutput } = createMockOnboardContext(['r', 'r']);
+    const { ctx } = createMockOnboardContext(['r', 'r']);
     const steps = makeSteps(2);
 
     const result = await wizardOnboardSession(steps, ctx, {

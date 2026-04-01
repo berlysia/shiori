@@ -6,7 +6,6 @@ import {
   isActionableItem,
   hasExtendOption,
   type InteractiveTriageContext,
-  type WizardSessionResult,
 } from '../src/commands/triage-interactive.ts';
 import type {
   WizardQueue,

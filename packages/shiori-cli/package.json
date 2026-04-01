@@ -56,7 +56,7 @@
     "test": "node --experimental-strip-types --test tests/*.test.ts tests/**/*.test.ts",
     "test:coverage": "node --experimental-strip-types --experimental-test-coverage --test tests/*.test.ts tests/**/*.test.ts",
     "typecheck": "tsc --noEmit",
-    "lint": "oxlint src/ tests/ --ignore-pattern 'tests/fixtures/**'",
+    "lint": "oxlint src/ tests/ --ignore-pattern 'tests/fixtures/**' --deny-warnings",
     "lint:boundaries": "depcruise 'src/**/*.ts' --config .dependency-cruiser.cjs",
     "lint:envelope": "bash scripts/lint-envelope.sh",
     "link:local": "pnpm build && pnpm link --global",

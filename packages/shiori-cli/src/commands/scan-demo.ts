@@ -16,13 +16,7 @@ import { verify } from './verify.ts';
 import { report } from './report.ts';
 import { buildHealthResult } from './health.ts';
 import { CommentProvider } from '../core/providers/CommentProvider.ts';
-import type {
-  Registry,
-  ScanResult,
-  VerifyResult,
-  HealthLevel,
-  DemoResult,
-} from '../core/types.ts';
+import type { Registry, DemoResult } from '../core/types.ts';
 import { saveRegistry } from '../core/registry.ts';
 import { healthEmoji } from '../core/emoji.ts';
 

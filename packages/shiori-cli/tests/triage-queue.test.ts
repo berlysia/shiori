@@ -4,7 +4,6 @@ import {
   buildTriageQueue,
   type TriageResult,
   type TriageItem,
-  type WizardUrgency,
 } from '../src/commands/triage.ts';
 import { makeRegistryEntry } from './helpers/registry.ts';
 

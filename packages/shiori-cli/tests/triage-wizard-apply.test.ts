@@ -4,7 +4,6 @@ import {
   planWizardActions,
   formatWizardApplyPreview,
   formatWizardCompletionSummary,
-  type WizardApplyOptions,
 } from '../src/commands/triage-wizard-apply.ts';
 import type { WizardItemResult } from '../src/commands/triage-interactive.ts';
 import type {

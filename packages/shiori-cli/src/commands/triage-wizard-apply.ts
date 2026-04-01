@@ -6,10 +6,7 @@
  */
 
 import type { Registry, ScanResult, HealthLevel } from '../core/types.ts';
-import type {
-  WizardItemResult,
-  WizardActionType,
-} from './triage-interactive.ts';
+import type { WizardItemResult } from './triage-interactive.ts';
 import {
   planBulkResolve,
   formatBulkResolvePreview,

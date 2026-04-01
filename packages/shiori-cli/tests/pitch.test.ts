@@ -6,7 +6,6 @@ import type {
   ShioriAnnotation,
   ShioriCandidate,
   TrendResult,
-  PitchResult,
 } from '../src/core/types.ts';
 import { pitch, formatPitchAsMarkdown } from '../src/commands/pitch.ts';
 import { formatPitch } from '../src/commands/pitch-cli.ts';
@@ -714,7 +713,7 @@ describe('recommendedActions (EP-0179)', () => {
     const annotations = Array.from({ length: 5 }, (_, i) =>
       makeAnnotation({ ref: `MISS-${i}` }),
     );
-    const reportResult2 = report({
+    report({
       scanResult: makeScanResult(annotations),
       registry: Object.fromEntries(
         annotations.map((a) => [
@@ -732,7 +731,7 @@ describe('recommendedActions (EP-0179)', () => {
     const manyMissing = Array.from({ length: 5 }, (_, i) =>
       makeAnnotation({ ref: `NOMATCH-${i}` }),
     );
-    const reportResult3 = report({
+    report({
       scanResult: makeScanResult(manyMissing),
       registry: {},
       failOn: [],

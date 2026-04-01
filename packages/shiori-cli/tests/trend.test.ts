@@ -11,7 +11,6 @@ import {
   formatTrendAsSpark,
   valueToBlock,
   buildSparkline,
-  type TrendFormatOptions,
 } from '../src/commands/trend.ts';
 
 function makeReportResult(overrides: {
