@@ -59,6 +59,8 @@ import {
   coachSnapshotFilename,
   deserializeCoachSnapshot,
   serializeCoachSnapshot,
+  selectSnapshotsToDelete,
+  DEFAULT_MAX_SNAPSHOTS,
 } from '../core/coach-diff.ts';
 
 const validateCoachFormat = createFormatValidator<CoachFormat>(
@@ -176,6 +178,11 @@ export const coachCommand = define({
       toKebab: true,
       description:
         'Directory for coach snapshots. Loads latest as previous, saves current after prompt generation. Enables sprint-over-sprint diff in templates (EP-0207).',
+    },
+    maxSnapshots: {
+      type: 'string',
+      toKebab: true,
+      description: `Maximum number of coach snapshots to retain. Oldest files are auto-deleted after saving. Default: ${DEFAULT_MAX_SNAPSHOTS} (EP-0208).`,
     },
   },
   run: async (ctx) => {
@@ -494,6 +501,43 @@ export const coachCommand = define({
         console.error(
           `Warning: Could not save coach snapshot: ${err instanceof Error ? err.message : String(err)}`,
         );
+      }
+
+      // Auto-rotate old snapshots (EP-0208)
+      const maxSnapshotsRaw = ctx.values.maxSnapshots;
+      const maxSnapshots =
+        maxSnapshotsRaw != null
+          ? Number.parseInt(maxSnapshotsRaw, 10)
+          : DEFAULT_MAX_SNAPSHOTS;
+      if (Number.isNaN(maxSnapshots) || maxSnapshots < 0) {
+        console.error(
+          `Error: --max-snapshots must be a non-negative integer, got "${maxSnapshotsRaw}"`,
+        );
+        process.exitCode = ExitCode.USAGE_ERROR;
+        return;
+      }
+      if (maxSnapshots > 0) {
+        try {
+          const { readdir: readdirFs, unlink } =
+            await import('node:fs/promises');
+          const allFiles = await readdirFs(snapshotDirResolved);
+          const coachFiles = allFiles.filter(
+            (f: string) => f.startsWith('coach-') && f.endsWith('.json'),
+          );
+          const toDelete = selectSnapshotsToDelete(coachFiles, maxSnapshots);
+          for (const file of toDelete) {
+            await unlink(join(snapshotDirResolved, file));
+          }
+          if (toDelete.length > 0) {
+            console.error(
+              `Coach diff: rotated ${toDelete.length} old snapshot(s), retaining ${maxSnapshots}`,
+            );
+          }
+        } catch (err) {
+          console.error(
+            `Warning: Could not rotate coach snapshots: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
       }
     }
 

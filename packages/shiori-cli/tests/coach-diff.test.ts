@@ -9,6 +9,8 @@ import {
   deserializeCoachSnapshot,
   coachSnapshotFilename,
   formatSigned,
+  selectSnapshotsToDelete,
+  DEFAULT_MAX_SNAPSHOTS,
 } from '../src/core/coach-diff.ts';
 import type {
   HealthResult,
@@ -332,5 +334,70 @@ describe('coachSnapshotFilename', () => {
   it('handles timestamp without colons', () => {
     const filename = coachSnapshotFilename('2026-04-01');
     assert.equal(filename, 'coach-2026-04-01.json');
+  });
+});
+
+// ── selectSnapshotsToDelete (EP-0208) ────────────────────────
+
+describe('selectSnapshotsToDelete', () => {
+  it('returns empty when files count is within limit', () => {
+    const files = ['coach-2026-03-01.json', 'coach-2026-03-02.json'];
+    assert.deepEqual(selectSnapshotsToDelete(files, 5), []);
+  });
+
+  it('returns empty when files count equals limit', () => {
+    const files = ['coach-2026-03-01.json', 'coach-2026-03-02.json'];
+    assert.deepEqual(selectSnapshotsToDelete(files, 2), []);
+  });
+
+  it('returns oldest files when exceeding limit', () => {
+    const files = [
+      'coach-2026-03-03.json',
+      'coach-2026-03-01.json',
+      'coach-2026-03-02.json',
+      'coach-2026-03-04.json',
+    ];
+    const result = selectSnapshotsToDelete(files, 2);
+    // Sorted: 01, 02, 03, 04 → delete 01, 02
+    assert.deepEqual(result, [
+      'coach-2026-03-01.json',
+      'coach-2026-03-02.json',
+    ]);
+  });
+
+  it('returns empty for empty file list', () => {
+    assert.deepEqual(selectSnapshotsToDelete([], 30), []);
+  });
+
+  it('returns empty when maxSnapshots is 0 (disabled)', () => {
+    const files = ['coach-2026-03-01.json'];
+    assert.deepEqual(selectSnapshotsToDelete(files, 0), []);
+  });
+
+  it('retains only maxSnapshots newest files', () => {
+    const files = Array.from({ length: 35 }, (_, i) => {
+      const day = String(i + 1).padStart(2, '0');
+      return `coach-2026-03-${day}.json`;
+    });
+    const result = selectSnapshotsToDelete(files, 30);
+    assert.equal(result.length, 5);
+    // First 5 (oldest) should be deleted
+    assert.equal(result[0], 'coach-2026-03-01.json');
+    assert.equal(result[4], 'coach-2026-03-05.json');
+  });
+
+  it('does not mutate the input array', () => {
+    const files = ['coach-2026-03-03.json', 'coach-2026-03-01.json'];
+    const original = [...files];
+    selectSnapshotsToDelete(files, 1);
+    assert.deepEqual(files, original);
+  });
+});
+
+// ── DEFAULT_MAX_SNAPSHOTS ────────────────────────────────────
+
+describe('DEFAULT_MAX_SNAPSHOTS', () => {
+  it('is 30', () => {
+    assert.equal(DEFAULT_MAX_SNAPSHOTS, 30);
   });
 });

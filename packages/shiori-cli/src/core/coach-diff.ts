@@ -210,3 +210,26 @@ export function deserializeCoachSnapshot(
 export function coachSnapshotFilename(timestamp: string): string {
   return `coach-${timestamp.replace(/[:.]/g, '-')}.json`;
 }
+
+/** Default maximum number of coach snapshots to retain (EP-0208). */
+export const DEFAULT_MAX_SNAPSHOTS = 30;
+
+/**
+ * Determine which snapshot files to delete for auto-rotation (EP-0208).
+ *
+ * Accepts a list of filenames (not full paths), sorts lexicographically
+ * (oldest first because ISO8601 timestamps sort naturally), and returns
+ * the filenames that exceed the retention limit.
+ *
+ * Pure function — caller handles actual file deletion.
+ */
+export function selectSnapshotsToDelete(
+  files: readonly string[],
+  maxSnapshots: number,
+): string[] {
+  if (maxSnapshots <= 0 || files.length <= maxSnapshots) {
+    return [];
+  }
+  const sorted = [...files].sort();
+  return sorted.slice(0, sorted.length - maxSnapshots);
+}
