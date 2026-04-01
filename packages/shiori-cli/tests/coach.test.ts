@@ -151,7 +151,10 @@ describe('COACH_TEMPLATES and COACH_FORMATS', () => {
   });
 
   it('has expected formats', () => {
-    assert.deepEqual([...COACH_FORMATS], ['prompt', 'json', 'github-issue']);
+    assert.deepEqual(
+      [...COACH_FORMATS],
+      ['prompt', 'json', 'github-issue', 'slack-markdown', 'github-discussion'],
+    );
   });
 });
 
@@ -1005,5 +1008,250 @@ describe('COACH_PLACEHOLDERS (EP-0207 additions)', () => {
     assert.equal(COACH_PLACEHOLDERS.DIFF_SUMMARY, '{{DIFF_SUMMARY}}');
     assert.equal(COACH_PLACEHOLDERS.DIFF_BLOCK, '{{DIFF_BLOCK}}');
     assert.equal(COACH_PLACEHOLDERS.STAGE_TRANSITION, '{{STAGE_TRANSITION}}');
+  });
+});
+
+// ── Coach Team Broadcast Formats (EP-0212) ────────────────────
+
+describe('formatCoachOutput — slack-markdown (EP-0212)', () => {
+  const mockResult = buildCoachPrompt('triage', {
+    triageJson: '{"items":[]}',
+  });
+
+  it('returns Slack mrkdwn with teacher emoji header', () => {
+    const output = formatCoachOutput(mockResult, 'slack-markdown');
+
+    assert.ok(output.includes(':teacher:'));
+    assert.ok(output.includes('*Governance Coach Prompt*'));
+  });
+
+  it('wraps prompt in code block', () => {
+    const output = formatCoachOutput(mockResult, 'slack-markdown');
+
+    assert.ok(output.includes('```'));
+    assert.ok(output.includes(mockResult.prompt));
+  });
+
+  it('includes template name and generator tag', () => {
+    const output = formatCoachOutput(mockResult, 'slack-markdown');
+
+    assert.ok(output.includes('`triage`'));
+    assert.ok(output.includes('`shiori coach`'));
+  });
+
+  it('includes stage advancement celebration when present', () => {
+    const resultWithTransition = buildCoachPrompt('health', {
+      healthJson: '{"score":90}',
+      diffContext: {
+        current: {
+          timestamp: '2026-04-01T10:00:00.000Z',
+          totalIssues: 0,
+          expiredRefs: 0,
+          healthScore: 90,
+          coverage: 90,
+          hygiene: 90,
+          maturityStage: 'Maintained',
+        },
+        previous: {
+          timestamp: '2026-03-25T10:00:00.000Z',
+          totalIssues: 5,
+          expiredRefs: 1,
+          healthScore: 50,
+          coverage: 50,
+          hygiene: 50,
+          maturityStage: 'Tracking',
+        },
+        deltas: {
+          totalIssues: -5,
+          expiredRefs: -1,
+          healthScore: 40,
+          coverage: 40,
+          hygiene: 40,
+        },
+        stageTransition: { from: 'Tracking', to: 'Maintained' },
+        diffSummaryOneLiner: 'stage advanced',
+      },
+    });
+    const output = formatCoachOutput(resultWithTransition, 'slack-markdown');
+
+    assert.ok(output.includes(':tada:'));
+    assert.ok(output.includes('Stage Up'));
+    assert.ok(output.includes('Tracking'));
+    assert.ok(output.includes('Maintained'));
+  });
+
+  it('includes stage regression warning when present', () => {
+    const resultWithRegression = buildCoachPrompt('health', {
+      healthJson: '{"score":30}',
+      diffContext: {
+        current: {
+          timestamp: '2026-04-01T10:00:00.000Z',
+          totalIssues: 10,
+          expiredRefs: 5,
+          healthScore: 30,
+          coverage: 40,
+          hygiene: 35,
+          maturityStage: 'Foundation',
+        },
+        previous: {
+          timestamp: '2026-03-25T10:00:00.000Z',
+          totalIssues: 5,
+          expiredRefs: 1,
+          healthScore: 70,
+          coverage: 80,
+          hygiene: 65,
+          maturityStage: 'Tracking',
+        },
+        deltas: {
+          totalIssues: 5,
+          expiredRefs: 4,
+          healthScore: -40,
+          coverage: -40,
+          hygiene: -30,
+        },
+        stageTransition: { from: 'Tracking', to: 'Foundation' },
+        diffSummaryOneLiner: 'stage regressed',
+      },
+    });
+    const output = formatCoachOutput(resultWithRegression, 'slack-markdown');
+
+    assert.ok(output.includes(':warning:'));
+    assert.ok(output.includes('Stage Change'));
+    assert.ok(output.includes('Tracking'));
+    assert.ok(output.includes('Foundation'));
+  });
+
+  it('omits stage transition block when no transition occurred', () => {
+    const output = formatCoachOutput(mockResult, 'slack-markdown');
+
+    assert.ok(!output.includes(':tada:'));
+    assert.ok(!output.includes(':warning:'));
+    assert.ok(!output.includes('Stage Up'));
+    assert.ok(!output.includes('Stage Change'));
+  });
+});
+
+describe('formatCoachOutput — github-discussion (EP-0212)', () => {
+  const mockResult = buildCoachPrompt('triage', {
+    triageJson: '{"items":[]}',
+  });
+
+  it('returns Discussion-formatted Markdown with header', () => {
+    const output = formatCoachOutput(mockResult, 'github-discussion');
+
+    assert.ok(output.includes('Governance Coach'));
+    assert.ok(output.includes('Discussion'));
+  });
+
+  it('includes collapsible prompt section', () => {
+    const output = formatCoachOutput(mockResult, 'github-discussion');
+
+    assert.ok(output.includes('<details>'));
+    assert.ok(output.includes('<summary>'));
+    assert.ok(output.includes('</details>'));
+    assert.ok(output.includes(mockResult.prompt));
+  });
+
+  it('includes template metadata and usage instructions', () => {
+    const output = formatCoachOutput(mockResult, 'github-discussion');
+
+    assert.ok(output.includes('`triage`'));
+    assert.ok(output.includes('`shiori coach`'));
+    assert.ok(output.includes('How to use'));
+  });
+
+  it('includes stage advancement section when present', () => {
+    const resultWithTransition = buildCoachPrompt('health', {
+      healthJson: '{"score":90}',
+      diffContext: {
+        current: {
+          timestamp: '2026-04-01T10:00:00.000Z',
+          totalIssues: 0,
+          expiredRefs: 0,
+          healthScore: 90,
+          coverage: 90,
+          hygiene: 90,
+          maturityStage: 'Maintained',
+        },
+        previous: {
+          timestamp: '2026-03-25T10:00:00.000Z',
+          totalIssues: 5,
+          expiredRefs: 1,
+          healthScore: 50,
+          coverage: 50,
+          hygiene: 50,
+          maturityStage: 'Tracking',
+        },
+        deltas: {
+          totalIssues: -5,
+          expiredRefs: -1,
+          healthScore: 40,
+          coverage: 40,
+          hygiene: 40,
+        },
+        stageTransition: { from: 'Tracking', to: 'Maintained' },
+        diffSummaryOneLiner: 'stage advanced',
+      },
+    });
+    const output = formatCoachOutput(resultWithTransition, 'github-discussion');
+
+    assert.ok(output.includes('Stage Advancement'));
+    assert.ok(output.includes('Tracking'));
+    assert.ok(output.includes('Maintained'));
+    assert.ok(output.includes('Congratulations'));
+  });
+
+  it('includes stage regression section when present', () => {
+    const resultWithRegression = buildCoachPrompt('health', {
+      healthJson: '{"score":30}',
+      diffContext: {
+        current: {
+          timestamp: '2026-04-01T10:00:00.000Z',
+          totalIssues: 10,
+          expiredRefs: 5,
+          healthScore: 30,
+          coverage: 40,
+          hygiene: 35,
+          maturityStage: 'Foundation',
+        },
+        previous: {
+          timestamp: '2026-03-25T10:00:00.000Z',
+          totalIssues: 5,
+          expiredRefs: 1,
+          healthScore: 70,
+          coverage: 80,
+          hygiene: 65,
+          maturityStage: 'Tracking',
+        },
+        deltas: {
+          totalIssues: 5,
+          expiredRefs: 4,
+          healthScore: -40,
+          coverage: -40,
+          hygiene: -30,
+        },
+        stageTransition: { from: 'Tracking', to: 'Foundation' },
+        diffSummaryOneLiner: 'stage regressed',
+      },
+    });
+    const output = formatCoachOutput(resultWithRegression, 'github-discussion');
+
+    assert.ok(output.includes('Stage Change'));
+    assert.ok(output.includes('Tracking'));
+    assert.ok(output.includes('Foundation'));
+  });
+
+  it('omits stage transition section when no transition occurred', () => {
+    const output = formatCoachOutput(mockResult, 'github-discussion');
+
+    assert.ok(!output.includes('Stage Advancement'));
+    assert.ok(!output.includes('Stage Change'));
+    assert.ok(!output.includes('Congratulations'));
+  });
+
+  it('has separator line before metadata footer', () => {
+    const output = formatCoachOutput(mockResult, 'github-discussion');
+
+    assert.ok(output.includes('---'));
   });
 });

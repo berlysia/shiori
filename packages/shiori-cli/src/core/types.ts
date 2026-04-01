@@ -1461,7 +1461,7 @@ export interface ImpactPrescription {
   message: string;
   /** CLI command to run */
   command: string;
-  /** Estimated hygiene score impact */
+  /** Estimated score impact (points) on the axis specified by the `axis` field */
   scoreImpact: number;
   /** Which scoring axis this prescription impacts (EP-0202) */
   axis: PrescriptionAxis;

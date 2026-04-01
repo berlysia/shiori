@@ -92,6 +92,12 @@ export const coachCommand = define({
   # GitHub Issue body format
   shiori coach -f github-issue
 
+  # Slack-compatible Markdown for channel sharing (EP-0212)
+  shiori coach -f slack-markdown
+
+  # GitHub Discussion format for team sharing (EP-0212)
+  shiori coach -f github-discussion
+
   # Use custom template file
   shiori coach --template-file ./my-prompt.md
 
@@ -125,7 +131,7 @@ export const coachCommand = define({
       type: 'string',
       short: 'f',
       description:
-        'Output format: "prompt" (raw text), "json" (structured), "github-issue" (collapsible). Default: "prompt"',
+        'Output format: "prompt" (raw text), "json" (structured), "github-issue" (collapsible), "slack-markdown" (Slack channel), "github-discussion" (Discussion post). Default: "prompt"',
       default: 'prompt',
     },
     output: {
