@@ -90,6 +90,7 @@ export const REGISTERED_COMMANDS: readonly string[] = [
   'pitch',
   'onboard',
   'impact',
+  'badge',
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -235,6 +236,10 @@ export const EXIT_CODE_POLICIES: Record<string, ExitCodePolicy> = {
     category: 'usage',
     failCondition:
       'validation failures (invalid --format, --owner not found in registry)',
+  },
+  badge: {
+    category: 'usage',
+    failCondition: 'validation failures (invalid --format, --style)',
   },
 
   // -- Passthrough commands (always exit 0) --
