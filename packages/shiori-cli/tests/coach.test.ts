@@ -7,7 +7,11 @@ import {
   COACH_TEMPLATES,
   COACH_FORMATS,
   COACH_PLACEHOLDERS,
+  MATURITY_GUIDANCE_MAP,
+  resolveMaturityStageName,
+  resolveMaturityGuidance,
 } from '../src/commands/coach.ts';
+import type { HealthMaturityStage } from '../src/core/types.ts';
 
 describe('buildCoachPrompt', () => {
   it('builds triage prompt with JSON embedded', () => {
@@ -238,5 +242,205 @@ describe('narrative + coach integration (EP-0151)', () => {
     assert.ok(!result.prompt.includes(narrativeJson));
     // but still tracked in sources
     assert.equal(result.sources.narrative, narrativeJson);
+  });
+});
+
+// ── Maturity-Aware Coach Templates (EP-0205) ─────────────────
+
+describe('resolveMaturityStageName', () => {
+  it('returns stage name when provided', () => {
+    assert.equal(resolveMaturityStageName('Foundation'), 'Foundation');
+    assert.equal(resolveMaturityStageName('Tracking'), 'Tracking');
+    assert.equal(resolveMaturityStageName('Maintained'), 'Maintained');
+    assert.equal(resolveMaturityStageName('Autonomous'), 'Autonomous');
+  });
+
+  it('returns empty string when undefined (backward compatibility)', () => {
+    assert.equal(resolveMaturityStageName(undefined), '');
+  });
+});
+
+describe('resolveMaturityGuidance', () => {
+  it('returns stage-specific guidance for each stage', () => {
+    const stages: HealthMaturityStage[] = [
+      'Foundation',
+      'Tracking',
+      'Maintained',
+      'Autonomous',
+    ];
+    for (const stage of stages) {
+      const guidance = resolveMaturityGuidance(stage);
+      assert.ok(guidance.length > 0, `${stage} should have non-empty guidance`);
+      assert.equal(
+        guidance,
+        MATURITY_GUIDANCE_MAP[stage],
+        `${stage} guidance should match map`,
+      );
+    }
+  });
+
+  it('returns empty string when undefined (backward compatibility)', () => {
+    assert.equal(resolveMaturityGuidance(undefined), '');
+  });
+});
+
+describe('MATURITY_GUIDANCE_MAP', () => {
+  it('has guidance for all four stages', () => {
+    const stages: HealthMaturityStage[] = [
+      'Foundation',
+      'Tracking',
+      'Maintained',
+      'Autonomous',
+    ];
+    for (const stage of stages) {
+      assert.ok(
+        stage in MATURITY_GUIDANCE_MAP,
+        `Missing guidance for ${stage}`,
+      );
+      assert.ok(
+        MATURITY_GUIDANCE_MAP[stage].length > 0,
+        `${stage} guidance should not be empty`,
+      );
+    }
+  });
+
+  it('Foundation guidance focuses on adopt/scan', () => {
+    const guidance = MATURITY_GUIDANCE_MAP.Foundation;
+    assert.ok(guidance.includes('adopt'));
+    assert.ok(guidance.includes('scan'));
+    assert.ok(guidance.includes('Foundation'));
+  });
+
+  it('Tracking guidance focuses on hygiene metrics', () => {
+    const guidance = MATURITY_GUIDANCE_MAP.Tracking;
+    assert.ok(guidance.includes('triage'));
+    assert.ok(guidance.includes('Tracking'));
+  });
+
+  it('Maintained guidance focuses on prescriptions remediation', () => {
+    const guidance = MATURITY_GUIDANCE_MAP.Maintained;
+    assert.ok(guidance.includes('prescriptions'));
+    assert.ok(guidance.includes('Maintained'));
+  });
+
+  it('Autonomous guidance focuses on CI/CD automation', () => {
+    const guidance = MATURITY_GUIDANCE_MAP.Autonomous;
+    assert.ok(guidance.includes('CI/CD'));
+    assert.ok(guidance.includes('Autonomous'));
+  });
+});
+
+describe('maturity-aware coach templates (EP-0205)', () => {
+  it('replaces {{MATURITY_STAGE}} in all built-in templates', () => {
+    for (const tmpl of COACH_TEMPLATES) {
+      const result = buildCoachPrompt(tmpl, {
+        maturityStage: 'Foundation',
+      });
+      assert.ok(
+        result.prompt.includes('Foundation'),
+        `Template "${tmpl}" should contain maturity stage name`,
+      );
+      assert.ok(
+        !result.prompt.includes('{{MATURITY_STAGE}}'),
+        `Template "${tmpl}" should not have unreplaced {{MATURITY_STAGE}}`,
+      );
+    }
+  });
+
+  it('replaces {{MATURITY_GUIDANCE}} in all built-in templates', () => {
+    for (const tmpl of COACH_TEMPLATES) {
+      const result = buildCoachPrompt(tmpl, {
+        maturityStage: 'Autonomous',
+      });
+      assert.ok(
+        !result.prompt.includes('{{MATURITY_GUIDANCE}}'),
+        `Template "${tmpl}" should not have unreplaced {{MATURITY_GUIDANCE}}`,
+      );
+      assert.ok(
+        result.prompt.includes('Autonomous'),
+        `Template "${tmpl}" should contain Autonomous guidance`,
+      );
+    }
+  });
+
+  it('shows different guidance for Foundation vs Autonomous (AC-4)', () => {
+    const foundation = buildCoachPrompt('health', {
+      healthJson: '{"health":{"score":30}}',
+      maturityStage: 'Foundation',
+    });
+    const autonomous = buildCoachPrompt('health', {
+      healthJson: '{"health":{"score":95}}',
+      maturityStage: 'Autonomous',
+    });
+
+    // Foundation guidance focuses on adoption workflow
+    assert.ok(foundation.prompt.includes('基盤構築フェーズ'));
+    assert.ok(foundation.prompt.includes('adopt'));
+    assert.ok(foundation.prompt.includes('scan'));
+
+    // Autonomous guidance focuses on automation and org-wide deployment
+    assert.ok(autonomous.prompt.includes('自律運用フェーズ'));
+    assert.ok(autonomous.prompt.includes('退行防止'));
+    assert.ok(autonomous.prompt.includes('組織展開'));
+
+    // The two prompts should differ
+    assert.notEqual(foundation.prompt, autonomous.prompt);
+  });
+
+  it('handles missing maturityStage gracefully (backward compatibility, AC-7)', () => {
+    const result = buildCoachPrompt('triage', {
+      triageJson: '{"items":[]}',
+    });
+
+    // Should not contain raw placeholders
+    assert.ok(!result.prompt.includes('{{MATURITY_STAGE}}'));
+    assert.ok(!result.prompt.includes('{{MATURITY_GUIDANCE}}'));
+  });
+
+  it('custom templates can use maturity placeholders (AC-6)', () => {
+    const templateContent =
+      'Stage: {{MATURITY_STAGE}} | Guidance: {{MATURITY_GUIDANCE}} | Data: {{HEALTH_JSON}}';
+    const result = buildCoachPromptFromCustomTemplate(templateContent, {
+      healthJson: '{"score":80}',
+      maturityStage: 'Maintained',
+    });
+
+    assert.ok(result.prompt.includes('Stage: Maintained'));
+    assert.ok(result.prompt.includes('prescriptions'));
+    assert.ok(!result.prompt.includes('{{MATURITY_STAGE}}'));
+    assert.ok(!result.prompt.includes('{{MATURITY_GUIDANCE}}'));
+  });
+
+  it('stage × template: each stage produces unique guidance per template', () => {
+    const stages: HealthMaturityStage[] = [
+      'Foundation',
+      'Tracking',
+      'Maintained',
+      'Autonomous',
+    ];
+
+    for (const tmpl of COACH_TEMPLATES) {
+      const outputs = stages.map(
+        (stage) => buildCoachPrompt(tmpl, { maturityStage: stage }).prompt,
+      );
+
+      // All four outputs should be different from each other
+      for (let i = 0; i < outputs.length; i++) {
+        for (let j = i + 1; j < outputs.length; j++) {
+          assert.notEqual(
+            outputs[i],
+            outputs[j],
+            `Template "${tmpl}": ${stages[i]} and ${stages[j]} should produce different outputs`,
+          );
+        }
+      }
+    }
+  });
+});
+
+describe('COACH_PLACEHOLDERS (EP-0205 additions)', () => {
+  it('has maturity-related placeholder tokens', () => {
+    assert.equal(COACH_PLACEHOLDERS.MATURITY_STAGE, '{{MATURITY_STAGE}}');
+    assert.equal(COACH_PLACEHOLDERS.MATURITY_GUIDANCE, '{{MATURITY_GUIDANCE}}');
   });
 });

@@ -108,7 +108,7 @@ export const coachCommand = define({
       type: 'string',
       toKebab: true,
       description:
-        'Path to a custom template file. Overrides --template. Supports {{TRIAGE_JSON}}, {{WEEKLY_REPORT_JSON}}, {{HEALTH_JSON}}, {{NARRATIVE}} placeholders.',
+        'Path to a custom template file. Overrides --template. Supports {{TRIAGE_JSON}}, {{WEEKLY_REPORT_JSON}}, {{HEALTH_JSON}}, {{NARRATIVE}}, {{MATURITY_STAGE}}, {{MATURITY_GUIDANCE}} placeholders.',
     },
     format: {
       type: 'string',
@@ -401,12 +401,13 @@ export const coachCommand = define({
       );
     }
 
-    // Build coach prompt
+    // Build coach prompt (EP-0205: pass maturityStage for stage-aware coaching)
     const coachInput = {
       triageJson,
       weeklyReportJson,
       healthJson,
       narrativeJson,
+      maturityStage: healthResult.maturityStage,
     };
     let result;
     if (ctx.values.templateFile) {

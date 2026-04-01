@@ -9,7 +9,7 @@
  * @see EP-0139
  */
 
-import { assertNever } from '../core/types.ts';
+import { assertNever, type HealthMaturityStage } from '../core/types.ts';
 import { wrapOutputJson } from '../core/schema-envelope.ts';
 
 // ── Types ────────────────────────────────────────────────────
@@ -40,6 +40,8 @@ export interface CoachInput {
   weeklyReportJson?: string;
   healthJson?: string;
   narrativeJson?: string;
+  /** Governance maturity stage for stage-aware coaching (EP-0205) */
+  maturityStage?: HealthMaturityStage;
 }
 
 export interface CoachResult {
@@ -62,16 +64,109 @@ export const COACH_PLACEHOLDERS = {
   WEEKLY_REPORT: '{{WEEKLY_REPORT_JSON}}',
   HEALTH: '{{HEALTH_JSON}}',
   NARRATIVE: '{{NARRATIVE}}',
+  /** Maturity stage name: Foundation / Tracking / Maintained / Autonomous (EP-0205) */
+  MATURITY_STAGE: '{{MATURITY_STAGE}}',
+  /** Stage-specific coaching guidance block (EP-0205) */
+  MATURITY_GUIDANCE: '{{MATURITY_GUIDANCE}}',
 } as const;
+
+// ── Maturity-Aware Guidance (EP-0205) ────────────────────────
+
+/**
+ * Stage-specific coaching guidance content.
+ *
+ * Each stage provides contextual direction that prevents the LLM from
+ * generating off-target advice (e.g. suggesting CI automation to a
+ * Foundation-stage project that hasn't started tracking yet).
+ */
+export const MATURITY_GUIDANCE_MAP: Record<HealthMaturityStage, string> = {
+  Foundation: `## 成熟度ステージ: Foundation（基盤構築フェーズ）
+
+このプロジェクトはガバナンスの初期段階にあります。追跡率（coverage）と衛生度（hygiene）の両方が低い状態です。
+
+### コーチング方針
+- **adopt / scan を最優先**: まずは未追跡の lint disable コメントを発見し、shiori アノテーションに変換することに集中してください
+- **レジストリの初期セットアップ**: \`shiori init\` → \`shiori adopt\` → \`shiori update\` の基本フローを案内してください
+- **追跡率の改善に注力**: 個別の hygiene 問題（expires 未設定など）よりも、まず追跡率を上げることが優先です
+
+### 避けるべきアドバイス
+- 週次レポートやトレンド分析の導入（データ蓄積が不十分）
+- CI/CD 統合や自動化の提案（基盤が整っていない段階では時期尚早）
+- 高度な triage ワークフローの提案`,
+
+  Tracking: `## 成熟度ステージ: Tracking（追跡進行フェーズ）
+
+このプロジェクトはガバナンスの一部が機能していますが、coverage と hygiene のバランスが取れていません。
+
+### コーチング方針
+- **弱い軸の改善に集中**: coverage が低ければ adopt を、hygiene が低ければ expires/kind の整備を優先してください
+- **triage 習慣の形成**: 定期的な \`shiori triage\` 実行を習慣化する提案をしてください
+- **kind 分類の導入**: temporary/intentional の使い分けを案内してください
+
+### 避けるべきアドバイス
+- ゼロ Issue 達成や完全自動化の提案（まだ早い段階）
+- 高度な自動化（CI パイプライン統合など）の詳細な設定手順`,
+
+  Maintained: `## 成熟度ステージ: Maintained（安定運用フェーズ）
+
+このプロジェクトは coverage・hygiene 共に高水準ですが、まだ改善の余地がある処方箋（prescriptions）が残っています。
+
+### コーチング方針
+- **残りの prescriptions の消化**: health レポート内の prescriptions を優先度順に対処する具体的プランを提案してください
+- **週次レポートの活用**: \`shiori weekly-report\` を定期運用に組み込み、チーム共有する提案をしてください
+- **トレンド監視の導入**: \`shiori trend\` でスコア推移を可視化し、退行を早期検知する仕組みを提案してください
+
+### 避けるべきアドバイス
+- 基本的な adopt/scan の説明（すでに十分追跡されている）
+- 初歩的な shiori CLI の使い方の案内`,
+
+  Autonomous: `## 成熟度ステージ: Autonomous（自律運用フェーズ）
+
+このプロジェクトは coverage・hygiene 共に高く、未解決の prescriptions もありません。自律的にガバナンスが維持されている優秀な状態です。
+
+### コーチング方針
+- **維持・監視の自動化**: CI/CD への shiori verify 統合や、GitHub Actions での定期 health チェックを提案してください
+- **組織展開**: 他プロジェクトへのガバナンス手法の横展開を検討する提案をしてください
+- **退行防止**: \`shiori delta\` をPRレビューに組み込み、スコア退行を防ぐ仕組みを提案してください
+
+### 避けるべきアドバイス
+- 手動ワークフローの詳細な説明（自動化すべき段階）
+- 基本的な CLI 操作のステップバイステップ案内`,
+};
+
+/**
+ * Generate the maturity stage name for placeholder replacement.
+ * Returns empty string when stage is unknown (backward compatibility).
+ */
+export function resolveMaturityStageName(
+  stage: HealthMaturityStage | undefined,
+): string {
+  return stage ?? '';
+}
+
+/**
+ * Generate stage-specific guidance content for placeholder replacement.
+ * Returns empty string when stage is unknown (backward compatibility).
+ */
+export function resolveMaturityGuidance(
+  stage: HealthMaturityStage | undefined,
+): string {
+  if (stage == null) return '';
+  return MATURITY_GUIDANCE_MAP[stage];
+}
 
 // ── Prompt Templates ─────────────────────────────────────────
 
 const TRIAGE_PROMPT = `あなたはソフトウェアガバナンスの専門家です。
 以下は shiori（アノテーション追跡ツール）の triage レポート JSON です。
 
+現在の成熟度ステージ: {{MATURITY_STAGE}}
+
 \`\`\`json
 {{TRIAGE_JSON}}
 \`\`\`
+
+{{MATURITY_GUIDANCE}}
 
 この triage 結果を分析し、以下の形式でガバナンス改善提案を作成してください:
 
@@ -94,9 +189,13 @@ const TRIAGE_PROMPT = `あなたはソフトウェアガバナンスの専門家
 const WEEKLY_PROMPT = `あなたはソフトウェアチームのガバナンスコーチです。
 以下は shiori の週次ガバナンスレポート JSON です。
 
+現在の成熟度ステージ: {{MATURITY_STAGE}}
+
 \`\`\`json
 {{WEEKLY_REPORT_JSON}}
 \`\`\`
+
+{{MATURITY_GUIDANCE}}
 
 このレポートを分析し、チームミーティングで共有できる形式のフィードバックを作成してください:
 
@@ -118,9 +217,13 @@ const WEEKLY_PROMPT = `あなたはソフトウェアチームのガバナンス
 const HEALTH_PROMPT = `あなたはコードベースの健全性を診断する専門家です。
 以下は shiori の health チェック結果です。
 
+現在の成熟度ステージ: {{MATURITY_STAGE}}
+
 \`\`\`json
 {{HEALTH_JSON}}
 \`\`\`
+
+{{MATURITY_GUIDANCE}}
 
 診断結果を以下の形式で出力してください:
 
@@ -143,6 +246,8 @@ const HEALTH_PROMPT = `あなたはコードベースの健全性を診断する
 const COMBINED_PROMPT = `あなたはソフトウェアガバナンスの専門家です。
 以下は shiori（アノテーション追跡ツール）の複数のレポートです。
 
+現在の成熟度ステージ: {{MATURITY_STAGE}}
+
 ## Triage レポート
 \`\`\`json
 {{TRIAGE_JSON}}
@@ -162,6 +267,8 @@ const COMBINED_PROMPT = `あなたはソフトウェアガバナンスの専門�
 \`\`\`json
 {{NARRATIVE}}
 \`\`\`
+
+{{MATURITY_GUIDANCE}}
 
 これらのレポートを総合的に分析し、以下を出力してください:
 1. 現状の要約（2-3文、ナラティブの変動傾向を加味）
@@ -216,6 +323,17 @@ function replacePlaceholders(
     );
     sources.narrative = input.narrativeJson;
   }
+
+  // Maturity-aware placeholders (EP-0205): always replace to avoid
+  // leaving raw {{MATURITY_*}} tokens in the output prompt.
+  prompt = prompt.replaceAll(
+    COACH_PLACEHOLDERS.MATURITY_STAGE,
+    resolveMaturityStageName(input.maturityStage),
+  );
+  prompt = prompt.replaceAll(
+    COACH_PLACEHOLDERS.MATURITY_GUIDANCE,
+    resolveMaturityGuidance(input.maturityStage),
+  );
 
   return { prompt, sources };
 }
