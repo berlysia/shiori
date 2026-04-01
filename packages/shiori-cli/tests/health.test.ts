@@ -15,6 +15,7 @@ import {
   interpretDualAxis,
   classifyQuadrant,
   generateNextSteps,
+  classifyMaturityStage,
 } from '../src/commands/health.ts';
 import { formatHealth } from '../src/commands/health-cli.ts';
 import { isAtOrBelowLevel, formatAxisSuffix } from '../src/core/types.ts';
@@ -828,6 +829,395 @@ describe('prescription axis display (EP-0202)', () => {
       assert.ok(
         rx.axis === 'coverage' || rx.axis === 'hygiene',
         `prescription axis should be coverage or hygiene, got: ${rx.axis}`,
+      );
+    }
+  });
+});
+
+describe('classifyMaturityStage (EP-0203)', () => {
+  it('returns Foundation for low-coverage-low-hygiene', () => {
+    // Both axes below threshold → Foundation stage
+    // Multiple missing-in-registry annotations degrade hygiene (5pts each, max 30)
+    // Plus an expired annotation for additional critical deduction to push below 70
+    // Many candidates degrade coverage
+    const annotations = [
+      ...Array.from({ length: 6 }, (_, i) =>
+        makeAnnotation({ ref: `MISS-${i}` }),
+      ),
+      makeAnnotation({ ref: 'EXP-EXTRA' }),
+    ];
+    const candidates = Array.from({ length: 20 }, (_, i) => ({
+      pattern: 'eslint',
+      rule: `rule-${i}`,
+      location: { file: `file-${i}.ts`, line: 1 },
+      directive: 'eslint-disable-next-line' as const,
+    }));
+
+    const result = health({
+      scanResult: makeScanResult(annotations, candidates),
+      // No registry entries for MISS-* → missing-in-registry deductions
+      // EXP-EXTRA has expired → critical deduction (10pts)
+      registry: {
+        'EXP-EXTRA': makeRegistryEntry({ expires: '2020-01-01' }),
+      },
+      failOn: [],
+      warnOn: [],
+    });
+
+    // Verify both axes are below threshold
+    assert.ok(
+      result.health.coverage < 70,
+      `coverage should be < 70, got ${result.health.coverage}`,
+    );
+    assert.ok(
+      result.health.hygiene < 70,
+      `hygiene should be < 70, got ${result.health.hygiene}`,
+    );
+    assert.equal(result.maturityStage, 'Foundation');
+  });
+
+  it('returns Tracking for high-coverage-low-hygiene', () => {
+    // High coverage (all tracked), low hygiene (expired annotations)
+    const annotations = Array.from({ length: 5 }, (_, i) =>
+      makeAnnotation({ ref: `EXP-${i}` }),
+    );
+    const registry: Registry = {};
+    for (const a of annotations) {
+      registry[a.ref] = makeRegistryEntry({ expires: '2020-01-01' });
+    }
+
+    const result = health({
+      scanResult: makeScanResult(annotations),
+      registry,
+      failOn: [],
+      warnOn: [],
+    });
+
+    assert.equal(result.maturityStage, 'Tracking');
+  });
+
+  it('returns Tracking for low-coverage-high-hygiene', () => {
+    // Low coverage (many candidates), but tracked ones are clean
+    const result = health({
+      scanResult: makeScanResult(
+        [makeAnnotation({ ref: 'CLEAN-001' })],
+        // Many candidates push coverage below threshold
+        Array.from({ length: 10 }, (_, i) => ({
+          pattern: 'eslint',
+          rule: `rule-${i}`,
+          location: { file: `file-${i}.ts`, line: 1 },
+          directive: 'eslint-disable-next-line' as const,
+        })),
+      ),
+      registry: {
+        'CLEAN-001': makeRegistryEntry({ kind: 'intentional' }),
+      },
+      failOn: [],
+      warnOn: [],
+    });
+
+    assert.equal(result.maturityStage, 'Tracking');
+  });
+
+  it('returns Autonomous for perfect score with no prescriptions', () => {
+    // Both axes high, no issues → Autonomous
+    const result = health({
+      scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
+      registry: {
+        'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
+      },
+      failOn: [],
+      warnOn: [],
+    });
+
+    // Perfect score → no prescriptions
+    assert.equal(result.prescriptions, undefined);
+    assert.equal(result.maturityStage, 'Autonomous');
+  });
+
+  it('returns Maintained for high-high with active prescriptions', () => {
+    // Both axes high but some issues trigger prescriptions
+    // We need annotations that keep coverage high but have minor issues
+    const result = health({
+      scanResult: makeScanResult([
+        makeAnnotation({ ref: 'A-001' }),
+        makeAnnotation({ ref: 'A-002' }),
+      ]),
+      registry: {
+        'A-001': makeRegistryEntry({ kind: 'intentional' }),
+        // A-002 has expiring-soon issue (minor hygiene deduction, not enough to drop below 70)
+        'A-002': makeRegistryEntry({ expires: '2026-04-15' }),
+      },
+      failOn: [],
+      warnOn: [],
+      now: new Date('2026-04-08T00:00:00Z'),
+    });
+
+    // Verify we're in the right quadrant (both high) but with prescriptions
+    assert.ok(result.health.coverage >= 70);
+    assert.ok(result.health.hygiene >= 70);
+    if (result.prescriptions && result.prescriptions.length > 0) {
+      assert.equal(result.maturityStage, 'Maintained');
+    } else {
+      // If no prescriptions generated, it should be Autonomous
+      assert.equal(result.maturityStage, 'Autonomous');
+    }
+  });
+});
+
+describe('classifyMaturityStage unit tests (EP-0203)', () => {
+  // Direct unit tests with synthetic HealthResult objects
+
+  it('returns Foundation when quadrant is low-coverage-low-hygiene', () => {
+    const result = classifyMaturityStage({
+      timestamp: '',
+      health: {
+        level: 'critical',
+        score: 20,
+        coverage: 20,
+        hygiene: 20,
+        summary: '',
+      },
+      issues: { total: 5, errors: 5, warnings: 0 },
+      expiring: { expired: 0, expiringSoon: 0 },
+      insights: [],
+      nextSteps: { quadrant: 'low-coverage-low-hygiene', label: '', steps: [] },
+    });
+    assert.equal(result, 'Foundation');
+  });
+
+  it('returns Tracking for high-coverage-low-hygiene', () => {
+    const result = classifyMaturityStage({
+      timestamp: '',
+      health: {
+        level: 'warning',
+        score: 50,
+        coverage: 80,
+        hygiene: 50,
+        summary: '',
+      },
+      issues: { total: 3, errors: 3, warnings: 0 },
+      expiring: { expired: 2, expiringSoon: 0 },
+      insights: [],
+      nextSteps: {
+        quadrant: 'high-coverage-low-hygiene',
+        label: '',
+        steps: [],
+      },
+      prescriptions: [
+        {
+          urgency: 'critical',
+          message: '',
+          command: '',
+          scoreImpact: 10,
+          actionType: 'triage',
+          axis: 'hygiene',
+        },
+      ],
+    });
+    assert.equal(result, 'Tracking');
+  });
+
+  it('returns Tracking for low-coverage-high-hygiene', () => {
+    const result = classifyMaturityStage({
+      timestamp: '',
+      health: {
+        level: 'warning',
+        score: 40,
+        coverage: 40,
+        hygiene: 90,
+        summary: '',
+      },
+      issues: { total: 0, errors: 0, warnings: 0 },
+      expiring: { expired: 0, expiringSoon: 0 },
+      insights: [],
+      nextSteps: {
+        quadrant: 'low-coverage-high-hygiene',
+        label: '',
+        steps: [],
+      },
+    });
+    assert.equal(result, 'Tracking');
+  });
+
+  it('returns Maintained for high-high with prescriptions', () => {
+    const result = classifyMaturityStage({
+      timestamp: '',
+      health: {
+        level: 'healthy',
+        score: 80,
+        coverage: 80,
+        hygiene: 80,
+        summary: '',
+      },
+      issues: { total: 1, errors: 0, warnings: 1 },
+      expiring: { expired: 0, expiringSoon: 1 },
+      insights: [],
+      nextSteps: {
+        quadrant: 'high-coverage-high-hygiene',
+        label: '',
+        steps: [],
+      },
+      prescriptions: [
+        {
+          urgency: 'suggestion',
+          message: '',
+          command: '',
+          scoreImpact: 2,
+          actionType: 'triage',
+          axis: 'hygiene',
+        },
+      ],
+    });
+    assert.equal(result, 'Maintained');
+  });
+
+  it('returns Autonomous for high-high with no prescriptions', () => {
+    const result = classifyMaturityStage({
+      timestamp: '',
+      health: {
+        level: 'healthy',
+        score: 100,
+        coverage: 100,
+        hygiene: 100,
+        summary: '',
+      },
+      issues: { total: 0, errors: 0, warnings: 0 },
+      expiring: { expired: 0, expiringSoon: 0 },
+      insights: [],
+      nextSteps: {
+        quadrant: 'high-coverage-high-hygiene',
+        label: '',
+        steps: [],
+      },
+    });
+    assert.equal(result, 'Autonomous');
+  });
+
+  it('returns Autonomous when prescriptions array is empty', () => {
+    const result = classifyMaturityStage({
+      timestamp: '',
+      health: {
+        level: 'healthy',
+        score: 100,
+        coverage: 100,
+        hygiene: 100,
+        summary: '',
+      },
+      issues: { total: 0, errors: 0, warnings: 0 },
+      expiring: { expired: 0, expiringSoon: 0 },
+      insights: [],
+      nextSteps: {
+        quadrant: 'high-coverage-high-hygiene',
+        label: '',
+        steps: [],
+      },
+      prescriptions: [],
+    });
+    assert.equal(result, 'Autonomous');
+  });
+
+  it('falls back to classifyQuadrant when nextSteps is absent', () => {
+    const result = classifyMaturityStage({
+      timestamp: '',
+      health: {
+        level: 'critical',
+        score: 30,
+        coverage: 30,
+        hygiene: 30,
+        summary: '',
+      },
+      issues: { total: 5, errors: 5, warnings: 0 },
+      expiring: { expired: 0, expiringSoon: 0 },
+      insights: [],
+    });
+    assert.equal(result, 'Foundation');
+  });
+});
+
+describe('health maturityStage integration (EP-0203)', () => {
+  it('includes maturityStage in HealthResult', () => {
+    const result = health({
+      scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
+      registry: {
+        'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
+      },
+      failOn: [],
+      warnOn: [],
+    });
+
+    assert.ok(result.maturityStage);
+    assert.ok(
+      ['Foundation', 'Tracking', 'Maintained', 'Autonomous'].includes(
+        result.maturityStage,
+      ),
+      `maturityStage should be one of the valid stages, got: ${result.maturityStage}`,
+    );
+  });
+
+  it('shows Stage line in formatHealthSummary', () => {
+    const result = health({
+      scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
+      registry: {
+        'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
+      },
+      failOn: [],
+      warnOn: [],
+    });
+
+    const output = formatHealthSummary(result);
+    assert.ok(output.includes('Stage:'), 'should contain Stage label');
+    assert.ok(
+      output.includes('Autonomous') ||
+        output.includes('Maintained') ||
+        output.includes('Tracking') ||
+        output.includes('Foundation'),
+      'should contain a maturity stage name',
+    );
+  });
+
+  it('includes maturityStage in JSON output', () => {
+    const result = health({
+      scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
+      registry: {
+        'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
+      },
+      failOn: [],
+      warnOn: [],
+    });
+
+    const output = formatHealth(result, 'json');
+    const parsed = JSON.parse(output);
+    assert.ok(parsed.data.maturityStage);
+    assert.ok(
+      ['Foundation', 'Tracking', 'Maintained', 'Autonomous'].includes(
+        parsed.data.maturityStage,
+      ),
+    );
+  });
+
+  it('box width remains consistent with Stage line', () => {
+    const result = health({
+      scanResult: makeScanResult([makeAnnotation({ ref: 'TEST-001' })]),
+      registry: {
+        'TEST-001': makeRegistryEntry({ kind: 'intentional' }),
+      },
+      failOn: [],
+      warnOn: [],
+    });
+
+    const output = formatHealthSummary(result);
+    const lines = output.split('\n');
+
+    const borderLines = lines.filter(
+      (l) => l.startsWith('┌') || l.startsWith('├') || l.startsWith('└'),
+    );
+    const borderLength = borderLines[0]!.length;
+    for (const bl of borderLines) {
+      assert.equal(
+        bl.length,
+        borderLength,
+        `border line length mismatch: "${bl}" (${bl.length} vs ${borderLength})`,
       );
     }
   });

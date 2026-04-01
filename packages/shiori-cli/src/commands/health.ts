@@ -6,6 +6,7 @@ import {
   type TrendResult,
   type HealthQuadrant,
   type HealthNextSteps,
+  type HealthMaturityStage,
   formatAxisSuffix,
 } from '../core/types.ts';
 import { healthEmoji, trendArrow } from '../core/emoji.ts';
@@ -97,6 +98,9 @@ export function buildHealthResult(
     reportResult.health.hygiene,
   );
 
+  // Governance maturity stage classification (EP-0203)
+  result.maturityStage = classifyMaturityStage(result);
+
   return result;
 }
 
@@ -110,11 +114,15 @@ export function formatHealthSummary(result: HealthResult): string {
   // Build content lines (without box decorations) as sections
   const sections: string[][] = [];
 
-  // Header section: dual-axis display (ADR 024 Phase 2)
-  sections.push([
+  // Header section: dual-axis display (ADR 024 Phase 2) + maturity stage (EP-0203)
+  const headerLines = [
     `${emoji} Health: ${result.health.score}/100 (${result.health.level})`,
     `  Coverage: ${result.health.coverage}/100  Hygiene: ${result.health.hygiene}/100`,
-  ]);
+  ];
+  if (result.maturityStage) {
+    headerLines.push(`  Stage: ${result.maturityStage}`);
+  }
+  sections.push(headerLines);
 
   // Info section
   const infoLines: string[] = [];
@@ -313,3 +321,59 @@ const QUADRANT_STEPS: Record<HealthQuadrant, HealthNextSteps['steps']> = {
     },
   ],
 };
+
+// ── Maturity stage classification (EP-0203) ──────────────────
+
+/**
+ * Human-readable labels for each maturity stage.
+ * Used in summary display and potential future badge integration.
+ */
+export const MATURITY_STAGE_LABELS: Record<HealthMaturityStage, string> = {
+  Foundation: 'Needs foundation work',
+  Tracking: 'Partially governed',
+  Maintained: 'Well-managed',
+  Autonomous: 'Self-sustaining governance',
+};
+
+/**
+ * Classify the governance maturity stage from a HealthResult.
+ *
+ * Uses the dual-axis quadrant and prescription count to determine
+ * which of the four stages best describes the project's current state:
+ *
+ * - Foundation: Both axes below threshold (low-coverage-low-hygiene)
+ * - Tracking: One axis is strong but the other needs work (mixed quadrants)
+ * - Maintained: Both axes high but active prescriptions remain
+ * - Autonomous: Both axes high with zero prescriptions
+ *
+ * Pure function — no I/O, depends only on already-computed HealthResult fields.
+ */
+export function classifyMaturityStage(
+  result: HealthResult,
+): HealthMaturityStage {
+  const quadrant =
+    result.nextSteps?.quadrant ??
+    classifyQuadrant(result.health.coverage, result.health.hygiene);
+  const prescriptionCount = result.prescriptions?.length ?? 0;
+
+  // Both axes below threshold → Foundation
+  if (quadrant === 'low-coverage-low-hygiene') {
+    return 'Foundation';
+  }
+
+  // One axis high, other low → Tracking
+  if (
+    quadrant === 'high-coverage-low-hygiene' ||
+    quadrant === 'low-coverage-high-hygiene'
+  ) {
+    return 'Tracking';
+  }
+
+  // Both axes high — distinguish by prescription count
+  // Active prescriptions mean there's still room to improve
+  if (prescriptionCount > 0) {
+    return 'Maintained';
+  }
+
+  return 'Autonomous';
+}

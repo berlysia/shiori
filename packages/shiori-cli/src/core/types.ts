@@ -1050,6 +1050,8 @@ export interface HealthResult {
   diagnosis?: string;
   /** Quadrant-based next step recommendations (EP-0201) */
   nextSteps?: HealthNextSteps;
+  /** Governance maturity stage classification (EP-0203) */
+  maturityStage?: HealthMaturityStage;
 }
 
 /** Urgency level for health prescriptions */
@@ -1116,6 +1118,23 @@ export interface HealthNextSteps {
   /** Ordered list of recommended actions */
   steps: HealthNextStep[];
 }
+
+// ── Health Maturity Stage types (EP-0203) ─────────────────────
+
+/**
+ * Governance maturity stage derived from dual-axis scores and prescription count.
+ * Provides an intuitive "where are we?" classification for the project.
+ *
+ * - Foundation: Both axes below threshold — governance is starting from scratch
+ * - Tracking: One axis is strong but the other needs work — partially governed
+ * - Maintained: Both axes high but active prescriptions remain — well-managed with room to improve
+ * - Autonomous: Both axes high with no prescriptions — self-sustaining governance
+ */
+export type HealthMaturityStage =
+  | 'Foundation'
+  | 'Tracking'
+  | 'Maintained'
+  | 'Autonomous';
 
 // ── Demo output types (EP-0174) ──────────────────────────────
 
