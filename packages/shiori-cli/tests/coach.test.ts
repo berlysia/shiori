@@ -8,6 +8,8 @@ import {
   COACH_FORMATS,
   COACH_PLACEHOLDERS,
   MATURITY_GUIDANCE_MAP,
+  STAGE_CELEBRATION_MAP,
+  NEXT_STAGE_ROADMAP,
   resolveMaturityStageName,
   resolveMaturityGuidance,
   resolveDiffBlock,
@@ -611,6 +613,328 @@ describe('resolveStageTransition', () => {
     assert.ok(block.includes('ステージ変化'));
     assert.ok(block.includes('Tracking'));
     assert.ok(block.includes('Foundation'));
+  });
+
+  it('includes stage-specific celebration for Tracking advancement (EP-0211)', () => {
+    const ctx: CoachDiffContext = {
+      current: {
+        timestamp: '2026-04-01T10:00:00.000Z',
+        totalIssues: 5,
+        expiredRefs: 0,
+        healthScore: 65,
+        coverage: 75,
+        hygiene: 50,
+        maturityStage: 'Tracking',
+      },
+      previous: {
+        timestamp: '2026-03-25T10:00:00.000Z',
+        totalIssues: 8,
+        expiredRefs: 2,
+        healthScore: 30,
+        coverage: 40,
+        hygiene: 35,
+        maturityStage: 'Foundation',
+      },
+      deltas: {
+        totalIssues: -3,
+        expiredRefs: -2,
+        healthScore: 35,
+        coverage: 35,
+        hygiene: 15,
+      },
+      stageTransition: { from: 'Foundation', to: 'Tracking' },
+      diffSummaryOneLiner: 'stage advanced',
+    };
+    const block = resolveStageTransition(ctx);
+    assert.ok(block.includes(STAGE_CELEBRATION_MAP.Tracking));
+    assert.ok(block.includes(NEXT_STAGE_ROADMAP.Tracking));
+  });
+
+  it('includes stage-specific celebration for Autonomous advancement (EP-0211)', () => {
+    const ctx: CoachDiffContext = {
+      current: {
+        timestamp: '2026-04-01T10:00:00.000Z',
+        totalIssues: 0,
+        expiredRefs: 0,
+        healthScore: 100,
+        coverage: 95,
+        hygiene: 95,
+        maturityStage: 'Autonomous',
+      },
+      previous: {
+        timestamp: '2026-03-25T10:00:00.000Z',
+        totalIssues: 2,
+        expiredRefs: 0,
+        healthScore: 85,
+        coverage: 90,
+        hygiene: 80,
+        maturityStage: 'Maintained',
+      },
+      deltas: {
+        totalIssues: -2,
+        expiredRefs: 0,
+        healthScore: 15,
+        coverage: 5,
+        hygiene: 15,
+      },
+      stageTransition: { from: 'Maintained', to: 'Autonomous' },
+      diffSummaryOneLiner: 'stage advanced',
+    };
+    const block = resolveStageTransition(ctx);
+    assert.ok(block.includes(STAGE_CELEBRATION_MAP.Autonomous));
+    assert.ok(block.includes(NEXT_STAGE_ROADMAP.Autonomous));
+  });
+
+  it('each stage transition produces distinct celebration content (EP-0211)', () => {
+    const transitions: Array<{
+      from: HealthMaturityStage;
+      to: HealthMaturityStage;
+    }> = [
+      { from: 'Foundation', to: 'Tracking' },
+      { from: 'Tracking', to: 'Maintained' },
+      { from: 'Maintained', to: 'Autonomous' },
+    ];
+    const blocks = transitions.map((stageTransition) => {
+      const ctx: CoachDiffContext = {
+        current: {
+          timestamp: '2026-04-01T10:00:00.000Z',
+          totalIssues: 0,
+          expiredRefs: 0,
+          healthScore: 90,
+          coverage: 90,
+          hygiene: 90,
+          maturityStage: stageTransition.to,
+        },
+        previous: {
+          timestamp: '2026-03-25T10:00:00.000Z',
+          totalIssues: 5,
+          expiredRefs: 1,
+          healthScore: 50,
+          coverage: 50,
+          hygiene: 50,
+          maturityStage: stageTransition.from,
+        },
+        deltas: {
+          totalIssues: -5,
+          expiredRefs: -1,
+          healthScore: 40,
+          coverage: 40,
+          hygiene: 40,
+        },
+        stageTransition,
+        diffSummaryOneLiner: 'stage advanced',
+      };
+      return resolveStageTransition(ctx);
+    });
+
+    // All three celebration blocks should be distinct
+    for (let i = 0; i < blocks.length; i++) {
+      for (let j = i + 1; j < blocks.length; j++) {
+        assert.notEqual(
+          blocks[i],
+          blocks[j],
+          `${transitions[i]!.to} and ${transitions[j]!.to} celebrations should differ`,
+        );
+      }
+    }
+  });
+});
+
+// ── Stage Celebration Map and Roadmap (EP-0211) ──────────────
+
+describe('STAGE_CELEBRATION_MAP (EP-0211)', () => {
+  it('has celebration messages for all four stages', () => {
+    const stages: HealthMaturityStage[] = [
+      'Foundation',
+      'Tracking',
+      'Maintained',
+      'Autonomous',
+    ];
+    for (const stage of stages) {
+      assert.ok(
+        stage in STAGE_CELEBRATION_MAP,
+        `Missing celebration for ${stage}`,
+      );
+      assert.ok(
+        STAGE_CELEBRATION_MAP[stage].length > 0,
+        `${stage} celebration should not be empty`,
+      );
+    }
+  });
+});
+
+describe('NEXT_STAGE_ROADMAP (EP-0211)', () => {
+  it('has roadmap for all four stages', () => {
+    const stages: HealthMaturityStage[] = [
+      'Foundation',
+      'Tracking',
+      'Maintained',
+      'Autonomous',
+    ];
+    for (const stage of stages) {
+      assert.ok(stage in NEXT_STAGE_ROADMAP, `Missing roadmap for ${stage}`);
+      assert.ok(
+        NEXT_STAGE_ROADMAP[stage].length > 0,
+        `${stage} roadmap should not be empty`,
+      );
+    }
+  });
+
+  it('Foundation roadmap mentions Tracking as next stage', () => {
+    assert.ok(NEXT_STAGE_ROADMAP.Foundation.includes('Tracking'));
+    assert.ok(NEXT_STAGE_ROADMAP.Foundation.includes('shiori adopt'));
+  });
+
+  it('Tracking roadmap mentions Maintained as next stage', () => {
+    assert.ok(NEXT_STAGE_ROADMAP.Tracking.includes('Maintained'));
+    assert.ok(NEXT_STAGE_ROADMAP.Tracking.includes('shiori triage'));
+  });
+
+  it('Maintained roadmap mentions Autonomous as next stage', () => {
+    assert.ok(NEXT_STAGE_ROADMAP.Maintained.includes('Autonomous'));
+    assert.ok(NEXT_STAGE_ROADMAP.Maintained.includes('prescriptions'));
+  });
+
+  it('Autonomous roadmap provides maintenance guidance', () => {
+    assert.ok(NEXT_STAGE_ROADMAP.Autonomous.includes('維持'));
+    assert.ok(NEXT_STAGE_ROADMAP.Autonomous.includes('shiori delta'));
+  });
+});
+
+// ── Stage Transition in JSON Output (EP-0211) ────────────────
+
+describe('stageTransition in CoachResult (EP-0211)', () => {
+  it('includes stageTransition data when stage advanced', () => {
+    const result = buildCoachPrompt('health', {
+      healthJson: '{"score":90}',
+      diffContext: {
+        current: {
+          timestamp: '2026-04-01T10:00:00.000Z',
+          totalIssues: 0,
+          expiredRefs: 0,
+          healthScore: 90,
+          coverage: 90,
+          hygiene: 90,
+          maturityStage: 'Maintained',
+        },
+        previous: {
+          timestamp: '2026-03-25T10:00:00.000Z',
+          totalIssues: 5,
+          expiredRefs: 1,
+          healthScore: 50,
+          coverage: 50,
+          hygiene: 50,
+          maturityStage: 'Tracking',
+        },
+        deltas: {
+          totalIssues: -5,
+          expiredRefs: -1,
+          healthScore: 40,
+          coverage: 40,
+          hygiene: 40,
+        },
+        stageTransition: { from: 'Tracking', to: 'Maintained' },
+        diffSummaryOneLiner: 'stage advanced',
+      },
+    });
+
+    assert.ok(result.stageTransition);
+    assert.equal(result.stageTransition!.from, 'Tracking');
+    assert.equal(result.stageTransition!.to, 'Maintained');
+    assert.equal(result.stageTransition!.advanced, true);
+  });
+
+  it('includes stageTransition with advanced=false for regression', () => {
+    const result = buildCoachPrompt('health', {
+      healthJson: '{"score":30}',
+      diffContext: {
+        current: {
+          timestamp: '2026-04-01T10:00:00.000Z',
+          totalIssues: 10,
+          expiredRefs: 5,
+          healthScore: 30,
+          coverage: 40,
+          hygiene: 35,
+          maturityStage: 'Foundation',
+        },
+        previous: {
+          timestamp: '2026-03-25T10:00:00.000Z',
+          totalIssues: 5,
+          expiredRefs: 1,
+          healthScore: 70,
+          coverage: 80,
+          hygiene: 65,
+          maturityStage: 'Tracking',
+        },
+        deltas: {
+          totalIssues: 5,
+          expiredRefs: 4,
+          healthScore: -40,
+          coverage: -40,
+          hygiene: -30,
+        },
+        stageTransition: { from: 'Tracking', to: 'Foundation' },
+        diffSummaryOneLiner: 'stage regressed',
+      },
+    });
+
+    assert.ok(result.stageTransition);
+    assert.equal(result.stageTransition!.from, 'Tracking');
+    assert.equal(result.stageTransition!.to, 'Foundation');
+    assert.equal(result.stageTransition!.advanced, false);
+  });
+
+  it('stageTransition is undefined when no transition occurred', () => {
+    const result = buildCoachPrompt('health', {
+      healthJson: '{"score":65}',
+    });
+
+    assert.equal(result.stageTransition, undefined);
+  });
+
+  it('stageTransition appears in JSON output format', () => {
+    const result = buildCoachPrompt('health', {
+      healthJson: '{"score":90}',
+      diffContext: {
+        current: {
+          timestamp: '2026-04-01T10:00:00.000Z',
+          totalIssues: 0,
+          expiredRefs: 0,
+          healthScore: 90,
+          coverage: 90,
+          hygiene: 90,
+          maturityStage: 'Maintained',
+        },
+        previous: {
+          timestamp: '2026-03-25T10:00:00.000Z',
+          totalIssues: 5,
+          expiredRefs: 1,
+          healthScore: 50,
+          coverage: 50,
+          hygiene: 50,
+          maturityStage: 'Tracking',
+        },
+        deltas: {
+          totalIssues: -5,
+          expiredRefs: -1,
+          healthScore: 40,
+          coverage: 40,
+          hygiene: 40,
+        },
+        stageTransition: { from: 'Tracking', to: 'Maintained' },
+        diffSummaryOneLiner: 'stage advanced',
+      },
+    });
+    const output = formatCoachOutput(result, 'json');
+    const envelope = JSON.parse(output);
+    const data = envelope.data as {
+      stageTransition?: { from: string; to: string; advanced: boolean };
+    };
+
+    assert.ok(data.stageTransition);
+    assert.equal(data.stageTransition!.from, 'Tracking');
+    assert.equal(data.stageTransition!.to, 'Maintained');
+    assert.equal(data.stageTransition!.advanced, true);
   });
 });
 

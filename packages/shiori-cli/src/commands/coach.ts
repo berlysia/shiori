@@ -10,7 +10,7 @@
  */
 
 import { assertNever, type HealthMaturityStage } from '../core/types.ts';
-import type { CoachDiffContext } from '../core/types.ts';
+import type { CoachDiffContext, StageTransition } from '../core/types.ts';
 import { isStageAdvancement, formatSigned } from '../core/coach-diff.ts';
 import { wrapOutputJson } from '../core/schema-envelope.ts';
 
@@ -58,6 +58,8 @@ export interface CoachResult {
     health?: string;
     narrative?: string;
   };
+  /** Stage transition data for structured output (EP-0211) */
+  stageTransition?: StageTransition & { advanced: boolean };
 }
 
 // ── Placeholder Constants ────────────────────────────────────
@@ -189,9 +191,67 @@ export function resolveDiffBlock(
 この変化を踏まえて、改善のモメンタムを維持するためのアドバイスを含めてください。`;
 }
 
+// ── Stage Transition Celebration (EP-0211) ────────────────────
+
+/**
+ * Stage-specific celebration messages for advancement.
+ * Each message acknowledges the concrete achievement and its significance.
+ */
+export const STAGE_CELEBRATION_MAP: Record<HealthMaturityStage, string> = {
+  Foundation:
+    'プロジェクトはまだ Foundation ステージです。最初のステップとして追跡を始めましょう。',
+  Tracking:
+    'アノテーションの追跡が始まりました！ガバナンスの第一歩を踏み出した重要なマイルストーンです。ここから可視化と改善のサイクルが回り始めます。',
+  Maintained:
+    'カバレッジと衛生度の両方が高水準に到達しました！チームの継続的な取り組みが安定した運用体制として結実しています。',
+  Autonomous:
+    'すべての指標が高水準で、未解決の処方箋もゼロ。ガバナンスが自律的に維持される理想的な状態に到達しました！',
+};
+
+/**
+ * Next-stage roadmap: what to achieve to reach the next stage.
+ * Autonomous has no "next" — instead provides maintenance guidance.
+ */
+export const NEXT_STAGE_ROADMAP: Record<HealthMaturityStage, string> = {
+  Foundation: `### 🗺️ 次のステージ（Tracking）への道筋
+
+- **到達条件**: カバレッジまたは衛生度のいずれかを 70 以上にする
+- **推奨アクション**:
+  1. \`shiori adopt\` で未追跡の lint disable コメントを発見
+  2. \`shiori update\` でレジストリに登録
+  3. \`shiori health\` で進捗を確認`,
+
+  Tracking: `### 🗺️ 次のステージ（Maintained）への道筋
+
+- **到達条件**: カバレッジと衛生度の両方を 70 以上にする
+- **推奨アクション**:
+  1. \`shiori triage\` で弱い軸の課題を特定
+  2. \`shiori doctor\` でメタデータ不備を修正
+  3. \`shiori health\` で両軸のバランスを確認`,
+
+  Maintained: `### 🗺️ 次のステージ（Autonomous）への道筋
+
+- **到達条件**: すべての処方箋（prescriptions）を解消する
+- **推奨アクション**:
+  1. \`shiori health\` で残りの処方箋を確認
+  2. 優先度順に処方箋を消化
+  3. \`shiori check --fail-on expired,missing-in-registry\` を CI に組み込む`,
+
+  Autonomous: `### 🛡️ Autonomous ステージの維持
+
+- **維持のポイント**: 退行を防ぎ、自律運用を継続する
+- **推奨アクション**:
+  1. \`shiori delta\` を PR レビューに組み込み退行を検知
+  2. \`shiori trend\` でスコア推移を定期モニタリング
+  3. 他プロジェクトへのガバナンス手法の横展開を検討`,
+};
+
 /**
  * Generate the stage transition celebration block for template injection.
  * Returns empty string when no stage transition occurred.
+ *
+ * Advancement: stage-specific celebration + next-stage roadmap (EP-0211).
+ * Regression: warning with analysis guidance.
  */
 export function resolveStageTransition(
   diffContext: CoachDiffContext | undefined,
@@ -202,12 +262,18 @@ export function resolveStageTransition(
   const advanced = isStageAdvancement(diffContext.stageTransition);
 
   if (advanced) {
+    const celebration = STAGE_CELEBRATION_MAP[to];
+    const roadmap = NEXT_STAGE_ROADMAP[to];
+
     return `## 🎉 ステージ昇格おめでとうございます！
 
 **${from}** → **${to}** へステージが昇格しました！
 
-これはガバナンス改善の大きなマイルストーンです。チームの継続的な取り組みが成果として表れています。
-この成果をチームで共有し、次のステージに向けたモチベーションにしてください。`;
+${celebration}
+
+この成果をチームで共有し、次のステージに向けたモチベーションにしてください。
+
+${roadmap}`;
   }
 
   return `## ⚠️ ステージ変化の検出
@@ -215,6 +281,20 @@ export function resolveStageTransition(
 **${from}** → **${to}** へステージが変化しました。
 
 この変化の原因を分析し、改善アクションを提案してください。`;
+}
+
+/**
+ * Extract structured stage transition data for JSON output (EP-0211).
+ * Returns undefined when no stage transition occurred.
+ */
+function extractStageTransitionData(
+  diffContext: CoachDiffContext | undefined,
+): CoachResult['stageTransition'] {
+  if (diffContext?.stageTransition == null) return undefined;
+  return {
+    ...diffContext.stageTransition,
+    advanced: isStageAdvancement(diffContext.stageTransition),
+  };
 }
 
 // ── Prompt Templates ─────────────────────────────────────────
@@ -379,7 +459,11 @@ function getTemplate(template: Exclude<CoachTemplate, 'custom'>): string {
 function replacePlaceholders(
   templateStr: string,
   input: CoachInput,
-): { prompt: string; sources: CoachResult['sources'] } {
+): {
+  prompt: string;
+  sources: CoachResult['sources'];
+  stageTransition: CoachResult['stageTransition'];
+} {
   let prompt = templateStr;
   const sources: CoachResult['sources'] = {};
 
@@ -432,7 +516,10 @@ function replacePlaceholders(
     resolveStageTransition(input.diffContext),
   );
 
-  return { prompt, sources };
+  // Extract stage transition data for structured JSON output (EP-0211)
+  const stageTransition = extractStageTransitionData(input.diffContext);
+
+  return { prompt, sources, stageTransition };
 }
 
 /**
@@ -443,8 +530,11 @@ export function buildCoachPrompt(
   template: Exclude<CoachTemplate, 'custom'>,
   input: CoachInput,
 ): CoachResult {
-  const { prompt, sources } = replacePlaceholders(getTemplate(template), input);
-  return { template, prompt, sources };
+  const { prompt, sources, stageTransition } = replacePlaceholders(
+    getTemplate(template),
+    input,
+  );
+  return { template, prompt, sources, stageTransition };
 }
 
 /**
@@ -454,8 +544,11 @@ export function buildCoachPromptFromCustomTemplate(
   templateContent: string,
   input: CoachInput,
 ): CoachResult {
-  const { prompt, sources } = replacePlaceholders(templateContent, input);
-  return { template: 'custom', prompt, sources };
+  const { prompt, sources, stageTransition } = replacePlaceholders(
+    templateContent,
+    input,
+  );
+  return { template: 'custom', prompt, sources, stageTransition };
 }
 
 // ── Formatters ───────────────────────────────────────────────
