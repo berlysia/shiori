@@ -461,8 +461,8 @@ describe('resolveDiffBlock', () => {
     const ctx: CoachDiffContext = {
       current: {
         timestamp: '2026-04-01T10:00:00.000Z',
-        totalRefs: 5,
-        resolvedRefs: 0,
+        totalIssues: 5,
+
         expiredRefs: 1,
         healthScore: 65,
         coverage: 70,
@@ -478,8 +478,7 @@ describe('resolveDiffBlock', () => {
     const ctx: CoachDiffContext = {
       current: {
         timestamp: '2026-04-01T10:00:00.000Z',
-        totalRefs: 5,
-        resolvedRefs: 1,
+        totalIssues: 5,
         expiredRefs: 1,
         healthScore: 75,
         coverage: 80,
@@ -488,8 +487,8 @@ describe('resolveDiffBlock', () => {
       },
       previous: {
         timestamp: '2026-03-25T10:00:00.000Z',
-        totalRefs: 8,
-        resolvedRefs: 0,
+        totalIssues: 8,
+
         expiredRefs: 3,
         healthScore: 50,
         coverage: 60,
@@ -497,8 +496,7 @@ describe('resolveDiffBlock', () => {
         maturityStage: 'Tracking',
       },
       deltas: {
-        totalRefs: -3,
-        resolvedRefs: 1,
+        totalIssues: -3,
         expiredRefs: -2,
         healthScore: 25,
         coverage: 20,
@@ -524,8 +522,8 @@ describe('resolveStageTransition', () => {
     const ctx: CoachDiffContext = {
       current: {
         timestamp: '2026-04-01T10:00:00.000Z',
-        totalRefs: 5,
-        resolvedRefs: 0,
+        totalIssues: 5,
+
         expiredRefs: 0,
         healthScore: 65,
         coverage: 70,
@@ -541,8 +539,8 @@ describe('resolveStageTransition', () => {
     const ctx: CoachDiffContext = {
       current: {
         timestamp: '2026-04-01T10:00:00.000Z',
-        totalRefs: 5,
-        resolvedRefs: 0,
+        totalIssues: 5,
+
         expiredRefs: 0,
         healthScore: 85,
         coverage: 90,
@@ -551,8 +549,8 @@ describe('resolveStageTransition', () => {
       },
       previous: {
         timestamp: '2026-03-25T10:00:00.000Z',
-        totalRefs: 8,
-        resolvedRefs: 0,
+        totalIssues: 8,
+
         expiredRefs: 3,
         healthScore: 50,
         coverage: 60,
@@ -560,8 +558,8 @@ describe('resolveStageTransition', () => {
         maturityStage: 'Tracking',
       },
       deltas: {
-        totalRefs: -3,
-        resolvedRefs: 0,
+        totalIssues: -3,
+
         expiredRefs: -3,
         healthScore: 35,
         coverage: 30,
@@ -580,8 +578,8 @@ describe('resolveStageTransition', () => {
     const ctx: CoachDiffContext = {
       current: {
         timestamp: '2026-04-01T10:00:00.000Z',
-        totalRefs: 10,
-        resolvedRefs: 0,
+        totalIssues: 10,
+
         expiredRefs: 5,
         healthScore: 30,
         coverage: 40,
@@ -590,8 +588,8 @@ describe('resolveStageTransition', () => {
       },
       previous: {
         timestamp: '2026-03-25T10:00:00.000Z',
-        totalRefs: 5,
-        resolvedRefs: 0,
+        totalIssues: 5,
+
         expiredRefs: 1,
         healthScore: 70,
         coverage: 80,
@@ -599,8 +597,8 @@ describe('resolveStageTransition', () => {
         maturityStage: 'Tracking',
       },
       deltas: {
-        totalRefs: 5,
-        resolvedRefs: 0,
+        totalIssues: 5,
+
         expiredRefs: 4,
         healthScore: -40,
         coverage: -40,
@@ -623,8 +621,8 @@ describe('diff placeholders in templates (EP-0207)', () => {
         diffContext: {
           current: {
             timestamp: '2026-04-01T10:00:00.000Z',
-            totalRefs: 5,
-            resolvedRefs: 0,
+            totalIssues: 5,
+
             expiredRefs: 0,
             healthScore: 65,
             coverage: 70,
@@ -660,8 +658,8 @@ describe('diff placeholders in templates (EP-0207)', () => {
       diffContext: {
         current: {
           timestamp: '2026-04-01T10:00:00.000Z',
-          totalRefs: 5,
-          resolvedRefs: 0,
+          totalIssues: 5,
+
           expiredRefs: 0,
           healthScore: 65,
           coverage: 70,

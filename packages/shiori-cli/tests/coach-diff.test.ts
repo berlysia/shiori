@@ -8,6 +8,7 @@ import {
   serializeCoachSnapshot,
   deserializeCoachSnapshot,
   coachSnapshotFilename,
+  formatSigned,
 } from '../src/core/coach-diff.ts';
 import type {
   HealthResult,
@@ -40,8 +41,7 @@ function makeSnapshot(
 ): CoachSnapshotData {
   return {
     timestamp: '2026-03-25T10:00:00.000Z',
-    totalRefs: 3,
-    resolvedRefs: 0,
+    totalIssues: 3,
     expiredRefs: 0,
     healthScore: 50,
     coverage: 60,
@@ -63,6 +63,7 @@ describe('collectCoachSnapshot', () => {
     assert.equal(snapshot.coverage, 70);
     assert.equal(snapshot.hygiene, 60);
     assert.equal(snapshot.expiredRefs, 1);
+    assert.equal(snapshot.totalIssues, 5);
     assert.equal(snapshot.maturityStage, 'Tracking');
   });
 
@@ -73,11 +74,13 @@ describe('collectCoachSnapshot', () => {
     assert.equal(snapshot.maturityStage, undefined);
   });
 
-  it('handles zero prescriptions', () => {
-    const healthResult = makeHealthResult({ prescriptions: [] });
+  it('uses issues.total for totalIssues', () => {
+    const healthResult = makeHealthResult({
+      issues: { total: 10, errors: 4, warnings: 6 },
+    });
     const snapshot = collectCoachSnapshot(healthResult);
 
-    assert.equal(snapshot.resolvedRefs, 0);
+    assert.equal(snapshot.totalIssues, 10);
   });
 });
 
@@ -237,6 +240,22 @@ describe('isStageAdvancement', () => {
   });
 });
 
+// ── formatSigned ─────────────────────────────────────────────
+
+describe('formatSigned', () => {
+  it('formats positive numbers with +', () => {
+    assert.equal(formatSigned(5), '+5');
+  });
+
+  it('formats negative numbers with -', () => {
+    assert.equal(formatSigned(-3), '-3');
+  });
+
+  it('formats zero as ±0', () => {
+    assert.equal(formatSigned(0), '±0');
+  });
+});
+
 // ── Serialization ────────────────────────────────────────────
 
 describe('serializeCoachSnapshot / deserializeCoachSnapshot', () => {
@@ -250,6 +269,8 @@ describe('serializeCoachSnapshot / deserializeCoachSnapshot', () => {
     assert.equal(parsed!.healthScore, snapshot.healthScore);
     assert.equal(parsed!.coverage, snapshot.coverage);
     assert.equal(parsed!.hygiene, snapshot.hygiene);
+    assert.equal(parsed!.totalIssues, snapshot.totalIssues);
+    assert.equal(parsed!.expiredRefs, snapshot.expiredRefs);
   });
 
   it('returns undefined for invalid JSON', () => {
@@ -265,6 +286,38 @@ describe('serializeCoachSnapshot / deserializeCoachSnapshot', () => {
   it('serialized output ends with newline', () => {
     const json = serializeCoachSnapshot(makeSnapshot());
     assert.ok(json.endsWith('\n'));
+  });
+
+  it('handles old snapshot format with totalRefs field', () => {
+    // Backward compat: old snapshots used 'totalRefs' instead of 'totalIssues'
+    const oldJson = JSON.stringify({
+      timestamp: '2026-01-01T00:00:00.000Z',
+      totalRefs: 7,
+      expiredRefs: 2,
+      healthScore: 55,
+      coverage: 60,
+      hygiene: 50,
+      maturityStage: 'Foundation',
+    });
+    const parsed = deserializeCoachSnapshot(oldJson);
+
+    assert.ok(parsed);
+    assert.equal(parsed!.totalIssues, 7); // totalRefs → totalIssues
+    assert.equal(parsed!.expiredRefs, 2);
+  });
+
+  it('defaults expiredRefs to 0 when missing', () => {
+    const json = JSON.stringify({
+      timestamp: '2026-01-01T00:00:00.000Z',
+      healthScore: 55,
+      coverage: 60,
+      hygiene: 50,
+    });
+    const parsed = deserializeCoachSnapshot(json);
+
+    assert.ok(parsed);
+    assert.equal(parsed!.totalIssues, 0);
+    assert.equal(parsed!.expiredRefs, 0);
   });
 });
 

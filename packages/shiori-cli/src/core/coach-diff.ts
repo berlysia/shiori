@@ -24,21 +24,26 @@ const MATURITY_STAGE_ORDER: Record<HealthMaturityStage, number> = {
 };
 
 /**
+ * Format a signed number for display (e.g. +5, -3, ±0).
+ * Shared by coach-diff and coach template rendering.
+ */
+export function formatSigned(n: number): string {
+  if (n > 0) return `+${n}`;
+  if (n < 0) return `${n}`;
+  return '±0';
+}
+
+/**
  * Collect a CoachSnapshotData from a HealthResult.
  * Extracts the governance metrics relevant for sprint diff comparison.
  */
 export function collectCoachSnapshot(
   healthResult: HealthResult,
 ): CoachSnapshotData {
-  const expiredCount = healthResult.expiring.expired;
-  const resolvedCount =
-    healthResult.prescriptions?.filter((p) => p.scoreImpact === 0).length ?? 0;
-
   return {
     timestamp: healthResult.timestamp,
-    totalRefs: healthResult.issues.total > 0 ? healthResult.issues.total : 0,
-    resolvedRefs: resolvedCount,
-    expiredRefs: expiredCount,
+    totalIssues: healthResult.issues.total,
+    expiredRefs: healthResult.expiring.expired,
     healthScore: healthResult.health.score,
     coverage: healthResult.health.coverage,
     hygiene: healthResult.health.hygiene,
@@ -54,8 +59,7 @@ function computeDeltas(
   current: CoachSnapshotData,
 ): CoachDiffContext['deltas'] {
   return {
-    totalRefs: current.totalRefs - previous.totalRefs,
-    resolvedRefs: current.resolvedRefs - previous.resolvedRefs,
+    totalIssues: current.totalIssues - previous.totalIssues,
     expiredRefs: current.expiredRefs - previous.expiredRefs,
     healthScore: current.healthScore - previous.healthScore,
     coverage: current.coverage - previous.coverage,
@@ -81,15 +85,6 @@ function detectStageTransition(
     from: previous.maturityStage,
     to: current.maturityStage,
   };
-}
-
-/**
- * Format a signed number for display (e.g. +5, -3, ±0).
- */
-function formatSigned(n: number): string {
-  if (n > 0) return `+${n}`;
-  if (n < 0) return `${n}`;
-  return '±0';
 }
 
 /**
@@ -172,6 +167,7 @@ export function serializeCoachSnapshot(snapshot: CoachSnapshotData): string {
 /**
  * Parse a JSON string back into CoachSnapshotData.
  * Returns undefined if parsing fails or required fields are missing.
+ * Applies defaults for optional fields to handle older snapshots gracefully.
  */
 export function deserializeCoachSnapshot(
   json: string,
@@ -180,14 +176,28 @@ export function deserializeCoachSnapshot(
     const parsed = JSON.parse(json) as Record<string, unknown>;
     if (
       typeof parsed.timestamp !== 'string' ||
-      typeof parsed.totalRefs !== 'number' ||
       typeof parsed.healthScore !== 'number' ||
       typeof parsed.coverage !== 'number' ||
       typeof parsed.hygiene !== 'number'
     ) {
       return undefined;
     }
-    return parsed as unknown as CoachSnapshotData;
+    return {
+      timestamp: parsed.timestamp,
+      // Support both old 'totalRefs' and new 'totalIssues' field names
+      totalIssues:
+        typeof parsed.totalIssues === 'number'
+          ? parsed.totalIssues
+          : typeof parsed.totalRefs === 'number'
+            ? parsed.totalRefs
+            : 0,
+      expiredRefs:
+        typeof parsed.expiredRefs === 'number' ? parsed.expiredRefs : 0,
+      healthScore: parsed.healthScore,
+      coverage: parsed.coverage,
+      hygiene: parsed.hygiene,
+      maturityStage: parsed.maturityStage as HealthMaturityStage | undefined,
+    };
   } catch {
     return undefined;
   }

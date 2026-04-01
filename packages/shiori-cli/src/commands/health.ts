@@ -1,5 +1,6 @@
 import {
   HEALTH_FORMATS,
+  MATURITY_STAGE_LABELS,
   type HealthResult,
   type HealthFormat,
   type ReportResult,
@@ -15,7 +16,7 @@ import { renderBox } from '../core/box-drawing.ts';
 import { report, type ReportOptions } from './report.ts';
 import { buildPrescriptions } from '../core/prescriptions.ts';
 
-export { HEALTH_FORMATS };
+export { HEALTH_FORMATS, MATURITY_STAGE_LABELS };
 export type { HealthResult, HealthFormat };
 
 /**
@@ -323,17 +324,6 @@ const QUADRANT_STEPS: Record<HealthQuadrant, HealthNextSteps['steps']> = {
 };
 
 // ── Maturity stage classification (EP-0203) ──────────────────
-
-/**
- * Human-readable labels for each maturity stage.
- * Used in summary display and potential future badge integration.
- */
-export const MATURITY_STAGE_LABELS: Record<HealthMaturityStage, string> = {
-  Foundation: 'Needs foundation work',
-  Tracking: 'Partially governed',
-  Maintained: 'Well-managed',
-  Autonomous: 'Self-sustaining governance',
-};
 
 /**
  * Classify the governance maturity stage from a HealthResult.

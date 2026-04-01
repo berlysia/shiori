@@ -1136,6 +1136,17 @@ export type HealthMaturityStage =
   | 'Maintained'
   | 'Autonomous';
 
+/**
+ * Human-readable labels for each maturity stage.
+ * Used in summary display and GitHub summary formatting.
+ */
+export const MATURITY_STAGE_LABELS: Record<HealthMaturityStage, string> = {
+  Foundation: 'Needs foundation work',
+  Tracking: 'Partially governed',
+  Maintained: 'Well-managed',
+  Autonomous: 'Self-sustaining governance',
+};
+
 // ── Demo output types (EP-0174) ──────────────────────────────
 
 /** Result of running the scan --demo pipeline */
@@ -1483,10 +1494,8 @@ export interface ImpactResult {
 export interface CoachSnapshotData {
   /** ISO timestamp of the snapshot */
   timestamp: string;
-  /** Total tracked annotations */
-  totalRefs: number;
-  /** Annotations resolved (registry entries with ref-status-closed or removed) */
-  resolvedRefs: number;
+  /** Total verify issues (errors + warnings from verify) */
+  totalIssues: number;
   /** Annotations with expired dates */
   expiredRefs: number;
   /** Health score (0-100) */
@@ -1521,8 +1530,7 @@ export interface CoachDiffContext {
   previous?: CoachSnapshotData;
   /** Numeric deltas between snapshots (undefined on first run) */
   deltas?: {
-    totalRefs: number;
-    resolvedRefs: number;
+    totalIssues: number;
     expiredRefs: number;
     healthScore: number;
     coverage: number;

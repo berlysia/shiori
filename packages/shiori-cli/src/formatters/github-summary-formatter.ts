@@ -3,9 +3,8 @@ import type {
   ReportResult,
   HealthResult,
 } from '../core/types.ts';
-import { formatAxisSuffix } from '../core/types.ts';
+import { formatAxisSuffix, MATURITY_STAGE_LABELS } from '../core/types.ts';
 import { healthEmoji, insightIcon, trendArrow } from '../core/emoji.ts';
-import { MATURITY_STAGE_LABELS } from '../commands/health.ts';
 
 /**
  * Format VerifyResult as GitHub Actions Step Summary markdown.

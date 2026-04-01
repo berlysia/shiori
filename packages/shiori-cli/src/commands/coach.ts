@@ -11,7 +11,7 @@
 
 import { assertNever, type HealthMaturityStage } from '../core/types.ts';
 import type { CoachDiffContext } from '../core/types.ts';
-import { isStageAdvancement } from '../core/coach-diff.ts';
+import { isStageAdvancement, formatSigned } from '../core/coach-diff.ts';
 import { wrapOutputJson } from '../core/schema-envelope.ts';
 
 // ── Types ────────────────────────────────────────────────────
@@ -168,15 +168,6 @@ export function resolveMaturityGuidance(
 // ── Diff Block Generation (EP-0207) ──────────────────────────
 
 /**
- * Format a signed number for display in diff blocks.
- */
-function formatSignedCoach(n: number): string {
-  if (n > 0) return `+${n}`;
-  if (n < 0) return `${n}`;
-  return '±0';
-}
-
-/**
  * Generate the diff details block for template injection.
  * Returns empty string when no diff data is available.
  */
@@ -190,10 +181,10 @@ export function resolveDiffBlock(
 
 | 指標 | 前回 | 今回 | 変化 |
 | ---- | ---- | ---- | ---- |
-| 健康スコア | ${diffContext.previous.healthScore} | ${diffContext.current.healthScore} | ${formatSignedCoach(d.healthScore)} |
-| カバレッジ | ${diffContext.previous.coverage} | ${diffContext.current.coverage} | ${formatSignedCoach(d.coverage)} |
-| 衛生度 | ${diffContext.previous.hygiene} | ${diffContext.current.hygiene} | ${formatSignedCoach(d.hygiene)} |
-| 期限切れ | ${diffContext.previous.expiredRefs} | ${diffContext.current.expiredRefs} | ${formatSignedCoach(d.expiredRefs)} |
+| 健康スコア | ${diffContext.previous.healthScore} | ${diffContext.current.healthScore} | ${formatSigned(d.healthScore)} |
+| カバレッジ | ${diffContext.previous.coverage} | ${diffContext.current.coverage} | ${formatSigned(d.coverage)} |
+| 衛生度 | ${diffContext.previous.hygiene} | ${diffContext.current.hygiene} | ${formatSigned(d.hygiene)} |
+| 期限切れ | ${diffContext.previous.expiredRefs} | ${diffContext.current.expiredRefs} | ${formatSigned(d.expiredRefs)} |
 
 この変化を踏まえて、改善のモメンタムを維持するためのアドバイスを含めてください。`;
 }
