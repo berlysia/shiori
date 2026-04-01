@@ -47,6 +47,7 @@ import {
   formatCumulativeFixPreview,
   type HealthFixApplyResult,
 } from './health-fix.ts';
+import { formatGuidedEscalation } from '../core/guided-escalation.ts';
 
 export function formatHealth(
   result: import('../core/types.ts').HealthResult,
@@ -224,6 +225,12 @@ export const healthCommand = define({
       type: 'boolean',
       description:
         'With --fix, show cumulative before/after preview of all prescriptions including maturity stage prediction (EP-0204)',
+    },
+    quiet: {
+      type: 'boolean',
+      short: 'q',
+      description:
+        'Suppress next-step suggestions on stderr. Useful for CI pipelines (EP-0216).',
     },
   },
   run: async (ctx) => {
@@ -518,6 +525,14 @@ export const healthCommand = define({
             console.error(formatFixResult(fixResult));
           }
         }
+      }
+    }
+
+    // Guided Escalation: show next steps unless --quiet (EP-0216)
+    if (!ctx.values.quiet) {
+      const escalation = formatGuidedEscalation(result.maturityStage);
+      if (escalation) {
+        console.error(escalation);
       }
     }
 

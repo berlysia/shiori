@@ -19,6 +19,7 @@ import {
   resolveExpiringThreshold,
 } from '../core/cli-context.ts';
 import { ExitCode } from '../core/exit-codes.ts';
+import { formatGuidedEscalation } from '../core/guided-escalation.ts';
 
 const validateBadgeFormat = createFormatValidator<BadgeFormat>(
   BADGE_FORMATS,
@@ -96,6 +97,12 @@ export const badgeCommand = define({
       toKebab: true,
       description:
         'Days before expiration to trigger expiring-soon warning. Overrides config. Default: 14',
+    },
+    quiet: {
+      type: 'boolean',
+      short: 'q',
+      description:
+        'Suppress next-step suggestions on stderr. Useful for CI pipelines (EP-0216).',
     },
   },
   run: async (ctx) => {
@@ -176,5 +183,13 @@ export const badgeCommand = define({
     console.error(
       `🏷️  Maturity: ${stage} (score: ${healthResult.health.score}/100)`,
     );
+
+    // Guided Escalation: show next steps unless --quiet (EP-0216)
+    if (!ctx.values.quiet) {
+      const escalation = formatGuidedEscalation(healthResult.maturityStage);
+      if (escalation) {
+        console.error(escalation);
+      }
+    }
   },
 });
