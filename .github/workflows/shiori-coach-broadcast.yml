@@ -1,0 +1,67 @@
+name: shiori coach broadcast
+
+on:
+  schedule:
+    # Weekly: Monday 9:00 JST (0:00 UTC)
+    - cron: '0 0 * * 1'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  broadcast:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm build
+
+      # Restore previous coach snapshots for diff injection
+      - name: Restore coach snapshots
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
+        with:
+          name: coach-snapshot
+          path: .config/shiori/coach-snapshots/
+        continue-on-error: true
+
+      # Generate Slack-formatted coach prompt with snapshot diff
+      - name: Generate coach prompt
+        run: |
+          node packages/shiori-cli/dist/src/cli.js coach \
+            --template health \
+            --format slack-markdown \
+            --snapshot-dir .config/shiori/coach-snapshots \
+            > /tmp/coach-output.txt
+
+      # Post to Slack via Incoming Webhook (requires SLACK_WEBHOOK secret)
+      - name: Post to Slack
+        if: env.SLACK_WEBHOOK != ''
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        run: |
+          ADVICE=$(cat /tmp/coach-output.txt)
+          curl -s -X POST "$SLACK_WEBHOOK" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n --arg text "$ADVICE" '{ text: $text }')"
+
+      # Save coach snapshot for next run's diff comparison
+      - name: Upload coach snapshot
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: coach-snapshot
+          path: .config/shiori/coach-snapshots/
+          retention-days: 90
+          overwrite: true

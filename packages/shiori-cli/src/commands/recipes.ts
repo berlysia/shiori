@@ -274,6 +274,14 @@ export const RECIPE_CATALOG: readonly RecipeEntry[] = [
     maxLevel: 4,
   },
   {
+    filename: 'governance-coach-broadcast.md',
+    title: 'Coach Broadcast',
+    description: 'Auto-post coaching prompts to Slack or GitHub Discussions',
+    category: 'monitoring',
+    minLevel: 4,
+    maxLevel: 4,
+  },
+  {
     filename: 'pr-onboarding-snippet.md',
     title: 'PR Onboarding Snippet',
     description: 'Onboarding checklist snippet for PR descriptions',

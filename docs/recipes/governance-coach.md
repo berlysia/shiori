@@ -369,6 +369,7 @@ curl -s https://api.openai.com/v1/chat/completions \
 | 2     | Enforced    | PR ステータスチェックでブロック  | [Checks Gate](./github-checks-gate.md)                   |
 | 3     | Measured    | トレンド追跡 + ダッシュボード    | [Observatory](./governance-observatory.md)               |
 | 4     | **Coached** | **LLM がデータ駆動で改善を提案** | **このレシピ**                                           |
+| 4+    | Broadcast   | コーチングをチームに自動配信     | [Coach Broadcast](./governance-coach-broadcast.md)       |
 
 Level 4 は、蓄積されたガバナンスデータを元に LLM が文脈を理解した改善提案を行い、チームの意思決定を支援する状態です。
 
@@ -491,6 +492,7 @@ npx shiori weekly-report --preset health --format json > /tmp/weekly.json
 
 ## 関連
 
+- [Coach Broadcast](./governance-coach-broadcast.md) — Slack / GitHub Discussions への自動配信レシピ
 - [Governance Observatory](./governance-observatory.md) — 時系列ダッシュボード（スナップショット蓄積）
 - [GitHub Actions Step Summary](./github-actions-step-summary.md) — CI 結果の Step Summary 表示
 - [Scheduled Governance Orchestrator](./scheduled-governance-orchestrator.md) — 自動 Issue 生成
