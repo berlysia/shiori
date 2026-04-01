@@ -590,4 +590,45 @@ describe('formatHealthAsGitHubSummary', () => {
     assert.ok(output.includes('declining'));
     assert.ok(output.includes('-8'));
   });
+
+  it('shows Coverage and Hygiene rows in overview table', () => {
+    const result = makeHealthResult({
+      health: {
+        level: 'warning',
+        score: 60,
+        coverage: 70,
+        hygiene: 60,
+        summary: 'Needs work',
+      },
+    });
+    const output = formatHealthAsGitHubSummary(result);
+    assert.ok(output.includes('| Coverage | 70/100 |'));
+    assert.ok(output.includes('| Hygiene | 60/100 |'));
+  });
+
+  it('shows maturityStage row when present', () => {
+    const result = makeHealthResult({
+      maturityStage: 'Maintained',
+    });
+    const output = formatHealthAsGitHubSummary(result);
+    assert.ok(output.includes('| Stage |'));
+    assert.ok(output.includes('Maintained'));
+    assert.ok(output.includes('Well-managed'));
+  });
+
+  it('omits maturityStage row when absent', () => {
+    const result = makeHealthResult();
+    // No maturityStage set
+    const output = formatHealthAsGitHubSummary(result);
+    assert.ok(!output.includes('| Stage |'));
+  });
+
+  it('shows Autonomous stage with correct label', () => {
+    const result = makeHealthResult({
+      maturityStage: 'Autonomous',
+    });
+    const output = formatHealthAsGitHubSummary(result);
+    assert.ok(output.includes('Autonomous'));
+    assert.ok(output.includes('Self-sustaining governance'));
+  });
 });

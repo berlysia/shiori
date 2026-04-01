@@ -5,6 +5,7 @@ import type {
 } from '../core/types.ts';
 import { formatAxisSuffix } from '../core/types.ts';
 import { healthEmoji, insightIcon, trendArrow } from '../core/emoji.ts';
+import { MATURITY_STAGE_LABELS } from '../commands/health.ts';
 
 /**
  * Format VerifyResult as GitHub Actions Step Summary markdown.
@@ -187,6 +188,13 @@ export function formatHealthAsGitHubSummary(result: HealthResult): string {
   // Issue and expiration overview table
   lines.push('| Metric | Value |');
   lines.push('|--------|-------|');
+  lines.push(`| Coverage | ${result.health.coverage}/100 |`);
+  lines.push(`| Hygiene | ${result.health.hygiene}/100 |`);
+  if (result.maturityStage) {
+    lines.push(
+      `| Stage | ${result.maturityStage} — ${MATURITY_STAGE_LABELS[result.maturityStage]} |`,
+    );
+  }
   lines.push(`| Issues | ${result.issues.total} |`);
   lines.push(`| Errors | ${result.issues.errors} |`);
   lines.push(`| Warnings | ${result.issues.warnings} |`);

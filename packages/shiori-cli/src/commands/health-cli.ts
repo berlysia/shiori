@@ -43,6 +43,8 @@ import {
   planFix,
   formatFixPreview,
   formatFixResult,
+  buildCumulativePreview,
+  formatCumulativeFixPreview,
   type HealthFixApplyResult,
 } from './health-fix.ts';
 
@@ -108,7 +110,10 @@ export const healthCommand = define({
   shiori health --triage
 
   # Health + triage with markdown output
-  shiori health --triage --triage-format markdown`,
+  shiori health --triage --triage-format markdown
+
+  # Preview cumulative effect of all prescriptions (EP-0204)
+  shiori health --fix --preview`,
   rendering: { header: null },
   args: {
     patterns: {
@@ -215,6 +220,11 @@ export const healthCommand = define({
       description:
         'With --fix, actually execute the action (default: dry-run preview)',
     },
+    preview: {
+      type: 'boolean',
+      description:
+        'With --fix, show cumulative before/after preview of all prescriptions including maturity stage prediction (EP-0204)',
+    },
   },
   run: async (ctx) => {
     // Validate options early
@@ -231,6 +241,22 @@ export const healthCommand = define({
       console.error(
         'Error: --apply requires --fix. Use --fix --apply to execute fixes.',
       );
+      process.exitCode = ExitCode.USAGE_ERROR;
+      return;
+    }
+
+    // Validate --preview requires --fix
+    if (ctx.values.preview && !ctx.values.fix) {
+      console.error(
+        'Error: --preview requires --fix. Use --fix --preview to see cumulative preview.',
+      );
+      process.exitCode = ExitCode.USAGE_ERROR;
+      return;
+    }
+
+    // Validate --preview and --apply are mutually exclusive
+    if (ctx.values.preview && ctx.values.apply) {
+      console.error('Error: --preview and --apply cannot be used together.');
       process.exitCode = ExitCode.USAGE_ERROR;
       return;
     }
@@ -386,92 +412,111 @@ export const healthCommand = define({
     }
 
     // --fix: auto-fix the top-priority automatable prescription (EP-0112)
+    // --fix --preview: cumulative before/after preview of all prescriptions (EP-0204)
     if (ctx.values.fix) {
-      const prescriptions = result.prescriptions ?? [];
-      const preview = planFix(prescriptions);
-
-      if (!preview) {
-        console.error(
-          'No automatable fix available. All prescriptions require manual action.',
-        );
-      } else if (!ctx.values.apply) {
-        // Dry-run: show preview only
-        console.error('');
-        console.error(formatFixPreview(preview));
-      } else {
-        // Apply: execute the update logic
-        const beforeScore = result.health.score;
-
-        const updatedRegistry = initRegistry({
-          records: scanResult.annotations,
-          existingRegistry: regCtx.registry,
-        });
-
-        // Count new entries
-        const newRefs = Object.keys(updatedRegistry).filter(
-          (ref) => !(ref in regCtx.registry),
-        );
-
-        if (newRefs.length === 0) {
-          console.error('Registry is already up to date (no new refs to add).');
+      // EP-0204: --preview shows cumulative effect of all prescriptions
+      if (ctx.values.preview) {
+        const cumulative = buildCumulativePreview(result);
+        if (!cumulative) {
+          console.error(
+            'No prescriptions to preview. Health score is already optimal.',
+          );
         } else {
-          // Save registry
-          const saved = await saveRegistryRouted({
-            registry: updatedRegistry,
-            registryPath: regCtx.registryPath,
-            cwd: base.cwd,
-            refPatterns: regCtx.config.refPatterns,
-            label: 'Fixed',
-          });
-          if (!saved) {
-            // Structured error output for failed save
-            const failResult: HealthFixApplyResult = {
-              success: false,
-              action: preview.target.actionType,
-              description: 'Registry save failed (path boundary error)',
-              beforeScore,
-              afterScore: beforeScore,
-              scoreDelta: 0,
-            };
-            console.error('');
-            console.error(formatFixResult(failResult));
-            return;
-          }
-
-          // Journal event
-          recordJournalEvent({
-            cwd: base.cwd,
-            eventType: 'cli.update',
-            refs: newRefs,
-            success: true,
-            entriesAdded: newRefs.length,
-          });
-
-          // Re-run health to get after score
-          const afterReportResult = report({
-            scanResult,
-            registry: updatedRegistry,
-            failOn,
-            warnOn,
-            duplicates: regCtx.duplicates,
-            refPatterns: regCtx.config.refPatterns,
-            refOrigins: regCtx.refOrigins,
-            expiringThresholdDays,
-          });
-          const afterResult = buildHealthResult(afterReportResult, trendResult);
-          const afterScore = afterResult.health.score;
-
-          const fixResult: HealthFixApplyResult = {
-            success: true,
-            action: preview.target.actionType,
-            description: `Added ${newRefs.length} ref(s) to registry`,
-            beforeScore,
-            afterScore,
-            scoreDelta: afterScore - beforeScore,
-          };
-
           console.error('');
-          console.error(formatFixResult(fixResult));
+          console.error(formatCumulativeFixPreview(cumulative));
+        }
+      } else {
+        const prescriptions = result.prescriptions ?? [];
+        const preview = planFix(prescriptions);
+
+        if (!preview) {
+          console.error(
+            'No automatable fix available. All prescriptions require manual action.',
+          );
+        } else if (!ctx.values.apply) {
+          // Dry-run: show preview only
+          console.error('');
+          console.error(formatFixPreview(preview));
+        } else {
+          // Apply: execute the update logic
+          const beforeScore = result.health.score;
+
+          const updatedRegistry = initRegistry({
+            records: scanResult.annotations,
+            existingRegistry: regCtx.registry,
+          });
+
+          // Count new entries
+          const newRefs = Object.keys(updatedRegistry).filter(
+            (ref) => !(ref in regCtx.registry),
+          );
+
+          if (newRefs.length === 0) {
+            console.error(
+              'Registry is already up to date (no new refs to add).',
+            );
+          } else {
+            // Save registry
+            const saved = await saveRegistryRouted({
+              registry: updatedRegistry,
+              registryPath: regCtx.registryPath,
+              cwd: base.cwd,
+              refPatterns: regCtx.config.refPatterns,
+              label: 'Fixed',
+            });
+            if (!saved) {
+              // Structured error output for failed save
+              const failResult: HealthFixApplyResult = {
+                success: false,
+                action: preview.target.actionType,
+                description: 'Registry save failed (path boundary error)',
+                beforeScore,
+                afterScore: beforeScore,
+                scoreDelta: 0,
+              };
+              console.error('');
+              console.error(formatFixResult(failResult));
+              return;
+            }
+
+            // Journal event
+            recordJournalEvent({
+              cwd: base.cwd,
+              eventType: 'cli.update',
+              refs: newRefs,
+              success: true,
+              entriesAdded: newRefs.length,
+            });
+
+            // Re-run health to get after score
+            const afterReportResult = report({
+              scanResult,
+              registry: updatedRegistry,
+              failOn,
+              warnOn,
+              duplicates: regCtx.duplicates,
+              refPatterns: regCtx.config.refPatterns,
+              refOrigins: regCtx.refOrigins,
+              expiringThresholdDays,
+            });
+            const afterResult = buildHealthResult(
+              afterReportResult,
+              trendResult,
+            );
+            const afterScore = afterResult.health.score;
+
+            const fixResult: HealthFixApplyResult = {
+              success: true,
+              action: preview.target.actionType,
+              description: `Added ${newRefs.length} ref(s) to registry`,
+              beforeScore,
+              afterScore,
+              scoreDelta: afterScore - beforeScore,
+            };
+
+            console.error('');
+            console.error(formatFixResult(fixResult));
+          }
         }
       }
     }
