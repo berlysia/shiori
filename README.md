@@ -673,7 +673,7 @@ v0.2.0 includes a breaking change to exit codes. See [Migration Guide](docs/migr
 
 ## Requirements
 
-- **Runtime (npm package users):** Node.js >= 18.0.0
+- **Runtime (npm package users):** Node.js >= 22.0.0
 - **Development:** Node.js >= 22.6.0 (required for `--experimental-strip-types` in tests)
 
 ## Development

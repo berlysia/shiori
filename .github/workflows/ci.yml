@@ -8,13 +8,11 @@ on:
 permissions: {}
 
 jobs:
+  # Full quality checks on latest LTS
   check:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    strategy:
-      matrix:
-        node-version: [18, 20, 22]
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -22,34 +20,25 @@ jobs:
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 'lts/*'
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm --filter @berlysia/shiori run build:playground
-        if: matrix.node-version == 22
       - run: pnpm typecheck
-        if: matrix.node-version == 22
       - run: pnpm lint
-        if: matrix.node-version == 22
       - run: pnpm --filter @berlysia/shiori run lint:boundaries
-        if: matrix.node-version == 22
       - run: pnpm --filter @berlysia/shiori run lint:envelope
-        if: matrix.node-version == 22
       - run: pnpm format:check
-        if: matrix.node-version == 22
       - run: pnpm test
-        if: matrix.node-version == 22
       - run: node packages/shiori-cli/dist/src/cli.js --help
 
       # Dogfooding: scan + verify shiori's own annotations against registry
       - name: shiori check (dogfooding)
-        if: matrix.node-version == 22
         run: node packages/shiori-cli/dist/src/cli.js check
 
       # Dogfooding: health check for governance score visibility
       - name: shiori health (dogfooding)
-        if: matrix.node-version == 22
         run: node packages/shiori-cli/dist/src/cli.js health
 
       # Dogfooding: GitHub Actions Step Summary (EP-0132)
@@ -57,20 +46,35 @@ jobs:
       # should still be written and subsequent steps (HTML report, artifact upload)
       # must not be skipped. CI pass/fail is determined by `shiori check` above.
       - name: shiori verify --format github-summary >> $GITHUB_STEP_SUMMARY
-        if: matrix.node-version == 22
         continue-on-error: true
         run: node packages/shiori-cli/dist/src/cli.js verify --format github-summary >> "$GITHUB_STEP_SUMMARY"
 
       # Dogfooding: generate HTML governance dashboard
       - name: shiori report --format html (dogfooding)
-        if: matrix.node-version == 22
         run: node packages/shiori-cli/dist/src/cli.js report --format html --output .tmp/shiori-report.html
 
       - name: Upload HTML governance report
-        if: matrix.node-version == 22
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: shiori-governance-report
           path: .tmp/shiori-report.html
           retention-days: 90
           overwrite: true
+
+  # Build + smoke test on previous LTS
+  compat:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 'lts/-1'
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: node packages/shiori-cli/dist/src/cli.js --help
