@@ -265,7 +265,10 @@ interface SlackContextBlock {
 }
 
 type SlackBlock =
-  SlackHeaderBlock | SlackSectionBlock | SlackDividerBlock | SlackContextBlock;
+  | SlackHeaderBlock
+  | SlackSectionBlock
+  | SlackDividerBlock
+  | SlackContextBlock;
 
 /**
  * Format onboard summary as Slack Block Kit JSON (EP-0182).

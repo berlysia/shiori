@@ -6,8 +6,8 @@
     "test": "pnpm -r test",
     "typecheck": "pnpm -r run typecheck",
     "lint": "pnpm -r run lint",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "format": "oxfmt --write",
+    "format:check": "oxfmt --check",
     "link:local": "pnpm --filter @berlysia/shiori run link:local",
     "unlink:local": "pnpm --filter @berlysia/shiori run unlink:local",
     "release": "pnpm typecheck && pnpm lint && pnpm --filter @berlysia/shiori run lint:boundaries && pnpm --filter @berlysia/shiori run lint:envelope && pnpm format:check && pnpm build && pnpm test && bumpp packages/shiori-cli/package.json",
@@ -18,7 +18,7 @@
     "bumpp": "12.3.0",
     "husky": "9.1.7",
     "lint-staged": "17.5.1",
-    "prettier": "^3.9.9"
+    "oxfmt": "0.70.0"
   },
   "packageManager": "pnpm@10.27.0"
 }
