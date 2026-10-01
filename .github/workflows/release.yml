@@ -44,6 +44,11 @@ jobs:
             exit 1
           fi
 
+      # Same guard as `pnpm run release`, repeated here so a tag pushed without the release script
+      # cannot stage a stable version that has no CHANGELOG section. Prereleases pass.
+      - name: Check CHANGELOG section
+        run: node --experimental-strip-types packages/shiori-cli/scripts/check-changelog.ts
+
       # The tarball is packed here so that npm-stage publishes exactly what passed the gates above,
       # without running install or build in the job that holds the OIDC token.
       - name: Pack npm tarball

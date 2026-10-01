@@ -17,4 +17,4 @@ rules:
     ignore:
       # Staged publishing needs npm >= 11.15.0, which the npm bundled with lts/* does not guarantee.
       # The version is pinned exactly and verified by the next command in the same step.
-      - release.yml:88
+      - release.yml:93
