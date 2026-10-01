@@ -11,10 +11,10 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 'lts/*'
@@ -75,7 +75,7 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
+      - uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
         with:
           name: npm-tarball
           path: npm-tarball
@@ -83,11 +83,11 @@ jobs:
         with:
           node-version: 'lts/*'
           registry-url: https://registry.npmjs.org
-      # Staged publishing requires npm >= 11.15.0; the npm bundled with lts/* is not guaranteed to meet it.
+      # Staged publishing requires npm >= 11.15.0; the npm bundled with lts/* is not guaranteed to meet it, so pin npm 12.
       - name: Install npm with staged publishing support
         run: |
-          npm install -g npm@11.20.0
-          test "$(npm --version)" = "11.20.0"
+          npm install -g npm@12.1.0
+          test "$(npm --version)" = "12.1.0"
       # Publishing a tarball runs no lifecycle scripts, so no third-party code executes while the OIDC token is available.
       # The staged version stays uninstallable until a maintainer approves it with 2FA.
       - name: Stage publish
@@ -107,10 +107,10 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           persist-credentials: false
-      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5.0.0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 'lts/*'

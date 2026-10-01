@@ -306,7 +306,7 @@ runs:
 
     - name: 'sarif: Upload SARIF to Code Scanning'
       if: inputs.mode == 'sarif'
-      uses: github/codeql-action/upload-sarif@ebcb5b36ded6beda4ceefea6a8bc4cc885255bb3 # v3
+      uses: github/codeql-action/upload-sarif@ebcb5b36ded6beda4ceefea6a8bc4cc885255bb3 # v3.34.1
       with:
         sarif_file: ${{ steps.paths.outputs.sarif-file }}
         category: ${{ inputs.sarif-category }}
