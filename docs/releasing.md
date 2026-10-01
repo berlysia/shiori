@@ -67,10 +67,11 @@ revoke を最後にする理由は、先に revoke すると、リハーサル�
 
 ## 毎回のリリース
 
-1. master 上で `pnpm run release` を実行する。品質チェックと build、test を通した後、[bumpp](https://github.com/antfu-collective/bumpp) が対話式で次の version を尋ね、`packages/shiori-cli/package.json` の書き換え、commit（`chore: release vX.Y.Z`）、tag `vX.Y.Z` の作成、push までを行う。bumpp は npm に publish しない。
+1. 正式版（`-` を含まない version）では、先に CHANGELOG.md に `## [X.Y.Z] - YYYY-MM-DD` の節を書いて commit する。Claude Code で `/changelog X.Y.Z` を実行すると、直前の正式版 tag 以降の commit を本文まで読んで、利用者に見える変更だけを下書きする。内容を確かめてから commit する。prerelease では不要。
+2. master 上で `pnpm run release` を実行する。品質チェックと build、test を通した後、[bumpp](https://github.com/antfu-collective/bumpp) が対話式で次の version を尋ね、`packages/shiori-cli/package.json` と `packages/shiori-cli/src/core/version.ts` を書き換える。続いて、正式版の節が CHANGELOG.md にあるかを確かめる。節がなければ commit の前に止まり、bump を戻すコマンドを表示する。確認を通ると、commit（`chore: release vX.Y.Z`）、tag `vX.Y.Z` の作成、push までを行う。bumpp は npm に publish しない。
    - prerelease は `pnpm run release --preid rc` で作る（例: `0.2.2-rc.1`）。
    - push された tag が Release workflow を起動する。tag は version から作られるので、validate の一致検査とずれない。
-2. Release workflow の完了を待つ。`-` を含む version（例: `0.3.0-rc.1`）は `--tag next` で stage され、GitHub Release も prerelease になる。
+3. Release workflow の完了を待つ。`-` を含む version（例: `0.3.0-rc.1`）は `--tag next` で stage され、GitHub Release も prerelease になる。
 
 ### 承認前の確認
 
