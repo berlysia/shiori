@@ -33,12 +33,7 @@ export interface RecipeEntry {
 }
 
 export type RecipeCategory =
-  | 'ci'
-  | 'notification'
-  | 'reporting'
-  | 'automation'
-  | 'editor'
-  | 'monitoring';
+  'ci' | 'notification' | 'reporting' | 'automation' | 'editor' | 'monitoring';
 
 const CATEGORY_LABELS: Record<RecipeCategory, string> = {
   ci: 'CI / PR Integration',

@@ -602,10 +602,7 @@ export function maturityStageFromLevel(level: MaturityLevel): MaturityStage {
  * - 'status-closed': When the referenced ticket/issue was closed (from ref-status)
  */
 export type ChronicleEventType =
-  | 'introduced'
-  | 'expires'
-  | 'expired'
-  | 'status-closed';
+  'introduced' | 'expires' | 'expired' | 'status-closed';
 
 /** A single event in an annotation's timeline */
 export interface ChronicleEvent {
@@ -1067,11 +1064,7 @@ export function formatAxisSuffix(axis: PrescriptionAxis): string {
 
 /** Action type for programmatic dispatch of prescriptions (EP-0112) */
 export type PrescriptionActionType =
-  | 'update'
-  | 'triage'
-  | 'verify'
-  | 'doctor'
-  | 'candidates';
+  'update' | 'triage' | 'verify' | 'doctor' | 'candidates';
 
 /** A single actionable prescription for improving governance health (EP-0104) */
 export interface HealthPrescription {
@@ -1131,10 +1124,7 @@ export interface HealthNextSteps {
  * - Autonomous: Both axes high with no prescriptions — self-sustaining governance
  */
 export type HealthMaturityStage =
-  | 'Foundation'
-  | 'Tracking'
-  | 'Maintained'
-  | 'Autonomous';
+  'Foundation' | 'Tracking' | 'Maintained' | 'Autonomous';
 
 /**
  * Human-readable labels for each maturity stage.

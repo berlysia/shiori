@@ -44,10 +44,7 @@ interface StepTiming {
 interface FrictionPoint {
   step: string;
   category:
-    | 'error-message'
-    | 'missing-guidance'
-    | 'unexpected-behavior'
-    | 'timing';
+    'error-message' | 'missing-guidance' | 'unexpected-behavior' | 'timing';
   description: string;
   suggestion?: string;
 }

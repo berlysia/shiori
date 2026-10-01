@@ -36,10 +36,7 @@ EP-0046 (Provenance View) と RefStatus 基盤が揃った今、これらを統�
 
 ```typescript
 type ChronicleEventType =
-  | 'introduced'
-  | 'expires'
-  | 'expired'
-  | 'status-closed';
+  'introduced' | 'expires' | 'expired' | 'status-closed';
 
 interface ChronicleEvent {
   type: ChronicleEventType;
