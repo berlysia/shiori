@@ -25,7 +25,7 @@
     "@berlysia/shiori": "workspace:*"
   },
   "devDependencies": {
-    "@types/vscode": "^1.85.0",
+    "@types/vscode": "^1.138.0",
     "esbuild": "0.28.2",
     "typescript": "^7.0.2"
   },
@@ -47,6 +47,6 @@
     "workspaceContains:.config/shiori/registry.yml"
   ],
   "engines": {
-    "vscode": "^1.85.0"
+    "vscode": "^1.138.0"
   }
 }

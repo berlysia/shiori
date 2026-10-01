@@ -70,7 +70,7 @@ importers:
         version: link:../shiori-cli
     devDependencies:
       '@types/vscode':
-        specifier: ^1.85.0
+        specifier: ^1.138.0
         version: 1.138.0
       esbuild:
         specifier: 0.28.2
