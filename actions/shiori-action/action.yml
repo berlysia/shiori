@@ -104,7 +104,7 @@ runs:
 
     - name: 'baseline: Upload scan artifact'
       if: inputs.mode == 'baseline'
-      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: ${{ inputs.baseline-artifact-name }}
         path: ${{ steps.paths.outputs.scan-result }}
@@ -278,7 +278,7 @@ runs:
 
     - name: 'badge: Upload badge artifact'
       if: inputs.mode == 'badge'
-      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: shiori-badge
         path: ${{ steps.paths.outputs.badge-json }}
@@ -306,7 +306,7 @@ runs:
 
     - name: 'sarif: Upload SARIF to Code Scanning'
       if: inputs.mode == 'sarif'
-      uses: github/codeql-action/upload-sarif@ebcb5b36ded6beda4ceefea6a8bc4cc885255bb3 # v3.34.1
+      uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
       with:
         sarif_file: ${{ steps.paths.outputs.sarif-file }}
         category: ${{ inputs.sarif-category }}
