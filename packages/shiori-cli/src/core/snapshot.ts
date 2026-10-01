@@ -15,7 +15,8 @@ export const DEFAULT_REPORTS_DIR = '.config/shiori/reports';
  * Pure data — no side effects like process.exitCode.
  */
 export type SaveSnapshotResult =
-  { ok: true; path: string } | { ok: false; error: string };
+  | { ok: true; path: string }
+  | { ok: false; error: string };
 
 /**
  * Generate a snapshot filename from a ReportResult timestamp.
@@ -72,7 +73,8 @@ export async function saveSnapshot(
 
 /** Result of a snapshot load operation. */
 export type LoadSnapshotsResult =
-  { ok: true; reports: ReportResult[] } | { ok: false; error: string };
+  | { ok: true; reports: ReportResult[] }
+  | { ok: false; error: string };
 
 /**
  * Load snapshot files from a history directory.

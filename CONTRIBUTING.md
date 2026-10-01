@@ -21,7 +21,7 @@ pnpm test          # Requires Node.js >= 22.6.0
 | `pnpm lint`          | Lint with oxlint                     |
 | `pnpm link:local`    | Build and globally link local CLI    |
 | `pnpm unlink:local`  | Remove global link for local CLI     |
-| `pnpm format`        | Format with Prettier                 |
+| `pnpm format`        | Format with oxfmt                    |
 | `pnpm format:check`  | Check formatting                     |
 
 Run a single test file:
@@ -32,12 +32,12 @@ node --experimental-strip-types --test tests/parser.test.ts
 
 ## Pre-commit Hook
 
-This project uses husky + lint-staged. Prettier runs automatically on staged files at commit time.
+This project uses husky + lint-staged. oxfmt runs automatically on staged files at commit time.
 
 ## Code Style
 
 - TypeScript strict mode, no `any` types
-- Formatting enforced by Prettier (via pre-commit hook)
+- Formatting enforced by oxfmt (via pre-commit hook)
 - Linting by oxlint
 
 ## Testing

@@ -22,7 +22,7 @@ pnpm build            # Build all packages (pnpm -r build)
 pnpm test             # Run all tests (pnpm -r test)
 pnpm typecheck        # Type check all packages (pnpm -r run typecheck)
 pnpm lint             # Lint all packages (pnpm -r run lint)
-pnpm format           # Format with prettier
+pnpm format           # Format with oxfmt
 pnpm format:check     # Check formatting
 ```
 

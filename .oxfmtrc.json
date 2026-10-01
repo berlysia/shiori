@@ -1,0 +1,15 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "semi": true,
+  "singleQuote": true,
+  "trailingComma": "all",
+  "printWidth": 80,
+  "sortPackageJson": false,
+  "ignorePatterns": [
+    ".claude/plans/",
+    "packages/shiori-cli/playground/",
+    ".tmp/",
+    "pnpm-lock.yaml",
+    "playground/"
+  ]
+}

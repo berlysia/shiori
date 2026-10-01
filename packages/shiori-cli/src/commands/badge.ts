@@ -26,7 +26,11 @@ export interface MaturityBadge {
 
 /** Badge style options supported by shields.io */
 export type BadgeStyle =
-  'flat' | 'flat-square' | 'plastic' | 'for-the-badge' | 'social';
+  | 'flat'
+  | 'flat-square'
+  | 'plastic'
+  | 'for-the-badge'
+  | 'social';
 
 /** Canonical list of badge output formats (derived → BadgeFormat) */
 export const BADGE_FORMATS = ['json', 'markdown', 'url'] as const;
