@@ -17,8 +17,8 @@
     "@berlysia/shiori": "workspace:*",
     "bumpp": "12.3.0",
     "husky": "9.1.7",
-    "lint-staged": "16.2.7",
-    "prettier": "^3.8.1"
+    "lint-staged": "17.5.1",
+    "prettier": "^3.9.9"
   },
   "packageManager": "pnpm@10.27.0"
 }

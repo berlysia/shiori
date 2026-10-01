@@ -1,2 +1,8 @@
 packages:
   - 'packages/*'
+
+# dependency-cruiser needs the TypeScript compiler API, which TypeScript 7 (native) does not ship yet.
+packageExtensions:
+  dependency-cruiser:
+    dependencies:
+      typescript: npm:@typescript/typescript6@^6.0.2
