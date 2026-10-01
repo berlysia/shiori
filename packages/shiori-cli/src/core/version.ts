@@ -9,4 +9,4 @@
  * The release script's bumpp call rewrites it, and tests/version.test.ts fails
  * when it drifts from package.json.
  */
-export const VERSION = '0.2.2-beta.1';
+export const VERSION = '0.2.2';

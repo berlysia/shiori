@@ -1,6 +1,6 @@
 {
   "name": "@berlysia/shiori",
-  "version": "0.2.2-beta.1",
+  "version": "0.2.2",
   "description": "Annotation tracking and governance CLI tool for recovering structured annotations from source code",
   "keywords": [
     "annotations",
