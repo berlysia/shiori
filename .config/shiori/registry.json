@@ -16,10 +16,10 @@
   "DEV-007": {
     "reason": "Config file parsed from JSON/YAML cast to ShioriConfig without schema validation",
     "target": "src/core/config.ts",
-    "expires": "2026-06",
+    "expires": "2027-03",
     "ticket": "EP-0011",
     "owner": "berlysia",
-    "notes": "JSON Schema validation (EP-0011) would provide structural guarantee before cast",
+    "notes": "JSON Schema validation (EP-0011) would provide structural guarantee before cast. Extended from 2026-06 on 2026-10-02: EP-0011 not yet scheduled; the expired entry was blocking the release workflow's validate gate.",
     "kind": "temporary"
   },
   "DEV-009": {
