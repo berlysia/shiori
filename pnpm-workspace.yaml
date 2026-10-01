@@ -1,2 +1,10 @@
 packages:
   - 'packages/*'
+
+# esbuild's postinstall only swaps its JS shim for the native binary; the per-platform
+# optional dependency already provides the binary, so the script stays disabled.
+allowBuilds:
+  esbuild: false
+
+# Only resolve versions published at least one week ago (in minutes).
+minimumReleaseAge: 10080

@@ -20,5 +20,5 @@
     "lint-staged": "17.5.1",
     "oxfmt": "0.70.0"
   },
-  "packageManager": "pnpm@10.27.0"
+  "packageManager": "pnpm@12.6.0"
 }
