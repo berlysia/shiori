@@ -1,1 +1,5 @@
+# The boundary policy lists every command file, so regenerate it whenever commands are added,
+# renamed or removed. CI's lint:boundaries still fails if a stale config gets through.
+node packages/shiori-cli/scripts/gen-fallow-config.mjs
+git add packages/shiori-cli/.fallowrc.json
 npx lint-staged
