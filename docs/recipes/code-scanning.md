@@ -59,13 +59,13 @@ jobs:
       security-events: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: latest
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'pnpm'
@@ -77,7 +77,7 @@ jobs:
         run: pnpm shiori verify --format sarif --output .tmp/shiori.sarif
 
       - name: Upload SARIF
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: .tmp/shiori.sarif
           category: shiori
@@ -147,11 +147,11 @@ jobs:
       security-events: write
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
         with:
           version: latest
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'pnpm'
@@ -170,7 +170,7 @@ jobs:
 
       - name: Upload SARIF
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: .tmp/shiori.sarif
           category: shiori
@@ -194,7 +194,7 @@ Code Scanning アラートから `shiori show` で詳細情報を引くことが
 `upload-sarif` の `category` パラメータで、他の SARIF ツール（CodeQL 等）と結果を分離できます：
 
 ```yaml
-- uses: github/codeql-action/upload-sarif@v3
+- uses: github/codeql-action/upload-sarif@v4
   with:
     sarif_file: .tmp/shiori.sarif
     category: shiori # ← Code Scanning UI でフィルタ可能

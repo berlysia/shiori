@@ -45,7 +45,7 @@ describe('generateCiWorkflow', () => {
     assert.ok(yaml.includes('pull_request:'));
     assert.ok(yaml.includes('shiori check'));
     assert.ok(yaml.includes('--fail-on expired,missing-in-registry'));
-    assert.ok(yaml.includes('actions/checkout@v4'));
+    assert.ok(yaml.includes('actions/checkout@v7'));
     assert.ok(yaml.includes('pnpm install --frozen-lockfile'));
   });
 
@@ -69,10 +69,10 @@ describe('generateCiWorkflow', () => {
     assert.ok(yaml.includes('shiori delta'));
     assert.ok(yaml.includes('--base-fallback-empty'));
     assert.ok(yaml.includes('--max-increase 0'));
-    assert.ok(yaml.includes('peter-evans/create-or-update-comment@v4'));
+    assert.ok(yaml.includes('peter-evans/create-or-update-comment@v5'));
     assert.ok(yaml.includes('shiori-delta'));
-    assert.ok(yaml.includes('upload-artifact@v4'));
-    assert.ok(yaml.includes('actions/github-script@v7'));
+    assert.ok(yaml.includes('upload-artifact@v7'));
+    assert.ok(yaml.includes('actions/github-script@v9'));
     assert.ok(yaml.includes('actions: read'));
   });
 
@@ -112,7 +112,7 @@ describe('generateCiWorkflow', () => {
     assert.ok(yaml.includes('pull_request:'));
     assert.ok(yaml.includes('shiori check'));
     assert.ok(yaml.includes('--fail-on expired,missing-in-registry'));
-    assert.ok(yaml.includes('actions/checkout@v4'));
+    assert.ok(yaml.includes('actions/checkout@v7'));
     assert.ok(yaml.includes('pnpm install --frozen-lockfile'));
   });
 
@@ -132,9 +132,9 @@ describe('generateCiWorkflow', () => {
     assert.ok(yaml.includes('push:'));
     assert.ok(yaml.includes('workflow_dispatch:'));
     assert.ok(yaml.includes('shiori report --format badge'));
-    assert.ok(yaml.includes('actions/checkout@v4'));
+    assert.ok(yaml.includes('actions/checkout@v7'));
     assert.ok(yaml.includes('pnpm install --frozen-lockfile'));
-    assert.ok(yaml.includes('upload-artifact@v4'));
+    assert.ok(yaml.includes('upload-artifact@v7'));
     assert.ok(yaml.includes('shiori-badge'));
   });
 
@@ -199,7 +199,7 @@ describe('generateCiWorkflow', () => {
     for (const kind of CI_TEMPLATE_KINDS) {
       const yaml = generateCiWorkflow(kind);
       assert.ok(
-        yaml.includes('pnpm/action-setup@v4'),
+        yaml.includes('pnpm/action-setup@v6'),
         `Missing pnpm setup for kind: ${kind}`,
       );
     }
@@ -220,9 +220,9 @@ describe('generateCiWorkflow', () => {
     assert.ok(yaml.includes('push:'));
     assert.ok(yaml.includes('workflow_dispatch:'));
     assert.ok(yaml.includes('shiori report --format badge'));
-    assert.ok(yaml.includes('actions/checkout@v4'));
+    assert.ok(yaml.includes('actions/checkout@v7'));
     assert.ok(yaml.includes('pnpm install --frozen-lockfile'));
-    assert.ok(yaml.includes('upload-artifact@v4'));
+    assert.ok(yaml.includes('upload-artifact@v7'));
     assert.ok(yaml.includes('shiori-badge'));
   });
 
