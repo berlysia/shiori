@@ -10,7 +10,7 @@
     "format:check": "oxfmt --check",
     "link:local": "pnpm --filter @berlysia/shiori run link:local",
     "unlink:local": "pnpm --filter @berlysia/shiori run unlink:local",
-    "release": "pnpm typecheck && pnpm lint && pnpm --filter @berlysia/shiori run lint:boundaries && pnpm --filter @berlysia/shiori run lint:envelope && pnpm format:check && pnpm build && pnpm test && bumpp packages/shiori-cli/package.json",
+    "release": "pnpm typecheck && pnpm lint && pnpm --filter @berlysia/shiori run lint:boundaries && pnpm --filter @berlysia/shiori run lint:envelope && pnpm format:check && pnpm build && pnpm test && bumpp packages/shiori-cli/package.json packages/shiori-cli/src/core/version.ts",
     "prepare": "husky"
   },
   "devDependencies": {
