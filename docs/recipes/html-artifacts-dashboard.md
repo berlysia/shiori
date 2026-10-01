@@ -41,13 +41,13 @@ jobs:
   report:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: latest
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'pnpm'
@@ -62,7 +62,7 @@ jobs:
         run: npx shiori report --format html --output .tmp/shiori-report.html
 
       - name: Upload HTML report artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: shiori-governance-report
           path: .tmp/shiori-report.html
@@ -88,7 +88,7 @@ jobs:
   run: npx shiori report --format html --output .tmp/shiori-report.html
 
 - name: Upload governance dashboard
-  uses: actions/upload-artifact@v4
+  uses: actions/upload-artifact@v7
   with:
     name: shiori-governance-report
     path: .tmp/shiori-report.html
@@ -150,13 +150,13 @@ jobs:
   report:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: latest
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'pnpm'
@@ -169,7 +169,7 @@ jobs:
 
       # 前回の ScanResult を Artifacts から取得
       - name: Download previous scan result
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const artifacts = await github.rest.actions.listArtifactsForRepo({
@@ -206,7 +206,7 @@ jobs:
 
       # 今回の ScanResult を Artifacts に保存（次回の --diff-base 用）
       - name: Upload scan result
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: shiori-scan-result
           path: .tmp/shiori-scan.json
@@ -214,7 +214,7 @@ jobs:
           overwrite: true
 
       - name: Upload HTML report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: shiori-governance-report
           path: .tmp/shiori-report.html

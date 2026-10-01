@@ -54,13 +54,13 @@ jobs:
       actions: read
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: latest
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'pnpm'
@@ -70,7 +70,7 @@ jobs:
 
       # ベースラインartifactを取得（クロスワークフロー）
       - name: Download baseline scan artifact
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
@@ -208,7 +208,7 @@ jobs:
 
       # PRコメントに投稿（既存コメントは上書き）
       - name: Post triage as PR comment
-        uses: peter-evans/create-or-update-comment@v4
+        uses: peter-evans/create-or-update-comment@v5
         with:
           issue-number: ${{ github.event.pull_request.number }}
           body-path: .tmp/shiori-renovate-comment.md

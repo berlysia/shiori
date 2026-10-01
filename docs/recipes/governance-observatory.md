@@ -76,13 +76,13 @@ jobs:
   snapshot:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: latest
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'pnpm'
@@ -137,22 +137,22 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.ref }}
 
       # snapshot ジョブの push を取得するため再 checkout
       - run: git pull --rebase
 
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: observatory
 
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
 ```
 
 ### Step 3: GitHub Pages を有効化
@@ -213,7 +213,7 @@ on:
 
 ```yaml
 # Git commit の後に追加
-- uses: actions/upload-artifact@v4
+- uses: actions/upload-artifact@v7
   with:
     name: observatory-snapshot-${{ env.DATE }}
     path: observatory/data/${{ env.DATE }}.json

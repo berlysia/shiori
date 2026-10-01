@@ -79,13 +79,13 @@ jobs:
   scan-base:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: latest
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'pnpm'
@@ -97,7 +97,7 @@ jobs:
         run: pnpm shiori scan --output .tmp/shiori-base-scan.json
 
       - name: Upload baseline scan artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: shiori-base-scan
           path: .tmp/shiori-base-scan.json
@@ -129,13 +129,13 @@ jobs:
       actions: read
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: latest
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'pnpm'
@@ -144,10 +144,10 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       # ベースラインartifactを取得。
-      # actions/download-artifact@v4 は同一ワークフローラン内の artifact しか取得できないため、
+      # actions/download-artifact@v8 は同一ワークフローラン内の artifact しか取得できないため、
       # クロスワークフロー（別ワークフローで保存された artifact）には GitHub API を使用する。
       - name: Download baseline scan artifact
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
@@ -235,7 +235,7 @@ jobs:
 
       # PR Description のマーカー区間を差分・triageレポートで置換
       - name: Update PR description
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
@@ -465,15 +465,15 @@ jobs:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
       - run: pnpm shiori scan --output .tmp/shiori-base-scan.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: shiori-base-scan
           path: .tmp/shiori-base-scan.json
@@ -488,9 +488,9 @@ jobs:
       pull-requests: write
       actions: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'pnpm'
@@ -499,7 +499,7 @@ jobs:
       # push と pull_request は別ワークフローランで実行されるため、
       # download-artifact では取得できない。GitHub API を使用する。
       - name: Download baseline scan artifact
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
@@ -566,7 +566,7 @@ jobs:
         continue-on-error: true
 
       - name: Update PR description
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
@@ -645,9 +645,9 @@ GitHub API による artifact 取得ステップが失敗しても `continue-on-
 
 ### なぜ `actions/download-artifact` ではなく GitHub API を使うのか
 
-`actions/download-artifact@v4` は**同一ワークフローラン内**の artifact しか取得できません。
+`actions/download-artifact@v8` は**同一ワークフローラン内**の artifact しか取得できません。
 ベーススキャンとPRデルタは別のワークフローラン（または同一ワークフロー内でも `push` / `pull_request` で別ラン）で実行されるため、
-クロスワークフローの artifact 取得には `actions/github-script@v7` 経由で GitHub REST API を使用する必要があります。
+クロスワークフローの artifact 取得には `actions/github-script@v9` 経由で GitHub REST API を使用する必要があります。
 この方式には `actions: read` 権限が追加で必要です。
 
 ### PR Description が更新されない

@@ -66,13 +66,13 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: pnpm
@@ -101,7 +101,7 @@ jobs:
 
       # coach snapshot の保存（次回との差分比較用）
       - name: Upload coach snapshot
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coach-snapshot
           path: .config/shiori/coach-snapshots/
@@ -129,13 +129,13 @@ jobs:
       contents: read
       discussions: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: pnpm
@@ -180,7 +180,7 @@ jobs:
             -f body="$BODY"
 
       - name: Upload coach snapshot
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coach-snapshot
           path: .config/shiori/coach-snapshots/
@@ -210,13 +210,13 @@ jobs:
       contents: read
       discussions: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: pnpm
@@ -278,7 +278,7 @@ jobs:
             -f body="$BODY"
 
       - name: Upload coach snapshot
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coach-snapshot
           path: .config/shiori/coach-snapshots/
@@ -314,7 +314,7 @@ GitHub Actions ではジョブ間でファイルシステムが揮発するた�
 ```yaml
 # 前回のスナップショットをダウンロード（初回は skip）
 - name: Restore coach snapshots
-  uses: actions/download-artifact@v4
+  uses: actions/download-artifact@v8
   with:
     name: coach-snapshot
     path: .config/shiori/coach-snapshots/
@@ -331,7 +331,7 @@ GitHub Actions ではジョブ間でファイルシステムが揮発するた�
 
 # 最新スナップショットをアップロード
 - name: Upload coach snapshot
-  uses: actions/upload-artifact@v4
+  uses: actions/upload-artifact@v7
   with:
     name: coach-snapshot
     path: .config/shiori/coach-snapshots/

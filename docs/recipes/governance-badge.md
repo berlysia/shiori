@@ -66,13 +66,13 @@ jobs:
   badge:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: latest
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'pnpm'
@@ -117,7 +117,7 @@ Gist を使わず、CI artifacts としてバッジ JSON を保存する軽量�
   run: node dist/src/cli.js report --format badge --output .tmp/shiori-badge.json
 
 - name: Upload badge artifact
-  uses: actions/upload-artifact@v4
+  uses: actions/upload-artifact@v7
   with:
     name: shiori-badge
     path: .tmp/shiori-badge.json
