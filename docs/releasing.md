@@ -42,9 +42,8 @@ npm trust list @berlysia/shiori
 
 ### 4. rc でリハーサルする
 
-1. master 上で `packages/shiori-cli/package.json` の version を `0.2.2-rc.1` のように bump する commit を作る。
-2. tag `v0.2.2-rc.1` を push する。
-3. Release workflow が成功したら、後述の「承認前の確認」を行い、approve して `next` として公開する。attestations は approve 後にしか確認できないため、rc も approve まで進める。
+1. master 上で `pnpm run release --preid rc` を実行し、`0.2.2-rc.1` のような prerelease を選ぶ。bump の commit、tag `v0.2.2-rc.1`、push までが行われる。
+2. Release workflow が成功したら、後述の「承認前の確認」を行い、approve して `next` として公開する。attestations は approve 後にしか確認できないため、rc も approve まで進める。
 
 rc version は使い捨てにする。やり直すときは `rc.N` を進める。rc の bump commit は master に残り、本番の bump で上書きされる。approve した rc は `next` dist-tag に残る（仕様どおり）。
 
@@ -68,15 +67,10 @@ revoke を最後にする理由は、先に revoke すると、リハーサル�
 
 ## 毎回のリリース
 
-1. `packages/shiori-cli/package.json` の version を bump する。ルートの `pnpm release` は、品質チェックと build、test を通した上で `npm version` を実行するので、これを使ってよい（tag の push は別に行う）。
-2. 次の tag を push する。tag と package.json の version が一致しないと validate が失敗する。
-
-   ```bash
-   git tag vX.Y.Z
-   git push origin vX.Y.Z
-   ```
-
-3. Release workflow の完了を待つ。`-` を含む version（例: `0.3.0-rc.1`）は `--tag next` で stage され、GitHub Release も prerelease になる。
+1. master 上で `pnpm run release` を実行する。品質チェックと build、test を通した後、[bumpp](https://github.com/antfu-collective/bumpp) が対話式で次の version を尋ね、`packages/shiori-cli/package.json` の書き換え、commit（`chore: release vX.Y.Z`）、tag `vX.Y.Z` の作成、push までを行う。bumpp は npm に publish しない。
+   - prerelease は `pnpm run release --preid rc` で作る（例: `0.2.2-rc.1`）。
+   - push された tag が Release workflow を起動する。tag は version から作られるので、validate の一致検査とずれない。
+2. Release workflow の完了を待つ。`-` を含む version（例: `0.3.0-rc.1`）は `--tag next` で stage され、GitHub Release も prerelease になる。
 
 ### 承認前の確認
 

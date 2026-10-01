@@ -10,10 +10,11 @@
     "format:check": "prettier --check .",
     "link:local": "pnpm --filter @berlysia/shiori run link:local",
     "unlink:local": "pnpm --filter @berlysia/shiori run unlink:local",
-    "release": "pnpm typecheck && pnpm lint && pnpm --filter @berlysia/shiori run lint:boundaries && pnpm --filter @berlysia/shiori run lint:envelope && pnpm format:check && pnpm build && pnpm test && pnpm --filter @berlysia/shiori exec npm version",
+    "release": "pnpm typecheck && pnpm lint && pnpm --filter @berlysia/shiori run lint:boundaries && pnpm --filter @berlysia/shiori run lint:envelope && pnpm format:check && pnpm build && pnpm test && bumpp packages/shiori-cli/package.json",
     "prepare": "husky"
   },
   "devDependencies": {
+    "bumpp": "12.3.0",
     "husky": "9.1.7",
     "lint-staged": "16.2.7",
     "prettier": "^3.8.1"
