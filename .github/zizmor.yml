@@ -1,8 +1,8 @@
 rules:
   cache-poisoning:
     ignore:
-      # actions/setup-node does not enable caching by default (cache input defaults to '').
-      # This is a false positive from zizmor detecting pnpm/action-setup in the same job.
+      # The npm-stage job's actions/setup-node sets no cache input, and setup-node only
+      # auto-caches when packageManager names npm (this repo uses pnpm), so nothing is restored.
       - release.yml
   template-injection:
     ignore:
@@ -17,4 +17,4 @@ rules:
     ignore:
       # Staged publishing needs npm >= 11.15.0, which the npm bundled with lts/* does not guarantee.
       # The version is pinned exactly and verified by the next command in the same step.
-      - release.yml:89
+      - release.yml:88
