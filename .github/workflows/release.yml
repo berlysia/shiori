@@ -35,6 +35,72 @@ jobs:
       - name: shiori doctor
         run: node packages/shiori-cli/dist/src/cli.js doctor
 
+      - name: Check tag matches package version
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          pkg_version="$(node -p "require('./packages/shiori-cli/package.json').version")"
+          if [ "v${pkg_version}" != "${TAG_NAME}" ]; then
+            echo "::error::tag ${TAG_NAME} does not match package version ${pkg_version}"
+            exit 1
+          fi
+
+      # The tarball is packed here so that npm-stage publishes exactly what passed the gates above,
+      # without running install or build in the job that holds the OIDC token.
+      - name: Pack npm tarball
+        run: |
+          mkdir -p "${RUNNER_TEMP}/npm-tarball"
+          pnpm --filter @berlysia/shiori pack --pack-destination "${RUNNER_TEMP}/npm-tarball"
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: npm-tarball
+          path: ${{ runner.temp }}/npm-tarball/*.tgz
+          if-no-files-found: error
+          retention-days: 7
+
+      # Logged so the maintainer can compare it with `npm stage view` before approving.
+      - name: Print tarball integrity
+        run: |
+          set -o pipefail
+          for f in "${RUNNER_TEMP}"/npm-tarball/*.tgz; do
+            echo "$(basename "$f") sha512-$(openssl dgst -sha512 -binary "$f" | base64 -w0)"
+          done
+
+  npm-stage:
+    runs-on: ubuntu-latest
+    needs: validate
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
+        with:
+          name: npm-tarball
+          path: npm-tarball
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 'lts/*'
+          registry-url: https://registry.npmjs.org
+      # Staged publishing requires npm >= 11.15.0; the npm bundled with lts/* is not guaranteed to meet it.
+      - name: Install npm with staged publishing support
+        run: |
+          npm install -g npm@11.20.0
+          test "$(npm --version)" = "11.20.0"
+      # Publishing a tarball runs no lifecycle scripts, so no third-party code executes while the OIDC token is available.
+      # The staged version stays uninstallable until a maintainer approves it with 2FA.
+      - name: Stage publish
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          dist_tag=latest
+          case "${TAG_NAME}" in *-*) dist_tag=next ;; esac
+          # The ./ prefix is required: without it npm parses "npm-tarball/x.tgz" as a GitHub shorthand, not a file.
+          tarballs=(./npm-tarball/*.tgz)
+          test "${#tarballs[@]}" -eq 1
+          npm stage publish "${tarballs[0]}" --access public --tag "${dist_tag}"
+
   github-release:
     runs-on: ubuntu-latest
     needs: validate
@@ -63,4 +129,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG_NAME: ${{ github.ref_name }}
-        run: gh release create "$TAG_NAME" --generate-notes "shiori-${TAG_NAME}.tar.gz"
+        run: |
+          prerelease_flag=()
+          case "${TAG_NAME}" in *-*) prerelease_flag=(--prerelease) ;; esac
+          gh release create "$TAG_NAME" --generate-notes "${prerelease_flag[@]}" "shiori-${TAG_NAME}.tar.gz"
