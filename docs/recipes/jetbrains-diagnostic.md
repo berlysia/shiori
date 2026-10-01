@@ -61,9 +61,9 @@ pnpm を使用している場合：
 
 同じダイアログの **Output Filters** ボタンをクリックし、以下を追加します：
 
-| 項目                   | 値                                   |
+| 項目 | 値 |
 | ---------------------- | ------------------------------------ | -------------- |
-| **Name**               | `shiori diagnostic`                  |
+| **Name** | `shiori diagnostic` |
 | **Regular expression** | `$FILE_PATH$:$LINE$:$COLUMN$: (error | warning): .\*` |
 
 この設定により、Run ウィンドウに表示される各 diagnostic 行がクリック可能なリンクになり、該当ファイルの行にジャンプできます。

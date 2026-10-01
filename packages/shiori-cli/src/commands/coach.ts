@@ -17,17 +17,9 @@ import { wrapOutputJson } from '../core/schema-envelope.ts';
 // ── Types ────────────────────────────────────────────────────
 
 export type CoachTemplate =
-  | 'triage'
-  | 'weekly'
-  | 'health'
-  | 'combined'
-  | 'custom';
+  'triage' | 'weekly' | 'health' | 'combined' | 'custom';
 export type CoachFormat =
-  | 'prompt'
-  | 'json'
-  | 'github-issue'
-  | 'slack-markdown'
-  | 'github-discussion';
+  'prompt' | 'json' | 'github-issue' | 'slack-markdown' | 'github-discussion';
 
 export const COACH_TEMPLATES = [
   'triage',

@@ -109,11 +109,7 @@ export interface UseCase {
 }
 
 export type UseCaseCategory =
-  | 'setup'
-  | 'daily'
-  | 'review'
-  | 'governance'
-  | 'diagnostics';
+  'setup' | 'daily' | 'review' | 'governance' | 'diagnostics';
 
 const CATEGORY_LABELS: Record<UseCaseCategory, string> = {
   setup: 'Setup & Onboarding',
