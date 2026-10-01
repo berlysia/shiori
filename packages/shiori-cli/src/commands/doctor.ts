@@ -21,11 +21,9 @@ import {
   checkExpiredEntries,
   checkRegistryCompleteness,
   checkExitCodePolicies,
-  checkCommandRegistrationConsistency,
   checkKindSemantics,
 } from './doctor/checks.ts';
 import { assessMaturity } from './doctor/maturity.ts';
-import { buildUpgradePlan } from './doctor/upgrade.ts';
 import { REGISTERED_COMMANDS } from '../core/exit-codes.ts';
 
 // Re-export public APIs for backward compatibility (tests, CLI wrapper)

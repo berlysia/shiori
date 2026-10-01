@@ -61,14 +61,12 @@ describe('watch-cli: argument validation and error paths', () => {
       assert.ok(stderr.includes('Invalid --debounce-ms'));
     });
 
-    it('treats negative value as separate flag (CLI framework limitation)', async () => {
-      // When passing "--debounce-ms -100", the CLI framework parses "-100"
-      // as a separate flag rather than the value for --debounce-ms.
-      // The watch-cli.ts code has a guard (debounceMs < 0) for programmatic use,
-      // but the CLI framework prevents negative numeric strings from reaching it.
-      // This test documents the actual behavior: debounceMs falls back to default.
+    it('exits 3 for negative value', async () => {
+      // The CLI framework parses "-100" as a separate flag, leaving --debounce-ms
+      // without a value, and rejects that before watch-cli.ts runs. The
+      // debounceMs < 0 guard in watch-cli.ts covers programmatic use only.
       const outputPath = join(tmpDir, 'watch-neg-debounce.json');
-      const { exitCode } = await runCli([
+      const { exitCode, stdout } = await runCli([
         'watch',
         '--once',
         '--patterns',
@@ -80,9 +78,8 @@ describe('watch-cli: argument validation and error paths', () => {
         '--output',
         outputPath,
       ]);
-      // -100 is not parsed as the value for --debounce-ms,
-      // so it falls back to default (250ms) and succeeds
-      assert.equal(exitCode, 0);
+      assert.equal(exitCode, 3);
+      assert.ok(stdout.includes('--debounce-ms'));
     });
 
     it('exits 3 for floating point value', async () => {

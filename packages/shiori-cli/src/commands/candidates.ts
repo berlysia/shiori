@@ -1,4 +1,4 @@
-import type { ShioriCandidate, CandidatesOutputFormat } from '../core/types.ts';
+import type { ShioriCandidate } from '../core/types.ts';
 import { formatGroupLabel } from '../core/format-utils.ts';
 
 export {
