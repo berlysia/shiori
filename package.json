@@ -14,6 +14,7 @@
     "prepare": "husky"
   },
   "devDependencies": {
+    "@berlysia/shiori": "workspace:*",
     "bumpp": "12.3.0",
     "husky": "9.1.7",
     "lint-staged": "16.2.7",

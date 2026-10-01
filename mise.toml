@@ -1,3 +1,5 @@
-[tools."github:berlysia/shiori"]
-version = "v0.2.0"
-exe = "shiori"
+# Run the CLI built from this checkout, not a released one, so dogfooding
+# exercises the working tree. The root devDependency on @berlysia/shiori
+# (workspace:*) links its bin into node_modules/.bin; run `pnpm build` first.
+[env]
+_.path = ["{{config_root}}/node_modules/.bin"]
