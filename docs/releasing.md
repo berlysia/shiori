@@ -51,7 +51,7 @@ rc version は使い捨てにする。やり直すときは `rc.N` を進める�
 
 - stage が OIDC で認証される。
 - approve 前は `npm view @berlysia/shiori versions` に version が出ない。
-- approve 後に `npm view @berlysia/shiori@<version> dist.attestations` が存在する。
+- approve 後に `npm view @berlysia/shiori@<version> dist.integrity` が validate job のログと一致する。
 - `npm stage view` の integrity が validate job のログと一致する。
 - GitHub Release が prerelease として作られる。
 
@@ -96,12 +96,16 @@ npm stage approve <id>
 
 2FA を要求される。npmjs.com の画面から承認してもよい。
 
+stage 直後は npm の自動レビュー（マルウェアスキャン）が終わるまで承認できず、`E409 ... can't be approved yet because automated review hasn't finished` が返る。数分待ってから再実行する。
+
 ### 事後確認
 
 ```bash
-npm view @berlysia/shiori@<version>
-npm view @berlysia/shiori@<version> dist.attestations
+npm view @berlysia/shiori dist-tags
+npm view @berlysia/shiori@<version> dist.integrity
 ```
+
+provenance（`dist.attestations`）は、リポジトリが private の間は生成されない。public にした後は `npm view @berlysia/shiori@<version> dist.attestations` で付与を確認する。
 
 ## 失敗時の対応
 

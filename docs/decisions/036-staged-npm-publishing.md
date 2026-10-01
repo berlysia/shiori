@@ -72,13 +72,13 @@ npm は staged publishing を提供している。CI は tarball を stage に�
 - `validate` job 内の依存コードによる tarball の改変は、approve 前確認（`npm stage view` / `npm stage download` と、validate ログの integrity の照合）で緩和する。tag 起点の自動 stage では、これが人間による唯一の内容確認になる。
 - merge 後は旧経路での緊急公開ができない。公開は `release.yml` 経由のみになる。
 
-### 初回の rc リハーサルで確認する項目
+### プレリリースによるリハーサルの結果（`v0.2.2-beta.1`、2026-10-02）
 
-- `setup-node` の `registry-url` 設定の下で、`npm stage publish` が OIDC で認証される。
-- approve 前は `npm view` に version が出ない。
-- approve 後に `dist.attestations`（provenance）が付く。stage → approve 経路での付与は、一次資料でも実機でも未確認。付かなければこの ADR に追記し、`--provenance` の明示を検討する。
-- `npm stage view` の integrity が、validate job の "Print tarball integrity" と一致する。
-- rc tag の GitHub Release が prerelease として作られる。
+- `setup-node` の `registry-url` 設定の下で、`npm stage publish` が OIDC で認証された（`staged with tag next`）。
+- approve 前は `npm view` に version が出なかった。stage 直後の approve は、自動レビューの完了まで `E409` で拒否された。
+- `npm stage view` の integrity は、validate job の "Print tarball integrity" と一致した。
+- GitHub Release は prerelease として作られた。
+- `dist.attestations`（provenance）は付かなかった。旧経路で直接 publish した 0.2.1 にも付いていない。原因はリポジトリが private であることで、npm の provenance は public リポジトリから公開する場合にしか生成されない。staged 経路による制約ではない。リポジトリを public にした時点で、付与されることを確認する。
 
 ### 運用
 
