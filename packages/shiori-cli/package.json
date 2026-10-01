@@ -57,7 +57,8 @@
     "test:coverage": "node --experimental-strip-types --experimental-test-coverage --test tests/*.test.ts tests/**/*.test.ts",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint src/ tests/ --ignore-pattern 'tests/fixtures/**' --deny-warnings",
-    "lint:boundaries": "depcruise 'src/**/*.ts' --config .dependency-cruiser.cjs",
+    "lint:boundaries": "node scripts/gen-fallow-config.mjs --check && fallow dead-code --boundary-violations --circular-deps",
+    "gen:boundaries": "node scripts/gen-fallow-config.mjs",
     "lint:envelope": "bash scripts/lint-envelope.sh",
     "link:local": "pnpm build && pnpm link --global",
     "unlink:local": "pnpm unlink --global",
@@ -74,8 +75,8 @@
   },
   "devDependencies": {
     "@types/node": "26.6.2",
-    "dependency-cruiser": "18.4.0",
     "esbuild": "0.28.2",
+    "fallow": "3.28.0",
     "oxlint": "1.85.0",
     "typescript": "^7.0.2"
   },

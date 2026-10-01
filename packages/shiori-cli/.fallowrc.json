@@ -1,0 +1,666 @@
+{
+  "$schema": "./node_modules/fallow/schema.json",
+  "boundaries": {
+    "zones": [
+      {
+        "name": "entry",
+        "patterns": [
+          "src/cli.ts"
+        ]
+      },
+      {
+        "name": "cli-wrapper",
+        "patterns": [
+          "src/commands/*-cli.ts"
+        ]
+      },
+      {
+        "name": "command-map",
+        "patterns": [
+          "src/commands/command-map.ts"
+        ]
+      },
+      {
+        "name": "cmd-composer",
+        "patterns": [
+          "src/commands/scan-workspaces.ts",
+          "src/commands/init-steps.ts",
+          "src/commands/doctor.ts",
+          "src/commands/aggregate.ts",
+          "src/commands/triage-wizard-apply.ts",
+          "src/commands/scan-demo.ts",
+          "src/commands/governance-pipeline.ts",
+          "src/commands/doctor/**"
+        ]
+      },
+      {
+        "name": "cmd-summary",
+        "patterns": [
+          "src/commands/summary.ts"
+        ]
+      },
+      {
+        "name": "cmd-target",
+        "patterns": [
+          "src/commands/verify.ts",
+          "src/commands/report.ts",
+          "src/commands/migrate.ts",
+          "src/commands/health.ts",
+          "src/commands/delta.ts",
+          "src/commands/trend.ts",
+          "src/commands/triage.ts",
+          "src/commands/onboard.ts"
+        ]
+      },
+      {
+        "name": "cmd-leaf-adopt",
+        "patterns": [
+          "src/commands/adopt.ts"
+        ]
+      },
+      {
+        "name": "cmd-leaf-annotate",
+        "patterns": [
+          "src/commands/annotate.ts"
+        ]
+      },
+      {
+        "name": "cmd-leaf-badge",
+        "patterns": [
+          "src/commands/badge.ts"
+        ]
+      },
+      {
+        "name": "cmd-leaf-candidates",
+        "patterns": [
+          "src/commands/candidates.ts"
+        ]
+      },
+      {
+        "name": "cmd-leaf-check",
+        "patterns": [
+          "src/commands/check.ts"
+        ]
+      },
+      {
+        "name": "cmd-leaf-coach",
+        "patterns": [
+          "src/commands/coach.ts"
+        ]
+      },
+      {
+        "name": "cmd-leaf-draft",
+        "patterns": [
+          "src/commands/draft.ts"
+        ]
+      },
+      {
+        "name": "cmd-leaf-fix",
+        "patterns": [
+          "src/commands/fix.ts"
+        ]
+      },
+      {
+        "name": "cmd-leaf-fix-interactive",
+        "patterns": [
+          "src/commands/fix-interactive.ts"
+        ]
+      },
+      {
+        "name": "cmd-leaf-guide",
+        "patterns": [
+          "src/commands/guide.ts"
+        ]
+      },
+      {
+        "name": "cmd-leaf-health-fix",
+        "patterns": [
+          "src/commands/health-fix.ts"
+        ]
+      },
+      {
+        "name": "cmd-leaf-impact",
+        "patterns": [
+          "src/commands/impact.ts"
+        ]
+      },
+      {
+        "name": "cmd-leaf-init",
+        "patterns": [
+          "src/commands/init.ts"
+        ]
+      },
+      {
+        "name": "cmd-leaf-init-ci-templates",
+        "patterns": [
+          "src/commands/init-ci-templates.ts"
+        ]
+      },
+      {
+        "name": "cmd-leaf-init-vscode-templates",
+        "patterns": [
+          "src/commands/init-vscode-templates.ts"
+        ]
+      },
+      {
+        "name": "cmd-leaf-journal",
+        "patterns": [
+          "src/commands/journal.ts"
+        ]
+      },
+      {
+        "name": "cmd-leaf-journal-velocity",
+        "patterns": [
+          "src/commands/journal-velocity.ts"
+        ]
+      },
+      {
+        "name": "cmd-leaf-narrative",
+        "patterns": [
+          "src/commands/narrative.ts"
+        ]
+      },
+      {
+        "name": "cmd-leaf-next-steps",
+        "patterns": [
+          "src/commands/next-steps.ts"
+        ]
+      },
+      {
+        "name": "cmd-leaf-onboard-interactive",
+        "patterns": [
+          "src/commands/onboard-interactive.ts"
+        ]
+      },
+      {
+        "name": "cmd-leaf-pitch",
+        "patterns": [
+          "src/commands/pitch.ts"
+        ]
+      },
+      {
+        "name": "cmd-leaf-recipes",
+        "patterns": [
+          "src/commands/recipes.ts"
+        ]
+      },
+      {
+        "name": "cmd-leaf-registry-generator",
+        "patterns": [
+          "src/commands/registry-generator.ts"
+        ]
+      },
+      {
+        "name": "cmd-leaf-resolve",
+        "patterns": [
+          "src/commands/resolve.ts"
+        ]
+      },
+      {
+        "name": "cmd-leaf-scan",
+        "patterns": [
+          "src/commands/scan.ts"
+        ]
+      },
+      {
+        "name": "cmd-leaf-show",
+        "patterns": [
+          "src/commands/show.ts"
+        ]
+      },
+      {
+        "name": "cmd-leaf-triage-interactive",
+        "patterns": [
+          "src/commands/triage-interactive.ts"
+        ]
+      },
+      {
+        "name": "cmd-leaf-watch",
+        "patterns": [
+          "src/commands/watch.ts"
+        ]
+      },
+      {
+        "name": "cmd-leaf-why",
+        "patterns": [
+          "src/commands/why.ts"
+        ]
+      },
+      {
+        "name": "formatters",
+        "patterns": [
+          "src/formatters/**"
+        ]
+      },
+      {
+        "name": "core",
+        "patterns": [
+          "src/core/**"
+        ]
+      }
+    ],
+    "rules": [
+      {
+        "from": "core",
+        "allow": [
+          "entry"
+        ]
+      },
+      {
+        "from": "formatters",
+        "allow": [
+          "core",
+          "entry"
+        ]
+      },
+      {
+        "from": "cli-wrapper",
+        "allow": [
+          "core",
+          "formatters",
+          "command-map",
+          "cmd-composer",
+          "cmd-summary",
+          "cmd-target",
+          "cmd-leaf-adopt",
+          "cmd-leaf-annotate",
+          "cmd-leaf-badge",
+          "cmd-leaf-candidates",
+          "cmd-leaf-check",
+          "cmd-leaf-coach",
+          "cmd-leaf-draft",
+          "cmd-leaf-fix",
+          "cmd-leaf-fix-interactive",
+          "cmd-leaf-guide",
+          "cmd-leaf-health-fix",
+          "cmd-leaf-impact",
+          "cmd-leaf-init",
+          "cmd-leaf-init-ci-templates",
+          "cmd-leaf-init-vscode-templates",
+          "cmd-leaf-journal",
+          "cmd-leaf-journal-velocity",
+          "cmd-leaf-narrative",
+          "cmd-leaf-next-steps",
+          "cmd-leaf-onboard-interactive",
+          "cmd-leaf-pitch",
+          "cmd-leaf-recipes",
+          "cmd-leaf-registry-generator",
+          "cmd-leaf-resolve",
+          "cmd-leaf-scan",
+          "cmd-leaf-show",
+          "cmd-leaf-triage-interactive",
+          "cmd-leaf-watch",
+          "cmd-leaf-why"
+        ]
+      },
+      {
+        "from": "command-map",
+        "allow": [
+          "core",
+          "entry",
+          "cmd-target",
+          "cmd-summary",
+          "cli-wrapper"
+        ]
+      },
+      {
+        "from": "cmd-composer",
+        "allow": [
+          "core",
+          "entry",
+          "cmd-composer",
+          "cmd-summary",
+          "cmd-target",
+          "cmd-leaf-adopt",
+          "cmd-leaf-annotate",
+          "cmd-leaf-badge",
+          "cmd-leaf-candidates",
+          "cmd-leaf-check",
+          "cmd-leaf-coach",
+          "cmd-leaf-draft",
+          "cmd-leaf-fix",
+          "cmd-leaf-fix-interactive",
+          "cmd-leaf-guide",
+          "cmd-leaf-health-fix",
+          "cmd-leaf-impact",
+          "cmd-leaf-init",
+          "cmd-leaf-init-ci-templates",
+          "cmd-leaf-init-vscode-templates",
+          "cmd-leaf-journal",
+          "cmd-leaf-journal-velocity",
+          "cmd-leaf-narrative",
+          "cmd-leaf-next-steps",
+          "cmd-leaf-onboard-interactive",
+          "cmd-leaf-pitch",
+          "cmd-leaf-recipes",
+          "cmd-leaf-registry-generator",
+          "cmd-leaf-resolve",
+          "cmd-leaf-scan",
+          "cmd-leaf-show",
+          "cmd-leaf-triage-interactive",
+          "cmd-leaf-watch",
+          "cmd-leaf-why"
+        ]
+      },
+      {
+        "from": "cmd-summary",
+        "allow": [
+          "core",
+          "entry",
+          "cmd-composer",
+          "cmd-summary",
+          "cmd-target",
+          "cmd-leaf-adopt",
+          "cmd-leaf-annotate",
+          "cmd-leaf-badge",
+          "cmd-leaf-candidates",
+          "cmd-leaf-check",
+          "cmd-leaf-coach",
+          "cmd-leaf-draft",
+          "cmd-leaf-fix",
+          "cmd-leaf-fix-interactive",
+          "cmd-leaf-guide",
+          "cmd-leaf-health-fix",
+          "cmd-leaf-impact",
+          "cmd-leaf-init",
+          "cmd-leaf-init-ci-templates",
+          "cmd-leaf-init-vscode-templates",
+          "cmd-leaf-journal",
+          "cmd-leaf-journal-velocity",
+          "cmd-leaf-narrative",
+          "cmd-leaf-next-steps",
+          "cmd-leaf-onboard-interactive",
+          "cmd-leaf-pitch",
+          "cmd-leaf-recipes",
+          "cmd-leaf-registry-generator",
+          "cmd-leaf-resolve",
+          "cmd-leaf-scan",
+          "cmd-leaf-show",
+          "cmd-leaf-triage-interactive",
+          "cmd-leaf-watch",
+          "cmd-leaf-why"
+        ]
+      },
+      {
+        "from": "cmd-target",
+        "allow": [
+          "core",
+          "entry",
+          "cmd-target",
+          "cmd-summary"
+        ]
+      },
+      {
+        "from": "cmd-leaf-adopt",
+        "allow": [
+          "core",
+          "entry",
+          "cmd-target",
+          "cmd-summary"
+        ]
+      },
+      {
+        "from": "cmd-leaf-annotate",
+        "allow": [
+          "core",
+          "entry",
+          "cmd-target",
+          "cmd-summary"
+        ]
+      },
+      {
+        "from": "cmd-leaf-badge",
+        "allow": [
+          "core",
+          "entry",
+          "cmd-target",
+          "cmd-summary"
+        ]
+      },
+      {
+        "from": "cmd-leaf-candidates",
+        "allow": [
+          "core",
+          "entry",
+          "cmd-target",
+          "cmd-summary"
+        ]
+      },
+      {
+        "from": "cmd-leaf-check",
+        "allow": [
+          "core",
+          "entry",
+          "cmd-target",
+          "cmd-summary"
+        ]
+      },
+      {
+        "from": "cmd-leaf-coach",
+        "allow": [
+          "core",
+          "entry",
+          "cmd-target",
+          "cmd-summary"
+        ]
+      },
+      {
+        "from": "cmd-leaf-draft",
+        "allow": [
+          "core",
+          "entry",
+          "cmd-target",
+          "cmd-summary"
+        ]
+      },
+      {
+        "from": "cmd-leaf-fix",
+        "allow": [
+          "core",
+          "entry",
+          "cmd-target",
+          "cmd-summary"
+        ]
+      },
+      {
+        "from": "cmd-leaf-fix-interactive",
+        "allow": [
+          "core",
+          "entry",
+          "cmd-target",
+          "cmd-summary"
+        ]
+      },
+      {
+        "from": "cmd-leaf-guide",
+        "allow": [
+          "core",
+          "entry",
+          "cmd-target",
+          "cmd-summary"
+        ]
+      },
+      {
+        "from": "cmd-leaf-health-fix",
+        "allow": [
+          "core",
+          "entry",
+          "cmd-target",
+          "cmd-summary"
+        ]
+      },
+      {
+        "from": "cmd-leaf-impact",
+        "allow": [
+          "core",
+          "entry",
+          "cmd-target",
+          "cmd-summary"
+        ]
+      },
+      {
+        "from": "cmd-leaf-init",
+        "allow": [
+          "core",
+          "entry",
+          "cmd-target",
+          "cmd-summary"
+        ]
+      },
+      {
+        "from": "cmd-leaf-init-ci-templates",
+        "allow": [
+          "core",
+          "entry",
+          "cmd-target",
+          "cmd-summary"
+        ]
+      },
+      {
+        "from": "cmd-leaf-init-vscode-templates",
+        "allow": [
+          "core",
+          "entry",
+          "cmd-target",
+          "cmd-summary"
+        ]
+      },
+      {
+        "from": "cmd-leaf-journal",
+        "allow": [
+          "core",
+          "entry",
+          "cmd-target",
+          "cmd-summary"
+        ]
+      },
+      {
+        "from": "cmd-leaf-journal-velocity",
+        "allow": [
+          "core",
+          "entry",
+          "cmd-target",
+          "cmd-summary"
+        ]
+      },
+      {
+        "from": "cmd-leaf-narrative",
+        "allow": [
+          "core",
+          "entry",
+          "cmd-target",
+          "cmd-summary"
+        ]
+      },
+      {
+        "from": "cmd-leaf-next-steps",
+        "allow": [
+          "core",
+          "entry",
+          "cmd-target",
+          "cmd-summary"
+        ]
+      },
+      {
+        "from": "cmd-leaf-onboard-interactive",
+        "allow": [
+          "core",
+          "entry",
+          "cmd-target",
+          "cmd-summary"
+        ]
+      },
+      {
+        "from": "cmd-leaf-pitch",
+        "allow": [
+          "core",
+          "entry",
+          "cmd-target",
+          "cmd-summary"
+        ]
+      },
+      {
+        "from": "cmd-leaf-recipes",
+        "allow": [
+          "core",
+          "entry",
+          "cmd-target",
+          "cmd-summary"
+        ]
+      },
+      {
+        "from": "cmd-leaf-registry-generator",
+        "allow": [
+          "core",
+          "entry",
+          "cmd-target",
+          "cmd-summary"
+        ]
+      },
+      {
+        "from": "cmd-leaf-resolve",
+        "allow": [
+          "core",
+          "entry",
+          "cmd-target",
+          "cmd-summary"
+        ]
+      },
+      {
+        "from": "cmd-leaf-scan",
+        "allow": [
+          "core",
+          "entry",
+          "cmd-target",
+          "cmd-summary"
+        ]
+      },
+      {
+        "from": "cmd-leaf-show",
+        "allow": [
+          "core",
+          "entry",
+          "cmd-target",
+          "cmd-summary"
+        ]
+      },
+      {
+        "from": "cmd-leaf-triage-interactive",
+        "allow": [
+          "core",
+          "entry",
+          "cmd-target",
+          "cmd-summary"
+        ]
+      },
+      {
+        "from": "cmd-leaf-watch",
+        "allow": [
+          "core",
+          "entry",
+          "cmd-target",
+          "cmd-summary"
+        ]
+      },
+      {
+        "from": "cmd-leaf-why",
+        "allow": [
+          "core",
+          "entry",
+          "cmd-target",
+          "cmd-summary"
+        ]
+      }
+    ],
+    "coverage": {
+      "requireAllFiles": true,
+      "allowUnmatched": [
+        "tests/**",
+        "scripts/**",
+        "src/playground/**",
+        "src/templates/**",
+        "*.config.*"
+      ]
+    }
+  }
+}
