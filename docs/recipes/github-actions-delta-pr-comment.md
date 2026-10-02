@@ -1,31 +1,31 @@
 # GitHub Actions: Delta PR Comment
 
-PRのアノテーション増減をCIで検出し、差分レポートをPRコメントに自動投稿するEnd-to-Endレシピ。
+An end-to-end recipe that detects a PR's annotation changes in CI and automatically posts a delta report as a PR comment.
 
-## 概要
+## Overview
 
-このレシピは以下を実現します：
+This recipe does the following:
 
-1. **ベーススキャン**（`main` ブランチのアノテーション一覧）を artifact として保存
-2. **PRブランチでスキャン**し、ベースとの差分を `shiori delta` で計算
-3. 差分レポートを Markdown 形式でPRコメントに投稿（`peter-evans/create-or-update-comment`）
-4. アノテーション純増数が閾値を超えた場合はCIを失敗させる（`--max-increase`）
+1. Saves a **baseline scan** (the list of annotations on the `main` branch) as an artifact
+2. **Scans the PR branch** and computes the difference from the baseline with `shiori delta`
+3. Posts the delta report in Markdown format as a PR comment (`peter-evans/create-or-update-comment`)
+4. Fails CI when the net increase in annotations exceeds a threshold (`--max-increase`)
 
-## 前提条件
+## Prerequisites
 
 - Node.js >= 22.6.0
-- `shiori` がプロジェクトの devDependencies に追加済み（`pnpm add -D shiori`）
-- GitHub Actions で `pull_request` イベントをトリガーに使用
+- `shiori` is already added to the project's devDependencies (`pnpm add -D shiori`)
+- GitHub Actions with the `pull_request` event as the trigger
 
-## ワークフロー構成
+## Workflow structure
 
-レシピは **2つのワークフローファイル** で構成されます。
+The recipe consists of **two workflow files**.
 
 ---
 
-### 1. ベーススキャン保存ワークフロー
+### 1. Baseline scan workflow
 
-`main` ブランチへのプッシュ時にスキャン結果を artifact として保存します。
+Saves the scan result as an artifact when `main` is pushed.
 
 ```yaml
 # .github/workflows/shiori-base.yml
@@ -62,16 +62,16 @@ jobs:
         with:
           name: shiori-base-scan
           path: .tmp/shiori-base-scan.json
-          # 90日間保持（デフォルト）。チームの運用に合わせて調整。
+          # Retained for 90 days (default). Adjust to fit your team's practice.
           retention-days: 90
           overwrite: true
 ```
 
 ---
 
-### 2. PRコメントワークフロー
+### 2. PR comment workflow
 
-PRブランチでスキャンを実行し、ベースと比較してPRコメントに差分を投稿します。
+Runs a scan on the PR branch, compares it with the baseline, and posts the delta as a PR comment.
 
 ````yaml
 # .github/workflows/shiori-pr.yml
@@ -85,7 +85,7 @@ on:
 jobs:
   delta-comment:
     runs-on: ubuntu-latest
-    # PRコメントの書き込みと、クロスワークフロー artifact 取得に actions: read が必要
+    # actions: read is required for writing PR comments and for cross-workflow artifact retrieval
     permissions:
       contents: read
       pull-requests: write
@@ -106,16 +106,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # ベースラインartifactを取得。
-      # actions/download-artifact@v8 は同一ワークフロー内の artifact しか取得できないため、
-      # クロスワークフロー（別ワークフローで保存された artifact）には GitHub API を使用する。
+      # Fetch the baseline artifact.
+      # actions/download-artifact@v8 can only fetch artifacts within the same workflow,
+      # so for cross-workflow cases (an artifact saved by a different workflow) we use the GitHub API.
       - name: Download baseline scan artifact
         uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
 
-            // 'shiori baseline' ワークフローの最新成功ランを検索
+            // Find the latest successful run of the 'shiori baseline' workflow
             const workflows = await github.rest.actions.listRepoWorkflows({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -143,7 +143,7 @@ jobs:
 
             const runId = runs.data.workflow_runs[0].id;
 
-            // 該当ランの artifact を検索
+            // Find the artifact of that run
             const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -157,7 +157,7 @@ jobs:
               return;
             }
 
-            // artifact をダウンロードして展開
+            // Download and extract the artifact
             const download = await github.rest.actions.downloadArtifact({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -174,13 +174,13 @@ jobs:
             console.log('Baseline scan artifact downloaded successfully');
         continue-on-error: true
 
-      # PRブランチのアノテーションをスキャン
+      # Scan annotations on the PR branch
       - name: Scan annotations (PR head)
         run: pnpm shiori scan --output .tmp/shiori-head-scan.json
 
-      # 差分を計算してMarkdownレポートを生成
-      # --base-fallback-empty: ベースファイルが存在しない初回PRでも動作
-      # --max-increase 0: アノテーション純増を禁止（チームポリシーに応じて変更）
+      # Compute the delta and generate a Markdown report
+      # --base-fallback-empty: works even on the first PR, when no base file exists
+      # --max-increase 0: forbid a net increase in annotations (change according to your team policy)
       - name: Compute delta
         id: delta
         run: |
@@ -193,8 +193,8 @@ jobs:
             --output .tmp/shiori-delta.md
         continue-on-error: true
 
-      # オンボーディングセクションを追加（shiori を知らない開発者向け）
-      # チーム全体がオンボーディング済みになったらこのステップを削除してください。
+      # Append an onboarding section (for developers who don't know shiori)
+      # Remove this step once the whole team has been onboarded.
       - name: Append onboarding section
         run: |
           cat >> .tmp/shiori-delta.md << 'ONBOARDING'
@@ -202,45 +202,45 @@ jobs:
           ---
 
           <details>
-          <summary>💡 shiori について</summary>
+          <summary>💡 About shiori</summary>
 
-          **shiori** はソースコード中の lint disable コメントや技術的判断を追跡・管理するガバナンスツールです。
+          **shiori** is a governance tool that tracks and manages lint disable comments and technical decisions in source code.
 
-          このコメントは `shiori delta` によって自動投稿されています。
+          This comment is posted automatically by `shiori delta`.
 
-          ### クイックスタート
+          ### Quick start
 
           ```bash
-          # インストール
+          # Install
           pnpm add -D shiori
 
-          # プロジェクト初期化（レジストリ + CI テンプレート生成）
+          # Initialize the project (generates the registry + CI templates)
           pnpm shiori init
 
-          # lint disable の候補を検出して追跡開始
+          # Detect lint disable candidates and start tracking them
           pnpm shiori candidates
           pnpm shiori adopt
 
-          # レジストリとの整合性を検証
+          # Verify consistency with the registry
           pnpm shiori check
           ```
 
-          📖 詳細: `pnpm shiori docs`
+          📖 Details: `pnpm shiori docs`
 
           </details>
           ONBOARDING
 
-      # 差分レポートをPRコメントに投稿（既存コメントは上書き）
+      # Post the delta report as a PR comment (overwrites the existing comment)
       - name: Post delta as PR comment
         uses: peter-evans/create-or-update-comment@v5
         with:
           issue-number: ${{ github.event.pull_request.number }}
           body-path: .tmp/shiori-delta.md
-          # 既存のshioriコメントを識別して上書きするためのマーカー
+          # Marker used to identify and overwrite the existing shiori comment
           comment-author: 'github-actions[bot]'
           body-includes: '<\!-- shiori-delta -->'
 
-      # --max-increase を超えた場合にCIを失敗させる
+      # Fail CI when --max-increase is exceeded
       - name: Fail if annotation count increased
         if: steps.delta.outcome == 'failure'
         run: |
@@ -250,9 +250,9 @@ jobs:
 
 ---
 
-## PRコメントのMarkdown出力サンプル
+## PR comment Markdown output sample
 
-`shiori delta --format markdown` は以下のような出力を生成します：
+`shiori delta --format markdown` produces output like the following:
 
 ```markdown
 <\!-- shiori-delta -->
@@ -287,12 +287,12 @@ jobs:
 
 ---
 
-## カスタマイズ
+## Customization
 
-### アノテーション増加の閾値を変更する
+### Change the annotation increase threshold
 
 ```yaml
-# 最大3件まで増加を許容する例
+# Example: allow an increase of up to 3
 - name: Compute delta
   run: |
     pnpm shiori delta \
@@ -302,7 +302,7 @@ jobs:
       ...
 ```
 
-### ベリファイ（レジストリ照合）も合わせて実行する
+### Also run verify (registry reconciliation)
 
 ```yaml
 - name: Verify annotations
@@ -310,10 +310,10 @@ jobs:
   continue-on-error: true
 ```
 
-### オンボーディングセクションを無効化する
+### Disable the onboarding section
 
-チーム全体が shiori に習熟したら、オンボーディングセクションの追加ステップを削除するか、
-環境変数で制御できます：
+Once the whole team is proficient with shiori, you can remove the step that appends the onboarding section,
+or control it with an environment variable:
 
 ```yaml
 - name: Append onboarding section
@@ -324,12 +324,12 @@ jobs:
     ONBOARDING
 ```
 
-詳細は [PR Onboarding Snippet](./pr-onboarding-snippet.md) を参照してください。
+See [PR Onboarding Snippet](./pr-onboarding-snippet.md) for details.
 
-### キャッシュを使って高速化する
+### Speed things up with caching
 
 ```yaml
-# pnpm/action-setup の cache: 'pnpm' で node_modules が自動キャッシュされる
+# cache: 'pnpm' on actions/setup-node automatically caches the pnpm store
 - uses: actions/setup-node@v7
   with:
     node-version: '22'
@@ -338,9 +338,9 @@ jobs:
 
 ---
 
-## 完全なワークフロー（単一ファイル版）
+## Complete workflow (single-file version)
 
-ベーススキャンとPRデルタを1ファイルにまとめたシンプル構成：
+A simple setup that puts the baseline scan and the PR delta in one file:
 
 ````yaml
 # .github/workflows/shiori.yml
@@ -353,7 +353,7 @@ on:
     branches: [main]
 
 jobs:
-  # main ブランチへのプッシュ時にベースラインを保存
+  # Save the baseline when main is pushed
   save-baseline:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -372,7 +372,7 @@ jobs:
           path: .tmp/shiori-base-scan.json
           overwrite: true
 
-  # PR時にデルタを計算してコメント投稿
+  # On PRs, compute the delta and post a comment
   pr-delta:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -389,8 +389,8 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
 
-      # push と pull_request は別ワークフローランで実行されるため、
-      # download-artifact では取得できない。GitHub API を使用する。
+      # push and pull_request run as separate workflow runs,
+      # so download-artifact cannot fetch it. Use the GitHub API.
       - name: Download baseline scan artifact
         uses: actions/github-script@v9
         with:
@@ -458,30 +458,30 @@ jobs:
           ---
 
           <details>
-          <summary>💡 shiori について</summary>
+          <summary>💡 About shiori</summary>
 
-          **shiori** はソースコード中の lint disable コメントや技術的判断を追跡・管理するガバナンスツールです。
+          **shiori** is a governance tool that tracks and manages lint disable comments and technical decisions in source code.
 
-          このコメントは `shiori delta` によって自動投稿されています。
+          This comment is posted automatically by `shiori delta`.
 
-          ### クイックスタート
+          ### Quick start
 
           ```bash
-          # インストール
+          # Install
           pnpm add -D shiori
 
-          # プロジェクト初期化
+          # Initialize the project
           pnpm shiori init
 
-          # lint disable の候補を検出して追跡開始
+          # Detect lint disable candidates and start tracking them
           pnpm shiori candidates
           pnpm shiori adopt
 
-          # レジストリとの整合性を検証
+          # Verify consistency with the registry
           pnpm shiori check
           ```
 
-          📖 詳細: `pnpm shiori docs`
+          📖 Details: `pnpm shiori docs`
 
           </details>
           ONBOARDING
@@ -500,36 +500,36 @@ jobs:
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### ベースラインが見つからない（初回PRの場合）
+### Baseline not found (first PR)
 
-GitHub API による artifact 取得ステップが失敗しても `continue-on-error: true` により処理は継続します。
-`shiori delta --base-fallback-empty` フラグがベースファイル不在を空のスキャン結果として扱うため、
-初回PRでは全アノテーションが「Added」として表示されます。
+Even if the artifact-fetch step via the GitHub API fails, `continue-on-error: true` lets processing continue.
+Because the `shiori delta --base-fallback-empty` flag treats a missing base file as an empty scan result,
+all annotations are shown as "Added" on the first PR.
 
-### なぜ `actions/download-artifact` ではなく GitHub API を使うのか
+### Why use the GitHub API instead of `actions/download-artifact`
 
-`actions/download-artifact@v8` は**同一ワークフローラン内**の artifact しか取得できません。
-ベーススキャンとPRデルタは別のワークフローラン（または同一ワークフロー内でも `push` / `pull_request` で別ラン）で実行されるため、
-クロスワークフローの artifact 取得には `actions/github-script@v9` 経由で GitHub REST API を使用する必要があります。
-この方式には `actions: read` 権限が追加で必要です。
+`actions/download-artifact@v8` can only fetch artifacts **within the same workflow run**.
+The baseline scan and the PR delta run in different workflow runs (and even within a single workflow, `push` / `pull_request` are separate runs),
+so fetching an artifact across workflows requires using the GitHub REST API via `actions/github-script@v9`.
+This approach additionally requires the `actions: read` permission.
 
-### PRコメントが毎回新規投稿される
+### A new PR comment is posted every time
 
-`peter-evans/create-or-update-comment` は `body-includes` の文字列でコメントを検索します。
-`<\!-- shiori-delta -->` マーカーが出力に含まれているかを確認してください。
+`peter-evans/create-or-update-comment` searches for the comment by the `body-includes` string.
+Check that the `<\!-- shiori-delta -->` marker is included in the output.
 
-### `--max-increase` で意図せずCIが失敗する
+### CI fails unintentionally because of `--max-increase`
 
-`continue-on-error: true` を delta ステップに付けているため、コメント投稿は成功します。
-CI失敗は最終ステップで明示的に `exit 1` することで制御しています。
+Because `continue-on-error: true` is set on the delta step, posting the comment still succeeds.
+The CI failure is controlled by explicitly running `exit 1` in the final step.
 
 ---
 
-## Composite Action で簡単に使う
+## Easy setup with the Composite Action
 
-上記の YAML を数行に削減できる composite action が利用可能です：
+A composite action is available that cuts the YAML above down to a few lines:
 
 ```yaml
 - uses: berlysia/shiori/actions/shiori-action@v0.1.1
@@ -538,13 +538,13 @@ CI失敗は最終ステップで明示的に `exit 1` することで制御し�
     max-increase: 0
 ```
 
-詳細は [Composite Action レシピ](./github-actions-composite-action.md) を参照してください。
+See the [Composite Action recipe](./github-actions-composite-action.md) for details.
 
 ---
 
-## 関連
+## Related
 
-- [ADR 018: 外部サービス連携戦略](../decisions/018-external-service-integration.md)
-- [Composite Action レシピ](./github-actions-composite-action.md)
+- [ADR 018: External service integration strategy](../decisions/018-external-service-integration.md)
+- [Composite Action recipe](./github-actions-composite-action.md)
 - [PR Onboarding Snippet](./pr-onboarding-snippet.md)
-- [Alert-to-Ref ブリッジレシピ](./alert-to-ref.md)
+- [Alert-to-Ref bridge recipe](./alert-to-ref.md)

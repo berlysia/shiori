@@ -1,18 +1,18 @@
-# リリース手順
+# Release Procedure
 
-`@berlysia/shiori` の npm 公開は、tag push を起点に `release.yml` が tarball を stage し、maintainer が 2FA で承認したときだけ公開される。判断の背景は [ADR-036](decisions/036-staged-npm-publishing.md) を参照。
+Publishing `@berlysia/shiori` to npm starts with a tag push: `release.yml` stages the tarball, and it is published only when a maintainer approves it with 2FA. See [ADR-036](decisions/036-staged-npm-publishing.md) for the background to this decision.
 
-## ローカルの前提
+## Local prerequisites
 
-`npm trust` と `npm stage` は npm 11.15.0 以上が必要。手元の npm が古い場合は `npx npm@11.20.0 <command>` で実行する。
+`npm trust` and `npm stage` require npm 11.15.0 or later. If your local npm is older, run them as `npx npm@11.20.0 <command>`.
 
-## 一度きりの移行
+## One-time migration
 
-次の順序で行う。順序には理由がある。
+Do the steps in this order. The order matters.
 
-### 1. environment と tag ruleset を作る
+### 1. Create the environment and the tag ruleset
 
-environment `npm` を作り、tag パターン `v*` だけを許可する。required reviewer は付けない。
+Create the environment `npm` and allow only the tag pattern `v*`. Do not add required reviewers.
 
 ```bash
 gh api -X PUT repos/berlysia/shiori/environments/npm \
@@ -22,60 +22,60 @@ gh api -X POST repos/berlysia/shiori/environments/npm/deployment-branch-policies
   -f name='v*' -f type=tag
 ```
 
-`v*` の tag の作成・更新・削除を admin のみに制限する ruleset を作る。`actor_id: 5` は repository admin ロールを指す。
+Create a ruleset that restricts creating, updating, and deleting `v*` tags to admins only. `actor_id: 5` refers to the repository admin role.
 
 ```bash
 echo '{"name":"release tags","target":"tag","enforcement":"active","conditions":{"ref_name":{"include":["refs/tags/v*"],"exclude":[]}},"rules":[{"type":"creation"},{"type":"update"},{"type":"deletion"}],"bypass_actors":[{"actor_id":5,"actor_type":"RepositoryRole","bypass_mode":"always"}]}' \
   | gh api -X POST repos/berlysia/shiori/rulesets --input -
 ```
 
-### 2. npm trust を追加する（旧設定は残す）
+### 2. Add npm trust (keep the old configuration)
 
 ```bash
 npm trust github @berlysia/shiori --file release.yml --repo berlysia/shiori --env npm --allow-stage-publish
 npm trust list @berlysia/shiori
 ```
 
-`npm trust list` で旧設定（`publish.yml`）の id と条件を控えておく。
+Note the id and conditions of the old configuration (`publish.yml`) from `npm trust list`.
 
-### 3. release.yml の変更を merge する
+### 3. Merge the release.yml change
 
-### 4. rc でリハーサルする
+### 4. Rehearse with an rc
 
-1. master 上で `pnpm run release --preid rc` を実行し、`0.2.2-rc.1` のような prerelease を選ぶ。bump の commit、tag `v0.2.2-rc.1`、push までが行われる。
-2. Release workflow が成功したら、後述の「承認前の確認」を行い、approve して `next` として公開する。attestations は approve 後にしか確認できないため、rc も approve まで進める。
+1. On master, run `pnpm run release --preid rc` and choose a prerelease such as `0.2.2-rc.1`. This performs the bump commit, the tag `v0.2.2-rc.1`, and the push.
+2. When the Release workflow succeeds, do the "Checks before approval" described below, then approve and publish it as `next`. Attestations can only be checked after approval, so take the rc through to approval as well.
 
-rc version は使い捨てにする。やり直すときは `rc.N` を進める。rc の bump commit は master に残り、本番の bump で上書きされる。approve した rc は `next` dist-tag に残る（仕様どおり）。
+Treat the rc version as disposable. To retry, advance `rc.N`. The rc bump commit remains on master and is overwritten by the real bump. An approved rc remains on the `next` dist-tag (as designed).
 
-確認項目:
+Items to check:
 
-- stage が OIDC で認証される。
-- approve 前は `npm view @berlysia/shiori versions` に version が出ない。
-- approve 後に `npm view @berlysia/shiori@<version> dist.integrity` が validate job のログと一致する。
-- `npm stage view` の integrity が validate job のログと一致する。
-- GitHub Release が prerelease として作られる。
+- The stage is authenticated via OIDC.
+- Before approval, the version does not appear in `npm view @berlysia/shiori versions`.
+- After approval, `npm view @berlysia/shiori@<version> dist.integrity` matches the validate job log.
+- The integrity in `npm stage view` matches the validate job log.
+- The GitHub Release is created as a prerelease.
 
-### 5. 速やかに旧設定を revoke する
+### 5. Revoke the old configuration promptly
 
-リハーサルが成功したら、旧 trust を revoke し、npmjs.com の Publishing access を "Require two-factor authentication and disallow tokens" にする。旧設定が残る間は、直接 publish の経路が生きている。
+Once the rehearsal succeeds, revoke the old trust and set Publishing access on npmjs.com to "Require two-factor authentication and disallow tokens". While the old configuration remains, the direct publish path is still live.
 
 ```bash
-npm trust revoke @berlysia/shiori --id <旧 publish.yml 設定の id>
+npm trust revoke @berlysia/shiori --id <id of the old publish.yml configuration>
 ```
 
-revoke を最後にする理由は、先に revoke すると、リハーサルで問題が出ても PR の revert で旧経路に戻せなくなるため。
+The reason to revoke last is that if you revoke first and the rehearsal reveals a problem, you can no longer return to the old path by reverting the PR.
 
-## 毎回のリリース
+## Every release
 
-1. 正式版（`-` を含まない version）では、先に CHANGELOG.md に `## [X.Y.Z] - YYYY-MM-DD` の節を書いて commit する。Claude Code で `/changelog X.Y.Z` を実行すると、直前の正式版 tag 以降の commit を本文まで読んで、利用者に見える変更だけを下書きする。内容を確かめてから commit する。prerelease では不要。
-2. master 上で `pnpm run release` を実行する。品質チェックと build、test を通した後、[bumpp](https://github.com/antfu-collective/bumpp) が対話式で次の version を尋ね、`packages/shiori-cli/package.json` と `packages/shiori-cli/src/core/version.ts` を書き換える。続いて、正式版の節が CHANGELOG.md にあるかを確かめる。節がなければ commit の前に止まり、bump を戻すコマンドを表示する。確認を通ると、commit（`chore: release vX.Y.Z`）、tag `vX.Y.Z` の作成、push までを行う。bumpp は npm に publish しない。
-   - prerelease は `pnpm run release --preid rc` で作る（例: `0.2.2-rc.1`）。
-   - push された tag が Release workflow を起動する。tag は version から作られるので、validate の一致検査とずれない。
-3. Release workflow の完了を待つ。`-` を含む version（例: `0.3.0-rc.1`）は `--tag next` で stage され、GitHub Release も prerelease になる。
+1. For a stable release (a version without `-`), first write a `## [X.Y.Z] - YYYY-MM-DD` section in CHANGELOG.md and commit it. Running `/changelog X.Y.Z` in Claude Code reads the commits since the previous stable tag, including their bodies, and drafts only the user-visible changes. Check the content before committing. It is not needed for prereleases.
+2. On master, run `pnpm run release`. After passing the quality checks, build, and tests, [bumpp](https://github.com/antfu-collective/bumpp) interactively asks for the next version and rewrites `packages/shiori-cli/package.json` and `packages/shiori-cli/src/core/version.ts`. Next, it checks whether the section for a stable release exists in CHANGELOG.md. If the section is missing, it stops before committing and prints the command to revert the bump. Once the check passes, it commits (`chore: release vX.Y.Z`), creates the tag `vX.Y.Z`, and pushes. bumpp does not publish to npm.
+   - Create a prerelease with `pnpm run release --preid rc` (for example `0.2.2-rc.1`).
+   - The pushed tag triggers the Release workflow. The tag is created from the version, so it does not diverge from the validate match check.
+3. Wait for the Release workflow to finish. A version containing `-` (for example `0.3.0-rc.1`) is staged with `--tag next`, and the GitHub Release is also made a prerelease.
 
-### 承認前の確認
+### Checks before approval
 
-tag 起点の自動 stage では、これが人間による唯一の内容確認になる。
+With the automatic stage triggered by a tag, this is the only content check by a human.
 
 ```bash
 npm stage list @berlysia/shiori
@@ -83,34 +83,34 @@ npm stage view <id>
 npm stage download <id>
 ```
 
-次を確認する。
+Check the following.
 
-- version が tag と一致する。
-- ファイル一覧に想定外のものがない。
-- integrity が、validate job の "Print tarball integrity" のログ行と一致する。
+- The version matches the tag.
+- The file list contains nothing unexpected.
+- The integrity matches the "Print tarball integrity" log line of the validate job.
 
-### 承認
+### Approval
 
 ```bash
 npm stage approve <id>
 ```
 
-2FA を要求される。npmjs.com の画面から承認してもよい。
+It asks for 2FA. You can also approve from the npmjs.com UI.
 
-stage 直後は npm の自動レビュー（マルウェアスキャン）が終わるまで承認できず、`E409 ... can't be approved yet because automated review hasn't finished` が返る。数分待ってから再実行する。
+Right after staging, you cannot approve until npm's automated review (malware scan) finishes, and you get `E409 ... can't be approved yet because automated review hasn't finished`. Wait a few minutes and run it again.
 
-### 事後確認
+### Post-release checks
 
 ```bash
 npm view @berlysia/shiori dist-tags
 npm view @berlysia/shiori@<version> dist.integrity
 ```
 
-provenance（`dist.attestations`）は、リポジトリが private の間は生成されない。public にした後は `npm view @berlysia/shiori@<version> dist.attestations` で付与を確認する。
+Provenance (`dist.attestations`) is not generated while the repository is private. After making it public, check that it is attached with `npm view @berlysia/shiori@<version> dist.attestations`.
 
-## 失敗時の対応
+## Handling failures
 
-- **npm-stage だけが失敗した**: `npm stage list @berlysia/shiori` で stage 済みでないことを確認してから、該当 run の失敗 job を re-run する。artifact の保持は 7 日で、過ぎると re-run できない。
-- **workflow の修正が必要**: re-run は tag の commit の定義で動く。修正した workflow を使うには、patch version を上げて新しい tag で出し直す。GitHub Release は tag ごとに別物として残る。
-- **誤って stage した**: `npm stage reject <id>`。
-- **approve 後に誤公開が判明した**: `npm deprecate @berlysia/shiori@<version> "<理由>"`。
+- **Only npm-stage failed**: confirm with `npm stage list @berlysia/shiori` that it has not been staged, then re-run the failed job of that run. Artifacts are retained for 7 days; after that you cannot re-run.
+- **The workflow needs a fix**: a re-run uses the definition at the tag's commit. To use the fixed workflow, bump the patch version and release again with a new tag. The GitHub Release for each tag remains as a separate entity.
+- **Staged by mistake**: `npm stage reject <id>`.
+- **A mistaken publish is found after approval**: `npm deprecate @berlysia/shiori@<version> "<reason>"`.

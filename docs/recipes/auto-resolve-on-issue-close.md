@@ -1,22 +1,22 @@
 # GitHub Actions: Issue Close → Auto Resolve
 
-GitHub Issue がクローズされたとき、`shiori resolve --closed` を自動実行してアノテーションを解消するワークフローテンプレート。daemon デプロイ不要で、GitHub Actions のみで完結します。
+A workflow template that automatically runs `shiori resolve --closed` when a GitHub Issue is closed, resolving the annotations. No daemon deployment is needed; it works with GitHub Actions alone.
 
-## 概要
+## Overview
 
-- `on: issues` + `types: [closed]` で Issue クローズをトリガー
-- `shiori scan` → `shiori resolve --closed --apply --yes` を実行
-- 結果を Job Summary に出力
-- 変更があれば自動コミット＋プッシュ
+- Triggered by an issue close with `on: issues` + `types: [closed]`
+- Runs `shiori scan` → `shiori resolve --closed --apply --yes`
+- Writes the result to the Job Summary
+- If there are changes, commits and pushes them automatically
 
-## 前提条件
+## Prerequisites
 
 - Node.js >= 22.6.0
-- `shiori` がプロジェクトの devDependencies に追加済み
-- ref に GitHub Issue 番号を使用している（例: `GH-123`）
-- リポジトリの Actions 設定で `contents: write` 権限が許可されている
+- `shiori` is added to the project's devDependencies
+- GitHub Issue numbers are used as refs (e.g. `GH-123`)
+- The `contents: write` permission is allowed in the repository's Actions settings
 
-## ワークフロー
+## Workflow
 
 ````yaml
 # .github/workflows/shiori-auto-resolve.yml
@@ -90,39 +90,39 @@ jobs:
           git push
 ````
 
-## 動作フロー
+## Flow
 
-1. GitHub Issue がクローズされる
-2. ワークフローがトリガーされ、リポジトリをチェックアウト
-3. `shiori scan` でソースコードをスキャンし、最新の scan-result を生成
-4. `shiori resolve --closed --apply --yes --format json` で以下を実行:
-   - `GITHUB_TOKEN` を使用して、すべての ref の Issue ステータスを確認
-   - クローズされた ref に対応するアノテーションをソースから除去
-   - レジストリエントリを削除
-5. 結果を Job Summary に出力
-6. 変更があれば自動コミット＋プッシュ
+1. A GitHub Issue is closed
+2. The workflow is triggered and checks out the repository
+3. `shiori scan` scans the source code and generates the latest scan-result
+4. `shiori resolve --closed --apply --yes --format json` does the following:
+   - Uses `GITHUB_TOKEN` to check the Issue status of every ref
+   - Removes the annotations corresponding to closed refs from the source
+   - Deletes the registry entries
+5. Writes the result to the Job Summary
+6. If there are changes, commits and pushes them automatically
 
-## daemon との使い分け
+## Choosing Between This and the daemon
 
-| 観点           | GitHub Actions（本レシピ）           | shiori-daemon                   |
-| -------------- | ------------------------------------ | ------------------------------- |
-| インフラ       | 不要（GitHub が提供）                | 常駐プロセスのデプロイが必要    |
-| 適性           | 低〜中頻度の Issue クローズ          | 高頻度のイベント処理            |
-| レイテンシ     | 数十秒〜数分（Actions 起動時間）     | 数秒（常駐プロセスが即応答）    |
-| 環境           | GitHub.com / GitHub Enterprise Cloud | セルフホスト環境も対応          |
-| 複雑さ         | YAML ファイル1つ                     | サーバーデプロイ + Webhook 設定 |
-| カスタマイズ性 | ワークフローステップの追加で拡張     | コード変更で自由に拡張          |
+| Aspect          | GitHub Actions (this recipe)                      | shiori-daemon                                       |
+| --------------- | ------------------------------------------------- | --------------------------------------------------- |
+| Infrastructure  | None needed (provided by GitHub)                  | A long-running process must be deployed             |
+| Fit             | Low-to-medium frequency of issue closes           | High-frequency event handling                       |
+| Latency         | Tens of seconds to minutes (Actions startup time) | Seconds (the resident process responds immediately) |
+| Environment     | GitHub.com / GitHub Enterprise Cloud              | Self-hosted environments are also supported         |
+| Complexity      | One YAML file                                     | Server deployment + Webhook setup                   |
+| Customizability | Extend by adding workflow steps                   | Extend freely by changing code                      |
 
-**推奨**:
+**Recommendation**:
 
-- **まずは本レシピ（GitHub Actions）から始める** — インフラ不要で即導入可能
-- Issue クローズ頻度が高く、レイテンシが問題になる場合に daemon への移行を検討
+- **Start with this recipe (GitHub Actions)** — it can be adopted immediately with no infrastructure
+- Consider moving to the daemon if issues are closed frequently and latency becomes a problem
 
-## カスタマイズ
+## Customization
 
-### 特定ブランチへの限定
+### Restricting to Specific Branches
 
-デフォルトブランチでのみ実行する場合:
+To run only on the default branch:
 
 ```yaml
 on:
@@ -135,11 +135,11 @@ jobs:
     if: github.event.issue.state_reason != 'not_planned'
 ```
 
-`not_planned` で閉じられた Issue を除外することで、意図的にクローズしたもののみを処理します。
+Excluding issues closed as `not_planned` means only deliberately closed issues are processed.
 
-### Slack 通知の追加
+### Adding a Slack Notification
 
-resolve 結果を Slack に通知する場合、[Slack Notification レシピ](./slack-notification.md) と組み合わせます:
+To notify Slack of the resolve result, combine this with the [Slack Notification recipe](./slack-notification.md):
 
 ```yaml
 - name: Notify Slack
@@ -149,12 +149,12 @@ resolve 結果を Slack に通知する場合、[Slack Notification レシピ](.
   run: |
     curl -X POST "$SLACK_WEBHOOK_URL" \
       -H 'Content-Type: application/json' \
-      -d "{\"text\": \"shiori: Issue #${{ github.event.issue.number }} のクローズに伴い、${{ steps.resolve.outputs.resolved }} 件のアノテーションを自動解消しました\"}"
+      -d "{\"text\": \"shiori: Closing issue #${{ github.event.issue.number }} automatically resolved ${{ steps.resolve.outputs.resolved }} annotation(s)\"}"
 ```
 
-### PR 経由での変更
+### Making Changes via a PR
 
-直接プッシュではなく PR を作成する場合:
+To create a PR instead of pushing directly:
 
 ```yaml
 - name: Create PR for resolved annotations
@@ -170,23 +170,23 @@ resolve 結果を Slack に通知する場合、[Slack Notification レシピ](.
     git push -u origin "$BRANCH"
     gh pr create \
       --title "chore(shiori): auto-resolve for #${{ github.event.issue.number }}" \
-      --body "Issue #${{ github.event.issue.number }} のクローズに伴い、関連アノテーションを自動解消します。" \
+      --body "Automatically resolves the related annotations because issue #${{ github.event.issue.number }} was closed." \
       --label "governance"
 ```
 
-## トラブルシューティング
+## Troubleshooting
 
-### "No closed refs found" と表示される
+### "No closed refs found" is shown
 
-- ref 形式が GitHub Issue と一致しているか確認（例: `GH-123`）
-- `shiori scan` の結果に対象の ref が含まれているか確認: `pnpm shiori scan && pnpm shiori show --ref GH-123`
-- `GITHUB_TOKEN` が正しく設定されているか確認
+- Check that the ref format matches GitHub Issues (e.g. `GH-123`)
+- Check that the target ref is included in the `shiori scan` result: `pnpm shiori scan && pnpm shiori show --ref GH-123`
+- Check that `GITHUB_TOKEN` is set correctly
 
-### 権限エラーでプッシュに失敗する
+### The push fails with a permission error
 
-- ワークフローの `permissions` に `contents: write` が含まれているか確認
-- リポジトリ設定 > Actions > General > Workflow permissions で "Read and write permissions" を選択
+- Check that the workflow's `permissions` includes `contents: write`
+- Select "Read and write permissions" in the repository settings > Actions > General > Workflow permissions
 
-### scan-result freshness エラー
+### scan-result freshness error
 
-ソースファイルが scan 後に変更された場合に発生します。ワークフロー内で `shiori scan` を `resolve` の直前に実行していれば通常は発生しません。並行するワークフローが同時にファイルを変更している場合は `--force` フラグの追加を検討してください。
+This occurs when a source file changes after the scan. It does not normally occur if `shiori scan` runs immediately before `resolve` in the workflow. If a concurrent workflow is modifying files at the same time, consider adding the `--force` flag.

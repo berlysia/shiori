@@ -1,30 +1,30 @@
 # GitHub Actions: HTML Governance Dashboard (Artifacts)
 
-ゼロ認証でガバナンスダッシュボードを CI に組み込むレシピ。PAT・Gist・GitHub Pages の設定は一切不要です。
+A recipe for adding a governance dashboard to CI with zero authentication. No PAT, Gist, or GitHub Pages setup is required.
 
-## 概要
+## Overview
 
-このレシピは以下を実現します：
+This recipe covers the following:
 
-1. **CI で HTML レポート生成**: `shiori report --format html` で自己完結型 HTML ダッシュボードを生成
-2. **Artifacts にアップロード**: `actions/upload-artifact` で HTML ファイルを保存
-3. **Job Summary にリンク表示**: ダッシュボードへのアクセス導線を CI サマリーに追加
+1. **Generate an HTML report in CI**: Generate a self-contained HTML dashboard with `shiori report --format html`
+2. **Upload to Artifacts**: Save the HTML file with `actions/upload-artifact`
+3. **Show a link in the Job Summary**: Add a path to the dashboard in the CI summary
 
-特徴：
+Features:
 
-- **ゼロ認証**: PAT・Gist・GitHub Pages の設定不要
-- **自己完結 HTML**: 外部 CDN 依存なし、オフラインでも閲覧可能
-- **ダークテーマ UI**: ヘルススコア・インサイト・ブレイクダウンを視覚的に表示
-- **インタラクティブ**: セクション折りたたみ機能付き
+- **Zero authentication**: No PAT, Gist, or GitHub Pages setup needed
+- **Self-contained HTML**: No external CDN dependencies; viewable offline
+- **Dark theme UI**: Visually shows the health score, insights, and breakdowns
+- **Interactive**: Includes collapsible sections
 
-## 前提条件
+## Prerequisites
 
 - Node.js >= 22.6.0
-- `shiori` がプロジェクトの devDependencies に追加済み
+- `shiori` is added to the project's devDependencies
 
-## セットアップ手順
+## Setup Steps
 
-### ワークフローを追加する
+### Add the Workflow
 
 ```yaml
 # .github/workflows/shiori-html-report.yml
@@ -33,7 +33,7 @@ name: shiori html report
 on:
   push:
     branches: [main]
-  # 日次更新（オプション）
+  # Daily refresh (optional)
   schedule:
     - cron: '0 0 * * *'
 
@@ -69,21 +69,21 @@ jobs:
           retention-days: 90
           overwrite: true
 
-      # Job Summary にダッシュボードリンクを追加
+      # Add a dashboard link to the Job Summary
       - name: Add dashboard link to summary
         run: |
           echo "## 📊 Shiori Governance Dashboard" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "HTML レポートが Artifacts にアップロードされました。" >> "$GITHUB_STEP_SUMMARY"
-          echo "ワークフロー実行ページの **Artifacts** セクションからダウンロードできます。" >> "$GITHUB_STEP_SUMMARY"
+          echo "The HTML report has been uploaded to Artifacts." >> "$GITHUB_STEP_SUMMARY"
+          echo "You can download it from the **Artifacts** section of the workflow run page." >> "$GITHUB_STEP_SUMMARY"
 ```
 
-## 既存 CI に統合する方法
+## Integrating into Existing CI
 
-独立ワークフローではなく、既存の CI ジョブに組み込む場合：
+To add it to an existing CI job instead of a standalone workflow:
 
 ```yaml
-# 既存の CI ステップの後に追加
+# Add after the existing CI steps
 - name: Generate HTML governance report
   run: npx shiori report --format html --output .tmp/shiori-report.html
 
@@ -96,24 +96,24 @@ jobs:
     overwrite: true
 ```
 
-## 出力内容
+## Output
 
-HTML レポートには以下のセクションが含まれます：
+The HTML report contains the following sections:
 
-| セクション          | 内容                                               |
-| ------------------- | -------------------------------------------------- |
-| Health Score        | ガバナンスヘルススコア（0–100）とレベル表示        |
-| Overview            | アノテーション数・候補数・レジストリエントリ数など |
-| Insights            | ガバナンス改善提案（error/warning/info）           |
-| Issues by Type      | issue タイプ別の内訳                               |
-| Annotations by Rule | lint ルール別のアノテーション数                    |
-| Ownership           | オーナー別のアノテーション数                       |
-| Annotation Kinds    | kind 別のアノテーション数                          |
-| Changes (diff)      | `--diff-base` 指定時のみ: 追加・削除アノテーション |
+| Section             | Content                                                             |
+| ------------------- | ------------------------------------------------------------------- |
+| Health Score        | Governance health score (0–100) and level                           |
+| Overview            | Number of annotations, candidates, registry entries, etc.           |
+| Insights            | Governance improvement suggestions (error/warning/info)             |
+| Issues by Type      | Breakdown by issue type                                             |
+| Annotations by Rule | Number of annotations per lint rule                                 |
+| Ownership           | Number of annotations per owner                                     |
+| Annotation Kinds    | Number of annotations per kind                                      |
+| Changes (diff)      | Only when `--diff-base` is specified: added and removed annotations |
 
-## カスタマイズ
+## Customization
 
-### verify エラーがある場合に CI を失敗させる
+### Failing CI on verify Errors
 
 ```yaml
 - name: Generate report and verify
@@ -122,7 +122,7 @@ HTML レポートには以下のセクションが含まれます：
     npx shiori verify --fail-on missing-in-registry,expired
 ```
 
-### PR にも生成する
+### Generating on PRs Too
 
 ```yaml
 on:
@@ -132,11 +132,11 @@ on:
     branches: [main]
 ```
 
-PR ワークフローでは Artifacts が PR の Checks タブからアクセスできます。
+In PR workflows, Artifacts are accessible from the PR's Checks tab.
 
-### Diff Overlay 付きレポートを生成する
+### Generating a Report with a Diff Overlay
 
-`--diff-base` オプションで前回のスキャン結果（ScanResult JSON）を指定すると、HTML レポートに差分オーバーレイが追加されます。追加・削除されたアノテーションが視覚的に表示されます。
+Specifying the previous scan result (ScanResult JSON) with the `--diff-base` option adds a diff overlay to the HTML report. Added and removed annotations are shown visually.
 
 ```yaml
 # .github/workflows/shiori-html-diff-report.yml
@@ -167,7 +167,7 @@ jobs:
       - name: Build
         run: pnpm build
 
-      # 前回の ScanResult を Artifacts から取得
+      # Fetch the previous ScanResult from Artifacts
       - name: Download previous scan result
         uses: actions/github-script@v9
         with:
@@ -191,11 +191,11 @@ jobs:
               require('child_process').execSync('unzip -o .tmp/shiori-prev-scan.zip -d .tmp/');
             }
 
-      # 今回のスキャンを実行
+      # Run the current scan
       - name: Scan
         run: npx shiori scan --output .tmp/shiori-scan.json
 
-      # Diff 付き HTML レポート生成（前回の ScanResult が存在する場合）
+      # Generate the HTML report with a diff (if the previous ScanResult exists)
       - name: Generate HTML report with diff
         run: |
           if [ -f .tmp/shiori-prev-scan.json ]; then
@@ -204,7 +204,7 @@ jobs:
             npx shiori report --format html --output .tmp/shiori-report.html
           fi
 
-      # 今回の ScanResult を Artifacts に保存（次回の --diff-base 用）
+      # Save the current ScanResult to Artifacts (for the next --diff-base)
       - name: Upload scan result
         uses: actions/upload-artifact@v7
         with:
@@ -222,10 +222,10 @@ jobs:
           overwrite: true
 ```
 
-PR ワークフローでも同様のパターンで main ブランチの ScanResult と比較できます:
+PR workflows can use the same pattern to compare against the main branch's ScanResult:
 
 ```yaml
-# PR 用: main の ScanResult を取得して diff 付きレポートを生成
+# For PRs: fetch main's ScanResult and generate a report with a diff
 - name: Generate PR diff report
   run: |
     npx shiori scan --output .tmp/shiori-scan.json
@@ -236,7 +236,7 @@ PR ワークフローでも同様のパターンで main ブランチの ScanRes
     fi
 ```
 
-### Badge レシピと組み合わせる
+### Combining with the Badge Recipe
 
 ```yaml
 - name: Generate reports
@@ -247,8 +247,8 @@ PR ワークフローでも同様のパターンで main ブランチの ScanRes
 
 ---
 
-## 関連
+## Related
 
-- [Governance Score Badge レシピ](./governance-badge.md)
-- [Delta PR Comment レシピ](./github-actions-delta-pr-comment.md)
-- [GitHub Checks Gate レシピ](./github-checks-gate.md)
+- [Governance Score Badge recipe](./governance-badge.md)
+- [Delta PR Comment recipe](./github-actions-delta-pr-comment.md)
+- [GitHub Checks Gate recipe](./github-checks-gate.md)

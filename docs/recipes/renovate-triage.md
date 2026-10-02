@@ -1,29 +1,29 @@
-# Renovate/Dependabot PR への shiori triage 自動連携
+# Automatic shiori triage for Renovate/Dependabot PRs
 
-依存更新 PR に `shiori triage` を自動実行し、ライブラリ更新で不要になった可能性のあるアノテーションを PR コメントで通知するレシピ。
+A recipe that automatically runs `shiori triage` on dependency update PRs and notifies, via a PR comment, about annotations that may have become unnecessary due to the library update.
 
-## 概要
+## Overview
 
-依存ライブラリの更新により、以前は必要だった lint disable コメント（`eslint-disable` 等）が不要になるケースがあります。
-たとえば、ライブラリのバグ回避で抑制していた警告が、バグ修正版への更新で解消される場合です。
+Updating a dependency can make a lint disable comment (`eslint-disable`, etc.) that used to be necessary unnecessary.
+For example, a warning suppressed to work around a library bug may be resolved by updating to the version that fixes the bug.
 
-このレシピは以下を実現します：
+This recipe does the following:
 
-1. **Renovate/Dependabot PR を自動検出**（ブランチ名またはラベルで判定）
-2. **`shiori delta`** でアノテーションの増減を計算
-3. **`shiori triage --format markdown`** で優先度付きアクションリストを生成
-4. 結果を **PR コメント** として投稿し、レビュー時にアノテーション見直しを促す
+1. **Automatically detects Renovate/Dependabot PRs** (by branch name or label)
+2. **Computes the annotation increase/decrease** with `shiori delta`
+3. **Generates a prioritized action list** with `shiori triage --format markdown`
+4. **Posts the result as a PR comment**, prompting a review of annotations during code review
 
-> **新規コードは不要です。** 既存の `shiori delta` と `shiori triage` コマンドの組み合わせのみで実現します。
+> **No new code is needed.** It is achieved only by combining the existing `shiori delta` and `shiori triage` commands.
 
-## 前提条件
+## Prerequisites
 
 - Node.js >= 22.6.0
-- `shiori` がプロジェクトの devDependencies に追加済み（`pnpm add -D shiori`）
-- [ベーススキャン保存ワークフロー](./github-actions-delta-pr-comment.md) が設定済み
-- Renovate または Dependabot が設定済み
+- `shiori` is added to the project's devDependencies (`pnpm add -D shiori`)
+- The [base scan upload workflow](./github-actions-delta-pr-comment.md) is set up
+- Renovate or Dependabot is configured
 
-## ワークフロー
+## Workflow
 
 ```yaml
 # .github/workflows/shiori-renovate-triage.yml
@@ -33,7 +33,7 @@ on:
   pull_request:
     branches:
       - main
-    # Renovate/Dependabot が使用する典型的なパス
+    # Typical paths used by Renovate/Dependabot
     paths:
       - 'package.json'
       - 'pnpm-lock.yaml'
@@ -42,7 +42,7 @@ on:
 
 jobs:
   triage-comment:
-    # Renovate または Dependabot の PR のみ実行
+    # Run only for Renovate or Dependabot PRs
     if: |
       startsWith(github.head_ref, 'renovate/') ||
       startsWith(github.head_ref, 'dependabot/') ||
@@ -68,7 +68,7 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # ベースラインartifactを取得（クロスワークフロー）
+      # Fetch the baseline artifact (cross-workflow)
       - name: Download baseline scan artifact
         uses: actions/github-script@v9
         with:
@@ -131,11 +131,11 @@ jobs:
             console.log('Baseline scan artifact downloaded successfully');
         continue-on-error: true
 
-      # PRブランチ（依存更新後）のアノテーションをスキャン
+      # Scan annotations on the PR branch (after the dependency update)
       - name: Scan annotations (PR head)
         run: pnpm shiori scan --output .tmp/shiori-head-scan.json
 
-      # 差分を計算
+      # Compute the delta
       - name: Compute delta
         run: |
           pnpm shiori delta \
@@ -146,7 +146,7 @@ jobs:
             --output .tmp/shiori-delta.md
         continue-on-error: true
 
-      # triage レポートを生成（期限切れ・解決可能なアノテーションを検出）
+      # Generate the triage report (detect expired and resolvable annotations)
       - name: Generate triage report
         run: |
           pnpm shiori triage \
@@ -154,20 +154,20 @@ jobs:
             --output .tmp/shiori-triage.md
         continue-on-error: true
 
-      # delta と triage を結合してPRコメント用のレポートを作成
+      # Combine delta and triage into the PR comment report
       - name: Compose PR comment
         run: |
           cat > .tmp/shiori-renovate-comment.md << 'HEADER'
           <!-- shiori-renovate-triage -->
 
-          ## 📦 shiori: 依存更新に伴うアノテーション確認
+          ## 📦 shiori: Annotation review for dependency updates
 
-          この PR は依存ライブラリの更新を含んでいます。
-          ライブラリ更新により不要になった lint disable コメントがないか確認してください。
+          This PR includes dependency updates.
+          Please check whether any lint disable comments have become unnecessary due to the library updates.
 
           HEADER
 
-          # delta レポートを追加
+          # Append the delta report
           if [ -f .tmp/shiori-delta.md ]; then
             echo "### Annotation Delta" >> .tmp/shiori-renovate-comment.md
             echo "" >> .tmp/shiori-renovate-comment.md
@@ -175,7 +175,7 @@ jobs:
             echo "" >> .tmp/shiori-renovate-comment.md
           fi
 
-          # triage レポートを追加
+          # Append the triage report
           if [ -f .tmp/shiori-triage.md ]; then
             echo "---" >> .tmp/shiori-renovate-comment.md
             echo "" >> .tmp/shiori-renovate-comment.md
@@ -185,28 +185,28 @@ jobs:
             echo "" >> .tmp/shiori-renovate-comment.md
           fi
 
-          # フッターを追加
+          # Append the footer
           cat >> .tmp/shiori-renovate-comment.md << 'FOOTER'
 
           ---
 
           <details>
-          <summary>💡 このコメントについて</summary>
+          <summary>💡 About this comment</summary>
 
-          このコメントは `shiori triage` によって依存更新 PR に自動投稿されています。
-          ライブラリ更新で解消された問題に対応する lint disable コメントを発見し、
-          技術負債の解消機会を通知します。
+          This comment is posted automatically on dependency update PRs by `shiori triage`.
+          It finds lint disable comments that correspond to problems resolved by library updates
+          and notifies you of opportunities to pay down technical debt.
 
-          **推奨アクション:**
+          **Recommended actions:**
 
-          1. Triage Report の Critical / High 項目を確認
-          2. 更新されたライブラリに関連するアノテーションがあれば `shiori resolve` で解消
-          3. 不明な場合は `shiori why <ref>` で抑制理由を確認
+          1. Review the Critical / High items in the Triage Report
+          2. If any annotations relate to the updated libraries, resolve them with `shiori resolve`
+          3. If unsure, check the suppression reason with `shiori why <ref>`
 
           </details>
           FOOTER
 
-      # PRコメントに投稿（既存コメントは上書き）
+      # Post as a PR comment (overwrite the existing comment)
       - name: Post triage as PR comment
         uses: peter-evans/create-or-update-comment@v5
         with:
@@ -218,17 +218,17 @@ jobs:
 
 ---
 
-## PRコメントの出力サンプル
+## Sample PR Comment Output
 
-CI 実行後、依存更新 PR に以下のようなコメントが投稿されます：
+After the CI run, a comment like the following is posted on the dependency update PR:
 
 ```markdown
 <!-- shiori-renovate-triage -->
 
-## 📦 shiori: 依存更新に伴うアノテーション確認
+## 📦 shiori: Annotation review for dependency updates
 
-この PR は依存ライブラリの更新を含んでいます。
-ライブラリ更新により不要になった lint disable コメントがないか確認してください。
+This PR includes dependency updates.
+Please check whether any lint disable comments have become unnecessary due to the library updates.
 
 ### Annotation Delta
 
@@ -265,9 +265,9 @@ CI 実行後、依存更新 PR に以下のようなコメントが投稿され�
 ---
 
 <details>
-<summary>💡 このコメントについて</summary>
+<summary>💡 About this comment</summary>
 
-このコメントは `shiori triage` によって依存更新 PR に自動投稿されています。
+This comment is posted automatically on dependency update PRs by `shiori triage`.
 ...
 
 </details>
@@ -275,11 +275,11 @@ CI 実行後、依存更新 PR に以下のようなコメントが投稿され�
 
 ---
 
-## カスタマイズ
+## Customization
 
-### 対象ブランチパターンを変更する
+### Changing the Target Branch Pattern
 
-Renovate/Dependabot 以外のボットやカスタムブランチ名に対応する場合：
+To support bots other than Renovate/Dependabot or custom branch names:
 
 ```yaml
 if: |
@@ -289,9 +289,9 @@ if: |
   contains(github.event.pull_request.labels.*.name, 'dependencies')
 ```
 
-### 期限切れアノテーションのみに絞る
+### Limiting to Expired Annotations Only
 
-更新に直接関係するアノテーションだけ通知したい場合：
+To notify only about annotations directly related to the update:
 
 ```yaml
 - name: Generate triage report
@@ -302,7 +302,7 @@ if: |
       --output .tmp/shiori-triage.md
 ```
 
-### 特定チームのアノテーションに絞る
+### Limiting to a Specific Team's Annotations
 
 ```yaml
 - name: Generate triage report
@@ -313,9 +313,9 @@ if: |
       --output .tmp/shiori-triage.md
 ```
 
-### アノテーション増加をCIゲートにする
+### Using an Annotation Increase as a CI Gate
 
-依存更新でアノテーションが増えた場合にCIを失敗させる場合：
+To fail CI when a dependency update increases the number of annotations:
 
 ```yaml
 - name: Compute delta
@@ -330,7 +330,7 @@ if: |
       --output .tmp/shiori-delta.md
   continue-on-error: true
 
-# ... (コメント投稿ステップ) ...
+# ... (comment posting step) ...
 
 - name: Fail if annotation count increased
   if: steps.delta.outcome == 'failure'
@@ -339,43 +339,43 @@ if: |
     exit 1
 ```
 
-### 既存の Delta PR Comment ワークフローと共存する
+### Coexisting with the Existing Delta PR Comment Workflow
 
-既に [Delta PR Comment レシピ](./github-actions-delta-pr-comment.md) を導入済みの場合、
-このレシピは **依存更新 PR にのみ** triage レポート付きの追加コメントを投稿します。
-コメントマーカーが異なる（`<!-- shiori-renovate-triage -->` vs `<!-- shiori-delta -->`）ため、
-両方のコメントが独立して投稿・更新されます。
-
----
-
-## トラブルシューティング
-
-### Renovate PR でワークフローが実行されない
-
-`if` 条件のブランチ名パターンが Renovate の設定と一致しているか確認してください。
-Renovate のデフォルトブランチプレフィックスは `renovate/` ですが、カスタム設定で変更されている場合があります。
-
-ラベルベースの判定（`contains(github.event.pull_request.labels.*.name, 'dependencies')`）を
-追加することで、ブランチ名に依存しない検出も可能です。
-
-### ベースラインが見つからない
-
-[Delta PR Comment レシピ](./github-actions-delta-pr-comment.md) と同じ仕組みです。
-`continue-on-error: true` と `--base-fallback-empty` により、初回は全アノテーションが「Added」として表示されます。
-
-### triage で検出される項目が依存更新と無関係に見える
-
-`shiori triage` はプロジェクト全体のアノテーションを対象にトリアージします。
-依存更新に直接関連するアノテーションだけに絞りたい場合は、`--expired-only` フィルタの使用を検討してください。
-
-将来的に `shiori triage --changed-files` のようなオプションが追加された場合、
-差分ファイルに限定したトリアージが可能になります。
+If you have already adopted the [Delta PR Comment recipe](./github-actions-delta-pr-comment.md),
+this recipe posts an additional comment with the triage report **only on dependency update PRs**.
+Because the comment markers differ (`<!-- shiori-renovate-triage -->` vs `<!-- shiori-delta -->`),
+both comments are posted and updated independently.
 
 ---
 
-## 関連
+## Troubleshooting
 
-- [Delta PR Comment レシピ](./github-actions-delta-pr-comment.md) — 全PRへのデルタコメント
-- [Delta PR Description レシピ](./github-actions-delta-pr-description.md) — PR Description への埋め込み
-- [Expires Alert レシピ](./github-actions-expires-alert.md) — 定期的な期限切れ通知
-- [ADR 018: 外部サービス連携戦略](../decisions/018-external-service-integration.md)
+### The Workflow Does Not Run on Renovate PRs
+
+Check that the branch name pattern in the `if` condition matches your Renovate configuration.
+Renovate's default branch prefix is `renovate/`, but it may have been changed by custom settings.
+
+Adding label-based detection (`contains(github.event.pull_request.labels.*.name, 'dependencies')`)
+also enables detection that does not depend on the branch name.
+
+### Baseline Not Found
+
+This works the same way as in the [Delta PR Comment recipe](./github-actions-delta-pr-comment.md).
+With `continue-on-error: true` and `--base-fallback-empty`, all annotations are shown as "Added" on the first run.
+
+### Items Detected by Triage Look Unrelated to the Dependency Update
+
+`shiori triage` triages the annotations of the whole project.
+To narrow it down to annotations directly related to the dependency update, consider using the `--expired-only` filter.
+
+If an option such as `shiori triage --changed-files` is added in the future,
+triage limited to the changed files will become possible.
+
+---
+
+## Related
+
+- [Delta PR Comment recipe](./github-actions-delta-pr-comment.md) — Delta comment on all PRs
+- [Delta PR Description recipe](./github-actions-delta-pr-description.md) — Embedding in the PR Description
+- [Expires Alert recipe](./github-actions-expires-alert.md) — Periodic expiry notification
+- [ADR 018: External Service Integration Strategy](../decisions/018-external-service-integration.md)

@@ -1,12 +1,12 @@
 # PR Comment Onboarding Snippet
 
-PRコメントの末尾に追加するオンボーディングセクションのテンプレート。
-shiori を知らない開発者が PR レビュー中にツールの概要を理解し、導入まで完結できる。
+A template for an onboarding section appended to the end of a PR comment.
+It lets developers who don't know shiori understand the tool's overview during PR review and complete adoption on their own.
 
-## 使い方
+## Usage
 
-GitHub Actions ワークフローで `shiori delta --format markdown` の出力ファイルに
-このスニペットを `cat >> ` で append してから PR コメントに投稿する。
+In a GitHub Actions workflow, append this snippet with `cat >> ` to the output file of
+`shiori delta --format markdown`, and then post it as a PR comment.
 
 ````yaml
 - name: Append onboarding section
@@ -16,44 +16,44 @@ GitHub Actions ワークフローで `shiori delta --format markdown` の出力�
     ---
 
     <details>
-    <summary>💡 shiori について</summary>
+    <summary>💡 About shiori</summary>
 
-    **shiori** はソースコード中の lint disable コメントや技術的判断を追跡・管理するガバナンスツールです。
+    **shiori** is a governance tool that tracks and manages lint disable comments and technical decisions in source code.
 
-    このコメントは `shiori delta` によって自動投稿されています。
+    This comment is posted automatically by `shiori delta`.
 
-    ### クイックスタート
+    ### Quick start
 
     ```bash
-    # インストール
+    # Install
     pnpm add -D shiori
 
-    # プロジェクト初期化（レジストリ + CI テンプレート生成）
+    # Initialize the project (generates the registry + CI templates)
     pnpm shiori init
 
-    # lint disable の候補を検出して追跡開始
+    # Detect lint disable candidates and start tracking them
     pnpm shiori candidates
     pnpm shiori adopt
 
-    # レジストリとの整合性を検証
+    # Verify consistency with the registry
     pnpm shiori check
     ```
 
-    📖 詳細: `pnpm shiori docs` または [README](https://github.com/user/shiori#readme)
+    📖 Details: `pnpm shiori docs` or [README](https://github.com/user/shiori#readme)
 
     </details>
     ONBOARDING
 ````
 
-## カスタマイズ
+## Customization
 
-### リポジトリURLを変更する
+### Change the repository URL
 
-`[README](https://github.com/user/shiori#readme)` をプロジェクトの実際のURLに置き換えてください。
+Replace `[README](https://github.com/user/shiori#readme)` with your project's actual URL.
 
-### スニペットを無効化する
+### Disable the snippet
 
-ワークフローからこのステップを削除するか、条件付きで実行してください：
+Remove this step from the workflow, or run it conditionally:
 
 ```yaml
 - name: Append onboarding section
@@ -64,7 +64,7 @@ GitHub Actions ワークフローで `shiori delta --format markdown` の出力�
     ONBOARDING
 ```
 
-## 関連
+## Related
 
-- [Delta PR Comment レシピ](./github-actions-delta-pr-comment.md)
-- [Delta PR Description レシピ](./github-actions-delta-pr-description.md)
+- [Delta PR Comment recipe](./github-actions-delta-pr-comment.md)
+- [Delta PR Description recipe](./github-actions-delta-pr-description.md)

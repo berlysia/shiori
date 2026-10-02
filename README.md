@@ -81,7 +81,7 @@ shiori check
 
 That's it. Three commands to go from zero to CI-enforced annotation governance.
 
-> **Want a guided walkthrough?** See [Getting Started — 5 Minutes to Governed Code](docs/getting-started.md) for a step-by-step tutorial that explains what each command does (including a [zero-setup demo](docs/getting-started.md#step-0-まず試してみるセットアップ不要)).
+> **Want a guided walkthrough?** See [Getting Started — 5 Minutes to Governed Code](docs/getting-started.md) for a step-by-step tutorial that explains what each command does (including a [zero-setup demo](docs/getting-started.md#step-0-try-it-first-no-setup-required)).
 
 > **Already have lint disables scattered across your codebase?** `shiori adopt` converts them in one step:
 >

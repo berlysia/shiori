@@ -1,20 +1,20 @@
 # GitHub Actions Step Summary
 
-`--format github-summary` を使って CI 実行結果を GitHub Actions の Step Summary にリッチ表示するレシピ。
+A recipe that uses `--format github-summary` to display CI results richly in the GitHub Actions Step Summary.
 
-## 概要
+## Overview
 
-GitHub Actions の `$GITHUB_STEP_SUMMARY` に直接出力することで、ワークフロー実行結果のサマリータブにガバナンス情報を表示します。アーティファクトのダウンロードやコメント投稿が不要な、最もシンプルな CI 可視化パターンです。
+By writing directly to `$GITHUB_STEP_SUMMARY` in GitHub Actions, you can show governance information in the summary tab of a workflow run. It is the simplest CI visualization pattern, requiring no artifact downloads or comment posting.
 
-## 対応コマンド
+## Supported commands
 
-| コマンド                                | 出力内容                                                                   |
-| --------------------------------------- | -------------------------------------------------------------------------- |
-| `shiori verify --format github-summary` | エラー/警告カウント、Issue タイプ別内訳、collapsible な Issue 詳細テーブル |
-| `shiori report --format github-summary` | ヘルススコアカード、メトリクス概要、Insights、ルール別内訳                 |
-| `shiori health --format github-summary` | ヘルススコアカード、期限切れ警告、トレンド、処方箋テーブル                 |
+| Command                                 | Output                                                                        |
+| --------------------------------------- | ----------------------------------------------------------------------------- |
+| `shiori verify --format github-summary` | Error/warning counts, breakdown by issue type, collapsible issue detail table |
+| `shiori report --format github-summary` | Health score card, metrics overview, insights, breakdown by rule              |
+| `shiori health --format github-summary` | Health score card, expiry warnings, trend, prescription table                 |
 
-## 基本パターン
+## Basic pattern
 
 ```yaml
 - name: Shiori verify summary
@@ -22,12 +22,12 @@ GitHub Actions の `$GITHUB_STEP_SUMMARY` に直接出力することで、ワ�
   run: shiori verify --format github-summary >> "$GITHUB_STEP_SUMMARY"
 ```
 
-`continue-on-error: true` が必須です。`shiori verify` はガバナンス違反検出時に exit 1 を返しますが、Step Summary への書き込みと後続ステップ（HTML レポート生成、アーティファクトアップロード等）は継続させる必要があります。
+`continue-on-error: true` is required. `shiori verify` returns exit 1 when a governance violation is detected, but writing to the Step Summary and the subsequent steps (HTML report generation, artifact upload, etc.) must continue.
 
-## ワークフロー例
+## Workflow example
 
 ```yaml
-# .github/workflows/ci.yml (該当ステップのみ抜粋)
+# .github/workflows/ci.yml (relevant steps only)
 steps:
   - uses: actions/checkout@v7
   - uses: pnpm/action-setup@v6
@@ -38,29 +38,29 @@ steps:
   - run: pnpm install --frozen-lockfile
   - run: pnpm build
 
-  # ガバナンスチェック（pass/fail 判定用）
+  # Governance check (for pass/fail decision)
   - name: shiori check
     run: pnpm shiori check
 
-  # Step Summary: verify 結果（エラー詳細付き）
+  # Step Summary: verify result (with error details)
   - name: Verify summary
     continue-on-error: true
     run: pnpm shiori verify --format github-summary >> "$GITHUB_STEP_SUMMARY"
 
-  # Step Summary: health スコアカード
+  # Step Summary: health score card
   - name: Health summary
     continue-on-error: true
     run: pnpm shiori health --format github-summary >> "$GITHUB_STEP_SUMMARY"
 
-  # Step Summary: report（ルール内訳付き）
+  # Step Summary: report (with per-rule breakdown)
   - name: Report summary
     continue-on-error: true
     run: pnpm shiori report --format github-summary >> "$GITHUB_STEP_SUMMARY"
 ```
 
-複数コマンドの出力を同一 `$GITHUB_STEP_SUMMARY` に `>>` で追記すると、1 つの Step Summary ページに統合表示されます。
+Appending the output of multiple commands to the same `$GITHUB_STEP_SUMMARY` with `>>` shows them combined on a single Step Summary page.
 
-## 表示例
+## Display examples
 
 ### verify
 
@@ -109,16 +109,16 @@ steps:
 </details>
 ```
 
-## 設計上のポイント
+## Design points
 
-- **`continue-on-error: true`**: verify/health が exit 1 を返しても後続ステップを実行させるために必須。CI の pass/fail 判定は別の `shiori check` ステップで行う
-- **追記モード (`>>`)**: 複数コマンドの出力を1つの Summary に統合可能
-- **collapsible sections**: `<details>` タグで詳細を折りたたみ、Summary が肥大化しない
+- **`continue-on-error: true`**: required so that subsequent steps run even when verify/health returns exit 1. The CI pass/fail decision is made by a separate `shiori check` step
+- **Append mode (`>>`)**: the output of multiple commands can be combined into one Summary
+- **Collapsible sections**: details are folded with `<details>` tags so the Summary does not bloat
 
-## 関連
+## Related
 
-- [Demo CI Step Summary レシピ](./demo-ci-step-summary.md) — セットアップ不要のデモ版 Step Summary
-- [Delta PR Comment レシピ](./github-actions-delta-pr-comment.md) — PR コメントに差分情報を投稿
-- [Governance Summary レシピ](./github-actions-governance-summary.md) — PR コメントに統合サマリーを投稿
-- [HTML Artifacts Dashboard レシピ](./html-artifacts-dashboard.md) — HTML レポートをアーティファクトとして保存
-- [Code Scanning レシピ](./code-scanning.md) — SARIF 形式で IDE インライン表示
+- [Demo CI Step Summary recipe](./demo-ci-step-summary.md) — a demo Step Summary that needs no setup
+- [Delta PR Comment recipe](./github-actions-delta-pr-comment.md) — posts delta information as a PR comment
+- [Governance Summary recipe](./github-actions-governance-summary.md) — posts a consolidated summary as a PR comment
+- [HTML Artifacts Dashboard recipe](./html-artifacts-dashboard.md) — saves HTML reports as artifacts
+- [Code Scanning recipe](./code-scanning.md) — inline display in the IDE via SARIF format

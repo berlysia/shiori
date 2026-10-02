@@ -1,30 +1,30 @@
-# Governance Observatory: 時系列ダッシュボード
+# Governance Observatory: Time-Series Dashboard
 
-`weekly-report --format json` の出力を蓄積し、GitHub Pages の静的ダッシュボードで技術的負債のトレンドを可視化するレシピ。
+A recipe that accumulates the output of `weekly-report --format json` and visualizes technical debt trends on a static GitHub Pages dashboard.
 
-## 概要
+## Overview
 
-このレシピは以下を実現します：
+This recipe provides:
 
-1. **週次 JSON スナップショット蓄積**: `shiori weekly-report --format json` の出力を Git リポジトリに自動コミット
-2. **静的 HTML ダッシュボード**: 蓄積された JSON を読み込み、スコアトレンド・Issue 推移を SVG チャートで表示
-3. **GitHub Pages 自動デプロイ**: push トリガーでダッシュボードを自動公開
+1. **Weekly JSON snapshot accumulation**: Automatically commits the output of `shiori weekly-report --format json` to the Git repository
+2. **Static HTML dashboard**: Reads the accumulated JSON and shows score trends and issue history as SVG charts
+3. **Automatic GitHub Pages deployment**: Publishes the dashboard automatically on push
 
-特徴：
+Features:
 
-- **ゼロ外部依存**: Chart.js 等の CDN 不要、自己完結 HTML + 純 SVG チャート
-- **ダークテーマ UI**: 既存の shiori HTML ダッシュボードと統一されたデザイン
-- **インタラクティブ**: ツールチップ・セクション折りたたみ付き
-- **増分蓄積**: 毎回のスナップショットが Git 履歴に残り、データロスなし
+- **Zero external dependencies**: No CDN such as Chart.js; self-contained HTML + pure SVG charts
+- **Dark theme UI**: Design consistent with the existing shiori HTML dashboard
+- **Interactive**: Tooltips and collapsible sections
+- **Incremental accumulation**: Every snapshot is kept in Git history, so no data is lost
 
-## 前提条件
+## Prerequisites
 
 - Node.js >= 22.6.0
-- `shiori` がプロジェクトの devDependencies に追加済み
-- レジストリファイルが存在する（`shiori init` 済み）
-- GitHub Pages が有効化されている（Settings → Pages → Source: GitHub Actions）
+- `shiori` added to the project's devDependencies
+- A registry file exists (`shiori init` has been run)
+- GitHub Pages is enabled (Settings → Pages → Source: GitHub Actions)
 
-## アーキテクチャ
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -34,18 +34,18 @@
 │       ↓                                                     │
 │  data/YYYY-MM-DD.json  ← Git commit & push                 │
 │       ↓                                                     │
-│  data/snapshots.json   ← マニフェスト更新                   │
+│  data/snapshots.json   ← update manifest                    │
 │       ↓                                                     │
 │  GitHub Pages deploy   → governance-observatory.html        │
 │                           + data/*.json                     │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-## セットアップ手順
+## Setup Steps
 
-### Step 1: ダッシュボードファイルを配置
+### Step 1: Place the dashboard files
 
-リポジトリルートに `observatory/` ディレクトリを作成し、HTML テンプレートをコピーします：
+Create an `observatory/` directory at the repository root and copy the HTML template:
 
 ```bash
 mkdir -p observatory/data
@@ -53,9 +53,9 @@ cp node_modules/@berlysia/shiori/docs/templates/governance-observatory.html obse
 echo '{"files":[]}' > observatory/data/snapshots.json
 ```
 
-> **Note**: テンプレートは `docs/templates/governance-observatory.html` にあります。npm パッケージからコピーするか、[リポジトリから直接取得](https://github.com/berlysia/shiori/blob/main/docs/templates/governance-observatory.html)してください。
+> **Note**: The template is located at `docs/templates/governance-observatory.html`. Copy it from the npm package, or [get it directly from the repository](https://github.com/berlysia/shiori/blob/main/docs/templates/governance-observatory.html).
 
-### Step 2: GitHub Actions ワークフローを追加
+### Step 2: Add the GitHub Actions workflow
 
 ```yaml
 # .github/workflows/shiori-observatory.yml
@@ -63,7 +63,7 @@ name: shiori governance observatory
 
 on:
   schedule:
-    # 毎週月曜 0:00 UTC に実行
+    # Run every Monday at 00:00 UTC
     - cron: '0 0 * * 1'
   workflow_dispatch:
 
@@ -90,7 +90,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
 
-      # Step 1: 週次レポート JSON を生成
+      # Step 1: Generate the weekly report JSON
       - name: Generate weekly report snapshot
         run: |
           DATE=$(date -u +%Y-%m-%d)
@@ -99,13 +99,13 @@ jobs:
             --format json \
             --output "observatory/data/${DATE}.json"
 
-      # Step 2: マニフェストを更新
+      # Step 2: Update the manifest
       - name: Update snapshots manifest
         run: |
           cd observatory/data
-          # data/ 内の全 JSON ファイル（snapshots.json 除く）をリスト化
+          # List all JSON files in data/ (excluding snapshots.json)
           FILES=$(ls -1 *.json 2>/dev/null | grep -v snapshots.json | sort)
-          # JSON 配列を構築
+          # Build the JSON array
           echo '{"files":[' > snapshots.json.tmp
           FIRST=true
           for f in $FILES; do
@@ -141,7 +141,7 @@ jobs:
         with:
           ref: ${{ github.ref }}
 
-      # snapshot ジョブの push を取得するため再 checkout
+      # Check out again to pick up the push from the snapshot job
       - run: git pull --rebase
 
       - uses: actions/configure-pages@v6
@@ -155,64 +155,64 @@ jobs:
         uses: actions/deploy-pages@v5
 ```
 
-### Step 3: GitHub Pages を有効化
+### Step 3: Enable GitHub Pages
 
-1. リポジトリの **Settings** → **Pages** へ移動
-2. **Source** を **GitHub Actions** に設定
+1. Go to the repository's **Settings** → **Pages**
+2. Set **Source** to **GitHub Actions**
 
-### Step 4: 初回スナップショットを手動実行
+### Step 4: Run the first snapshot manually
 
-Actions タブから `shiori governance observatory` ワークフローを手動トリガー（`workflow_dispatch`）して初回データを生成します。
+Trigger the `shiori governance observatory` workflow manually from the Actions tab (`workflow_dispatch`) to generate the initial data.
 
-## ディレクトリ構造
+## Directory Structure
 
 ```
 observatory/
-├── index.html              ← ダッシュボード HTML（テンプレートからコピー）
+├── index.html              ← dashboard HTML (copied from the template)
 └── data/
-    ├── snapshots.json      ← マニフェスト（ファイル名リスト）
-    ├── 2026-03-17.json     ← 週次スナップショット
+    ├── snapshots.json      ← manifest (list of file names)
+    ├── 2026-03-17.json     ← weekly snapshot
     ├── 2026-03-24.json
     └── ...
 ```
 
-## ダッシュボードの内容
+## Dashboard Contents
 
-| セクション       | 内容                                   |
-| ---------------- | -------------------------------------- |
-| Latest Score     | 最新のヘルススコアとレベルバッジ       |
-| Score Trend      | スコアの時系列推移（SVG 折れ線グラフ） |
-| Issue Trend      | Issue・アノテーション・候補数の推移    |
-| Snapshot History | 全スナップショットのテーブル一覧       |
+| Section          | Content                                  |
+| ---------------- | ---------------------------------------- |
+| Latest Score     | Latest health score and level badge      |
+| Score Trend      | Score over time (SVG line chart)         |
+| Issue Trend      | Trend of issues, annotations, candidates |
+| Snapshot History | Table listing all snapshots              |
 
-チャートはホバーでツールチップ表示。セクション見出しをクリックで折りたたみ/展開。
+Charts show tooltips on hover. Click a section heading to collapse or expand it.
 
-## カスタマイズ
+## Customization
 
-### スケジュールの変更
+### Changing the schedule
 
 ```yaml
 on:
   schedule:
-    - cron: '0 0 * * 1' # 毎週月曜（デフォルト）
-    - cron: '0 0 * * *' # 毎日
-    - cron: '0 0 1 * *' # 毎月1日
+    - cron: '0 0 * * 1' # every Monday (default)
+    - cron: '0 0 * * *' # daily
+    - cron: '0 0 1 * *' # first day of every month
 ```
 
-### プリセットの変更
+### Changing the preset
 
 ```yaml
-# 全期間のヘルススナップショット
+# Health snapshot over the entire period
 - run: npx shiori weekly-report --preset health --format json --output "observatory/data/${DATE}.json"
 
-# カスタム期間
+# Custom period
 - run: npx shiori weekly-report --preset custom --since 2026-01-01 --format json --output "observatory/data/${DATE}.json"
 ```
 
-### Artifacts にもバックアップ
+### Also back up to Artifacts
 
 ```yaml
-# Git commit の後に追加
+# Add after the Git commit
 - uses: actions/upload-artifact@v7
   with:
     name: observatory-snapshot-${{ env.DATE }}
@@ -220,10 +220,10 @@ on:
     retention-days: 365
 ```
 
-### GitHub Step Summary にスコアを表示
+### Show the score in the GitHub Step Summary
 
 ```yaml
-# snapshot ジョブのステップに追加
+# Add to the steps of the snapshot job
 - name: Add score to summary
   run: |
     SCORE=$(jq '.health.score' "observatory/data/${DATE}.json")
@@ -235,18 +235,18 @@ on:
     echo "[📊 Dashboard](${{ steps.deployment.outputs.page_url || 'TBD' }})" >> "$GITHUB_STEP_SUMMARY"
 ```
 
-### 既存の HTML レポートと併用
+### Use alongside the existing HTML report
 
 ```yaml
-# HTML レポートも同時に生成
+# Also generate the HTML report
 - run: |
     npx shiori weekly-report --preset weekly --format json --output "observatory/data/${DATE}.json"
     npx shiori weekly-report --preset weekly --format html --output "observatory/reports/${DATE}.html"
 ```
 
-## ローカルでのプレビュー
+## Local Preview
 
-ダッシュボードは静的ファイルのため、任意の HTTP サーバーでプレビューできます：
+The dashboard is a set of static files, so you can preview it with any HTTP server:
 
 ```bash
 # Python
@@ -255,13 +255,13 @@ cd observatory && python3 -m http.server 8080
 # Node.js (npx)
 npx serve observatory
 
-# 直接開く（fetch が動作しないため HTTP サーバー推奨）
+# Open directly (an HTTP server is recommended because fetch does not work)
 open observatory/index.html
 ```
 
-## スナップショットデータ形式
+## Snapshot Data Format
 
-各スナップショットは `shiori weekly-report --format json` の出力そのままです：
+Each snapshot is exactly the output of `shiori weekly-report --format json`:
 
 ```json
 {
@@ -286,43 +286,43 @@ open observatory/index.html
 }
 ```
 
-ダッシュボード HTML は `health`、`registryOverview` フィールドを参照してチャートを描画します。
+The dashboard HTML draws its charts from the `health` and `registryOverview` fields.
 
-## トラブルシューティング
+## Troubleshooting
 
-### ダッシュボードが空（No snapshot data found）
+### The dashboard is empty (No snapshot data found)
 
-1. `observatory/data/snapshots.json` の `files` 配列が空でないか確認
-2. JSON ファイルが `observatory/data/` に存在するか確認
-3. HTTP サーバー経由でアクセスしているか確認（`file://` では fetch が失敗）
+1. Check that the `files` array in `observatory/data/snapshots.json` is not empty
+2. Check that the JSON files exist in `observatory/data/`
+3. Check that you are accessing it through an HTTP server (fetch fails over `file://`)
 
-### GitHub Pages にデプロイされない
+### It is not deployed to GitHub Pages
 
-1. Settings → Pages → Source が「GitHub Actions」になっているか確認
-2. ワークフローの `permissions` に `pages: write` と `id-token: write` があるか確認
-3. リポジトリが public、または GitHub Pages が有効な有料プランか確認
+1. Check that Settings → Pages → Source is set to "GitHub Actions"
+2. Check that the workflow's `permissions` include `pages: write` and `id-token: write`
+3. Check that the repository is public, or that you are on a paid plan with GitHub Pages enabled
 
-### スナップショットが重複する
+### Snapshots are duplicated
 
-cron スケジュールと `workflow_dispatch` の同日実行で同一ファイル名（`YYYY-MM-DD.json`）が生成されるため、上書きになります。意図的な設計です。
+When the cron schedule and `workflow_dispatch` run on the same day, they generate the same file name (`YYYY-MM-DD.json`), so the file is overwritten. This is intentional.
 
-## ガバナンス成熟度モデルにおける位置づけ
+## Position in the Governance Maturity Model
 
-| Level | 名称         | 仕組み                            | レシピ                                                   |
-| ----- | ------------ | --------------------------------- | -------------------------------------------------------- |
-| 0     | Invisible    | lint disable で違反が隠れている   | —                                                        |
-| 1     | Visible      | PR コメントで差分を通知           | [Delta PR Comment](./github-actions-delta-pr-comment.md) |
-| 2     | Enforced     | PR ステータスチェックでブロック   | [Checks Gate](./github-checks-gate.md)                   |
-| 3     | **Measured** | **トレンド追跡 + ダッシュボード** | **このレシピ**                                           |
-| 4     | Proactive    | スケジュール実行で自動 Issue      | [Orchestrator](./scheduled-governance-orchestrator.md)   |
+| Level | Name         | Mechanism                             | Recipe                                                   |
+| ----- | ------------ | ------------------------------------- | -------------------------------------------------------- |
+| 0     | Invisible    | Violations are hidden by lint disable | —                                                        |
+| 1     | Visible      | Diffs are reported in PR comments     | [Delta PR Comment](./github-actions-delta-pr-comment.md) |
+| 2     | Enforced     | PR status checks block merges         | [Checks Gate](./github-checks-gate.md)                   |
+| 3     | **Measured** | **Trend tracking + dashboard**        | **This recipe**                                          |
+| 4     | Proactive    | Scheduled runs create issues          | [Orchestrator](./scheduled-governance-orchestrator.md)   |
 
-Level 3 は、ガバナンスの改善/悪化傾向をチーム全体で可視化し、データドリブンに技術的負債を管理する状態です。
+Level 3 is the state where the whole team can see whether governance is improving or worsening and manage technical debt in a data-driven way.
 
 ---
 
-## 関連
+## Related
 
-- [HTML Artifacts Dashboard](./html-artifacts-dashboard.md) — 単一スナップショットの HTML レポート
-- [Governance Score Badge](./governance-badge.md) — README にバッジを表示
-- [Scheduled Governance Orchestrator](./scheduled-governance-orchestrator.md) — 自動 Issue 生成
-- [GitHub Actions Step Summary](./github-actions-step-summary.md) — Step Summary 統合
+- [HTML Artifacts Dashboard](./html-artifacts-dashboard.md) — HTML report for a single snapshot
+- [Governance Score Badge](./governance-badge.md) — Show a badge in the README
+- [Scheduled Governance Orchestrator](./scheduled-governance-orchestrator.md) — Automatic issue creation
+- [GitHub Actions Step Summary](./github-actions-step-summary.md) — Step Summary integration

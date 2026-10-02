@@ -1,48 +1,48 @@
-# JetBrains IDE: External Tool による diagnostic 統合
+# JetBrains IDE: Diagnostic Integration via External Tool
 
-`shiori verify --format diagnostic` の GCC 互換出力を JetBrains IDE（IntelliJ IDEA, WebStorm, PhpStorm 等）の External Tool + Output Filter で統合し、実行結果からファイルへ直接ジャンプできるようにするレシピ。
+A recipe that integrates the GCC-compatible output of `shiori verify --format diagnostic` into JetBrains IDEs (IntelliJ IDEA, WebStorm, PhpStorm, etc.) with an External Tool + Output Filter, so you can jump straight from the results to the file.
 
-## 概要
+## Overview
 
-このレシピは以下を実現します：
+This recipe provides:
 
-1. **External Tool** で `shiori verify --format diagnostic` を IDE から実行
-2. **Output Filter** で diagnostic 出力をパースし、Run ウィンドウ内のリンクからファイルジャンプ
-3. **キーボードショートカット** で任意のタイミングで実行
+1. **External Tool** to run `shiori verify --format diagnostic` from the IDE
+2. **Output Filter** to parse the diagnostic output and jump to files from links in the Run window
+3. **Keyboard shortcut** to run it at any time
 
-新規コードは不要。既存の `--format diagnostic` 出力をそのまま利用します。
+No new code is needed. It uses the existing `--format diagnostic` output as is.
 
-## 前提条件
+## Prerequisites
 
 - Node.js >= 22.6.0
-- `shiori` がプロジェクトにインストール済み
-- レジストリファイルが存在する（`shiori init` 済み）
-- IntelliJ IDEA / WebStorm / PhpStorm / その他 JetBrains IDE
+- `shiori` installed in the project
+- A registry file exists (`shiori init` has been run)
+- IntelliJ IDEA / WebStorm / PhpStorm / other JetBrains IDEs
 
-## diagnostic 出力フォーマット
+## Diagnostic Output Format
 
-`shiori verify --format diagnostic` は GCC 互換の 1 行 1 issue フォーマットを出力します：
+`shiori verify --format diagnostic` outputs a GCC-compatible one-line-per-issue format:
 
 ```
 file:line:column: severity: message [type]
 ```
 
-出力例：
+Example output:
 
 ```
 src/foo.ts:42:1: error: Annotation expired on 2025-01-15 [expired]
 src/bar.ts:10:1: warning: Not found in registry [missing-in-registry]
 ```
 
-## External Tool 設定
+## External Tool Configuration
 
-### 手順
+### Steps
 
-1. **Settings** → **Tools** → **External Tools** を開く
-2. **+** ボタンで新規ツールを追加
-3. 以下の設定を入力：
+1. Open **Settings** → **Tools** → **External Tools**
+2. Add a new tool with the **+** button
+3. Enter the following settings:
 
-| 項目                  | 値                                  |
+| Field                 | Value                               |
 | --------------------- | ----------------------------------- |
 | **Name**              | `shiori verify`                     |
 | **Group**             | `shiori`                            |
@@ -50,29 +50,29 @@ src/bar.ts:10:1: warning: Not found in registry [missing-in-registry]
 | **Arguments**         | `shiori verify --format diagnostic` |
 | **Working directory** | `$ProjectFileDir$`                  |
 
-pnpm を使用している場合：
+If you use pnpm:
 
-| 項目          | 値                                  |
+| Field         | Value                               |
 | ------------- | ----------------------------------- |
 | **Program**   | `pnpm`                              |
 | **Arguments** | `shiori verify --format diagnostic` |
 
-### Output Filter 設定
+### Output Filter Configuration
 
-同じダイアログの **Output Filters** ボタンをクリックし、以下を追加します：
+Click the **Output Filters** button in the same dialog and add the following:
 
-| 項目 | 値 |
+| Field | Value |
 | ---------------------- | ------------------------------------ | -------------- |
 | **Name** | `shiori diagnostic` |
 | **Regular expression** | `$FILE_PATH$:$LINE$:$COLUMN$: (error | warning): .\*` |
 
-この設定により、Run ウィンドウに表示される各 diagnostic 行がクリック可能なリンクになり、該当ファイルの行にジャンプできます。
+With this setting, each diagnostic line shown in the Run window becomes a clickable link that jumps to the corresponding line in the file.
 
-### shiori check ツールの追加
+### Adding a shiori check Tool
 
-`verify` に加えて `check`（scan + verify の統合コマンド）を External Tool として追加する場合：
+To add `check` (the combined scan + verify command) as an External Tool in addition to `verify`:
 
-| 項目                  | 値                                 |
+| Field                 | Value                              |
 | --------------------- | ---------------------------------- |
 | **Name**              | `shiori check`                     |
 | **Group**             | `shiori`                           |
@@ -80,31 +80,31 @@ pnpm を使用している場合：
 | **Arguments**         | `shiori check --format diagnostic` |
 | **Working directory** | `$ProjectFileDir$`                 |
 
-Output Filter は `shiori verify` と同じ設定を使います。
+The Output Filter uses the same settings as `shiori verify`.
 
-## 使い方
+## Usage
 
-### メニューから実行
+### Run from the menu
 
-**Tools** → **shiori** → **shiori verify** を選択します。
+Select **Tools** → **shiori** → **shiori verify**.
 
-Run ウィンドウに diagnostic 出力が表示され、各行をクリックするとファイルの該当行にジャンプします。
+The diagnostic output appears in the Run window, and clicking a line jumps to the corresponding line in the file.
 
-### キーボードショートカットの割り当て
+### Assigning a keyboard shortcut
 
-1. **Settings** → **Keymap** を開く
-2. 検索ボックスに `shiori verify` と入力
-3. **External Tools** → **shiori** → **shiori verify** を右クリック
-4. **Add Keyboard Shortcut** を選択
-5. 任意のキーコンビネーションを設定（例: `Ctrl+Shift+V`）
+1. Open **Settings** → **Keymap**
+2. Type `shiori verify` in the search box
+3. Right-click **External Tools** → **shiori** → **shiori verify**
+4. Select **Add Keyboard Shortcut**
+5. Set any key combination (e.g. `Ctrl+Shift+V`)
 
-### 右クリックメニュー
+### Context menu
 
-External Tool はファイルやディレクトリの右クリックメニューからも実行できます。
+An External Tool can also be run from the right-click menu of a file or directory.
 
-## XML 設定ファイル（手動インポート）
+## XML Configuration File (Manual Import)
 
-External Tool の設定は XML ファイルとしてエクスポート/インポートが可能です。以下の内容を `<IDE設定ディレクトリ>/tools/shiori.xml` に配置します：
+External Tool settings can be exported/imported as an XML file. Place the following content at `<IDE settings directory>/tools/shiori.xml`:
 
 ```xml
 <toolSet name="shiori">
@@ -167,23 +167,23 @@ External Tool の設定は XML ファイルとしてエクスポート/インポ
 </toolSet>
 ```
 
-IDE 設定ディレクトリの場所：
+Location of the IDE settings directory:
 
-| OS      | パス                                                            |
+| OS      | Path                                                            |
 | ------- | --------------------------------------------------------------- |
 | macOS   | `~/Library/Application Support/JetBrains/<IDE><version>/tools/` |
 | Linux   | `~/.config/JetBrains/<IDE><version>/tools/`                     |
 | Windows | `%APPDATA%\JetBrains\<IDE><version>\tools\`                     |
 
-## File Watcher 統合（オプション）
+## File Watcher Integration (Optional)
 
-ファイル保存時に自動で `shiori verify` を実行したい場合、File Watcher を使います。
+To run `shiori verify` automatically when a file is saved, use a File Watcher.
 
-1. **Settings** → **Tools** → **File Watchers** を開く
-2. **+** → **Custom** を選択
-3. 以下の設定を入力：
+1. Open **Settings** → **Tools** → **File Watchers**
+2. Select **+** → **Custom**
+3. Enter the following settings:
 
-| 項目                        | 値                                  |
+| Field                       | Value                               |
 | --------------------------- | ----------------------------------- |
 | **Name**                    | `shiori verify on save`             |
 | **File type**               | `Any`                               |
@@ -191,40 +191,40 @@ IDE 設定ディレクトリの場所：
 | **Program**                 | `npx`                               |
 | **Arguments**               | `shiori verify --format diagnostic` |
 | **Working directory**       | `$ProjectFileDir$`                  |
-| **Output paths to refresh** | （空）                              |
-| **Auto-save edited files**  | Off（無限ループ防止）               |
+| **Output paths to refresh** | (empty)                             |
+| **Auto-save edited files**  | Off (prevents infinite loops)       |
 
-**注意**: File Watcher はファイル保存のたびに実行されるため、大規模プロジェクトではパフォーマンスに影響する場合があります。`shiori watch --format diagnostic` の利用も検討してください。
+**Note**: A File Watcher runs on every file save, so it may affect performance in large projects. Consider using `shiori watch --format diagnostic` as well.
 
-## トラブルシューティング
+## Troubleshooting
 
-### "npx: command not found" エラー
+### "npx: command not found" error
 
-JetBrains IDE が Node.js のパスを認識していない場合があります。
+The JetBrains IDE may not recognize the Node.js path.
 
-**対処法**:
+**Fix**:
 
-1. **Settings** → **Languages & Frameworks** → **Node.js** で Node.js インタープリタのパスを確認
-2. External Tool の **Program** にフルパスを指定（例: `/usr/local/bin/npx`）
+1. Check the Node.js interpreter path in **Settings** → **Languages & Frameworks** → **Node.js**
+2. Specify the full path in the External Tool's **Program** (e.g. `/usr/local/bin/npx`)
 
-### Output Filter でリンクが生成されない
+### The Output Filter does not generate links
 
-正規表現が正しく設定されているか確認します。JetBrains の Output Filter では `$FILE_PATH$`, `$LINE$`, `$COLUMN$` がマクロとして解釈されます。
+Check that the regular expression is set correctly. In JetBrains Output Filters, `$FILE_PATH$`, `$LINE$`, and `$COLUMN$` are interpreted as macros.
 
-手動で出力を確認する場合：
+To check the output manually:
 
 ```bash
 npx shiori verify --format diagnostic
 ```
 
-出力がない場合は verify issues が 0 件です（正常）。
+If there is no output, there are 0 verify issues (this is normal).
 
-### `<unknown>:0:1` のエントリ
+### `<unknown>:0:1` entries
 
-ファイルパスや行番号が特定できないアノテーション（レジストリにのみ存在する等）は `<unknown>:0:1` として出力されます。これは仕様です。JetBrains IDE はこの行のリンクを生成できませんが、メッセージ内容は表示されます。
+Annotations whose file path or line number cannot be determined (for example, ones that exist only in the registry) are output as `<unknown>:0:1`. This is by design. JetBrains IDEs cannot generate a link for this line, but the message content is still shown.
 
-## 関連
+## Related
 
-- [VS Code Tasks レシピ](./vscode-annotate-task.md) — VS Code での同等の統合
-- [Neovim diagnostic レシピ](./neovim-diagnostic.md) — Neovim での同等の統合
-- [ADR 018: 外部サービス連携戦略](../decisions/018-external-service-integration.md) — 構造化出力の設計方針
+- [VS Code Tasks Recipe](./vscode-annotate-task.md) — The equivalent integration in VS Code
+- [Neovim Diagnostic Recipe](./neovim-diagnostic.md) — The equivalent integration in Neovim
+- [ADR 018: External Service Integration Strategy](../decisions/018-external-service-integration.md) — Design policy for structured output

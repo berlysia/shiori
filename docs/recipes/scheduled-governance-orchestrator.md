@@ -1,25 +1,25 @@
 # Scheduled Governance Orchestrator
 
-期限切れ・期限間近アノテーションをスケジュール実行で検出し、GitHub Issue を自動生成するオーケストレーションワークフロー。既存レシピ（[Expires Alert](./github-actions-expires-alert.md)、[GitHub Issue Creation](./github-issue-creation.md)、[Slack Notification](./slack-notification.md)）を統合した本番運用向けレシピです。
+An orchestration workflow that detects expired and soon-to-expire annotations on a schedule and automatically creates GitHub Issues. It is a production-oriented recipe that combines existing recipes ([Expires Alert](./github-actions-expires-alert.md), [GitHub Issue Creation](./github-issue-creation.md), [Slack Notification](./slack-notification.md)).
 
-## 概要
+## Overview
 
-このレシピは以下を1つのワークフローで実現します：
+This recipe covers the following in a single workflow:
 
-1. **スケジュール実行**: cron で定期的に `shiori check` を実行
-2. **Issue 自動生成**: expired / expiring-soon を ref 単位で GitHub Issue に起票
-3. **重複防止**: 既存の open Issue と ref でマッチングし、二重起票を回避
-4. **Assignee 自動設定**: registry の `owner` フィールドから GitHub username を解決
-5. **Slack 通知**（オプション）: サマリーを Slack に投稿
+1. **Scheduled run**: Run `shiori check` periodically via cron
+2. **Automatic issue creation**: File a GitHub Issue per ref for expired / expiring-soon annotations
+3. **Duplicate prevention**: Match against existing open Issues by ref to avoid filing twice
+4. **Automatic assignee**: Resolve a GitHub username from the registry `owner` field
+5. **Slack notification** (optional): Post a summary to Slack
 
-## 前提条件
+## Prerequisites
 
 - Node.js >= 18.0.0
-- `shiori` がプロジェクトの devDependencies に追加済み
-- `gh` CLI が GitHub Actions ランナーで使用可能（デフォルトで利用可能）
-- リポジトリに `governance` ラベルが存在（`gh label create governance` で作成可能）
+- `shiori` is added to the project's devDependencies
+- The `gh` CLI is available on the GitHub Actions runner (available by default)
+- A `governance` label exists in the repository (create it with `gh label create governance`)
 
-## ワークフロー
+## Workflow
 
 ```yaml
 # .github/workflows/shiori-governance-orchestrator.yml
@@ -27,7 +27,7 @@ name: shiori governance orchestrator
 
 on:
   schedule:
-    # 毎週月曜 9:00 UTC に実行
+    # Run every Monday at 9:00 UTC
     - cron: '0 9 * * 1'
   workflow_dispatch:
     inputs:
@@ -60,7 +60,7 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # Step 1: shiori check で期限切れ・期限間近を検出
+      # Step 1: Detect expired and expiring-soon annotations with shiori check
       - name: Run shiori check
         id: check
         run: |
@@ -77,7 +77,7 @@ jobs:
           echo "expiring=$EXPIRING" >> "$GITHUB_OUTPUT"
           echo "threshold=$THRESHOLD" >> "$GITHUB_OUTPUT"
 
-      # Step 2: ref ごとに Issue を自動生成（重複チェック付き）
+      # Step 2: Create an Issue per ref (with duplicate check)
       - name: Create issues per ref
         if: steps.check.outputs.expired > 0 || steps.check.outputs.expiring > 0
         env:
@@ -88,12 +88,12 @@ jobs:
           CREATED=0
           SKIPPED=0
 
-          # expired と expiring-soon の issue を ref 単位で処理
-          # NOTE: プロセス置換 < <(...) を使い、while ループを親シェルで実行する。
-          # パイプ（| while）だとサブシェルになり CREATED/SKIPPED が親に反映されない。
+          # Process expired and expiring-soon issues per ref
+          # NOTE: Use process substitution < <(...) so the while loop runs in the parent shell.
+          # With a pipe (| while) it runs in a subshell and CREATED/SKIPPED are not reflected in the parent.
           while IFS=$'\t' read -r TYPE REF MESSAGE; do
 
-            # Issue タイトルの構築
+            # Build the Issue title
             if [ "$TYPE" = "expired" ]; then
               TITLE="[shiori] Expired: ${REF}"
               LABELS="governance,expired"
@@ -102,7 +102,7 @@ jobs:
               LABELS="governance,expiring-soon"
             fi
 
-            # 重複チェック: shiori ラベル + ref で既存 Issue を検索
+            # Duplicate check: search existing Issues by shiori label + ref
             EXISTING=$(gh issue list \
               --label "governance" \
               --search "in:title [shiori] ${REF}" \
@@ -116,19 +116,19 @@ jobs:
               continue
             fi
 
-            # registry から owner を取得して assignee に設定
+            # Get the owner from the registry and use it as the assignee
             OWNER=""
             if [ -f "$REGISTRY_FILE" ]; then
               OWNER=$(jq -r --arg ref "$REF" '.[$ref].owner // empty' "$REGISTRY_FILE")
             fi
 
-            # registry からメタデータを取得
+            # Get metadata from the registry
             REASON=$(jq -r --arg ref "$REF" '.[$ref].reason // "No reason recorded"' "$REGISTRY_FILE" 2>/dev/null || echo "No reason recorded")
             EXPIRES=$(jq -r --arg ref "$REF" '.[$ref].expires // "Not set"' "$REGISTRY_FILE" 2>/dev/null || echo "Not set")
             KIND=$(jq -r --arg ref "$REF" '.[$ref].kind // "unknown"' "$REGISTRY_FILE" 2>/dev/null || echo "unknown")
             TARGET=$(jq -r --arg ref "$REF" '.[$ref].target // "unknown"' "$REGISTRY_FILE" 2>/dev/null || echo "unknown")
 
-            # Issue 本文の構築
+            # Build the Issue body
             BODY="## shiori Governance Alert
 
 **Type:** \`${TYPE}\`
@@ -147,9 +147,9 @@ ${MESSAGE}
 
 ### Resolution
 
-1. \`shiori show --ref ${REF}\` で詳細を確認
-2. \`shiori jump --ref ${REF}\` でソース位置にジャンプ
-3. 問題を解決後、\`shiori resolve --ref ${REF} --apply\` で追跡を終了
+1. Check the details with \`shiori show --ref ${REF}\`
+2. Jump to the source location with \`shiori jump --ref ${REF}\`
+3. After resolving the problem, stop tracking it with \`shiori resolve --ref ${REF} --apply\`
 
 ---
 *This issue was automatically created by [shiori governance orchestrator](https://github.com/berlysia/shiori).*"
@@ -163,7 +163,7 @@ ${MESSAGE}
               continue
             fi
 
-            # Issue 作成（assignee は配列で構築し word splitting を回避）
+            # Create the Issue (build the assignee as an array to avoid word splitting)
             ASSIGN_ARGS=()
             if [ -n "$OWNER" ]; then
               ASSIGN_ARGS+=(--assignee "$OWNER")
@@ -187,7 +187,7 @@ ${MESSAGE}
           echo "- Created: ${CREATED} issues" >> "$GITHUB_STEP_SUMMARY"
           echo "- Skipped (duplicate): ${SKIPPED} issues" >> "$GITHUB_STEP_SUMMARY"
 
-      # Step 3 (Optional): Slack 通知
+      # Step 3 (Optional): Slack notification
       - name: Slack notification
         if: |
           (steps.check.outputs.expired > 0 || steps.check.outputs.expiring > 0)
@@ -212,20 +212,20 @@ ${MESSAGE}
             -d "{\"text\": \"${TEXT}\"}"
 ```
 
-## 機能詳細
+## Details
 
-### 重複防止
+### Duplicate Prevention
 
-Issue の重複チェックは2つの条件で判定します：
+The duplicate check for Issues uses two conditions:
 
-1. **ラベル**: `governance` ラベルが付いている
-2. **タイトル検索**: `[shiori] <ref>` がタイトルに含まれている
+1. **Label**: The `governance` label is attached
+2. **Title search**: The title contains `[shiori] <ref>`
 
-Issue がクローズされると（解決済み）、次回の実行で同じ ref に対して新しい Issue が作成されます。これにより、一度解決した問題が再発した場合も検出できます。
+Once an Issue is closed (resolved), the next run creates a new Issue for the same ref. This way, a problem that recurs after being resolved is still detected.
 
-### Assignee 自動設定
+### Automatic Assignee
 
-registry の `owner` フィールドの値を GitHub username として直接使用します：
+The value of the registry `owner` field is used directly as the GitHub username:
 
 ```json
 {
@@ -237,43 +237,43 @@ registry の `owner` フィールドの値を GitHub username として直接使
 }
 ```
 
-この場合、`octocat` が Issue の assignee に設定されます。
+In this case, `octocat` is set as the Issue assignee.
 
-> **Note**: `owner` がリポジトリのコラボレーターでない場合、assignee 設定は失敗しますが、Issue 自体は作成されます。
+> **Note**: If `owner` is not a collaborator on the repository, setting the assignee fails, but the Issue itself is still created.
 
 ### Dry Run
 
-`workflow_dispatch` から手動トリガーする際に `dry_run: true` を指定すると、Issue を作成せずにプレビューのみ表示します。初回導入時の動作確認に使用してください。
+When triggering manually from `workflow_dispatch`, specify `dry_run: true` to only preview without creating Issues. Use this to verify behavior when first adopting the workflow.
 
-## カスタマイズ
+## Customization
 
-### スケジュールの変更
+### Changing the Schedule
 
 ```yaml
 on:
   schedule:
-    - cron: '0 9 * * 1' # 毎週月曜 9:00 UTC
-    - cron: '0 9 * * 1-5' # 平日毎日 9:00 UTC
-    - cron: '0 0 1 * *' # 毎月1日 0:00 UTC
+    - cron: '0 9 * * 1' # Every Monday at 9:00 UTC
+    - cron: '0 9 * * 1-5' # Every weekday at 9:00 UTC
+    - cron: '0 0 1 * *' # 1st of every month at 0:00 UTC
 ```
 
-### 閾値の変更
+### Changing the Threshold
 
-`--expiring-threshold` でアラートの日数を調整できます。config.yaml で `verify.expiringThresholdDays` をプロジェクト全体のデフォルトとして設定することもできます。
+Adjust the number of days for alerts with `--expiring-threshold`. You can also set `verify.expiringThresholdDays` in config.yaml as the project-wide default.
 
-### Issue テンプレートの変更
+### Changing the Issue Template
 
-ワークフロー内の `BODY` 変数を編集して、Issue 本文のフォーマットをカスタマイズできます。Markdown がそのまま使えます。
+Edit the `BODY` variable in the workflow to customize the format of the Issue body. Markdown can be used as is.
 
-### Slack 通知の有効化
+### Enabling Slack Notification
 
-1. Slack Incoming Webhook URL を取得
-2. リポジトリの Secrets に `SLACK_WEBHOOK_URL` として登録
-3. ワークフローが自動的に通知を送信（Webhook URL が設定されている場合のみ）
+1. Get a Slack Incoming Webhook URL
+2. Register it as `SLACK_WEBHOOK_URL` in the repository Secrets
+3. The workflow sends the notification automatically (only when the Webhook URL is set)
 
-### チーム別のルーティング
+### Per-Team Routing
 
-registry の `owner` と GitHub の CODEOWNERS を組み合わせることで、チーム別のルーティングが可能です：
+Combining the registry `owner` with GitHub CODEOWNERS enables per-team routing:
 
 ```json
 {
@@ -282,44 +282,44 @@ registry の `owner` と GitHub の CODEOWNERS を組み合わせることで、
 }
 ```
 
-GitHub Teams を assignee に設定するには、Organization のリポジトリで Teams に Write 権限を付与してください。
+To set GitHub Teams as assignees, grant Teams Write permission on the repository in your Organization.
 
-## トラブルシューティング
+## Troubleshooting
 
-### Issue が作成されない
+### Issues Are Not Created
 
-1. `governance` ラベルが存在するか確認: `gh label list | grep governance`
-2. `GITHUB_TOKEN` の権限を確認: `issues: write` が必要
-3. Dry run で動作確認: `workflow_dispatch` から `dry_run: true` で実行
+1. Check that the `governance` label exists: `gh label list | grep governance`
+2. Check the `GITHUB_TOKEN` permissions: `issues: write` is required
+3. Verify behavior with a dry run: run from `workflow_dispatch` with `dry_run: true`
 
-### Assignee が設定されない
+### Assignee Is Not Set
 
-- registry の `owner` 値がリポジトリのコラボレーター名と一致しているか確認
-- Organization の場合、Team 名ではなく個人の GitHub username を使用
-- Assignee 設定の失敗は Issue 作成をブロックしません（警告のみ）
+- Check that the registry `owner` value matches a repository collaborator name
+- For an Organization, use an individual GitHub username, not a Team name
+- A failure to set the assignee does not block Issue creation (warning only)
 
-### 重複 Issue が作成される
+### Duplicate Issues Are Created
 
-- `governance` ラベルが Issue に付いているか確認
-- Issue タイトルの `[shiori]` プレフィックスが変更されていないか確認
-- GitHub API の検索インデックスに遅延がある場合、まれに重複が発生する可能性があります
+- Check that the `governance` label is attached to the Issue
+- Check that the `[shiori]` prefix in the Issue title has not been changed
+- If the GitHub API search index is delayed, duplicates may rarely occur
 
-## ガバナンス成熟度モデルにおける位置づけ
+## Position in the Governance Maturity Model
 
-| Level | 名称          | 仕組み                           | レシピ                                                   |
-| ----- | ------------- | -------------------------------- | -------------------------------------------------------- |
-| 0     | Invisible     | lint disable で違反が隠れている  | —                                                        |
-| 1     | Visible       | PR コメントで差分を通知          | [Delta PR Comment](./github-actions-delta-pr-comment.md) |
-| 2     | Enforced      | PR ステータスチェックでブロック  | [Checks Gate](./github-checks-gate.md)                   |
-| 3     | Measured      | バッジ + トレンド追跡            | [Governance Badge](./governance-badge.md)                |
-| 4     | **Proactive** | **スケジュール実行で自動 Issue** | **このレシピ**                                           |
+| Level | Name          | Mechanism                               | Recipe                                                   |
+| ----- | ------------- | --------------------------------------- | -------------------------------------------------------- |
+| 0     | Invisible     | Violations hidden by lint disable       | —                                                        |
+| 1     | Visible       | Notify diffs via PR comment             | [Delta PR Comment](./github-actions-delta-pr-comment.md) |
+| 2     | Enforced      | Block with PR status check              | [Checks Gate](./github-checks-gate.md)                   |
+| 3     | Measured      | Badge + trend tracking                  | [Governance Badge](./governance-badge.md)                |
+| 4     | **Proactive** | **Automatic Issues on a scheduled run** | **This recipe**                                          |
 
-Level 4 は、期限管理が自動化され、チームが受動的にアラートを受け取るだけで技術的負債を管理できる状態です。
+Level 4 is the state where expiry management is automated and the team can manage technical debt just by receiving alerts passively.
 
-## 関連
+## Related
 
-- [ADR 018: 外部サービス連携戦略](../decisions/018-external-service-integration.md)
-- [Expires Alert レシピ](./github-actions-expires-alert.md) — 単純な expires 検出 + Issue 作成
-- [GitHub Issue Creation レシピ](./github-issue-creation.md) — スクリプトベースの Issue 作成
-- [Slack Notification レシピ](./slack-notification.md) — Slack 通知単体
-- [Checks Gate レシピ](./github-checks-gate.md) — PR ステータスチェック
+- [ADR 018: External Service Integration Strategy](../decisions/018-external-service-integration.md)
+- [Expires Alert recipe](./github-actions-expires-alert.md) — Simple expires detection + Issue creation
+- [GitHub Issue Creation recipe](./github-issue-creation.md) — Script-based Issue creation
+- [Slack Notification recipe](./slack-notification.md) — Slack notification only
+- [Checks Gate recipe](./github-checks-gate.md) — PR status check

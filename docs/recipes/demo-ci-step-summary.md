@@ -1,14 +1,14 @@
 # Demo CI Step Summary
 
-`scan --demo --format github-summary` を使って、shiori 未導入のプロジェクトでも CI の Step Summary にガバナンスデモを表示するレシピ。
+A recipe that uses `scan --demo --format github-summary` to show a governance demo in the CI Step Summary, even for projects that have not adopted shiori.
 
-## 概要
+## Overview
 
-プロジェクトに shiori をセットアップする前に、CI 上で動作を体験できます。組み込みのサンプルファイルを使うため、レジストリの初期化やソースコードの変更は一切不要です。
+You can try shiori in CI before setting it up in your project. It uses built-in sample files, so no registry initialization or source code changes are needed.
 
-チームメンバーへの紹介や、導入前の評価に最適です。
+It works well for introducing the tool to team members and for evaluation before adoption.
 
-## 最小ワークフロー
+## Minimal workflow
 
 ```yaml
 name: shiori demo
@@ -29,25 +29,25 @@ jobs:
         run: npx @berlysia/shiori scan --demo --format github-summary >> "$GITHUB_STEP_SUMMARY"
 ```
 
-これだけで PR の Step Summary タブにデモ結果が表示されます。
+With just this, the demo result appears in the PR's Step Summary tab.
 
-## 出力フォーマット
+## Output formats
 
-| フォーマット           | コマンド                              | 用途                            |
-| ---------------------- | ------------------------------------- | ------------------------------- |
-| GitHub Summary         | `scan --demo --format github-summary` | Step Summary 直接出力           |
-| Markdown               | `scan --demo --format markdown`       | Gist・Wiki・ドキュメント共有    |
-| JSON                   | `scan --demo --format json`           | CI パイプライン・プログラム連携 |
-| 人間向け（デフォルト） | `scan --demo`                         | ローカルターミナル表示          |
+| Format                   | Command                               | Use                                  |
+| ------------------------ | ------------------------------------- | ------------------------------------ |
+| GitHub Summary           | `scan --demo --format github-summary` | Direct Step Summary output           |
+| Markdown                 | `scan --demo --format markdown`       | Sharing via Gist, wiki, or documents |
+| JSON                     | `scan --demo --format json`           | CI pipelines and programmatic use    |
+| Human-readable (default) | `scan --demo`                         | Local terminal display               |
 
-## 実践例: チーム紹介ワークフロー
+## Practical example: team introduction workflow
 
-CI で demo を実行し、結果を Markdown でアーティファクト保存する例:
+An example that runs the demo in CI and saves the result as a Markdown artifact:
 
 ```yaml
 name: shiori demo report
 on:
-  workflow_dispatch: # 手動実行で評価
+  workflow_dispatch: # Run manually for evaluation
 
 jobs:
   demo:
@@ -60,11 +60,11 @@ jobs:
         with:
           node-version: 22
 
-      # Step Summary に表示
+      # Show in Step Summary
       - name: Demo → Step Summary
         run: npx @berlysia/shiori scan --demo --format github-summary >> "$GITHUB_STEP_SUMMARY"
 
-      # Markdown レポートをアーティファクトとして保存
+      # Save the Markdown report as an artifact
       - name: Demo → Markdown report
         run: npx @berlysia/shiori scan --demo --format markdown --output demo-report.md
 
@@ -76,9 +76,9 @@ jobs:
           retention-days: 30
 ```
 
-## デモから本導入への移行
+## Moving from the demo to full adoption
 
-デモで動作を確認したら、3 コマンドで本導入できます:
+Once you have confirmed how it works in the demo, you can adopt it fully in 3 commands:
 
 ```bash
 pnpm add -D @berlysia/shiori
@@ -86,15 +86,15 @@ shiori init --ci basic
 shiori check
 ```
 
-`shiori init --ci basic` は本番用の CI ワークフロー（`shiori check` + Step Summary）を自動生成します。
+`shiori init --ci basic` automatically generates a production CI workflow (`shiori check` + Step Summary).
 
-## 設計上のポイント
+## Design points
 
-- **`npx` でゼロインストール**: `pnpm add` 不要。CI 上で `npx` 経由で実行可能
-- **`continue-on-error` 不要**: demo モードは常に exit 0 を返すため、ワークフロー制御が不要
-- **セットアップ依存なし**: レジストリ・設定ファイル・ソースコード変更が一切不要
+- **Zero install with `npx`**: no `pnpm add` needed. It can run in CI via `npx`
+- **No `continue-on-error` needed**: demo mode always returns exit 0, so no workflow control is required
+- **No setup dependencies**: no registry, configuration file, or source code changes are needed
 
-## 関連
+## Related
 
-- [Step Summary レシピ](./github-actions-step-summary.md) — 本番用の verify/health/report Step Summary
-- [Getting Started](../getting-started.md) — 5 分でのセットアップガイド
+- [Step Summary recipe](./github-actions-step-summary.md) — production verify/health/report Step Summary
+- [Getting Started](../getting-started.md) — a 5-minute setup guide

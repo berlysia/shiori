@@ -1,104 +1,104 @@
-# ローカルリアルタイムガバナンスダッシュボード
+# Local Real-Time Governance Dashboard
 
-開発中にファイル保存のたびにガバナンスダッシュボードを自動更新するレシピ。ブラウザ上でヘルススコア・変更差分をリアルタイムに確認できます。
+A recipe that automatically updates the governance dashboard every time you save a file during development. You can check the health score and change diffs in real time in your browser.
 
-## 概要
+## Overview
 
-`shiori watch --dashboard` は以下を実現します：
+`shiori watch --dashboard` provides the following:
 
-1. **ファイル監視**: ソースファイルの変更を検知して自動でスキャン
-2. **HTML ダッシュボード生成**: verify + health + report を統合した自己完結 HTML を出力
-3. **ブラウザ自動リロード**: 3秒間隔の `<meta http-equiv="refresh">` で最新状態を反映
-4. **変更差分表示**: 前回スキャンとの差分（追加・削除）をオーバーレイ表示
+1. **File watching**: detects changes to source files and scans automatically
+2. **HTML dashboard generation**: outputs a self-contained HTML that integrates verify + health + report
+3. **Browser auto-reload**: reflects the latest state with a `<meta http-equiv="refresh">` at 3-second intervals
+4. **Change diff display**: shows the diff from the previous scan (additions and removals) as an overlay
 
-特徴：
+Features:
 
-- **ゼロ設定**: コマンド一つで起動、外部サーバー不要
-- **自己完結 HTML**: CDN 依存なし、オフラインでも閲覧可能
-- **ダークテーマ UI**: ヘルススコア・インサイト・ブレイクダウンを視覚的に表示
-- **Governance Diff Overlay**: ファイル変更ごとにアノテーションの増減をバッジとテーブルで表示
+- **Zero configuration**: starts with a single command, no external server needed
+- **Self-contained HTML**: no CDN dependencies, viewable offline
+- **Dark theme UI**: visually shows the health score, insights, and breakdowns
+- **Governance Diff Overlay**: shows the increase or decrease in annotations with each file change as badges and a table
 
-## 前提条件
+## Prerequisites
 
 - Node.js >= 22.6.0
-- `shiori` がプロジェクトの devDependencies に追加済み
-- レジストリファイルが存在する（`shiori init` 済み）
+- `shiori` is already added to the project's devDependencies
+- A registry file exists (`shiori init` is done)
 
-## 基本的な使い方
+## Basic usage
 
-### ダッシュボードを起動してブラウザで開く
+### Start the dashboard and open it in the browser
 
 ```bash
 shiori watch --dashboard --open
 ```
 
-ブラウザが自動で開き、ファイルを保存するたびにダッシュボードが更新されます。`Ctrl+C` で停止します。
+The browser opens automatically, and the dashboard updates every time you save a file. Stop with `Ctrl+C`.
 
-### ダッシュボードのみ（ブラウザ手動で開く）
+### Dashboard only (open the browser manually)
 
 ```bash
 shiori watch --dashboard
 ```
 
-デフォルトでは `.config/shiori/dashboard.html` に出力されます。ブラウザで直接開いてください。
+By default it is written to `.config/shiori/dashboard.html`. Open it directly in a browser.
 
-### レジストリも同期する
+### Also sync the registry
 
 ```bash
 shiori watch --dashboard --sync-registry --open
 ```
 
-新しいアノテーションが見つかると自動でレジストリにエントリを追加します。
+When a new annotation is found, an entry is automatically added to the registry.
 
-## ダッシュボードの内容
+## Dashboard contents
 
-| セクション          | 内容                                                 |
-| ------------------- | ---------------------------------------------------- |
-| Health Score        | ガバナンスヘルススコア（0–100）とレベル表示          |
-| Changes             | 前回スキャンとの差分（追加・削除のバッジとテーブル） |
-| Overview            | アノテーション数・候補数・レジストリエントリ数など   |
-| Insights            | ガバナンス改善提案（error/warning/info）             |
-| Issues by Type      | issue タイプ別の内訳                                 |
-| Annotations by Rule | lint ルール別のアノテーション数                      |
-| Ownership           | オーナー別のアノテーション数                         |
-| Annotation Kinds    | kind 別のアノテーション数                            |
+| Section             | Content                                                                  |
+| ------------------- | ------------------------------------------------------------------------ |
+| Health Score        | Governance health score (0–100) and level display                        |
+| Changes             | Diff from the previous scan (badges and table of additions and removals) |
+| Overview            | Number of annotations, candidates, registry entries, etc.                |
+| Insights            | Governance improvement suggestions (error/warning/info)                  |
+| Issues by Type      | Breakdown by issue type                                                  |
+| Annotations by Rule | Number of annotations per lint rule                                      |
+| Ownership           | Number of annotations per owner                                          |
+| Annotation Kinds    | Number of annotations per kind                                           |
 
-各セクションの見出しをクリックすると折りたたみ/展開できます。
+Click a section heading to collapse or expand it.
 
-## カスタマイズ
+## Customization
 
-### 出力パスを変更する
+### Change the output path
 
 ```bash
 shiori watch --dashboard --dashboard-output .tmp/my-dashboard.html --open
 ```
 
-### デバウンス間隔を調整する
+### Adjust the debounce interval
 
-ファイル変更検知の間隔（ミリ秒）を調整できます。デフォルトは 250ms です。
+You can adjust the interval (in milliseconds) for file change detection. The default is 250ms.
 
 ```bash
-# 高頻度保存する場合は長めに設定
+# Use a longer interval if you save frequently
 shiori watch --dashboard --debounce-ms 1000 --open
 ```
 
-### スキャン対象を限定する
+### Limit the scan targets
 
 ```bash
 shiori watch --dashboard --patterns "src/**/*.ts,src/**/*.tsx" --open
 ```
 
-### ワンショットモードで単発生成
+### One-shot mode for a single generation
 
-CI やスクリプトで一度だけ生成して終了する場合：
+To generate once and exit, for CI or scripts:
 
 ```bash
 shiori watch --once --dashboard --dashboard-output .tmp/report.html
 ```
 
-## VSCode タスクとして登録する
+## Register as a VSCode task
 
-`.vscode/tasks.json` に追加して、VSCode から簡単に起動できます：
+Add it to `.vscode/tasks.json` to launch it easily from VSCode:
 
 ```json
 {
@@ -110,26 +110,26 @@ shiori watch --once --dashboard --dashboard-output .tmp/report.html
 }
 ```
 
-## フラグ一覧
+## Flag reference
 
-| フラグ               | 短縮 | 説明                                                         |
-| -------------------- | ---- | ------------------------------------------------------------ |
-| `--dashboard`        | —    | HTML ダッシュボード生成を有効化                              |
-| `--dashboard-output` | —    | HTML 出力パス（デフォルト: `.config/shiori/dashboard.html`） |
-| `--open`             | —    | 初回生成時にデフォルトブラウザで自動起動                     |
-| `--sync-registry`    | —    | スキャン結果をレジストリに自動マージ                         |
-| `--registry`         | `-r` | レジストリファイルのパス                                     |
-| `--patterns`         | `-p` | スキャン対象の glob パターン（カンマ区切り）                 |
-| `--ignore`           | `-i` | 除外パターン（カンマ区切り）                                 |
-| `--debounce-ms`      | —    | デバウンス間隔（ミリ秒、デフォルト: 250）                    |
-| `--once`             | —    | 一度だけ実行して終了                                         |
-| `--cwd`              | —    | 作業ディレクトリ                                             |
-| `--config`           | `-c` | 設定ディレクトリのパス                                       |
+| Flag                 | Short | Description                                                   |
+| -------------------- | ----- | ------------------------------------------------------------- |
+| `--dashboard`        | —     | Enable HTML dashboard generation                              |
+| `--dashboard-output` | —     | HTML output path (default: `.config/shiori/dashboard.html`)   |
+| `--open`             | —     | Automatically open in the default browser on first generation |
+| `--sync-registry`    | —     | Automatically merge scan results into the registry            |
+| `--registry`         | `-r`  | Path to the registry file                                     |
+| `--patterns`         | `-p`  | Glob patterns to scan (comma-separated)                       |
+| `--ignore`           | `-i`  | Exclusion patterns (comma-separated)                          |
+| `--debounce-ms`      | —     | Debounce interval (milliseconds, default: 250)                |
+| `--once`             | —     | Run once and exit                                             |
+| `--cwd`              | —     | Working directory                                             |
+| `--config`           | `-c`  | Path to the config directory                                  |
 
 ---
 
-## 関連
+## Related
 
-- [HTML Artifacts Dashboard レシピ](./html-artifacts-dashboard.md) — CI で HTML レポートを Artifacts に保存
-- [Governance Score Badge レシピ](./governance-badge.md) — README にバッジを表示
-- [Delta PR Comment レシピ](./github-actions-delta-pr-comment.md) — PR にガバナンス変更を通知
+- [HTML Artifacts Dashboard recipe](./html-artifacts-dashboard.md) — save an HTML report to Artifacts in CI
+- [Governance Score Badge recipe](./governance-badge.md) — show a badge in the README
+- [Delta PR Comment recipe](./github-actions-delta-pr-comment.md) — notify a PR of governance changes

@@ -1,42 +1,42 @@
 # GitHub Actions: Delta PR Description
 
-PRのアノテーション増減と **triage（優先度付き技術負債レポート）** を **PR Description（本文）** に自動埋め込みするレシピ。
+A recipe that automatically embeds a PR's annotation changes and a **triage report (a prioritized technical-debt report)** into the **PR description (body)**.
 
-## 概要
+## Overview
 
-PR コメントではなく PR Description 自体にガバナンスサマリーを埋め込むことで、レビューア が PR を開いた瞬間にアノテーション変更と技術負債の状況を把握できます。
+Embedding the governance summary in the PR description itself, rather than in a PR comment, lets reviewers see annotation changes and the technical-debt picture the moment they open the PR.
 
-このレシピは以下を実現します：
+This recipe does the following:
 
-1. **ベーススキャン**（`main` ブランチのアノテーション一覧）を artifact として保存
-2. **PRブランチでスキャン**し、ベースとの差分を `shiori delta --format markdown` で計算
-3. **triage レポート**を `shiori triage --format markdown` で生成し、優先度付きアクションリストを提供
-4. PR Description 内の `<!-- shiori-delta-start/end -->` および `<!-- shiori-triage-start/end -->` セクションを自動更新
-5. アノテーション純増数が閾値を超えた場合はCIを失敗させる（`--max-increase`）
+1. Saves a **baseline scan** (the list of annotations on the `main` branch) as an artifact
+2. **Scans the PR branch** and computes the difference from the baseline with `shiori delta --format markdown`
+3. Generates a **triage report** with `shiori triage --format markdown` to provide a prioritized action list
+4. Automatically updates the `<!-- shiori-delta-start/end -->` and `<!-- shiori-triage-start/end -->` sections in the PR description
+5. Fails CI when the net increase in annotations exceeds a threshold (`--max-increase`)
 
-> **PR Comment との使い分け**: PR Description への埋め込みは「常にPR本文で確認したい」チーム向け。コメント通知を活用したい場合は [Delta PR Comment レシピ](./github-actions-delta-pr-comment.md) を使ってください。
+> **Choosing between PR Comment and PR Description**: Embedding in the PR description is for teams that want to always check it in the PR body. If you want to use comment notifications, use the [Delta PR Comment recipe](./github-actions-delta-pr-comment.md).
 
-## 前提条件
+## Prerequisites
 
 - Node.js >= 22.6.0
-- `shiori` がプロジェクトの devDependencies に追加済み（`pnpm add -D shiori`）
-- GitHub Actions で `pull_request` イベントをトリガーに使用
+- `shiori` is already added to the project's devDependencies (`pnpm add -D shiori`)
+- GitHub Actions with the `pull_request` event as the trigger
 
-## PR テンプレートの準備
+## Preparing the PR template
 
-PR Description にマーカーコメントを含むテンプレートを用意します。
-shiori が差分レポートを埋め込む区間を `<!-- shiori-delta-start -->` と `<!-- shiori-delta-end -->` で、triage レポートを `<!-- shiori-triage-start -->` と `<!-- shiori-triage-end -->` で囲みます。
+Prepare a PR description template that contains the marker comments.
+shiori embeds the delta report between `<!-- shiori-delta-start -->` and `<!-- shiori-delta-end -->`, and the triage report between `<!-- shiori-triage-start -->` and `<!-- shiori-triage-end -->`.
 
 ```markdown
 <!-- .github/pull_request_template.md -->
 
 ## Summary
 
-<!-- PRの概要を記述 -->
+<!-- Describe the PR overview -->
 
 ## Test Plan
 
-- [ ] テストが通ること
+- [ ] Tests pass
 
 ## Governance Summary
 
@@ -55,16 +55,16 @@ _Waiting for CI..._
 <!-- shiori-triage-end -->
 ```
 
-> **Note:** マーカーコメントがない場合、ワークフローは PR Description の末尾にセクションを追加します。
+> **Note:** If the marker comments are missing, the workflow appends the sections to the end of the PR description.
 
-## ワークフロー構成
+## Workflow structure
 
 ---
 
-### 1. ベーススキャン保存ワークフロー
+### 1. Baseline scan workflow
 
-`main` ブランチへのプッシュ時にスキャン結果を artifact として保存します。
-（[Delta PR Comment レシピ](./github-actions-delta-pr-comment.md) と共通。既に設定済みならスキップ可能。）
+Saves the scan result as an artifact when `main` is pushed.
+(Shared with the [Delta PR Comment recipe](./github-actions-delta-pr-comment.md). Skip this if it is already set up.)
 
 ```yaml
 # .github/workflows/shiori-base.yml
@@ -107,9 +107,9 @@ jobs:
 
 ---
 
-### 2. PR Description 更新ワークフロー
+### 2. PR description update workflow
 
-PRブランチでスキャンを実行し、ベースと比較して PR Description を更新します。
+Runs a scan on the PR branch, compares it with the baseline, and updates the PR description.
 
 ```yaml
 # .github/workflows/shiori-pr-description.yml
@@ -143,9 +143,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # ベースラインartifactを取得。
-      # actions/download-artifact@v8 は同一ワークフローラン内の artifact しか取得できないため、
-      # クロスワークフロー（別ワークフローで保存された artifact）には GitHub API を使用する。
+      # Fetch the baseline artifact.
+      # actions/download-artifact@v8 can only fetch artifacts within the same workflow run,
+      # so for cross-workflow cases (an artifact saved by a different workflow) we use the GitHub API.
       - name: Download baseline scan artifact
         uses: actions/github-script@v9
         with:
@@ -208,11 +208,11 @@ jobs:
             console.log('Baseline scan artifact downloaded successfully');
         continue-on-error: true
 
-      # PRブランチのアノテーションをスキャン
+      # Scan annotations on the PR branch
       - name: Scan annotations (PR head)
         run: pnpm shiori scan --output .tmp/shiori-head-scan.json
 
-      # 差分を計算してMarkdownレポートを生成
+      # Compute the delta and generate a Markdown report
       - name: Compute delta
         id: delta
         run: |
@@ -225,7 +225,7 @@ jobs:
             --output .tmp/shiori-delta.md
         continue-on-error: true
 
-      # Triage レポートを生成
+      # Generate the triage report
       - name: Generate triage report
         run: |
           pnpm shiori triage \
@@ -233,7 +233,7 @@ jobs:
             --output .tmp/shiori-triage.md
         continue-on-error: true
 
-      # PR Description のマーカー区間を差分・triageレポートで置換
+      # Replace the marker sections in the PR description with the delta and triage reports
       - name: Update PR description
         uses: actions/github-script@v9
         with:
@@ -307,7 +307,7 @@ jobs:
               body: body,
             });
 
-      # --max-increase を超えた場合にCIを失敗させる
+      # Fail CI when --max-increase is exceeded
       - name: Fail if annotation count increased
         if: steps.delta.outcome == 'failure'
         run: |
@@ -317,9 +317,9 @@ jobs:
 
 ---
 
-## PR Description の出力サンプル
+## PR description output sample
 
-CI 実行後、PR Description の Governance Summary セクションが以下のように更新されます：
+After CI runs, the Governance Summary section of the PR description is updated as follows:
 
 ```markdown
 ## Governance Summary
@@ -392,12 +392,12 @@ CI 実行後、PR Description の Governance Summary セクションが以下の
 
 ---
 
-## カスタマイズ
+## Customization
 
-### アノテーション増加の閾値を変更する
+### Change the annotation increase threshold
 
 ```yaml
-# 最大3件まで増加を許容する例
+# Example: allow an increase of up to 3
 - name: Compute delta
   run: |
     pnpm shiori delta \
@@ -407,7 +407,7 @@ CI 実行後、PR Description の Governance Summary セクションが以下の
       ...
 ```
 
-### ベリファイ（レジストリ照合）も合わせて実行する
+### Also run verify (registry reconciliation)
 
 ```yaml
 - name: Verify annotations
@@ -415,10 +415,10 @@ CI 実行後、PR Description の Governance Summary セクションが以下の
   continue-on-error: true
 ```
 
-### Triage レポートをフィルタリングする
+### Filter the triage report
 
 ```yaml
-# 特定のオーナーの技術負債のみ表示
+# Show only technical debt for a specific owner
 - name: Generate triage report
   run: |
     pnpm shiori triage \
@@ -426,7 +426,7 @@ CI 実行後、PR Description の Governance Summary セクションが以下の
       --owner team-platform \
       --output .tmp/shiori-triage.md
 
-# 期限切れのみ表示
+# Show only expired items
 - name: Generate triage report
   run: |
     pnpm shiori triage \
@@ -435,19 +435,19 @@ CI 実行後、PR Description の Governance Summary セクションが以下の
       --output .tmp/shiori-triage.md
 ```
 
-### Triage セクションを無効にする
+### Disable the triage section
 
-triage セクションが不要な場合は、ワークフローから triage ステップを削除し、PR テンプレートから `<!-- shiori-triage-start/end -->` マーカーを除去してください。delta セクションは独立して動作します。
+If you do not need the triage section, remove the triage step from the workflow and remove the `<!-- shiori-triage-start/end -->` markers from the PR template. The delta section works independently.
 
-### PR Comment と PR Description の両方を使う
+### Use both PR Comment and PR Description
 
-両レシピを組み合わせることも可能です。PR Description にはサマリーを埋め込み、PR Comment には詳細を投稿するなど、チームの好みに合わせて使い分けてください。
+You can combine both recipes. For example, embed the summary in the PR description and post the details as a PR comment, whichever suits your team.
 
 ---
 
-## 完全なワークフロー（単一ファイル版）
+## Complete workflow (single-file version)
 
-ベーススキャンとPR Description 更新を1ファイルにまとめたシンプル構成：
+A simple setup that puts the baseline scan and the PR description update in one file:
 
 ```yaml
 # .github/workflows/shiori.yml
@@ -460,7 +460,7 @@ on:
     branches: [main]
 
 jobs:
-  # main ブランチへのプッシュ時にベースラインを保存
+  # Save the baseline when main is pushed
   save-baseline:
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -479,7 +479,7 @@ jobs:
           path: .tmp/shiori-base-scan.json
           overwrite: true
 
-  # PR時にデルタ・triageを計算してPR Description を更新
+  # On PRs, compute the delta and triage and update the PR description
   pr-description:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -496,8 +496,8 @@ jobs:
           cache: 'pnpm'
       - run: pnpm install --frozen-lockfile
 
-      # push と pull_request は別ワークフローランで実行されるため、
-      # download-artifact では取得できない。GitHub API を使用する。
+      # push and pull_request run as separate workflow runs,
+      # so download-artifact cannot fetch it. Use the GitHub API.
       - name: Download baseline scan artifact
         uses: actions/github-script@v9
         with:
@@ -635,40 +635,40 @@ jobs:
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### ベースラインが見つからない（初回PRの場合）
+### Baseline not found (first PR)
 
-GitHub API による artifact 取得ステップが失敗しても `continue-on-error: true` により処理は継続します。
-`shiori delta --base-fallback-empty` フラグがベースファイル不在を空のスキャン結果として扱うため、
-初回PRでは全アノテーションが「Added」として表示されます。
+Even if the artifact-fetch step via the GitHub API fails, `continue-on-error: true` lets processing continue.
+Because the `shiori delta --base-fallback-empty` flag treats a missing base file as an empty scan result,
+all annotations are shown as "Added" on the first PR.
 
-### なぜ `actions/download-artifact` ではなく GitHub API を使うのか
+### Why use the GitHub API instead of `actions/download-artifact`
 
-`actions/download-artifact@v8` は**同一ワークフローラン内**の artifact しか取得できません。
-ベーススキャンとPRデルタは別のワークフローラン（または同一ワークフロー内でも `push` / `pull_request` で別ラン）で実行されるため、
-クロスワークフローの artifact 取得には `actions/github-script@v9` 経由で GitHub REST API を使用する必要があります。
-この方式には `actions: read` 権限が追加で必要です。
+`actions/download-artifact@v8` can only fetch artifacts **within the same workflow run**.
+The baseline scan and the PR delta run in different workflow runs (and even within a single workflow, `push` / `pull_request` are separate runs),
+so fetching an artifact across workflows requires using the GitHub REST API via `actions/github-script@v9`.
+This approach additionally requires the `actions: read` permission.
 
-### PR Description が更新されない
+### The PR description is not updated
 
-`permissions.pull-requests: write` が設定されているか確認してください。
-Fork PR の場合、`pull_request_target` イベントの使用が必要な場合があります（セキュリティの考慮が必要）。
+Check that `permissions.pull-requests: write` is set.
+For fork PRs, you may need to use the `pull_request_target` event (security considerations apply).
 
-### マーカーが手動で削除された
+### Markers were deleted manually
 
-マーカーコメント（`<!-- shiori-delta-start/end -->` や `<!-- shiori-triage-start/end -->`）が PR Description から削除された場合、ワークフローは末尾に新しいセクションを追加します。
+If the marker comments (`<!-- shiori-delta-start/end -->` or `<!-- shiori-triage-start/end -->`) are removed from the PR description, the workflow appends new sections to the end.
 
-### `--max-increase` で意図せずCIが失敗する
+### CI fails unintentionally because of `--max-increase`
 
-`continue-on-error: true` を delta ステップに付けているため、PR Description 更新は成功します。
-CI失敗は最終ステップで明示的に `exit 1` することで制御しています。
+Because `continue-on-error: true` is set on the delta step, the PR description update still succeeds.
+The CI failure is controlled by explicitly running `exit 1` in the final step.
 
 ---
 
-## Composite Action で簡単に使う
+## Easy setup with the Composite Action
 
-上記の YAML を数行に削減できる composite action が利用可能です：
+A composite action is available that cuts the YAML above down to a few lines:
 
 ```yaml
 - uses: berlysia/shiori/actions/shiori-action@v0.1.1
@@ -677,13 +677,13 @@ CI失敗は最終ステップで明示的に `exit 1` することで制御し�
     max-increase: 0
 ```
 
-詳細は [Composite Action レシピ](./github-actions-composite-action.md) を参照してください。
+See the [Composite Action recipe](./github-actions-composite-action.md) for details.
 
 ---
 
-## 関連
+## Related
 
-- [Delta PR Comment レシピ](./github-actions-delta-pr-comment.md) — PR コメントとして投稿する方式
-- [Composite Action レシピ](./github-actions-composite-action.md)
-- [Governance Badge レシピ](./governance-badge.md) — ガバナンススコアバッジ
-- [ADR 018: 外部サービス連携戦略](../decisions/018-external-service-integration.md)
+- [Delta PR Comment recipe](./github-actions-delta-pr-comment.md) — posts as a PR comment
+- [Composite Action recipe](./github-actions-composite-action.md)
+- [Governance Badge recipe](./governance-badge.md) — governance score badge
+- [ADR 018: External service integration strategy](../decisions/018-external-service-integration.md)

@@ -1,40 +1,40 @@
 # Getting Started — 5 Minutes to Governed Code
 
-shiori を使って、既存コードベースの lint disable コメントを 5 分で可視化・追跡可能にするハンズオンガイドです。
+A hands-on guide to using shiori to make the lint disable comments in an existing codebase visible and trackable in 5 minutes.
 
-> **README の [Quick Start](../packages/shiori-cli/README.md#quick-start) との違い:** Quick Start は最短 3 コマンドのリファレンスです。このガイドは各ステップで「何が起きているか」を体験しながら理解する実践ウォークスルーです。
+> **How this differs from the README's [Quick Start](../packages/shiori-cli/README.md#quick-start):** The Quick Start is a reference for the shortest path of 3 commands. This guide is a practical walkthrough where you learn "what is happening" at each step by experiencing it.
 
-## 前提条件
+## Prerequisites
 
-- **Node.js >= 18.0.0**（推奨: 22.x）
-- **npm / pnpm / yarn** いずれか
-- **lint disable コメントを含むプロジェクト**（`eslint-disable`, `stylelint-disable` 等）
+- **Node.js >= 18.0.0** (recommended: 22.x)
+- **npm / pnpm / yarn** (any of them)
+- **A project containing lint disable comments** (`eslint-disable`, `stylelint-disable`, etc.)
 
-> lint disable が一つもないプロジェクトでも動作しますが、このガイドの効果を実感するには数個以上の disable コメントがあるプロジェクトがおすすめです。
+> It works even in a project with no lint disables, but to see the value of this guide, a project with several or more disable comments is recommended.
 
-## Step 0: まず試してみる（セットアップ不要）
+## Step 0: Try It First (No Setup Required)
 
-自分のプロジェクトをスキャンする前に、デモで shiori の動作を確認できます:
+Before scanning your own project, you can check how shiori works with a demo:
 
 ```bash
 npx @berlysia/shiori scan --demo
 ```
 
-**何が起きるか:** 組み込みのサンプルファイル（ESLint / stylelint / スタンドアロンの 3 種類のアノテーション）を使って scan → verify → health のパイプライン全体を実行し、結果を表示します。インストールもプロジェクトの変更も不要です。
+**What happens:** It runs the whole scan → verify → health pipeline on built-in sample files (3 kinds of annotations: ESLint / stylelint / standalone) and shows the result. No installation or project changes are needed.
 
 <details>
-<summary>出力例</summary>
+<summary>Example output</summary>
 
 ```
 ━━━ shiori scan --demo ━━━━━━━━━━━━━━━━━━━━━
 
-shiori はソースコード中の lint disable コメントや設計判断を
-構造化アノテーションとして追跡し、技術的負債を可視化します。
+shiori tracks lint disable comments and design decisions in source code
+as structured annotations and makes technical debt visible.
 
-このデモでは 3 つのサンプルファイルを使って動作を体験できます:
+This demo lets you try it out using 3 sample files:
 
 ── Scan Results ────────────────────────────
-ファイル数: 3   アノテーション数: 3
+Files: 3   Annotations: 3
 
   DEMO-001   src/api-client.ts:2   no-console   expires=2025-12-31
   DEMO-002   src/theme.css:2   color-named
@@ -44,53 +44,53 @@ shiori はソースコード中の lint disable コメントや設計判断を
   ✗ [expired] DEMO-001 — Registry entry expired (2025-12-31)
 
 ── Health ──────────────────────────────────
-🟡 スコア: 67/100 (warning)
+🟡 Score: 67/100 (warning)
 
-── 次のステップ ────────────────────────────
-  $ shiori init            # プロジェクトにレジストリを作成
-  $ shiori scan            # 実際のソースコードをスキャン
-  $ shiori health          # ガバナンス健全性を確認
+── Next Steps ─────────────────────────────
+  $ shiori init            # Create a registry in your project
+  $ shiori scan            # Scan your actual source code
+  $ shiori health          # Check governance health
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
 </details>
 
-デモで表示される 3 つのアノテーションは、shiori が検出する主要なパターンを網羅しています:
+The 3 annotations shown in the demo cover the main patterns shiori detects:
 
-| デモ ref   | パターン                          | 意味                                 |
-| ---------- | --------------------------------- | ------------------------------------ |
-| `DEMO-001` | lint disable + `shiori:` マーカー | ルール違反の追跡（期限切れの例付き） |
-| `DEMO-002` | lint disable + `shiori:` マーカー | 互換性理由の抑制（期限なし）         |
-| `DEMO-003` | スタンドアロン `shiori:` コメント | 設計判断のドキュメント化             |
+| Demo ref   | Pattern                         | Meaning                                             |
+| ---------- | ------------------------------- | --------------------------------------------------- |
+| `DEMO-001` | lint disable + `shiori:` marker | Tracking a rule violation (with an expired example) |
+| `DEMO-002` | lint disable + `shiori:` marker | Suppression for compatibility reasons (no expiry)   |
+| `DEMO-003` | Standalone `shiori:` comment    | Documenting a design decision                       |
 
-> **共有・CI 連携:** デモ結果はチーム共有に便利な複数のフォーマットで出力できます:
+> **Sharing and CI integration:** The demo results can be output in several formats convenient for sharing with your team:
 >
 > ```bash
-> # Markdown — Gist や Wiki に貼り付け
+> # Markdown — paste into a Gist or Wiki
 > npx @berlysia/shiori scan --demo --format markdown
 >
-> # GitHub Actions Step Summary — CI の Summary タブに表示
+> # GitHub Actions Step Summary — show in the CI Summary tab
 > npx @berlysia/shiori scan --demo --format github-summary >> "$GITHUB_STEP_SUMMARY"
 >
-> # JSON — プログラムから利用
+> # JSON — use from programs
 > npx @berlysia/shiori scan --demo --format json
 > ```
 >
-> CI での活用方法は [Demo CI Step Summary レシピ](./recipes/demo-ci-step-summary.md) を参照してください。
+> See the [Demo CI Step Summary Recipe](./recipes/demo-ci-step-summary.md) for how to use it in CI.
 
-デモの動作を確認したら、Step 1 に進んで自分のプロジェクトをセットアップしましょう。
+Once you have seen the demo work, move on to Step 1 and set up your own project.
 
-## Step 1: インストールと初期化
+## Step 1: Install and Initialize
 
 ```bash
-pnpm add -D @berlysia/shiori    # npm install -D / yarn add -D でも可
+pnpm add -D @berlysia/shiori    # npm install -D / yarn add -D also work
 shiori init
 ```
 
-**何が起きるか:** `.config/shiori/` ディレクトリが作成され、空のレジストリファイル（`registry.json`）と設定ファイルが生成されます。
+**What happens:** A `.config/shiori/` directory is created, and an empty registry file (`registry.json`) and a config file are generated.
 
 <details>
-<summary>出力例</summary>
+<summary>Example output</summary>
 
 ```
 ✔ Created .config/shiori/config.yaml
@@ -100,18 +100,18 @@ shiori init
 
 </details>
 
-> **CI も一緒にセットアップしたい場合:** `shiori init --ci basic` で GitHub Actions ワークフローも同時に生成されます。
+> **To set up CI at the same time:** `shiori init --ci basic` also generates a GitHub Actions workflow.
 
-## Step 2: ソースコードをスキャン
+## Step 2: Scan the Source Code
 
 ```bash
 shiori scan
 ```
 
-**何が起きるか:** プロジェクト内の全ソースファイルを走査し、lint disable コメントと `shiori:` アノテーションを検出します。結果は `.config/shiori/scan-result.json` に保存されます。
+**What happens:** It walks all source files in the project and detects lint disable comments and `shiori:` annotations. The result is saved to `.config/shiori/scan-result.json`.
 
 <details>
-<summary>出力例</summary>
+<summary>Example output</summary>
 
 ```
 Scanned 142 files
@@ -121,23 +121,23 @@ Saved to .config/shiori/scan-result.json
 
 </details>
 
-ここで見つかるのは 2 種類です:
+Two kinds of things are found here:
 
-| 種類           | 説明                                               | 例                                                          |
-| -------------- | -------------------------------------------------- | ----------------------------------------------------------- |
-| **annotation** | `shiori:` マーカー付きの既存アノテーション         | `// eslint-disable-next-line no-console -- shiori: SUP-123` |
-| **candidate**  | `shiori:` のない lint disable コメント（追跡候補） | `// eslint-disable-next-line no-console`                    |
+| Kind           | Description                                                 | Example                                                     |
+| -------------- | ----------------------------------------------------------- | ----------------------------------------------------------- |
+| **annotation** | Existing annotation with a `shiori:` marker                 | `// eslint-disable-next-line no-console -- shiori: SUP-123` |
+| **candidate**  | Lint disable comment without `shiori:` (tracking candidate) | `// eslint-disable-next-line no-console`                    |
 
-## Step 3: 候補をまとめて取り込み
+## Step 3: Adopt Candidates in Bulk
 
 ```bash
 shiori adopt --apply
 ```
 
-**何が起きるか:** Step 2 で検出された candidate（未追跡の lint disable）に `shiori:` マーカーを挿入し、レジストリにエントリを追加します。ソースファイルとレジストリの両方が更新されます。
+**What happens:** It inserts `shiori:` markers into the candidates found in Step 2 (untracked lint disables) and adds entries to the registry. Both the source files and the registry are updated.
 
 <details>
-<summary>出力例</summary>
+<summary>Example output</summary>
 
 ```
 Adopted 15 candidates:
@@ -149,13 +149,13 @@ Updated .config/shiori/registry.json (15 new entries)
 
 </details>
 
-> **プレビューしてから適用したい場合:** `--apply` を外して `shiori adopt` を実行すると、変更のプレビュー（dry-run）のみ表示されます。
+> **To preview before applying:** Run `shiori adopt` without `--apply` to see only a preview of the changes (dry-run).
 >
-> **対話的に選んで取り込みたい場合:** `shiori adopt --wizard` で、候補をグループ単位で選択できます。
+> **To choose interactively:** `shiori adopt --wizard` lets you select candidates group by group.
 
-### レジストリを確認する
+### Check the Registry
 
-この時点で `.config/shiori/registry.json` を開くと、各 ref のスタブエントリが生成されています:
+If you open `.config/shiori/registry.json` at this point, a stub entry has been generated for each ref:
 
 ```json
 {
@@ -167,18 +167,18 @@ Updated .config/shiori/registry.json (15 new entries)
 }
 ```
 
-`reason`、`owner`、`expires` をプロジェクトに合わせて埋めていくことで、ガバナンスの価値が高まります。
+Filling in `reason`, `owner`, and `expires` to fit your project increases the value of governance.
 
-## Step 4: 整合性を検証
+## Step 4: Verify Consistency
 
 ```bash
 shiori verify
 ```
 
-**何が起きるか:** スキャン結果とレジストリを突合し、不整合を検出します。Step 3 の直後であれば問題なし（0 issues）のはずです。
+**What happens:** It cross-checks the scan result against the registry and detects inconsistencies. Right after Step 3, there should be no problems (0 issues).
 
 <details>
-<summary>出力例</summary>
+<summary>Example output</summary>
 
 ```json
 {
@@ -192,32 +192,32 @@ shiori verify
 
 </details>
 
-検出される不整合の種類:
+Kinds of inconsistencies detected:
 
-| Issue type            | 意味                               |
-| --------------------- | ---------------------------------- |
-| `missing-in-registry` | ソースにあるがレジストリにない ref |
-| `unused-in-source`    | レジストリにあるがソースにない ref |
-| `expired`             | `expires` 期限切れ                 |
-| `expiring-soon`       | 期限間近（デフォルト: 14 日以内）  |
-| `syntax-error`        | `shiori:` マーカーの構文エラー     |
+| Issue type            | Meaning                                     |
+| --------------------- | ------------------------------------------- |
+| `missing-in-registry` | A ref in the source but not in the registry |
+| `unused-in-source`    | A ref in the registry but not in the source |
+| `expired`             | `expires` has passed                        |
+| `expiring-soon`       | Close to expiry (default: within 14 days)   |
+| `syntax-error`        | Syntax error in a `shiori:` marker          |
 
-> **CI で使うなら `shiori check`:** `scan` + `verify` を一発で実行し、`--fail-on` で CI 失敗条件を指定できます:
+> **For CI, use `shiori check`:** It runs `scan` + `verify` in one go, and `--fail-on` specifies the CI failure conditions:
 >
 > ```bash
 > shiori check --fail-on missing-in-registry,expired
 > ```
 
-## Step 5: ヘルスチェック
+## Step 5: Health Check
 
 ```bash
 shiori health
 ```
 
-**何が起きるか:** レジストリ全体の健全性スコア（0-100）を算出し、サマリーを表示します。期限切れ・未追跡・構文エラーが多いほどスコアが下がります。
+**What happens:** It computes a health score (0-100) for the whole registry and shows a summary. The more expired, untracked, or syntax-error entries there are, the lower the score.
 
 <details>
-<summary>出力例</summary>
+<summary>Example output</summary>
 
 ```
 Governance Health: 85/100 (healthy)
@@ -233,44 +233,44 @@ Governance Health: 85/100 (healthy)
 
 </details>
 
-> **JSON 出力でダッシュボードに連携:** `shiori health -f json` で構造化データとして取得できます。
+> **Feed dashboards with JSON output:** `shiori health -f json` returns structured data.
 
-## 完了 🎉
+## Done 🎉
 
-ここまでで、プロジェクトの lint disable コメントは：
+By now, the lint disable comments in your project are:
 
-1. **可視化** — `scan` で全数を把握
-2. **追跡** — `adopt` で ref を付与してレジストリに登録
-3. **検証** — `verify` / `check` で不整合を検出
-4. **計測** — `health` でスコア化
+1. **Visible** — `scan` gives you the full count
+2. **Tracked** — `adopt` assigns refs and registers them in the registry
+3. **Verified** — `verify` / `check` detect inconsistencies
+4. **Measured** — `health` turns them into a score
 
 ## Next Steps
 
-### CI 統合
+### CI Integration
 
 ```bash
-# GitHub Actions ワークフローを生成
+# Generate a GitHub Actions workflow
 shiori init --ci basic
 
-# PR に差分コメントを付ける
+# Post a diff comment on PRs
 shiori init --ci delta-pr-comment
 ```
 
-詳細: [CI Integration](../packages/shiori-cli/README.md#ci-integration)
+Details: [CI Integration](../packages/shiori-cli/README.md#ci-integration)
 
-### ガバナンスの深化
+### Deepening Governance
 
-| やりたいこと                     | レシピ                                                           |
-| -------------------------------- | ---------------------------------------------------------------- |
-| 週次スナップショットで時系列追跡 | [Governance Observatory](./recipes/governance-observatory.md)    |
-| LLM で改善提案を自動生成         | [Governance Coach](./recipes/governance-coach.md)                |
-| PR に差分サマリーを表示          | [Delta PR Comment](./recipes/github-actions-delta-pr-comment.md) |
-| CI でチェックゲートを設定        | [Checks Gate](./recipes/github-checks-gate.md)                   |
-| Slack に通知を送信               | [Slack Notification](./recipes/slack-notification.md)            |
+| What you want to do                          | Recipe                                                           |
+| -------------------------------------------- | ---------------------------------------------------------------- |
+| Track over time with weekly snapshots        | [Governance Observatory](./recipes/governance-observatory.md)    |
+| Generate improvement suggestions with an LLM | [Governance Coach](./recipes/governance-coach.md)                |
+| Show a diff summary on PRs                   | [Delta PR Comment](./recipes/github-actions-delta-pr-comment.md) |
+| Set up a check gate in CI                    | [Checks Gate](./recipes/github-checks-gate.md)                   |
+| Send notifications to Slack                  | [Slack Notification](./recipes/slack-notification.md)            |
 
-### レジストリの充実
+### Enriching the Registry
 
-adopt で生成されたスタブエントリを充実させましょう:
+Flesh out the stub entries generated by adopt:
 
 ```json
 {
@@ -285,13 +285,13 @@ adopt で生成されたスタブエントリを充実させましょう:
 }
 ```
 
-`reason`（なぜ抑制が必要か）と `expires`（いつ見直すか）を設定することで、チームの技術的負債の可視性が大幅に向上します。
+Setting `reason` (why the suppression is needed) and `expires` (when to review it) greatly improves your team's visibility into technical debt.
 
 ---
 
-## 関連ドキュメント
+## Related Documents
 
-- [README — Quick Start](../packages/shiori-cli/README.md#quick-start) — 最短 3 コマンドのリファレンス
-- [Configuration](./configuration.md) — 設定ファイルの詳細
-- [API Reference](./api.md) — プログラマティック API
-- [All Recipes](./recipes/) — 統合レシピ集（28 種）
+- [README — Quick Start](../packages/shiori-cli/README.md#quick-start) — Reference for the shortest path of 3 commands
+- [Configuration](./configuration.md) — Config file details
+- [API Reference](./api.md) — Programmatic API
+- [All Recipes](./recipes/) — Collection of integration recipes (28 kinds)

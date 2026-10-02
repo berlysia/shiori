@@ -1,37 +1,37 @@
 # GitHub Actions: Multi-Repo Governance HTML Dashboard
 
-複数リポジトリのガバナンス状況を1つの HTML ダッシュボードに集約し、CI Artifacts として自動公開するレシピ。
+A recipe that aggregates the governance status of multiple repositories into a single HTML dashboard and publishes it automatically as CI Artifacts.
 
-## 概要
+## Overview
 
-このレシピは以下を実現します：
+This recipe achieves the following:
 
-1. **各リポジトリで `shiori summary` を実行**: JSON 形式でガバナンスサマリーを出力
-2. **`shiori aggregate --format html` で集約**: 組織全体のダッシュボードを生成
-3. **Artifacts にアップロード**: 認証不要で閲覧可能
+1. **Run `shiori summary` in each repository**: Output a governance summary as JSON
+2. **Aggregate with `shiori aggregate --format html`**: Generate an organization-wide dashboard
+3. **Upload to Artifacts**: Viewable without authentication
 
-特徴：
+Features:
 
-- **ゼロ認証**: PAT・Gist・GitHub Pages の設定不要
-- **自己完結 HTML**: 外部 CDN 依存なし、オフラインでも閲覧可能
-- **ダークテーマ UI**: スコア分布スパークライン・リポジトリ比較テーブル・worst-repository ハイライト
-- **インタラクティブ**: セクション折りたたみ機能付き
-- **CI ゲート統合**: `--fail-on-level` でスコア閾値チェックが可能
+- **Zero authentication**: No PAT, Gist, or GitHub Pages setup required
+- **Self-contained HTML**: No external CDN dependencies; viewable offline
+- **Dark-theme UI**: Score-distribution sparkline, repository comparison table, and worst-repository highlight
+- **Interactive**: Collapsible sections
+- **CI gate integration**: Score threshold checks are possible with `--fail-on-level`
 
-## 前提条件
+## Prerequisites
 
 - Node.js >= 22.6.0
-- 各リポジトリに shiori が導入済み
-- 各リポジトリの CI が `shiori summary --output` で JSON を出力すること
+- shiori is adopted in each repository
+- The CI of each repository outputs JSON with `shiori summary --output`
 
-## セットアップ手順
+## Setup Steps
 
-### Step 1: 各リポジトリでサマリー JSON を出力
+### Step 1: Output the summary JSON in each repository
 
-各リポジトリの CI で `shiori summary` を実行し、Artifacts にアップロードします：
+Run `shiori summary` in each repository's CI and upload the result to Artifacts:
 
 ```yaml
-# 各リポジトリの .github/workflows/shiori-summary.yml
+# .github/workflows/shiori-summary.yml in each repository
 name: shiori summary
 
 on:
@@ -69,9 +69,9 @@ jobs:
           overwrite: true
 ```
 
-### Step 2: 集約ダッシュボードを生成
+### Step 2: Generate the aggregate dashboard
 
-別リポジトリ（またはモノレポのルート）で集約ワークフローを作成：
+Create the aggregation workflow in a separate repository (or at the root of a monorepo):
 
 ```yaml
 # .github/workflows/shiori-aggregate-dashboard.yml
@@ -79,7 +79,7 @@ name: shiori aggregate dashboard
 
 on:
   schedule:
-    - cron: '0 1 * * *' # 各リポジトリの summary 出力後に実行
+    - cron: '0 1 * * *' # Runs after each repository's summary output
   workflow_dispatch:
 
 jobs:
@@ -100,7 +100,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
 
-      # 各リポジトリの summary JSON をダウンロード
+      # Download each repository's summary JSON
       - name: Download summary artifacts
         uses: actions/github-script@v9
         with:
@@ -130,7 +130,7 @@ jobs:
               }
             }
 
-      # HTML ダッシュボード生成
+      # Generate the HTML dashboard
       - name: Generate aggregate HTML dashboard
         run: npx shiori aggregate --files ".tmp/summaries/*/summary.json" --format html -o .tmp/dashboard.html
 
@@ -145,13 +145,13 @@ jobs:
         run: |
           echo "## 📊 Shiori Organization Governance Dashboard" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "HTML ダッシュボードが Artifacts にアップロードされました。" >> "$GITHUB_STEP_SUMMARY"
-          echo "ワークフロー実行ページの **Artifacts** セクションからダウンロードできます。" >> "$GITHUB_STEP_SUMMARY"
+          echo "The HTML dashboard has been uploaded to Artifacts." >> "$GITHUB_STEP_SUMMARY"
+          echo "You can download it from the **Artifacts** section of the workflow run page." >> "$GITHUB_STEP_SUMMARY"
 ```
 
-## モノレポでの使い方
+## Using It in a Monorepo
 
-モノレポ内の複数パッケージを集約する場合はよりシンプルです：
+Aggregating multiple packages within a monorepo is simpler:
 
 ```yaml
 - name: Generate summaries
@@ -165,9 +165,9 @@ jobs:
   run: npx shiori aggregate --files ".tmp/summaries/*.json" --format html -o .tmp/dashboard.html
 ```
 
-## CI ゲートとの併用
+## Combining with a CI Gate
 
-HTML ダッシュボード生成と CI ゲートを同時に使用できます：
+You can generate the HTML dashboard and apply a CI gate at the same time:
 
 ```yaml
 - name: Generate dashboard and enforce quality gate
@@ -176,20 +176,20 @@ HTML ダッシュボード生成と CI ゲートを同時に使用できます�
     npx shiori aggregate --files ".tmp/summaries/*.json" --fail-on-level critical
 ```
 
-## 出力内容
+## Output
 
-HTML ダッシュボードには以下のセクションが含まれます：
+The HTML dashboard contains the following sections:
 
-| セクション           | 内容                                                       |
-| -------------------- | ---------------------------------------------------------- |
-| Overall Summary Card | 組織全体の平均スコア・リポジトリ数・issue 合計             |
-| Worst Repository     | 最もスコアが低いリポジトリのハイライト                     |
-| Score Distribution   | リポジトリ別スコアのスパークライン（ヘルスカラーで色分け） |
-| Repository Table     | 全リポジトリの比較テーブル（スコアバー付き）               |
+| Section              | Content                                                             |
+| -------------------- | ------------------------------------------------------------------- |
+| Overall Summary Card | Organization-wide average score, repository count, and total issues |
+| Worst Repository     | Highlight of the repository with the lowest score                   |
+| Score Distribution   | Sparkline of per-repository scores (color-coded by health color)    |
+| Repository Table     | Comparison table of all repositories (with score bars)              |
 
 ---
 
-## 関連
+## Related
 
 - [HTML Artifacts Dashboard (single-repo)](./html-artifacts-dashboard.md)
 - [Governance Summary PR Comment](./github-actions-governance-summary.md)

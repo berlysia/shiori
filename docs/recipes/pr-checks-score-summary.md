@@ -1,46 +1,46 @@
 # GitHub Actions: PR Checks Score Summary
 
-`shiori delta` と `shiori health` の結果を GitHub Checks API の `output.summary` に埋め込み、PR レビュー画面の Checks タブでガバナンススコアの変化を直接可視化するレシピ。
+A recipe that embeds the results of `shiori delta` and `shiori health` into the GitHub Checks API `output.summary`, so changes in the governance score are visible directly in the Checks tab of the PR review screen.
 
-## 概要
+## Overview
 
-[Checks Gate レシピ](./github-checks-gate.md) は `shiori check` の終了コード（pass/fail）で PR をブロックしますが、スコアの「方向」は伝えません。このレシピは GitHub Checks API の `output.summary` フィールドを使い、PR の Checks タブにスコア差分のリッチサマリーを表示します。
+The [Checks Gate recipe](./github-checks-gate.md) blocks a PR based on the exit code (pass/fail) of `shiori check`, but it does not convey the "direction" of the score. This recipe uses the `output.summary` field of the GitHub Checks API to show a rich summary of the score diff in the PR's Checks tab.
 
-### Checks API `output.summary` と `$GITHUB_STEP_SUMMARY` の違い
+### Checks API `output.summary` vs. `$GITHUB_STEP_SUMMARY`
 
-| 項目                   | Checks API `output.summary`                      | `$GITHUB_STEP_SUMMARY`                                  |
-| ---------------------- | ------------------------------------------------ | ------------------------------------------------------- |
-| 表示場所               | PR ページの **Checks タブ** → 個別チェック詳細   | **ワークフロー実行の Summary タブ**                     |
-| API / 仕組み           | REST API `POST /repos/{owner}/{repo}/check-runs` | ファイルに `>>` で追記するだけ                          |
-| 必要な権限             | `checks: write`                                  | なし（ワークフロー内蔵）                                |
-| レビュアーの到達コスト | PR ページ内で完結（1クリック）                   | ワークフロー実行ページへの遷移が必要                    |
-| 適用レシピ             | **このレシピ**                                   | [Step Summary レシピ](./github-actions-step-summary.md) |
+| Item                | Checks API `output.summary`                              | `$GITHUB_STEP_SUMMARY`                                  |
+| ------------------- | -------------------------------------------------------- | ------------------------------------------------------- |
+| Where it appears    | **Checks tab** on the PR page → individual check details | **Summary tab of the workflow run**                     |
+| API / mechanism     | REST API `POST /repos/{owner}/{repo}/check-runs`         | Just append to a file with `>>`                         |
+| Required permission | `checks: write`                                          | None (built into the workflow)                          |
+| Cost for reviewers  | Stays within the PR page (1 click)                       | Requires navigating to the workflow run page            |
+| Applicable recipe   | **This recipe**                                          | [Step Summary recipe](./github-actions-step-summary.md) |
 
-レビュアーが PR ページ内でスコア変化を確認したい場合は **このレシピ（Checks API）** を、CI 運用者がワークフロー結果を一覧したい場合は **Step Summary** を使ってください。両方を併用することも可能です。
+Use **this recipe (Checks API)** when reviewers want to see score changes within the PR page, and **Step Summary** when CI operators want an overview of workflow results. You can also use both together.
 
-## 前提条件
+## Prerequisites
 
 - Node.js >= 22.6.0
-- `shiori` がプロジェクトの devDependencies に追加済み
-- **EP-0167（ADR 028 スキーマエンベロープ展開）が完了済みであること** — `shiori delta --format json` と `shiori health --format json` が ADR 028 エンベロープ（`meta` + `data` ラッパー）で出力される必要があります
-- [Baseline ワークフロー](./github-actions-delta-pr-comment.md) が設定済み（delta 用）
+- `shiori` is already added to the project's devDependencies
+- **EP-0167 (ADR 028 schema envelope rollout) is complete** — `shiori delta --format json` and `shiori health --format json` must output the ADR 028 envelope (`meta` + `data` wrapper)
+- The [Baseline workflow](./github-actions-delta-pr-comment.md) is set up (for delta)
 
-> **EP-0167 未完了時の注意**: エンベロープなしの場合、JSON のトップレベル構造が異なります。以下のワークフロー例の `jq` パスを `.data.summary.added` → `.summary.added`、`.data.health.score` → `.health.score` のように `data.` プレフィックスを除去して読み替えてください。
+> **Note if EP-0167 is not complete**: Without the envelope, the top-level JSON structure is different. Read the `jq` paths in the workflow example below with the `data.` prefix removed, for example `.data.summary.added` → `.summary.added` and `.data.health.score` → `.health.score`.
 
-## 必要な権限
+## Required permissions
 
-GitHub Checks API を使用するため、ワークフローに **`checks: write`** 権限が必要です。
+Because this recipe uses the GitHub Checks API, the workflow needs the **`checks: write`** permission.
 
 ```yaml
 permissions:
   contents: read
-  checks: write # Checks API output.summary への書き込み
-  actions: read # クロスワークフロー artifact 取得
+  checks: write # Write to Checks API output.summary
+  actions: read # Fetch artifacts across workflows
 ```
 
-> **トークンスコープ**: デフォルトの `GITHUB_TOKEN` で `checks: write` を指定すれば十分です。Fine-grained PAT を使用する場合は "Checks" の Read and write 権限を付与してください。Fork PR では `pull_request_target` イベントを検討する必要があります（セキュリティ上の配慮が必要）。
+> **Token scope**: Specifying `checks: write` with the default `GITHUB_TOKEN` is sufficient. If you use a fine-grained PAT, grant "Checks" Read and write permission. For fork PRs, you may need to consider the `pull_request_target` event (which requires security care).
 
-## ワークフロー
+## Workflow
 
 ```yaml
 # .github/workflows/shiori-checks-summary.yml
@@ -234,9 +234,9 @@ jobs:
             });
 ```
 
-## Checks タブの表示例
+## Example Checks tab display
 
-PR の Checks タブで「shiori governance summary」をクリックすると、以下のようなサマリーが表示されます：
+When you click "shiori governance summary" in the PR's Checks tab, a summary like the following is displayed:
 
 ```markdown
 ## Annotation Delta
@@ -260,27 +260,27 @@ PR の Checks タブで「shiori governance summary」をクリックすると�
 | Warnings | 2     |
 ```
 
-## ガバナンス成熟度モデルにおける位置づけ
+## Position in the governance maturity model
 
-| Level | 名称         | 仕組み                                      | レシピ                                                   |
-| ----- | ------------ | ------------------------------------------- | -------------------------------------------------------- |
-| 0     | Invisible    | lint disable で違反が隠れている             | ---                                                      |
-| 1     | Visible      | PR コメントで差分を通知                     | [Delta PR Comment](./github-actions-delta-pr-comment.md) |
-| 2     | Enforced     | PR ステータスチェックでマージをブロック     | [Checks Gate](./github-checks-gate.md)                   |
-| 2+    | **Informed** | **Checks タブにスコア差分を表示**           | **このレシピ**                                           |
-| 3     | Measured     | ガバナンススコアのバッジ表示 + トレンド追跡 | [Governance Badge](./governance-badge.md)                |
+| Level | Name         | Mechanism                                 | Recipe                                                   |
+| ----- | ------------ | ----------------------------------------- | -------------------------------------------------------- |
+| 0     | Invisible    | Violations are hidden by lint disable     | ---                                                      |
+| 1     | Visible      | Notify of the diff via PR comment         | [Delta PR Comment](./github-actions-delta-pr-comment.md) |
+| 2     | Enforced     | Block merges with a PR status check       | [Checks Gate](./github-checks-gate.md)                   |
+| 2+    | **Informed** | **Show the score diff in the Checks tab** | **This recipe**                                          |
+| 3     | Measured     | Governance score badge + trend tracking   | [Governance Badge](./governance-badge.md)                |
 
-Level 2（Enforced）と Level 3（Measured）の間を埋めるレシピです。Checks Gate と併用することで、pass/fail に加えてスコアの方向性をレビュアーに伝えられます。
+This recipe fills the gap between Level 2 (Enforced) and Level 3 (Measured). Used together with Checks Gate, it tells reviewers the direction of the score in addition to pass/fail.
 
-## カスタマイズ
+## Customization
 
-### Checks Gate と併用する
+### Use together with Checks Gate
 
-このレシピは Checks Gate と独立して動作します。両方を同一ワークフローに含めることで、ブロック判定とスコアサマリーを同時に提供できます：
+This recipe works independently of Checks Gate. By including both in the same workflow, you can provide a blocking decision and a score summary at the same time:
 
 ```yaml
 jobs:
-  # Level 2: pass/fail ゲート
+  # Level 2: pass/fail gate
   check:
     runs-on: ubuntu-latest
     steps:
@@ -294,27 +294,27 @@ jobs:
       - name: shiori check
         run: pnpm shiori check --fail-on expired,missing-in-registry
 
-  # Level 2+: スコア差分サマリー（並行実行）
+  # Level 2+: score diff summary (runs in parallel)
   checks-summary:
-    # ... (上記のワークフローを参照)
+    # ... (see the workflow above)
 ```
 
-### Step Summary と併用する
+### Use together with Step Summary
 
-Checks タブとワークフロー Summary の両方にガバナンス情報を表示する場合：
+To show governance information in both the Checks tab and the workflow Summary:
 
 ```yaml
-# Checks API output.summary に表示
+# Shown in Checks API output.summary
 - name: Post checks summary
-  # ... (上記のステップ)
+  # ... (the step above)
 
-# Step Summary にも表示
+# Also shown in Step Summary
 - name: Health step summary
   continue-on-error: true
   run: pnpm shiori health --format github-summary >> "$GITHUB_STEP_SUMMARY"
 ```
 
-### `--max-increase` の閾値を変更する
+### Change the `--max-increase` threshold
 
 ```yaml
 - name: Compute delta
@@ -328,50 +328,50 @@ Checks タブとワークフロー Summary の両方にガバナンス情報を�
       --output .tmp/shiori-delta.json
 ```
 
-### Check Run 名を変更する
+### Change the Check Run name
 
-`actions/github-script` 内の `name` フィールドを変更してください：
+Change the `name` field inside `actions/github-script`:
 
 ```javascript
 await github.rest.checks.create({
   // ...
-  name: 'annotation governance', // ← 任意の名前
+  name: 'annotation governance', // ← any name
   // ...
 });
 ```
 
-ブランチ保護ルールでこのチェックを required にする場合は、ここで指定した名前を使用してください。
+If you make this check required in branch protection rules, use the name specified here.
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### Checks タブにサマリーが表示されない
+### The summary does not appear in the Checks tab
 
-- `permissions.checks: write` が設定されているか確認してください
-- `head_sha` が正しい commit SHA を指しているか確認してください。`pull_request` イベントでは `context.payload.pull_request.head.sha` を使用します
-- Fork PR の場合、`GITHUB_TOKEN` に `checks: write` 権限がない場合があります。`pull_request_target` イベントの使用を検討してください（セキュリティの配慮が必要）
+- Check that `permissions.checks: write` is set.
+- Check that `head_sha` points to the correct commit SHA. For the `pull_request` event, use `context.payload.pull_request.head.sha`.
+- For fork PRs, `GITHUB_TOKEN` may not have `checks: write` permission. Consider using the `pull_request_target` event (which requires security care).
 
-### `jq` のパスエラーが出る
+### `jq` path errors
 
-EP-0167（ADR 028 エンベロープ展開）の適用状態により JSON 構造が異なります：
+The JSON structure differs depending on whether EP-0167 (ADR 028 envelope rollout) has been applied:
 
-- **エンベロープあり**（EP-0167 適用後）: `.data.summary.added`
-- **エンベロープなし**（EP-0167 適用前）: `.summary.added`
+- **With envelope** (after EP-0167): `.data.summary.added`
+- **Without envelope** (before EP-0167): `.summary.added`
 
-`shiori delta --format json | jq '.meta.schemaVersion'` で `1` が返れば エンベロープあり、エラーになればエンベロープなしです。
+If `shiori delta --format json | jq '.meta.schemaVersion'` returns `1`, the envelope is present; if it errors, the envelope is absent.
 
-### ベースラインが見つからない
+### Baseline not found
 
-[Delta PR Comment レシピのトラブルシューティング](./github-actions-delta-pr-comment.md#ベースラインが見つからない初回prの場合) を参照してください。`--base-fallback-empty` により初回 PR でも動作します。
+See [Troubleshooting in the Delta PR Comment recipe](./github-actions-delta-pr-comment.md#baseline-not-found-first-pr). With `--base-fallback-empty`, it works even for the first PR.
 
 ---
 
-## 関連
+## Related
 
-- [Checks Gate レシピ](./github-checks-gate.md) --- pass/fail ステータスチェック
-- [Step Summary レシピ](./github-actions-step-summary.md) --- `$GITHUB_STEP_SUMMARY` への出力
-- [Delta PR Comment レシピ](./github-actions-delta-pr-comment.md) --- PR コメントへの差分投稿
-- [Governance Summary レシピ](./github-actions-governance-summary.md) --- 統合ガバナンスサマリー
-- [ADR 018: 外部サービス連携戦略](../decisions/018-external-service-integration.md)
-- [ADR 028: コマンド出力スキーマバージョニング](../decisions/028-command-output-schema-versioning.md)
+- [Checks Gate recipe](./github-checks-gate.md) --- pass/fail status check
+- [Step Summary recipe](./github-actions-step-summary.md) --- output to `$GITHUB_STEP_SUMMARY`
+- [Delta PR Comment recipe](./github-actions-delta-pr-comment.md) --- post the diff as a PR comment
+- [Governance Summary recipe](./github-actions-governance-summary.md) --- unified governance summary
+- [ADR 018: External Service Integration Strategy](../decisions/018-external-service-integration.md)
+- [ADR 028: Command Output Schema Versioning](../decisions/028-command-output-schema-versioning.md)

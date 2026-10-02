@@ -1,19 +1,19 @@
 # GitHub Actions: Governance Summary PR Comment
 
-PR コメントに delta だけでなく、coverage・hygiene・trend を統合した「ガバナンスサマリー」を1コメントで表示するレシピ。
+A recipe that shows a "governance summary" in a single PR comment, combining not only the delta but also coverage, hygiene, and trend.
 
-## 概要
+## Overview
 
-delta 単体では「+1 件追加」の重大さが判断できません。coverage 85% のリポジトリでの +1 件と coverage 30% のリポジトリでの +1 件は意味が全く異なります。
+A delta alone cannot tell you how serious "+1 added" is. One added annotation in a repository with 85% coverage means something entirely different from one added in a repository with 30% coverage.
 
-このレシピは以下のコマンドを統合し、1つの PR コメントでリポジトリのガバナンス全体像を提供します：
+This recipe combines the following commands to give an overview of the repository's governance in a single PR comment:
 
-1. **`shiori delta`** — この PR での差分（追加・削除）
-2. **`shiori health`** — ガバナンススコア（coverage, hygiene）
-3. **`shiori trend`** — スコアの時系列トレンド
-4. **`shiori triage`** — 優先度付きアクションリスト
+1. **`shiori delta`** — Differences in this PR (additions and removals)
+2. **`shiori health`** — Governance score (coverage, hygiene)
+3. **`shiori trend`** — Score trend over time
+4. **`shiori triage`** — Prioritized action list
 
-## PR コメントの表示例
+## Example PR Comment
 
 ```markdown
 <!-- shiori-governance-summary -->
@@ -54,14 +54,14 @@ Score: 78 → 80 → 79 → 81 → 82 ▲
 </details>
 ```
 
-## 前提条件
+## Prerequisites
 
 - Node.js >= 22.6.0
-- `shiori` がプロジェクトの devDependencies に追加済み
-- [Baseline ワークフロー](./github-actions-delta-pr-comment.md) が設定済み（delta 用）
-- Health snapshot が蓄積されていること（trend 用、なくても動作する）
+- `shiori` added to the project's devDependencies
+- The [Baseline workflow](./github-actions-delta-pr-comment.md) is set up (for the delta)
+- Health snapshots have been accumulated (for the trend; it works without them)
 
-## ワークフロー
+## Workflow
 
 ```yaml
 # .github/workflows/shiori-governance-summary.yml
@@ -265,36 +265,36 @@ jobs:
         run: exit 1
 ```
 
-## カスタマイズ
+## Customization
 
-### Health / Trend セクションを省略する
+### Omitting the Health / Trend sections
 
-各コマンドのステップを削除するだけで該当セクションが非表示になります。`continue-on-error: true` により、コマンドが失敗してもワークフローは継続します。
+Simply remove the step for a command to hide the corresponding section. Because of `continue-on-error: true`, the workflow continues even if a command fails.
 
-### Composite Action と組み合わせる
+### Combining with the Composite Action
 
-EP-0088 の composite action がリリースされた後は、このレシピの delta + triage 部分を `shiori-action` で置き換え、health / trend 部分のみ手動で追加する構成が推奨です。
+Once the composite action from EP-0088 is released, the recommended setup is to replace the delta + triage part of this recipe with `shiori-action` and add only the health / trend part manually.
 
 ```yaml
-# delta + triage は composite action で
+# delta + triage via the composite action
 - uses: berlysia/shiori/actions/shiori-action@v0.1.1
   with:
     mode: pr-comment
     max-increase: 0
 
-# health + trend は追加ステップで
+# health + trend as additional steps
 - run: pnpm shiori health --format json --output .tmp/health.json
 - run: pnpm shiori trend --format json --output .tmp/trend.json
 ```
 
-### スコア閾値をカスタマイズする
+### Customizing the score thresholds
 
-Health score の色分け基準を変更する場合は、「Build governance summary」ステップの STATUS 判定ロジックを編集してください。
+To change the color-coding criteria for the health score, edit the STATUS determination logic in the "Build governance summary" step.
 
 ---
 
-## 関連
+## Related
 
-- [Composite Action レシピ](./github-actions-composite-action.md)
-- [Delta PR Comment レシピ](./github-actions-delta-pr-comment.md)
-- [ADR 018: 外部サービス連携戦略](../decisions/018-external-service-integration.md)
+- [Composite Action Recipe](./github-actions-composite-action.md)
+- [Delta PR Comment Recipe](./github-actions-delta-pr-comment.md)
+- [ADR 018: External Service Integration Strategy](../decisions/018-external-service-integration.md)

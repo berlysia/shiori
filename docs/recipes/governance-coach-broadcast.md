@@ -1,52 +1,52 @@
-# Governance Coach Broadcast: Slack / GitHub Discussions 自動投稿
+# Governance Coach Broadcast: Automated Slack / GitHub Discussions Posts
 
-`shiori coach` の出力を CI で自動実行し、Slack Incoming Webhook または GitHub Discussions API 経由でチームに週次配信するレシピ。
+A recipe that runs the output of `shiori coach` in CI and broadcasts it to the team weekly via a Slack Incoming Webhook or the GitHub Discussions API.
 
-## 概要
+## Overview
 
-[Governance Coach](./governance-coach.md) レシピは `shiori coach` コマンドでプロンプトを生成しますが、手動コピペでは定着しません。このレシピは CI (GitHub Actions) を使って以下を自動化します：
+The [Governance Coach](./governance-coach.md) recipe generates prompts with the `shiori coach` command, but copying and pasting them by hand does not become a habit. This recipe uses CI (GitHub Actions) to automate the following:
 
-1. **スケジュール実行**: cron で毎週定期的にコーチングプロンプトを生成
-2. **チーム配信**: Slack チャンネルまたは GitHub Discussions に自動投稿
-3. **スナップショット差分**: sprint-over-sprint の進捗を自動注入
+1. **Scheduled runs**: Generate a coaching prompt on a weekly cron schedule
+2. **Team broadcast**: Post automatically to a Slack channel or GitHub Discussions
+3. **Snapshot diffs**: Inject sprint-over-sprint progress automatically
 
-### Governance Coach との住み分け
+### How This Differs from Governance Coach
 
-| 項目     | [Governance Coach](./governance-coach.md) | このレシピ                               |
-| -------- | ----------------------------------------- | ---------------------------------------- |
-| 目的     | LLM プロンプトの生成方法を学ぶ            | 生成したプロンプトをチームに自動配信する |
-| 実行方法 | 手動（CLI / シェルスクリプト）            | 自動（CI cron）                          |
-| 対象     | 個人の開発者                              | チーム全体                               |
-| 成熟度   | Level 3+（Measured）                      | Level 4（Coached）                       |
-| 前提     | `shiori coach` コマンドの理解             | Governance Coach レシピの完了            |
+| Item         | [Governance Coach](./governance-coach.md)   | This recipe                                             |
+| ------------ | ------------------------------------------- | ------------------------------------------------------- |
+| Purpose      | Learn how to generate LLM prompts           | Automatically broadcast the generated prompts to a team |
+| Execution    | Manual (CLI / shell script)                 | Automated (CI cron)                                     |
+| Audience     | Individual developers                       | The whole team                                          |
+| Maturity     | Level 3+ (Measured)                         | Level 4 (Coached)                                       |
+| Prerequisite | Understanding of the `shiori coach` command | Completion of the Governance Coach recipe               |
 
-## 前提条件
+## Prerequisites
 
-- shiori がセットアップ済み（`shiori init` 完了、レジストリにエントリあり）
-- `shiori coach` コマンドが利用可能（v0.1.1+）
-- 配信先に応じた設定：
-  - **Slack**: Incoming Webhook URL（リポジトリ Secrets に `SLACK_WEBHOOK` として保存）
-  - **GitHub Discussions**: リポジトリで Discussions が有効、`GITHUB_TOKEN` の `discussions: write` 権限
+- shiori is set up (`shiori init` done, and the registry has entries)
+- The `shiori coach` command is available (v0.1.1+)
+- Configuration for your destination:
+  - **Slack**: An Incoming Webhook URL (stored in the repository Secrets as `SLACK_WEBHOOK`)
+  - **GitHub Discussions**: Discussions enabled on the repository, and the `discussions: write` permission for `GITHUB_TOKEN`
 
-## セットアップ
+## Setup
 
-### Slack Incoming Webhook の準備
+### Preparing a Slack Incoming Webhook
 
-1. [Slack API](https://api.slack.com/messaging/webhooks) で Incoming Webhook を作成
-2. 投稿先チャンネルを選択（例: `#governance`）
-3. Webhook URL をリポジトリの Secrets に `SLACK_WEBHOOK` として保存
+1. Create an Incoming Webhook in the [Slack API](https://api.slack.com/messaging/webhooks)
+2. Choose the channel to post to (e.g. `#governance`)
+3. Store the Webhook URL in the repository Secrets as `SLACK_WEBHOOK`
 
-### GitHub Discussions の準備
+### Preparing GitHub Discussions
 
-1. リポジトリの Settings → Features → Discussions を有効化
-2. 「Governance」カテゴリを作成（推奨）
-3. ワークフローの `permissions` に `discussions: write` を追加
+1. Enable Settings → Features → Discussions in the repository
+2. Create a "Governance" category (recommended)
+3. Add `discussions: write` to the workflow's `permissions`
 
-## ワークフロー
+## Workflows
 
-> **CLI パスについて**: 以下のサンプルでは `node dist/src/cli.js` を使用しています。これは shiori を devDependencies にインストールしたプロジェクトでの一般的なパスです。モノレポ構成の場合は `node packages/shiori-cli/dist/src/cli.js` のようにパッケージ相対パスに読み替えてください。`npx shiori` も利用可能です。
+> **About the CLI path**: The samples below use `node dist/src/cli.js`. This is the usual path in a project that installs shiori in devDependencies. In a monorepo, read it as a package-relative path such as `node packages/shiori-cli/dist/src/cli.js`. `npx shiori` also works.
 
-### パターン 1: Slack 配信
+### Pattern 1: Slack broadcast
 
 ```yaml
 # .github/workflows/shiori-coach-broadcast.yml
@@ -54,7 +54,7 @@ name: shiori coach broadcast
 
 on:
   schedule:
-    # 毎週月曜 9:00 JST (0:00 UTC)
+    # Every Monday 9:00 JST (0:00 UTC)
     - cron: '0 0 * * 1'
   workflow_dispatch:
 
@@ -99,7 +99,7 @@ jobs:
             -H "Content-Type: application/json" \
             -d "$(jq -n --arg text "$ADVICE" '{ text: $text }')"
 
-      # coach snapshot の保存（次回との差分比較用）
+      # Save the coach snapshot (for diffing against the next run)
       - name: Upload coach snapshot
         uses: actions/upload-artifact@v7
         with:
@@ -109,7 +109,7 @@ jobs:
           overwrite: true
 ```
 
-### パターン 2: GitHub Discussions 配信
+### Pattern 2: GitHub Discussions broadcast
 
 ```yaml
 # .github/workflows/shiori-coach-discussions.yml
@@ -188,9 +188,9 @@ jobs:
           overwrite: true
 ```
 
-### パターン 3: Slack + Discussions 統合
+### Pattern 3: Combined Slack + Discussions
 
-Slack と Discussions の両方に同時配信する場合は、上記パターン 1 と 2 のステップを 1 つのワークフローに統合します：
+To broadcast to both Slack and Discussions at the same time, merge the steps of patterns 1 and 2 into a single workflow:
 
 ```yaml
 # .github/workflows/shiori-coach-broadcast.yml
@@ -225,7 +225,7 @@ jobs:
 
       - run: pnpm build
 
-      # Slack 用と Discussion 用のプロンプトを並行生成
+      # Generate the Slack prompt and the Discussion prompt side by side
       - name: Generate coach prompts
         run: |
           node dist/src/cli.js coach \
@@ -286,33 +286,33 @@ jobs:
           overwrite: true
 ```
 
-## テンプレートの選択
+## Choosing a Template
 
-`--template` フラグで配信内容を変更できます：
+The `--template` flag changes what is broadcast:
 
-| テンプレート | 用途                       | 推奨頻度   |
-| ------------ | -------------------------- | ---------- |
-| `triage`     | 優先度付きアクションプラン | 週次       |
-| `weekly`     | 週次レポートのコーチング   | 週次       |
-| `health`     | 健全性診断と処方箋         | 週次〜隔週 |
-| `combined`   | 全レポート統合             | 月次       |
+| Template   | Use                               | Recommended frequency |
+| ---------- | --------------------------------- | --------------------- |
+| `triage`   | Prioritized action plan           | Weekly                |
+| `weekly`   | Coaching on the weekly report     | Weekly                |
+| `health`   | Health diagnosis and prescription | Weekly to biweekly    |
+| `combined` | All reports combined              | Monthly               |
 
-## スナップショットによる差分注入
+## Injecting Diffs from Snapshots
 
-`--snapshot-dir` を指定すると、前回のコーチングとの差分が自動注入されます：
+When you pass `--snapshot-dir`, the diff against the previous coaching run is injected automatically:
 
-- `{{DIFF_SUMMARY}}`: `"Health: 75→80 (+5), Coverage: +3"` のようなワンライナー
-- `{{DIFF_BLOCK}}`: previous / current / delta の比較テーブル
-- `{{STAGE_TRANSITION}}`: ステージ昇格時のお祝いメッセージ
+- `{{DIFF_SUMMARY}}`: A one-liner such as `"Health: 75→80 (+5), Coverage: +3"`
+- `{{DIFF_BLOCK}}`: A previous / current / delta comparison table
+- `{{STAGE_TRANSITION}}`: A congratulatory message when the stage is promoted
 
-スナップショットは `--max-snapshots`（デフォルト: 10）で LRU ローテーションされます。
+Snapshots are rotated LRU-style with `--max-snapshots` (default: 10).
 
-### CI でのスナップショット永続化
+### Persisting Snapshots in CI
 
-GitHub Actions ではジョブ間でファイルシステムが揮発するため、スナップショットを artifact として保存し、次回実行時に復元する必要があります：
+In GitHub Actions the filesystem does not persist between jobs, so you need to save snapshots as an artifact and restore them on the next run:
 
 ```yaml
-# 前回のスナップショットをダウンロード（初回は skip）
+# Download the previous snapshot (skipped on the first run)
 - name: Restore coach snapshots
   uses: actions/download-artifact@v8
   with:
@@ -320,7 +320,7 @@ GitHub Actions ではジョブ間でファイルシステムが揮発するた�
     path: .config/shiori/coach-snapshots/
   continue-on-error: true
 
-# coach 実行（スナップショットが見つかれば差分注入）
+# Run coach (the diff is injected if a snapshot is found)
 - name: Generate coach prompt
   run: |
     node dist/src/cli.js coach \
@@ -329,7 +329,7 @@ GitHub Actions ではジョブ間でファイルシステムが揮発するた�
       --snapshot-dir .config/shiori/coach-snapshots \
       > /tmp/coach-output.txt
 
-# 最新スナップショットをアップロード
+# Upload the latest snapshot
 - name: Upload coach snapshot
   uses: actions/upload-artifact@v7
   with:
@@ -339,23 +339,23 @@ GitHub Actions ではジョブ間でファイルシステムが揮発するた�
     overwrite: true
 ```
 
-## カスタマイズ
+## Customization
 
-### 配信頻度を変更する
+### Changing the Broadcast Frequency
 
 ```yaml
-# 隔週（第 1・第 3 月曜）
+# Biweekly (1st and 3rd Monday)
 schedule:
   - cron: '0 0 1-7,15-21 * 1'
 
-# 月次（毎月 1 日）
+# Monthly (1st of each month)
 schedule:
   - cron: '0 0 1 * *'
 ```
 
-### LLM 連携を追加する
+### Adding LLM Integration
 
-`shiori coach` はプロンプトのみを生成し、LLM API は呼び出しません。CI 内で LLM を呼び出してアドバイスまで自動生成するには、[Governance Coach レシピ](./governance-coach.md) のシェルスクリプト例を参照してください：
+`shiori coach` only generates the prompt and does not call an LLM API. To call an LLM inside CI and generate the advice automatically, see the shell script example in the [Governance Coach recipe](./governance-coach.md):
 
 ```yaml
 - name: Generate coaching advice via LLM
@@ -372,15 +372,15 @@ schedule:
         temperature: 0.3
       }')" | jq -r '.choices[0].message.content')
 
-    # LLM のアドバイスを Slack に投稿
+    # Post the LLM advice to Slack
     curl -s -X POST "$SLACK_WEBHOOK" \
       -H "Content-Type: application/json" \
       -d "$(jq -n --arg text "$ADVICE" '{ text: $text }')"
 ```
 
-### Slack Block Kit で見た目を改善する
+### Improving the Look with Slack Block Kit
 
-Incoming Webhook は Block Kit も受け付けます：
+Incoming Webhooks also accept Block Kit:
 
 ```bash
 curl -s -X POST "$SLACK_WEBHOOK" \
@@ -393,45 +393,45 @@ curl -s -X POST "$SLACK_WEBHOOK" \
   }')"
 ```
 
-## トラブルシューティング
+## Troubleshooting
 
-### Slack に投稿されない
+### Nothing is posted to Slack
 
-- Webhook URL が正しいか確認: `curl -s -X POST "$SLACK_WEBHOOK" -d '{"text":"test"}'`
-- `SLACK_WEBHOOK` シークレットが設定されているか確認
-- ワークフローの `if: env.SLACK_WEBHOOK != ''` 条件を確認
+- Check that the Webhook URL is correct: `curl -s -X POST "$SLACK_WEBHOOK" -d '{"text":"test"}'`
+- Check that the `SLACK_WEBHOOK` secret is set
+- Check the workflow's `if: env.SLACK_WEBHOOK != ''` condition
 
-### GitHub Discussion が作成されない
+### The GitHub Discussion is not created
 
-- リポジトリの Discussions が有効か確認
-- 「Governance」カテゴリが存在するか確認（カテゴリ名は大文字小文字を区別）
-- `GITHUB_TOKEN` の `discussions: write` 権限を確認
+- Check that Discussions is enabled on the repository
+- Check that the "Governance" category exists (category names are case-sensitive)
+- Check the `discussions: write` permission of `GITHUB_TOKEN`
 
-### スナップショット差分が表示されない
+### The snapshot diff is not shown
 
-- `--snapshot-dir` が正しいパスを指しているか確認
-- 前回のスナップショット artifact が存在するか確認（初回実行時は差分なし）
-- `continue-on-error: true` が restore ステップに設定されているか確認
+- Check that `--snapshot-dir` points to the correct path
+- Check that the previous snapshot artifact exists (there is no diff on the first run)
+- Check that `continue-on-error: true` is set on the restore step
 
-## ガバナンス成熟度モデルにおける位置づけ
+## Position in the Governance Maturity Model
 
-| Level | 名称          | 仕組み                           | レシピ                                                   |
-| ----- | ------------- | -------------------------------- | -------------------------------------------------------- |
-| 0     | Invisible     | lint disable で違反が隠れている  | --                                                       |
-| 1     | Visible       | PR コメントで差分を通知          | [Delta PR Comment](./github-actions-delta-pr-comment.md) |
-| 2     | Enforced      | PR ステータスチェックでブロック  | [Checks Gate](./github-checks-gate.md)                   |
-| 3     | Measured      | トレンド追跡 + ダッシュボード    | [Observatory](./governance-observatory.md)               |
-| 4     | **Coached**   | **LLM がデータ駆動で改善を提案** | [Governance Coach](./governance-coach.md)                |
-| 4+    | **Broadcast** | **コーチングをチームに自動配信** | **このレシピ**                                           |
+| Level | Name          | Mechanism                                           | Recipe                                                   |
+| ----- | ------------- | --------------------------------------------------- | -------------------------------------------------------- |
+| 0     | Invisible     | Violations are hidden by lint disable               | --                                                       |
+| 1     | Visible       | Diffs are reported in PR comments                   | [Delta PR Comment](./github-actions-delta-pr-comment.md) |
+| 2     | Enforced      | PR status checks block merges                       | [Checks Gate](./github-checks-gate.md)                   |
+| 3     | Measured      | Trend tracking + dashboard                          | [Observatory](./governance-observatory.md)               |
+| 4     | **Coached**   | **An LLM proposes data-driven improvements**        | [Governance Coach](./governance-coach.md)                |
+| 4+    | **Broadcast** | **Coaching is broadcast to the team automatically** | **This recipe**                                          |
 
-Level 4 (Coached) の定着フェーズとして、コーチングプロンプトの生成をチームリチュアル化します。
+As the consolidation phase of Level 4 (Coached), this recipe turns generating the coaching prompt into a team ritual.
 
 ---
 
-## 関連
+## Related
 
-- [Governance Coach](./governance-coach.md) -- LLM プロンプト生成の基盤レシピ
-- [Slack Notification](./slack-notification.md) -- 簡易 Slack 通知レシピ
-- [Slack Governance Pulse](./slack-pulse.md) -- Block Kit ダッシュボード配信
-- [Governance Observatory](./governance-observatory.md) -- 時系列ダッシュボード
-- [Governance Badge](./governance-badge.md) -- README バッジ表示
+- [Governance Coach](./governance-coach.md) -- The foundation recipe for LLM prompt generation
+- [Slack Notification](./slack-notification.md) -- A simple Slack notification recipe
+- [Slack Governance Pulse](./slack-pulse.md) -- Block Kit dashboard broadcast
+- [Governance Observatory](./governance-observatory.md) -- Time-series dashboard
+- [Governance Badge](./governance-badge.md) -- README badge display

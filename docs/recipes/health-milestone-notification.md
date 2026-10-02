@@ -1,33 +1,33 @@
 # Health Milestone Notification
 
-health スコアが閾値に到達したときにポジティブフィードバック通知を送信するレシピ。技術的負債の削減が「目に見える成果」として共有されることで、チームのモチベーションを維持します。
+A recipe that sends a positive-feedback notification when the health score reaches a threshold. Sharing the reduction of technical debt as a "visible achievement" helps keep the team motivated.
 
-## 概要
+## Overview
 
-ガバナンスの改善は、問題が減る＝通知が減る、という形で見えにくくなりがちです。このレシピは逆のアプローチをとります：
+Governance improvements tend to become invisible: fewer problems means fewer notifications. This recipe takes the opposite approach:
 
-- health スコアが目標閾値（デフォルト: 80）に到達したら 🎉 通知を送信
-- スコア改善の経過もメッセージに含める
-- Slack / GitHub Step Summary の両方に対応
+- Send a 🎉 notification when the health score reaches the target threshold (default: 80)
+- Include the score improvement history in the message
+- Supports both Slack and GitHub Step Summary
 
-## スクリプト
+## Script
 
 ```bash
 #!/usr/bin/env bash
 # health-milestone-notification.sh
-# health スコアが閾値を超えた場合にポジティブフィードバック通知を送信
+# Send a positive-feedback notification when the health score reaches the threshold
 # Requires: SLACK_WEBHOOK_URL environment variable (optional)
 set -euo pipefail
 
 THRESHOLD="${1:-80}"
 
-# health スコアを取得
+# Get the health score
 RESULT=$(shiori health -f json 2>/dev/null)
 SCORE=$(echo "$RESULT" | jq '.data.health.score')
 LEVEL=$(echo "$RESULT" | jq -r '.data.health.level')
 ISSUES=$(echo "$RESULT" | jq '.data.issues.total')
 
-# 閾値未満なら通知しない
+# Do not notify if below the threshold
 if [ "$SCORE" -lt "$THRESHOLD" ]; then
   echo "Score ${SCORE} is below threshold ${THRESHOLD}. No notification."
   exit 0
@@ -35,7 +35,7 @@ fi
 
 echo "🎉 Health score ${SCORE} reached threshold ${THRESHOLD}!"
 
-# Slack 通知（SLACK_WEBHOOK_URL が設定されている場合）
+# Slack notification (when SLACK_WEBHOOK_URL is set)
 if [ -n "${SLACK_WEBHOOK_URL:-}" ]; then
   TEXT=":tada: *Governance Milestone Reached!*\n"
   TEXT+=":chart_with_upwards_trend: Health Score: *${SCORE}/100* (${LEVEL})\n"
@@ -50,13 +50,13 @@ if [ -n "${SLACK_WEBHOOK_URL:-}" ]; then
 fi
 ```
 
-## 使い方
+## Usage
 
 ```bash
-# デフォルト閾値 (80) でチェック
+# Check with the default threshold (80)
 SLACK_WEBHOOK_URL=https://hooks.slack.com/services/... bash docs/recipes/health-milestone-notification.sh
 
-# カスタム閾値: 90
+# Custom threshold: 90
 SLACK_WEBHOOK_URL=https://hooks.slack.com/services/... bash docs/recipes/health-milestone-notification.sh 90
 ```
 
@@ -151,20 +151,20 @@ jobs:
           echo "Keep going! 💪" >> "$GITHUB_STEP_SUMMARY"
 ```
 
-## 段階的な閾値の設定
+## Setting Staged Thresholds
 
-プロジェクトの成長に合わせて閾値を上げていくことで、継続的な改善の動機づけができます：
+Raising the threshold as the project matures keeps the motivation for continuous improvement:
 
-| フェーズ | 閾値 | 意味                                   |
-| -------- | ---- | -------------------------------------- |
-| 導入期   | 50   | 基本的なアノテーション追跡が開始された |
-| 定着期   | 70   | 主要な違反が管理下に入った             |
-| 成熟期   | 80   | ガバナンスが日常運用に組み込まれた     |
-| 最適化期 | 90   | 技術的負債が積極的に削減されている     |
+| Phase        | Threshold | Meaning                                   |
+| ------------ | --------- | ----------------------------------------- |
+| Introduction | 50        | Basic annotation tracking has started     |
+| Establishing | 70        | Major violations are under management     |
+| Maturity     | 80        | Governance is built into daily operations |
+| Optimization | 90        | Technical debt is being actively reduced  |
 
-## Autopilot Kit との統合
+## Integration with the Autopilot Kit
 
-[Governance Autopilot Kit](./governance-autopilot-kit.md) の cron ワークフローに組み込む場合は、health チェックの後にマイルストーン判定を追加できます：
+When incorporating this into the cron workflow of the [Governance Autopilot Kit](./governance-autopilot-kit.md), you can add a milestone check after the health check:
 
 ```yaml
 - name: Health check
@@ -179,19 +179,19 @@ jobs:
     fi
 ```
 
-## ガバナンス成熟度モデルにおける位置づけ
+## Position in the Governance Maturity Model
 
-このレシピは「ポジティブフィードバックループ」を構造化するものです。問題を検出して警告するレシピ群（Expires Alert、Orchestrator）と対をなし、改善の成果を可視化します。
+This recipe structures a "positive feedback loop". It pairs with the recipes that detect and warn about problems (Expires Alert, Orchestrator) and makes the results of improvement visible.
 
-| Level | 対応レシピ                                             | フィードバック            |
-| ----- | ------------------------------------------------------ | ------------------------- |
-| 2     | [Checks Gate](./github-checks-gate.md)                 | ❌ 問題がある時にブロック |
-| 3     | [Governance Badge](./governance-badge.md)              | 📊 常時スコア表示         |
-| 4     | [Orchestrator](./scheduled-governance-orchestrator.md) | ⚠️ 問題を自動 Issue 化    |
-| 4+    | **このレシピ**                                         | 🎉 改善を祝う             |
+| Level | Corresponding Recipe                                   | Feedback                                    |
+| ----- | ------------------------------------------------------ | ------------------------------------------- |
+| 2     | [Checks Gate](./github-checks-gate.md)                 | ❌ Blocks when there are problems           |
+| 3     | [Governance Badge](./governance-badge.md)              | 📊 Always shows the score                   |
+| 4     | [Orchestrator](./scheduled-governance-orchestrator.md) | ⚠️ Turns problems into Issues automatically |
+| 4+    | **This recipe**                                        | 🎉 Celebrates improvement                   |
 
-## 関連
+## Related
 
-- [Slack Pulse](./slack-pulse.md) — 定期的なダッシュボード通知
-- [Governance Badge](./governance-badge.md) — README にスコアバッジを表示
-- [Scheduled Governance Orchestrator](./scheduled-governance-orchestrator.md) — 問題検出の自動化
+- [Slack Pulse](./slack-pulse.md) — Periodic dashboard notification
+- [Governance Badge](./governance-badge.md) — Show a score badge in the README
+- [Scheduled Governance Orchestrator](./scheduled-governance-orchestrator.md) — Automating problem detection

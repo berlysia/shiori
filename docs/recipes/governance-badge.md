@@ -1,38 +1,38 @@
 # GitHub Actions: Governance Score Badge
 
-リポジトリのガバナンススコアを shields.io バッジとして README に表示するレシピ。
+A recipe that shows the repository's governance score in the README as a shields.io badge.
 
-## 概要
+## Overview
 
-このレシピは以下を実現します：
+This recipe provides the following:
 
-1. **CI でスキャン＆レポート**: `shiori report --format badge` で shields.io endpoint JSON を生成
-2. **Gist にアップロード**: `exuanbo/actions-deploy-gist` で JSON を GitHub Gist に保存
-3. **README にバッジ埋め込み**: shields.io endpoint URL でリアルタイムバッジを表示
+1. **Scan and report in CI**: generate shields.io endpoint JSON with `shiori report --format badge`
+2. **Upload to a Gist**: save the JSON to a GitHub Gist with `exuanbo/actions-deploy-gist`
+3. **Embed the badge in the README**: show a real-time badge via the shields.io endpoint URL
 
-スコアに応じてバッジ色が自動変化します：
+The badge color changes automatically depending on the score:
 
-| スコア | 色             | レベル   |
-| ------ | -------------- | -------- |
-| ≥ 80   | 🟢 brightgreen | healthy  |
-| 50–79  | 🟡 yellow      | warning  |
-| < 50   | 🔴 red         | critical |
+| Score | Color          | Level    |
+| ----- | -------------- | -------- |
+| ≥ 80  | 🟢 brightgreen | healthy  |
+| 50–79 | 🟡 yellow      | warning  |
+| < 50  | 🔴 red         | critical |
 
-## 前提条件
+## Prerequisites
 
 - Node.js >= 22.6.0
-- `shiori` がプロジェクトの devDependencies に追加済み
-- GitHub Gist を作成済み（endpoint JSON のホスト先）
-- Gist への書き込み権限を持つ `GIST_TOKEN` シークレットを設定済み
+- `shiori` is already added to the project's devDependencies
+- A GitHub Gist has been created (to host the endpoint JSON)
+- A `GIST_TOKEN` secret with write permission to the Gist has been set
 
-## セットアップ手順
+## Setup steps
 
-### 1. Gist を作成する
+### 1. Create a Gist
 
-GitHub で新しい Gist を作成します：
+Create a new Gist on GitHub:
 
-- ファイル名: `shiori-badge.json`
-- 内容（初期値）:
+- File name: `shiori-badge.json`
+- Content (initial value):
   ```json
   {
     "schemaVersion": 1,
@@ -41,15 +41,15 @@ GitHub で新しい Gist を作成します：
     "color": "lightgrey"
   }
   ```
-- Gist ID をメモしておく（URL の末尾: `https://gist.github.com/<user>/<gist-id>`）
+- Note the Gist ID (the end of the URL: `https://gist.github.com/<user>/<gist-id>`)
 
-### 2. Personal Access Token (PAT) を発行する
+### 2. Issue a Personal Access Token (PAT)
 
 - GitHub Settings → Developer settings → Personal access tokens → Fine-grained tokens
-- Repository permissions は不要。Gist のみ `Read and write` 権限を付与
-- リポジトリの Secrets に `GIST_TOKEN` として保存
+- Repository permissions are not needed. Grant only `Read and write` permission for Gists
+- Save it as `GIST_TOKEN` in the repository's Secrets
 
-### 3. ワークフローを追加する
+### 3. Add the workflow
 
 ```yaml
 # .github/workflows/shiori-badge.yml
@@ -58,7 +58,7 @@ name: shiori badge
 on:
   push:
     branches: [main]
-  # 日次更新（オプション）
+  # Daily update (optional)
   schedule:
     - cron: '0 0 * * *'
 
@@ -90,24 +90,24 @@ jobs:
         uses: exuanbo/actions-deploy-gist@v1
         with:
           token: ${{ secrets.GIST_TOKEN }}
-          gist_id: YOUR_GIST_ID # ← 作成した Gist ID に置換
+          gist_id: YOUR_GIST_ID # ← replace with the Gist ID you created
           file_path: .tmp/shiori-badge.json
           file_type: text
 ```
 
-### 4. README にバッジを埋め込む
+### 4. Embed the badge in the README
 
 ```markdown
 [![Governance Score](https://img.shields.io/endpoint?url=https%3A%2F%2Fgist.githubusercontent.com%2F<user>%2F<gist-id>%2Fraw%2Fshiori-badge.json)](https://gist.github.com/<user>/<gist-id>)
 ```
 
-`<user>` と `<gist-id>` を実際の値に置換してください。
+Replace `<user>` and `<gist-id>` with the actual values.
 
 ---
 
-## 代替: GitHub Actions Artifacts を使う方法
+## Alternative: use GitHub Actions Artifacts
 
-Gist を使わず、CI artifacts としてバッジ JSON を保存する軽量な方法：
+A lightweight method that saves the badge JSON as a CI artifact instead of using a Gist:
 
 ```yaml
 - name: Build
@@ -125,13 +125,13 @@ Gist を使わず、CI artifacts としてバッジ JSON を保存する軽量�
     overwrite: true
 ```
 
-この方法ではリアルタイムの README バッジ表示はできませんが、CI 履歴でスコア推移を追跡できます。
+This method cannot show a real-time README badge, but you can track the score trend through CI history.
 
 ---
 
-## 出力フォーマット
+## Output format
 
-`shiori report --format badge` は shields.io endpoint JSON を出力します：
+`shiori report --format badge` outputs shields.io endpoint JSON:
 
 ```json
 {
@@ -142,28 +142,28 @@ Gist を使わず、CI artifacts としてバッジ JSON を保存する軽量�
 }
 ```
 
-フィールドの意味：
+Field meanings:
 
-| フィールド      | 説明                                                  |
-| --------------- | ----------------------------------------------------- |
-| `schemaVersion` | shields.io endpoint schema version（常に `1`）        |
-| `label`         | バッジ左側テキスト（`governance`）                    |
-| `message`       | バッジ右側テキスト（`スコア/100` 形式）               |
-| `color`         | shields.io カラー名（`brightgreen`, `yellow`, `red`） |
+| Field           | Description                                              |
+| --------------- | -------------------------------------------------------- |
+| `schemaVersion` | shields.io endpoint schema version (always `1`)          |
+| `label`         | Text on the left side of the badge (`governance`)        |
+| `message`       | Text on the right side of the badge (`score/100` format) |
+| `color`         | shields.io color name (`brightgreen`, `yellow`, `red`)   |
 
 ---
 
-## カスタマイズ
+## Customization
 
-### スケジュール実行の頻度を変更する
+### Change the schedule frequency
 
 ```yaml
-# 毎週月曜 9:00 UTC に更新
+# Update every Monday at 9:00 UTC
 schedule:
   - cron: '0 9 * * 1'
 ```
 
-### verify エラーがある場合に CI を失敗させる
+### Fail CI when there are verify errors
 
 ```yaml
 - name: Generate badge and verify
@@ -174,19 +174,19 @@ schedule:
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### バッジが "pending" のまま
+### The badge stays at "pending"
 
-Gist が更新されていない可能性があります。ワークフローの実行ログで `Upload to Gist` ステップを確認してください。`GIST_TOKEN` の権限が正しく設定されているか確認してください。
+The Gist may not have been updated. Check the `Upload to Gist` step in the workflow run log. Check that the permissions of `GIST_TOKEN` are set correctly.
 
-### shields.io でバッジが表示されない
+### The badge does not appear on shields.io
 
-shields.io は Gist の raw URL をキャッシュします（最大 5 分）。初回は数分待ってからリロードしてください。URL エンコードが正しいか確認してください。
+shields.io caches the Gist raw URL (up to 5 minutes). On the first run, wait a few minutes and reload. Check that the URL encoding is correct.
 
-### スコアが想定と異なる
+### The score is different from what you expected
 
-`shiori report` を手動で実行してスコアの内訳を確認してください：
+Run `shiori report` manually to check the score breakdown:
 
 ```bash
 node dist/src/cli.js report --format json | jq '.health'
@@ -194,9 +194,9 @@ node dist/src/cli.js report --format json | jq '.health'
 
 ---
 
-## Composite Action で簡単に使う
+## Use the Composite Action for simplicity
 
-上記の YAML を数行に削減できる composite action が利用可能です：
+A composite action is available that reduces the YAML above to a few lines:
 
 ```yaml
 - uses: berlysia/shiori/actions/shiori-action@v0.1.1
@@ -206,12 +206,12 @@ node dist/src/cli.js report --format json | jq '.health'
     gist-id: ${{ vars.SHIORI_BADGE_GIST_ID }}
 ```
 
-詳細は [Composite Action レシピ](./github-actions-composite-action.md) を参照してください。
+See the [Composite Action recipe](./github-actions-composite-action.md) for details.
 
 ---
 
-## 関連
+## Related
 
-- [Composite Action レシピ](./github-actions-composite-action.md)
-- [Delta PR Comment レシピ](./github-actions-delta-pr-comment.md)
-- [Alert-to-Ref ブリッジレシピ](./alert-to-ref.md)
+- [Composite Action recipe](./github-actions-composite-action.md)
+- [Delta PR Comment recipe](./github-actions-delta-pr-comment.md)
+- [Alert-to-Ref Bridge recipe](./alert-to-ref.md)

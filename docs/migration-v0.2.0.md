@@ -1,57 +1,57 @@
-# v0.2.0 移行ガイド
+# v0.2.0 Migration Guide
 
-v0.1.x から v0.2.0 へのアップグレード手順です。**exit code の値が変更される破壊的変更**が含まれています。
+Upgrade steps from v0.1.x to v0.2.0. This release includes a **breaking change to exit code values**.
 
-## 破壊的変更: Exit Code の再定義
+## Breaking change: Exit code redefinition
 
-v0.2.0 では [ADR 027](./decisions/027-exit-code-policy.md) に基づき、exit code が 3 カテゴリに細分化されました。
+In v0.2.0, exit codes are split into 3 categories based on [ADR 027](./decisions/027-exit-code-policy.md).
 
-### 変更内容
+### What changed
 
-| 条件                           | v0.1.x | v0.2.0  | 定数名                 |
-| ------------------------------ | ------ | ------- | ---------------------- |
-| ガバナンス違反検出             | `1`    | `1`     | `GOVERNANCE_VIOLATION` |
-| CLI 引数・オプションの誤り     | `1`    | **`2`** | `USAGE_ERROR`          |
-| 環境エラー（ファイル未発見等） | `1`    | **`3`** | `ENVIRONMENT_ERROR`    |
+| Condition                                | v0.1.x | v0.2.0  | Constant name          |
+| ---------------------------------------- | ------ | ------- | ---------------------- |
+| Governance violation detected            | `1`    | `1`     | `GOVERNANCE_VIOLATION` |
+| Invalid CLI arguments or options         | `1`    | **`2`** | `USAGE_ERROR`          |
+| Environment error (file not found, etc.) | `1`    | **`3`** | `ENVIRONMENT_ERROR`    |
 
-### 影響を受けるケース
+### Affected cases
 
-**CI ゲート（`shiori check` / `shiori verify`）は影響なし。** これらのコマンドはガバナンス違反検出時に exit `1` を返し、この値は変更されていません。
+**CI gates (`shiori check` / `shiori verify`) are not affected.** These commands return exit `1` when a governance violation is detected, and that value is unchanged.
 
-影響があるのは、**usage / environment カテゴリのコマンドの exit code を厳密にチェックしているスクリプト**です:
+What is affected is **scripts that strictly check the exit code of usage / environment category commands**:
 
 ```bash
-# v0.1.x: scan の引数エラーで exit 1 が返っていた
+# v0.1.x: a scan argument error returned exit 1
 shiori scan --invalid-option || echo "failed"  # exit 1
 
-# v0.2.0: 同じケースで exit 2 が返る
+# v0.2.0: the same case returns exit 2
 shiori scan --invalid-option || echo "failed"  # exit 2
 ```
 
-### 移行手順
+### Migration steps
 
-#### 1. CI ワークフローの確認（大半は変更不要）
+#### 1. Review CI workflows (most need no change)
 
 ```yaml
-# このパターンは変更不要（exit 1 のまま）
+# This pattern needs no change (still exit 1)
 - name: Governance check
   run: shiori check
 ```
 
-`shiori check` / `shiori verify` の exit code `1` は変わっていないため、ほとんどの CI 設定はそのまま動作します。
+The exit code `1` of `shiori check` / `shiori verify` is unchanged, so most CI configurations keep working as-is.
 
-#### 2. exit code の値を直接参照しているスクリプトの修正
+#### 2. Fix scripts that reference exit code values directly
 
-exit code の数値を直接比較しているスクリプトがある場合は更新が必要です:
+If any script compares exit code numbers directly, it needs updating:
 
 ```bash
-# v0.1.x: すべて exit 1 だったため区別不要だった
+# v0.1.x: everything was exit 1, so no distinction was needed
 shiori scan --path ./src
 if [ $? -eq 1 ]; then
   echo "something went wrong"
 fi
 
-# v0.2.0: カテゴリ別に分岐可能
+# v0.2.0: can branch by category
 shiori scan --path ./src
 case $? in
   0) echo "success" ;;
@@ -61,58 +61,58 @@ case $? in
 esac
 ```
 
-#### 3. passthrough コマンドの exit code 修正
+#### 3. Fix exit codes of passthrough commands
 
-`watch`、`journal`、`guide` コマンドは v0.1.x で非ガバナンス条件でも exit `1` を返すことがありましたが、v0.2.0 では適切な exit code を返すようになりました。これらのコマンドの exit code に依存する処理がある場合は確認してください。
+In v0.1.x, the `watch`, `journal`, and `guide` commands could return exit `1` even for non-governance conditions, but in v0.2.0 they return appropriate exit codes. If you have any processing that depends on the exit codes of these commands, check it.
 
-#### 4. 手動で exit code を確認する
+#### 4. Verify exit codes manually
 
-アップグレード後、CI で使用しているコマンドの exit code が期待どおりか手動で確認できます:
+After upgrading, you can manually check that the exit codes of the commands used in CI are as expected:
 
 ```bash
-# ガバナンス違反がある状態で check を実行し、exit code 1 を確認
+# Run check with a governance violation present and confirm exit code 1
 shiori check --fail-on missing-in-registry; echo "exit: $?"
-# → exit: 1（違反あり）/ exit: 0（違反なし）
+# → exit: 1 (violation) / exit: 0 (no violation)
 
-# 存在しないオプションで usage error (exit 2) を確認
+# Confirm a usage error (exit 2) with a nonexistent option
 shiori check --nonexistent-flag; echo "exit: $?"
 # → exit: 2
 
-# 存在しないディレクトリで environment error (exit 3) を確認
+# Confirm an environment error (exit 3) with a nonexistent directory
 shiori check --cwd /nonexistent/path; echo "exit: $?"
 # → exit: 3
 ```
 
-`shiori doctor` を実行すると、exit code ポリシーの整合性も自動的に検証されます:
+Running `shiori doctor` also automatically verifies the consistency of the exit code policy:
 
 ```bash
 shiori doctor
 # ✓ Exit code policies: All N commands have exit code policies defined
 ```
 
-## その他の変更
+## Other changes
 
-### セキュリティ修正
+### Security fix
 
-CI ワークフローテンプレート（`shiori-pr-comment.yml`、`shiori-pr-description.yml`）で `execSync` を `execFileSync`（配列引数）に置き換え、コマンドインジェクションリスクを排除しました。`shiori init --ci` で生成したワークフローを使用している場合は、テンプレートの再生成を推奨します:
+In the CI workflow templates (`shiori-pr-comment.yml`, `shiori-pr-description.yml`), `execSync` was replaced with `execFileSync` (array arguments), eliminating the command injection risk. If you use workflows generated by `shiori init --ci`, we recommend regenerating the templates:
 
 ```bash
-shiori init --ci delta-pr-comment  # 安全なテンプレートで上書き
+shiori init --ci delta-pr-comment  # Overwrite with the safe template
 ```
 
-### doctor の新チェック
+### New doctor check
 
-`shiori doctor` に exit code ポリシー整合性の自己検証チェックが追加されました（[移行手順 Step 4](#4-手動で-exit-code-を確認する) 参照）。
+A self-check for exit code policy consistency was added to `shiori doctor` (see [Migration step 4](#4-verify-exit-codes-manually)).
 
-## バージョン確認
+## Checking the version
 
 ```bash
 npx @berlysia/shiori --version
 # 0.2.0
 ```
 
-## 関連ドキュメント
+## Related documents
 
-- [Getting Started](./getting-started.md) — 新規ユーザー向け 5 分体験フロー
+- [Getting Started](./getting-started.md) — a 5-minute walkthrough for new users
 - [ADR 027: CLI Exit Code Policy Matrix](./decisions/027-exit-code-policy.md)
 - [CHANGELOG](../CHANGELOG.md)

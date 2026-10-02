@@ -1,36 +1,36 @@
-# VS Code Tasks: annotate コマンドのエディタキーバインド統合
+# VS Code Tasks: Editor Keybinding Integration for the annotate Command
 
-エディタ内から `shiori annotate` をキーボードショートカットで呼び出し、LSP 不要で「エディタ内ガバナンス」体験の 80% を実現するレシピ。
+A recipe that invokes `shiori annotate` from inside the editor with a keyboard shortcut, delivering about 80% of the "in-editor governance" experience without an LSP.
 
-## 概要
+## Overview
 
-このレシピは以下を実現します：
+This recipe achieves the following:
 
-1. **VS Code Tasks** で `shiori annotate --target ${file}:${lineNumber}` を定義
-2. **キーバインド** でカーソル行に対して即座にアノテーション挿入
-3. **Problem Matcher** で `shiori verify --format diagnostic` の結果を Problems パネルに表示
-4. **JSON 出力** で annotate 結果をプログラマティックに処理
+1. **VS Code Tasks** define `shiori annotate --target ${file}:${lineNumber}`
+2. **Keybindings** insert an annotation at the cursor line immediately
+3. **Problem Matcher** shows the results of `shiori verify --format diagnostic` in the Problems panel
+4. **JSON output** lets you process annotate results programmatically
 
-LSP 拡張なしで、VS Code の標準機能だけでガバナンスワークフローを完結させます。
+The governance workflow is completed with standard VS Code features alone, with no LSP extension.
 
-## ユーザー体験の変化
+## How the User Experience Changes
 
-| Before                                      | After                                                |
-| ------------------------------------------- | ---------------------------------------------------- |
-| ターミナルでファイルパスと行番号を手入力    | カーソル行で `Ctrl+Shift+A` → ref 入力だけで完了     |
-| annotate 後にターミナルで verify を手動実行 | Tasks + Problem Matcher で Problems パネルに自動表示 |
-| 違反箇所の特定に CLI 出力を目視で追う       | Problems パネルからワンクリックでジャンプ            |
+| Before                                                   | After                                                                    |
+| -------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Type the file path and line number by hand in a terminal | On the cursor line, press `Ctrl+Shift+A` and just enter a ref            |
+| Run verify by hand in a terminal after annotate          | Tasks + Problem Matcher show results in the Problems panel automatically |
+| Follow the CLI output by eye to locate violations        | Jump to a violation with one click from the Problems panel               |
 
-## 前提条件
+## Prerequisites
 
 - Node.js >= 22.6.0
-- `shiori` がプロジェクトの devDependencies に追加済み
-- レジストリファイルが存在する（`shiori init` 済み）
-- VS Code 1.50 以上
+- `shiori` is added to the project's devDependencies
+- A registry file exists (`shiori init` done)
+- VS Code 1.50 or later
 
-## Tasks 定義
+## Task Definitions
 
-`.vscode/tasks.json` に以下のタスクを追加します：
+Add the following tasks to `.vscode/tasks.json`:
 
 ```json
 {
@@ -141,9 +141,9 @@ LSP 拡張なしで、VS Code の標準機能だけでガバナンスワーク�
 }
 ```
 
-## キーバインド設定
+## Keybinding Configuration
 
-`keybindings.json`（`Ctrl+Shift+P` → `Preferences: Open Keyboard Shortcuts (JSON)`）に追加：
+Add to `keybindings.json` (`Ctrl+Shift+P` → `Preferences: Open Keyboard Shortcuts (JSON)`):
 
 ```json
 [
@@ -165,47 +165,47 @@ LSP 拡張なしで、VS Code の標準機能だけでガバナンスワーク�
 ]
 ```
 
-> **macOS**: `ctrl` を `cmd` に読み替えてください。
+> **macOS**: Read `ctrl` as `cmd`.
 
-### キーバインドの意図
+### Intent of the Keybindings
 
-| キー               | タスク              | 説明                                      |
-| ------------------ | ------------------- | ----------------------------------------- |
-| `Ctrl+Shift+A`     | Annotate (dry-run)  | まず JSON プレビューで確認                |
-| `Ctrl+Shift+Alt+A` | Annotate (apply)    | 確認後に実際に書き込み                    |
-| `Ctrl+Shift+D`     | Verify (diagnostic) | Problems パネルにガバナンス違反を一覧表示 |
+| Key                | Task                | Description                                      |
+| ------------------ | ------------------- | ------------------------------------------------ |
+| `Ctrl+Shift+A`     | Annotate (dry-run)  | Check with a JSON preview first                  |
+| `Ctrl+Shift+Alt+A` | Annotate (apply)    | Write for real after checking                    |
+| `Ctrl+Shift+D`     | Verify (diagnostic) | List governance violations in the Problems panel |
 
-## Problem Matcher の仕組み
+## How the Problem Matcher Works
 
-`shiori verify --format diagnostic` は GCC 互換フォーマットで出力します：
+`shiori verify --format diagnostic` outputs in a GCC-compatible format:
 
 ```
 src/foo.ts:42:1: error: Annotation expired on 2025-01-15 [expired]
 src/bar.ts:10:1: warning: Not found in registry [missing-in-registry]
 ```
 
-VS Code の `$gcc` Problem Matcher と互換性があるため、Problems パネルに自動的に表示されます。上記の tasks.json ではカスタム正規表現を使用して `[type]` 部分もコードとして取り込みます。
+It is compatible with VS Code's `$gcc` Problem Matcher, so it appears in the Problems panel automatically. The tasks.json above uses a custom regular expression so that the `[type]` part is also captured as the code.
 
-### カスタム Problem Matcher の正規表現
+### Regular Expression for the Custom Problem Matcher
 
 ```
 ^(.+):(\d+):(\d+):\s+(error|warning):\s+(.+)\s+\[(.+)\]$
 ```
 
-| グループ | フィールド | 例                                 |
-| -------- | ---------- | ---------------------------------- |
-| 1        | file       | `src/foo.ts`                       |
-| 2        | line       | `42`                               |
-| 3        | column     | `1`                                |
-| 4        | severity   | `error`                            |
-| 5        | message    | `Annotation expired on 2025-01-15` |
-| 6        | code       | `expired`                          |
+| Group | Field    | Example                            |
+| ----- | -------- | ---------------------------------- |
+| 1     | file     | `src/foo.ts`                       |
+| 2     | line     | `42`                               |
+| 3     | column   | `1`                                |
+| 4     | severity | `error`                            |
+| 5     | message  | `Annotation expired on 2025-01-15` |
+| 6     | code     | `expired`                          |
 
-## 応用パターン
+## Advanced Patterns
 
-### annotate → verify のチェインタスク
+### A Chained annotate → verify Task
 
-annotate 実行後に自動で verify を走らせ、Problems パネルを更新します：
+Run verify automatically after annotate and refresh the Problems panel:
 
 ```json
 {
@@ -218,11 +218,11 @@ annotate 実行後に自動で verify を走らせ、Problems パネルを更新
 }
 ```
 
-キーバインドに割り当てれば、1キーで「アノテーション追加 + 違反確認」が完結します。
+If you assign it to a keybinding, one key does both "add the annotation + check violations".
 
-### JSON 出力のパイプライン
+### Piping the JSON Output
 
-`--format json` の出力は以下のスキーマです：
+The output of `--format json` has the following schema:
 
 ```json
 {
@@ -240,11 +240,11 @@ annotate 実行後に自動で verify を走らせ、Problems パネルを更新
 }
 ```
 
-CI パイプラインやカスタムスクリプトから利用する場合に便利です。
+This is useful when consuming it from CI pipelines or custom scripts.
 
-### ファイル保存時に自動 verify
+### Auto-verify on File Save
 
-VS Code の `runOn` 機能を使って、保存のたびに verify を実行できます。ただし保存のたびにフルスキャンが走るため、大規模プロジェクトでは遅延が生じます。リアルタイムフィードバックが必要な場合は、次の「watch --format diagnostic」を推奨します。
+You can use VS Code's `runOn` feature to run verify on every save. However, a full scan runs on every save, so large projects will see delays. If you need real-time feedback, use "Real-time Feedback with watch --format diagnostic" below.
 
 ```json
 {
@@ -273,9 +273,9 @@ VS Code の `runOn` 機能を使って、保存のたびに verify を実行で�
 }
 ```
 
-### watch --format diagnostic によるリアルタイムフィードバック
+### Real-time Feedback with watch --format diagnostic
 
-`shiori watch --format diagnostic` はファイル変更を検知するたびにスキャン・verify を再実行し、GCC 互換形式で diagnostic 行を stdout に出力します。VS Code のバックグラウンドタスクと組み合わせることで、保存するだけで Problems パネルにガバナンス違反がリアルタイム表示されます。
+`shiori watch --format diagnostic` re-runs the scan and verify every time it detects a file change, and prints diagnostic lines to stdout in a GCC-compatible format. Combined with a VS Code background task, governance violations appear in the Problems panel in real time just by saving.
 
 ```json
 {
@@ -308,56 +308,56 @@ VS Code の `runOn` 機能を使って、保存のたびに verify を実行で�
 }
 ```
 
-**動作フロー**:
+**Flow**:
 
-1. タスク起動 → `watch` がファイル監視を開始
-2. ファイル保存 → デバウンス（250ms）後にスキャン＋verify 再実行
-3. stderr に `[timestamp] refreshed (filename)` を出力（`beginsPattern` がマッチ）
-4. stdout に diagnostic 行を出力（`pattern` がマッチ → Problems パネルに反映）
-5. 次のリフレッシュで前回の problems がクリアされ、最新の結果に更新
+1. Start the task → `watch` begins watching files
+2. Save a file → after a debounce (250ms), the scan and verify run again
+3. `[timestamp] refreshed (filename)` is written to stderr (`beginsPattern` matches)
+4. Diagnostic lines are written to stdout (`pattern` matches → reflected in the Problems panel)
+5. On the next refresh, the previous problems are cleared and replaced with the latest results
 
-**`runOn` との違い**:
+**Differences from `runOn`**:
 
-| 項目               | `runOn: folderOpen` | `watch --format diagnostic`        |
-| ------------------ | ------------------- | ---------------------------------- |
-| トリガー           | 保存イベント        | ファイルシステム変更               |
-| 実行方式           | 毎回プロセス起動    | 常駐プロセス                       |
-| デバウンス         | なし                | 250ms（設定可能）                  |
-| 大規模プロジェクト | 遅延あり            | 差分検知で高速                     |
-| dashboard との併用 | 可能                | 排他（`--dashboard` とは同時不可） |
+| Item               | `runOn: folderOpen`       | `watch --format diagnostic`                            |
+| ------------------ | ------------------------- | ------------------------------------------------------ |
+| Trigger            | Save event                | File system change                                     |
+| Execution          | Start a process each time | Long-running process                                   |
+| Debounce           | None                      | 250ms (configurable)                                   |
+| Large projects     | Delays                    | Fast thanks to change detection                        |
+| Use with dashboard | Possible                  | Mutually exclusive (cannot combine with `--dashboard`) |
 
-## ガバナンス成熟度モデルでの位置づけ
+## Position in the Governance Maturity Model
 
-| Level | 名称            | 仕組み                                  | レシピ                                                   |
-| ----- | --------------- | --------------------------------------- | -------------------------------------------------------- |
-| 0     | Invisible       | lint disable で違反が隠れている         | ---                                                      |
-| 1     | Visible         | PR コメントで差分を通知                 | [Delta PR Comment](./github-actions-delta-pr-comment.md) |
-| 2     | Enforced        | PR ステータスチェックでマージをブロック | [Checks Gate](./github-checks-gate.md)                   |
-| 3     | Measured        | ガバナンススコアのバッジ表示            | [Governance Badge](./governance-badge.md)                |
-| 4     | Inline          | エディタ内にインライン diagnostics      | [Code Scanning](./code-scanning.md)                      |
-| **5** | **Interactive** | **エディタ内からアノテーション操作**    | **このレシピ**                                           |
+| Level | Name            | Mechanism                                 | Recipe                                                   |
+| ----- | --------------- | ----------------------------------------- | -------------------------------------------------------- |
+| 0     | Invisible       | Violations are hidden by lint disable     | ---                                                      |
+| 1     | Visible         | Diffs are reported in PR comments         | [Delta PR Comment](./github-actions-delta-pr-comment.md) |
+| 2     | Enforced        | PR status checks block merges             | [Checks Gate](./github-checks-gate.md)                   |
+| 3     | Measured        | Governance score badge                    | [Governance Badge](./governance-badge.md)                |
+| 4     | Inline          | Inline diagnostics in the editor          | [Code Scanning](./code-scanning.md)                      |
+| **5** | **Interactive** | **Annotation operations from the editor** | **This recipe**                                          |
 
-## トラブルシューティング
+## Troubleshooting
 
-### Problems パネルに何も表示されない
+### Nothing appears in the Problems panel
 
-- `shiori verify --format diagnostic` をターミナルで直接実行し、出力があることを確認してください
-- issues が 0 件の場合は出力が空になります（正常動作）
-- Problem Matcher の `fileLocation` が `["relative", "${workspaceFolder}"]` になっているか確認してください
+- Run `shiori verify --format diagnostic` directly in a terminal and confirm it produces output
+- If there are 0 issues, the output is empty (this is normal)
+- Check that the Problem Matcher's `fileLocation` is `["relative", "${workspaceFolder}"]`
 
-### annotate が `Error: Invalid --target format` で失敗する
+### annotate fails with `Error: Invalid --target format`
 
-- ファイルが保存済みであることを確認してください（未保存ファイルでは `${file}` が空になる場合があります）
-- ファイルパスにスペースが含まれる場合は、`"command"` の `${file}` を `"\"${file}\""` に変更してください
+- Make sure the file is saved (`${file}` may be empty for unsaved files)
+- If the file path contains spaces, change `${file}` in `"command"` to `"\"${file}\""`
 
-### `ref` の入力プロンプトが表示されない
+### The `ref` input prompt does not appear
 
-- `tasks.json` の `inputs` セクションに `ref` の定義があることを確認してください
-- VS Code を再起動して設定を反映してください
+- Check that the `inputs` section of `tasks.json` defines `ref`
+- Restart VS Code to apply the settings
 
-### macOS で `Ctrl+Shift+A` が効かない
+### `Ctrl+Shift+A` does not work on macOS
 
-macOS では `Cmd+Shift+A` に変更するか、`keybindings.json` で以下のように設定してください：
+On macOS, change it to `Cmd+Shift+A`, or configure `keybindings.json` as follows:
 
 ```json
 {
@@ -369,9 +369,9 @@ macOS では `Cmd+Shift+A` に変更するか、`keybindings.json` で以下の�
 
 ---
 
-## 関連
+## Related
 
-- [ADR 018: 外部サービス連携戦略](../decisions/018-external-service-integration.md)
-- [Code Scanning レシピ](./code-scanning.md) --- SARIF × GitHub Code Scanning 統合
-- [Local Dashboard レシピ](./local-dashboard.md) --- リアルタイムダッシュボード
-- [Checks Gate レシピ](./github-checks-gate.md) --- PR ステータスチェック
+- [ADR 018: External Service Integration Strategy](../decisions/018-external-service-integration.md)
+- [Code Scanning recipe](./code-scanning.md) --- SARIF × GitHub Code Scanning integration
+- [Local Dashboard recipe](./local-dashboard.md) --- Real-time dashboard
+- [Checks Gate recipe](./github-checks-gate.md) --- PR status checks

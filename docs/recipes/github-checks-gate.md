@@ -1,37 +1,37 @@
 # GitHub Actions: Checks Gate
 
-`shiori check` の結果を GitHub PR ステータスチェック（✅/❌）として表示し、ブランチ保護ルールでマージをブロックするレシピ。
+A recipe that shows the result of `shiori check` as a GitHub PR status check (✅/❌) and blocks merging with branch protection rules.
 
-## 概要
+## Overview
 
-このレシピは以下を実現します：
+This recipe covers the following:
 
-1. **PR ごとに `shiori check` を実行**し、ガバナンス違反を検出
-2. **終了コードを GitHub Actions が自動検知**して PR の Checks タブにステータスを表示
-3. **ブランチ保護ルール**で shiori check を required にすることで、違反のある PR をマージ不可にする
+1. **Run `shiori check` on every PR** to detect governance violations
+2. **GitHub Actions automatically detects the exit code** and shows the status in the PR's Checks tab
+3. **Make shiori check required in branch protection rules** so PRs with violations cannot be merged
 
-コア CLI の変更は不要です。`shiori check` の既存の終了コード（0 = 成功、1 = 違反あり）をそのまま活用します。
+No changes to the core CLI are needed. It uses the existing exit codes of `shiori check` as they are (0 = success, 1 = violations found).
 
-## ガバナンス成熟度モデル
+## Governance Maturity Model
 
-このレシピは段階的な導入を想定しています：
+This recipe is designed for staged adoption:
 
-| Level | 名称         | 仕組み                                      | レシピ                                                   |
-| ----- | ------------ | ------------------------------------------- | -------------------------------------------------------- |
-| 0     | Invisible    | lint disable で違反が隠れている             | —                                                        |
-| 1     | Visible      | PR コメントで差分を通知                     | [Delta PR Comment](./github-actions-delta-pr-comment.md) |
-| 2     | **Enforced** | **PR ステータスチェックでマージをブロック** | **このレシピ**                                           |
-| 3     | Measured     | ガバナンススコアのバッジ表示 + トレンド追跡 | [Governance Badge](./governance-badge.md)                |
+| Level | Name         | Mechanism                               | Recipe                                                   |
+| ----- | ------------ | --------------------------------------- | -------------------------------------------------------- |
+| 0     | Invisible    | Violations hidden by lint disable       | —                                                        |
+| 1     | Visible      | Notify diffs via PR comment             | [Delta PR Comment](./github-actions-delta-pr-comment.md) |
+| 2     | **Enforced** | **Block merging with PR status check**  | **This recipe**                                          |
+| 3     | Measured     | Governance score badge + trend tracking | [Governance Badge](./governance-badge.md)                |
 
-Level 1（通知）から始めて、チームの習熟に応じて Level 2（強制）に昇格するのが推奨パターンです。
+The recommended pattern is to start at Level 1 (notification) and promote to Level 2 (enforcement) as the team becomes familiar with it.
 
-## 前提条件
+## Prerequisites
 
 - Node.js >= 22.6.0
-- `shiori` がプロジェクトの devDependencies に追加済み（`pnpm add -D shiori`）
-- GitHub Actions で `pull_request` イベントをトリガーに使用
+- `shiori` is added to the project's devDependencies (`pnpm add -D shiori`)
+- Use the `pull_request` event as the trigger in GitHub Actions
 
-## ワークフロー
+## Workflow
 
 ```yaml
 # .github/workflows/shiori-checks-gate.yml
@@ -61,78 +61,78 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # shiori check は scan + verify をワンステップで実行。
-      # --fail-on で指定した issue type が検出されると exit code 1 を返し、
-      # GitHub Actions がこのステップを failed としてマークする。
+      # shiori check runs scan + verify in one step.
+      # If an issue type specified with --fail-on is detected, it returns exit code 1,
+      # and GitHub Actions marks this step as failed.
       - name: shiori check
         run: pnpm shiori check --fail-on expired,missing-in-registry
 ```
 
-これだけで PR の Checks タブに `shiori governance / check` が表示されます。
+With just this, `shiori governance / check` appears in the PR's Checks tab.
 
-## 終了コードとステータスの対応
+## Exit Codes and Statuses
 
-| `shiori check` 終了コード | GitHub Checks ステータス | 意味                             |
-| ------------------------- | ------------------------ | -------------------------------- |
-| `0`                       | ✅ Success               | ガバナンス違反なし               |
-| `1`                       | ❌ Failure               | `--fail-on` に該当する違反を検出 |
+| `shiori check` exit code | GitHub Checks status | Meaning                                       |
+| ------------------------ | -------------------- | --------------------------------------------- |
+| `0`                      | ✅ Success           | No governance violations                      |
+| `1`                      | ❌ Failure           | Violations matching `--fail-on` were detected |
 
-GitHub Actions はステップの終了コードをそのまま Checks のステータスに反映するため、追加の API 呼び出しは不要です。
+GitHub Actions reflects the step's exit code directly in the Checks status, so no additional API calls are needed.
 
-## ブランチ保護ルールの設定
+## Configuring Branch Protection Rules
 
-PR ステータスチェックをマージ要件にするには：
+To make the PR status check a merge requirement:
 
-1. リポジトリの **Settings → Branches → Branch protection rules**
-2. `main`（または対象ブランチ）のルールを編集
-3. **Require status checks to pass before merging** を有効化
-4. 検索ボックスに `shiori governance / check` と入力して追加
+1. In the repository, go to **Settings → Branches → Branch protection rules**
+2. Edit the rule for `main` (or the target branch)
+3. Enable **Require status checks to pass before merging**
+4. Type `shiori governance / check` in the search box and add it
 
-> **Note**: ステータスチェック名は `<workflow name> / <job name>` 形式です。
-> 上記の例では workflow name が `shiori governance`、job name が `check` なので
-> `shiori governance / check` となります。
+> **Note**: A status check name has the form `<workflow name> / <job name>`.
+> In the example above, the workflow name is `shiori governance` and the job name is `check`,
+> so the name is `shiori governance / check`.
 
-## `--fail-on` ポリシーの設計
+## Designing the `--fail-on` Policy
 
-`--fail-on` で指定する issue type によって、ガバナンスの厳しさを調整できます：
+The issue types specified with `--fail-on` let you tune the strictness of governance:
 
-### 段階的導入の例
+### Staged Adoption Example
 
 ```yaml
-# Step 1: 最小限のポリシー（期限切れのみブロック）
+# Step 1: Minimal policy (block only on expired)
 - name: shiori check
   run: pnpm shiori check --fail-on expired
 
-# Step 2: レジストリ未登録もブロック
+# Step 2: Also block on missing registry entries
 - name: shiori check
   run: pnpm shiori check --fail-on expired,missing-in-registry
 
-# Step 3: 厳格なポリシー（追跡参照なしもブロック）
+# Step 3: Strict policy (also block on missing tracking refs)
 - name: shiori check
   run: pnpm shiori check --fail-on expired,missing-in-registry,missing-ref
 
-# Step 4: 期限が近いものも警告として表示
+# Step 4: Also show soon-to-expire items as warnings
 - name: shiori check
   run: pnpm shiori check --fail-on expired,missing-in-registry --warn-on expiring-soon
 ```
 
-### 使用可能な issue type
+### Available Issue Types
 
-| Issue Type            | 説明                                 |
-| --------------------- | ------------------------------------ |
-| `expired`             | `expires` 期限を過ぎたアノテーション |
-| `expiring-soon`       | `expires` 期限が近いアノテーション   |
-| `missing-in-registry` | ソースにあるがレジストリに未登録     |
-| `unused-in-source`    | レジストリにあるがソースに不在       |
-| `missing-ref`         | 追跡参照（ref）が付与されていない    |
-| `duplicate-ref`       | 同一 ref が複数レジストリに存在      |
-| `invalid-ref`         | ref がパターンに一致しない           |
+| Issue Type            | Description                                          |
+| --------------------- | ---------------------------------------------------- |
+| `expired`             | Annotations past their `expires` date                |
+| `expiring-soon`       | Annotations whose `expires` date is approaching      |
+| `missing-in-registry` | Present in source but not registered in the registry |
+| `unused-in-source`    | Present in the registry but absent from source       |
+| `missing-ref`         | No tracking reference (ref) is attached              |
+| `duplicate-ref`       | The same ref exists in multiple registries           |
+| `invalid-ref`         | The ref does not match the pattern                   |
 
-## カスタマイズ
+## Customization
 
-### SARIF 出力との併用
+### Using with SARIF Output
 
-ステータスチェックと Code Scanning を同時に有効にできます：
+You can enable the status check and Code Scanning at the same time:
 
 ```yaml
 jobs:
@@ -165,13 +165,13 @@ jobs:
           category: shiori
 ```
 
-### Delta PR Comment との併用
+### Using with Delta PR Comment
 
-ステータスチェック（ブロック）と PR コメント（通知）を組み合わせるのが最も効果的です：
+Combining a status check (blocking) with a PR comment (notification) is the most effective:
 
 ```yaml
 jobs:
-  # Level 2: ステータスチェックでブロック
+  # Level 2: Block with the status check
   check:
     runs-on: ubuntu-latest
     steps:
@@ -185,7 +185,7 @@ jobs:
       - name: shiori check
         run: pnpm shiori check --fail-on expired,missing-in-registry
 
-  # Level 1: PR コメントで差分を通知（並行実行）
+  # Level 1: Notify the diff via PR comment (runs in parallel)
   pr-delta:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -194,50 +194,50 @@ jobs:
       pull-requests: write
       actions: read
     steps:
-      # ... (delta-pr-comment レシピを参照)
+      # ... (see the delta-pr-comment recipe)
 ```
 
-詳細は [Delta PR Comment レシピ](./github-actions-delta-pr-comment.md) を参照してください。
+See the [Delta PR Comment recipe](./github-actions-delta-pr-comment.md) for details.
 
-### `shiori init --ci` で自動生成
+### Auto-Generating with `shiori init --ci`
 
 ```bash
 pnpm shiori init --ci checks-gate
 ```
 
-このコマンドで上記のワークフロー YAML が `.github/workflows/shiori.yml` に自動生成されます。
+This command automatically generates the workflow YAML above at `.github/workflows/shiori.yml`.
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### ステータスチェックが表示されない
+### The Status Check Does Not Appear
 
-- ワークフローが少なくとも1回実行されるまで、ブランチ保護ルールの検索に表示されません。まず PR を作成してワークフローを実行してください。
+- It does not appear in the branch protection rule search until the workflow has run at least once. Create a PR first and let the workflow run.
 
-### `--fail-on` を変更してもチェックが失敗しない
+### The Check Does Not Fail Even After Changing `--fail-on`
 
-- `--fail-on` で指定した issue type のアノテーションが実際に存在するか確認してください：
+- Check that annotations of the issue types specified with `--fail-on` actually exist:
   ```bash
   pnpm shiori check --fail-on expired,missing-in-registry -f json | jq '.summary'
   ```
 
-### Checks タブの名前を変更したい
+### I Want to Rename the Checks Tab Entry
 
-ワークフロー YAML の `name` と `jobs.<job_id>` を変更してください：
+Change `name` and `jobs.<job_id>` in the workflow YAML:
 
 ```yaml
-name: annotation governance # ← ワークフロー名
+name: annotation governance # ← workflow name
 jobs:
-  shiori: # ← ジョブ名
-    # → Checks タブには "annotation governance / shiori" と表示
+  shiori: # ← job name
+    # → The Checks tab shows "annotation governance / shiori"
 ```
 
 ---
 
-## Composite Action で簡単に使う
+## Using the Composite Action for Simplicity
 
-上記の YAML を数行に削減できる composite action が利用可能です：
+A composite action is available that reduces the YAML above to a few lines:
 
 ```yaml
 - uses: berlysia/shiori/actions/shiori-action@v0.1.1
@@ -246,14 +246,14 @@ jobs:
     fail-on: expired,missing-in-registry
 ```
 
-詳細は [Composite Action レシピ](./github-actions-composite-action.md) を参照してください。
+See the [Composite Action recipe](./github-actions-composite-action.md) for details.
 
 ---
 
-## 関連
+## Related
 
-- [ADR 018: 外部サービス連携戦略](../decisions/018-external-service-integration.md)
-- [Composite Action レシピ](./github-actions-composite-action.md)
-- [Delta PR Comment レシピ](./github-actions-delta-pr-comment.md)
-- [Governance Badge レシピ](./governance-badge.md)
-- [Expires Alert レシピ](./github-actions-expires-alert.md)
+- [ADR 018: External Service Integration Strategy](../decisions/018-external-service-integration.md)
+- [Composite Action recipe](./github-actions-composite-action.md)
+- [Delta PR Comment recipe](./github-actions-delta-pr-comment.md)
+- [Governance Badge recipe](./governance-badge.md)
+- [Expires Alert recipe](./github-actions-expires-alert.md)
