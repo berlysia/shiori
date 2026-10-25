@@ -23,7 +23,6 @@ jobs:
           cache: true
           require-lockfile: true
       - run: pnpm build
-      - run: pnpm --filter @berlysia/shiori run build:playground
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm --filter @berlysia/shiori run lint:boundaries
