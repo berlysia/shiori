@@ -27,6 +27,11 @@ import {
 } from './lib/changeset.ts';
 import { distTagFor } from './lib/dist-tag.ts';
 import {
+  checkGitDirection,
+  expectedGitDir,
+  type DotGit,
+} from './lib/git-direction.ts';
+import {
   adviseOnDirtyTree,
   decideEntry,
   pushRetryCommands,
@@ -1098,23 +1103,47 @@ async function checkRepositoryRoot(ctx: Ctx): Promise<void> {
     throw stopAt(
       'entry',
       'this is not a git work tree, or git works on a repository other than the one in the current directory (GIT_DIR set?). Nothing was changed',
-      { section: SECTIONS.everyRelease },
+      {
+        section: SECTIONS.everyRelease,
+      },
     );
   }
-  const root = await deps.fs.realpath(deps.cwd);
-  const sameTop = (await deps.fs.realpath(toplevel.stdout.trim())) === root;
-  const ownGitDir = await deps.fs
-    .realpath(join(deps.cwd, '.git'))
-    .catch(() => '');
-  const sameGitDir =
-    (await deps.fs.realpath(gitDir.stdout.trim())) === ownGitDir;
-  if (!sameTop || !sameGitDir) {
+  const dotGitPath = join(deps.cwd, '.git');
+  const stat = await deps.fs.lstat(dotGitPath).catch(() => undefined);
+  let dotGit: DotGit;
+  if (stat === undefined) dotGit = { kind: 'unreadable' };
+  else if (stat.isDirectory) dotGit = { kind: 'directory' };
+  else if (stat.isFile) {
+    dotGit = await deps.fs
+      .readFile(dotGitPath)
+      .then((content): DotGit => ({ kind: 'file', content }))
+      .catch((): DotGit => ({ kind: 'unreadable' }));
+  } else dotGit = { kind: 'other' };
+
+  const expected = expectedGitDir(deps.cwd, dotGit);
+  if (!expected.ok) {
+    throw stopAt('entry', `${expected.reason}. Nothing was changed`, {
+      section: SECTIONS.everyRelease,
+    });
+  }
+  // realpath on all of them: /tmp-style symlinks must not read as a mismatch
+  const real = (path: string) => deps.fs.realpath(path).catch(() => path);
+  const reasons = checkGitDirection({
+    realCwd: await real(deps.cwd),
+    realToplevel: await real(toplevel.stdout.trim()),
+    realExpectedGitDir: await real(expected.path),
+    realActualGitDir: await real(gitDir.stdout.trim()),
+  });
+  if (reasons.length > 0) {
     // GIT_DIR or GIT_WORK_TREE would make the files read and the commits
     // written belong to different repositories
     throw stopAt(
       'entry',
       'git works on a repository other than the one in the current directory (GIT_DIR or GIT_WORK_TREE set?). Nothing was changed',
-      { section: SECTIONS.everyRelease },
+      {
+        detail: reasons,
+        section: SECTIONS.everyRelease,
+      },
     );
   }
 }

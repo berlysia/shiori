@@ -326,12 +326,14 @@ export async function withReleaseFixture<T>(
       answers: [],
     };
 
+    // where the fake git and changeset run: the directory `release()` is given
+    let runCwd = repo;
     const spawnGit = (
       args: string[],
       extraEnv: Record<string, string> = {},
     ): CommandResult => {
       const result = spawnSync('git', args, {
-        cwd: repo,
+        cwd: runCwd,
         env: { ...baseEnv, ...extraEnv },
         encoding: 'utf8',
         timeout: TIMEOUT_MS,
@@ -412,7 +414,7 @@ export async function withReleaseFixture<T>(
         }
         if (args[0] === 'exec' && args[1] === 'changeset') {
           const result = spawnSync(CHANGESET_BIN, args.slice(2), {
-            cwd: repo,
+            cwd: runCwd,
             env: baseEnv,
             encoding: 'utf8',
             timeout: TIMEOUT_MS,
@@ -558,6 +560,7 @@ export async function withReleaseFixture<T>(
           stdout: (text) => out.push(text.replace(/\n$/, '')),
           stderr: (text) => err.push(text.replace(/\n$/, '')),
         });
+        runCwd = options.cwd ?? repo;
         const answers = tools.answers;
         const deps = {
           run: fakeRun,

@@ -8,6 +8,7 @@ import {
   existsSync,
   mkdirSync,
   readFileSync,
+  statSync,
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
@@ -230,12 +231,64 @@ describe('release: pre mode', () => {
 describe('release: the entry', () => {
   it('stops when GIT_DIR points at another repository', async () => {
     await withReleaseFixture(async (f) => {
-      f.tools.gitEnv = { GIT_DIR: join(f.remote) };
+      const other = join(f.dir, 'other');
+      mkdirSync(other);
+      spawnSync('git', ['init', '-b', 'master', other], {
+        env: { PATH: process.env['PATH'] ?? '' },
+      });
+      f.tools.gitEnv = { GIT_DIR: join(other, '.git') };
       const result = await f.release([]);
       assert.equal(result.code, 1);
       assert.match(text(result), /other than the one in the current directory/);
       f.tools.gitEnv = {};
       assert.equal(f.git('status', '--porcelain=v1').stdout, '');
+    });
+  });
+
+  it('passes the check in a real linked worktree (.git is a file)', async () => {
+    await withReleaseFixture(async (f) => {
+      const worktree = join(f.dir, 'wt');
+      f.git('worktree', 'add', '-b', 'wt', worktree);
+      assert.ok(statSync(join(worktree, '.git')).isFile());
+      const result = await f.release([], { cwd: worktree });
+      // it goes on to stop later (this branch is not master); never at the direction check
+      assert.doesNotMatch(
+        text(result),
+        /other than the one in the current directory/,
+      );
+    });
+  });
+
+  it('stops when .git is a file whose gitdir points at another repository (git itself is aimed elsewhere)', async () => {
+    await withReleaseFixture(async (f) => {
+      const worktree = join(f.dir, 'wt');
+      f.git('worktree', 'add', '-b', 'wt', worktree);
+      // On its own a gitfile naming another repository is what git follows and
+      // is indistinguishable from a worktree. The mismatch is git being
+      // pointed at the real worktree directory (GIT_DIR) while .git names another.
+      const realGitDir = readFileSync(join(worktree, '.git'), 'utf8')
+        .replace('gitdir: ', '')
+        .trim();
+      const other = join(f.dir, 'other');
+      mkdirSync(other);
+      spawnSync('git', ['init', '-b', 'master', other], {
+        env: { PATH: process.env['PATH'] ?? '' },
+      });
+      writeFileSync(join(worktree, '.git'), `gitdir: ${join(other, '.git')}\n`);
+      f.tools.gitEnv = { GIT_DIR: realGitDir };
+      const result = await f.release([], { cwd: worktree });
+      assert.equal(result.code, 1);
+      assert.match(text(result), /other than the one in the current directory/);
+    });
+  });
+
+  it('stops when .git is a file that is not a gitdir line', async () => {
+    await withReleaseFixture(async (f) => {
+      const worktree = join(f.dir, 'wt');
+      f.git('worktree', 'add', '-b', 'wt', worktree);
+      writeFileSync(join(worktree, '.git'), 'hello\n');
+      const result = await f.release([], { cwd: worktree });
+      assert.equal(result.code, 1);
     });
   });
 
