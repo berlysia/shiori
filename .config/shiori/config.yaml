@@ -11,5 +11,7 @@ scan:
     - '**/.config/**'
     # Project-specific: template string literals contain shiori: examples
     - '**/templates/**'
+    # `shiori scan --demo` embeds sample annotations (DEMO-001..003) in template literals
+    - '**/src/commands/scan-demo.ts'
     # Avoid pnpm store circular symlinks under .tmp (berlysia env-specific)
     - '**/.tmp/**'

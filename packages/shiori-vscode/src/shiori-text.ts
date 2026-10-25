@@ -31,7 +31,7 @@ export interface ShioriExtraction {
 export function extractShioriText(
   lineText: string,
 ): ShioriExtraction | undefined {
-  // shiori:ignore is a special directive, not a trackable annotation
+  // The ignore directive is not a trackable annotation
   if (SHIORI_IGNORE_RE.test(lineText)) return undefined;
 
   const match = SHIORI_RE.exec(lineText);
