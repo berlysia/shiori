@@ -1017,6 +1017,17 @@ describe('CommentProvider', () => {
         assert.equal(result.annotations[0]!.ref, 'SVG-001');
       });
 
+      it('detects shiori in Markdown HTML comment', () => {
+        const input = makeInput(
+          '# Title\n\nSome prose.\n<!-- shiori: MD-001 -->',
+          'README.md',
+        );
+        const result = provider.scan(input);
+        assert.equal(result.annotations.length, 1);
+        assert.equal(result.annotations[0]!.ref, 'MD-001');
+        assert.equal(result.annotations[0]!.location.line, 4);
+      });
+
       it('detects eslint directive in HTML comment', () => {
         const input = makeInput(
           '<!-- eslint-disable-next-line vue/no-v-html -- shiori: SUP-VUE -->',

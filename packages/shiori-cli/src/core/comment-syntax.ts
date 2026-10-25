@@ -69,6 +69,10 @@ export const EXTENSION_MAP: Record<string, string> = {
   '.html': 'html',
   '.xml': 'html',
   '.svg': 'html',
+  // Markdown: HTML comments are the only comment form that stays hidden when rendered.
+  // .mdx is left out: MDX 2+ rejects <!-- --> and uses JSX {/* */} instead.
+  '.md': 'html',
+  '.markdown': 'html',
   // Vue SFC: script/style use C-style
   '.vue': 'c',
 };
