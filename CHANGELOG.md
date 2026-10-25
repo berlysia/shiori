@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-25
+
+### Added
+
+- **Markdown files are scanned with HTML comment syntax**: `.md` and `.markdown` files are now read for `<!-- -->` comments, so `<!-- shiori: REF -->` in Markdown is detected. Previously these files fell back to C-style comments and such annotations were silently missed. Markdown is not in the default scan patterns; add `**/*.md` to `--patterns` or `scan.patterns` in `config.yaml` to scan it. `.mdx` is not covered.
+
 ## [0.2.2] - 2026-10-02
 
 ### Breaking Changes
