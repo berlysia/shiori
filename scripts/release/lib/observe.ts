@@ -118,16 +118,23 @@ export function parseNpmView(
   if (distTags.code !== 0)
     return failed(`npm view dist-tags exited with ${distTags.code}`);
   const tagsJson = parseJson(distTags.stdout);
+  // npm 12.2.0 wraps the object in a one-element array; any other array is not
+  // a dist-tags answer
+  const tagsValue: unknown =
+    tagsJson.ok && Array.isArray(tagsJson.value) && tagsJson.value.length === 1
+      ? tagsJson.value[0]
+      : tagsJson.ok
+        ? tagsJson.value
+        : undefined;
   if (
-    !tagsJson.ok ||
-    typeof tagsJson.value !== 'object' ||
-    tagsJson.value === null ||
-    Array.isArray(tagsJson.value)
+    typeof tagsValue !== 'object' ||
+    tagsValue === null ||
+    Array.isArray(tagsValue)
   ) {
     return failed('npm view dist-tags did not print an object');
   }
   const tags: Record<string, string> = {};
-  for (const [name, value] of Object.entries(tagsJson.value)) {
+  for (const [name, value] of Object.entries(tagsValue)) {
     if (typeof value !== 'string')
       return failed('npm view dist-tags has a non-string value');
     tags[name] = value;

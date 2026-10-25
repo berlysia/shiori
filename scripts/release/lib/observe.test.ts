@@ -71,6 +71,30 @@ describe('parseNpmView', () => {
       distTags: { latest: '0.3.0' },
     });
   });
+  it('reads dist-tags wrapped in a one-element array (npm 12.2.0)', () => {
+    assert.deepEqual(
+      parseNpmView(
+        out('["0.3.0"]'),
+        out('[{"next":"0.2.2-beta.1","latest":"0.3.0"}]'),
+      ),
+      {
+        kind: 'published',
+        versions: ['0.3.0'],
+        distTags: { next: '0.2.2-beta.1', latest: '0.3.0' },
+      },
+    );
+  });
+  it('a dist-tags array that is not one object is failed', () => {
+    assert.equal(parseNpmView(out('["0.3.0"]'), out('[]')).kind, 'failed');
+    assert.equal(
+      parseNpmView(out('["0.3.0"]'), out('[{"latest":"0.3.0"},{}]')).kind,
+      'failed',
+    );
+    assert.equal(
+      parseNpmView(out('["0.3.0"]'), out('[["0.3.0"]]')).kind,
+      'failed',
+    );
+  });
   it('E404 is unpublished', () => {
     assert.deepEqual(
       parseNpmView(out('{"error":{"code":"E404"}}', 1), out('', 1)),
