@@ -43,7 +43,7 @@ function sign(body: string): string {
  */
 function createSlowScript(): string {
   const scriptPath = join(tmpdir(), `slow-srv-${process.pid}-${Date.now()}.sh`);
-  writeFileSync(scriptPath, '#!/bin/sh\nsleep 60\n', { mode: 0o755 });
+  writeFileSync(scriptPath, '#!/bin/sh\nexec sleep 60\n', { mode: 0o755 });
   chmodSync(scriptPath, 0o755);
   return scriptPath;
 }
