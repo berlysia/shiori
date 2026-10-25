@@ -83,6 +83,16 @@ describe('comment-syntax', () => {
       assert.deepEqual(syntax, COMMENT_SYNTAXES['html']);
     });
 
+    it('returns html-style for .md files', () => {
+      const syntax = getCommentSyntax('README.md');
+      assert.deepEqual(syntax, COMMENT_SYNTAXES['html']);
+    });
+
+    it('returns html-style for .markdown files', () => {
+      const syntax = getCommentSyntax('notes.markdown');
+      assert.deepEqual(syntax, COMMENT_SYNTAXES['html']);
+    });
+
     it('returns C-style for .vue files', () => {
       const syntax = getCommentSyntax('App.vue');
       assert.deepEqual(syntax, COMMENT_SYNTAXES['c']);
