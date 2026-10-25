@@ -3,22 +3,29 @@
   "type": "module",
   "scripts": {
     "build": "pnpm -r build",
-    "test": "pnpm -r test",
-    "typecheck": "pnpm -r run typecheck",
-    "lint": "pnpm -r run lint",
+    "test": "pnpm -r test && pnpm run test:scripts",
+    "test:scripts": "node --experimental-strip-types --test \"scripts/release/**/*.test.ts\"",
+    "typecheck": "pnpm -r run typecheck && pnpm run typecheck:scripts",
+    "typecheck:scripts": "tsc -p scripts/release/tsconfig.json",
+    "lint": "pnpm -r run lint && pnpm run lint:scripts",
+    "lint:scripts": "oxlint scripts/release --deny-warnings",
+    "check:changesets": "node --experimental-strip-types scripts/release/check-changesets.ts",
     "format": "oxfmt --write",
     "format:check": "oxfmt --check",
     "link:local": "pnpm --filter @berlysia/shiori run link:local",
     "unlink:local": "pnpm --filter @berlysia/shiori run unlink:local",
-    "release": "pnpm typecheck && pnpm lint && pnpm --filter @berlysia/shiori run lint:boundaries && pnpm --filter @berlysia/shiori run lint:envelope && pnpm format:check && pnpm build && pnpm test && bumpp packages/shiori-cli/package.json packages/shiori-cli/src/core/version.ts --execute \"node --experimental-strip-types packages/shiori-cli/scripts/check-changelog.ts\"",
+    "release": "node --experimental-strip-types scripts/release/release.ts",
     "prepare": "husky"
   },
   "devDependencies": {
     "@berlysia/shiori": "workspace:*",
-    "bumpp": "12.3.0",
+    "@changesets/cli": "2.29.8",
+    "@types/node": "26.6.2",
     "husky": "9.1.7",
     "lint-staged": "17.5.1",
-    "oxfmt": "0.70.0"
+    "oxfmt": "0.70.0",
+    "oxlint": "1.85.0",
+    "typescript": "7.0.2"
   },
   "packageManager": "pnpm@12.6.0"
 }

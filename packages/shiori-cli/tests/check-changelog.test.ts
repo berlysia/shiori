@@ -2,6 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
+  hasChangelogItems,
   hasChangelogSection,
   requiresChangelogSection,
 } from '../scripts/check-changelog.ts';
@@ -50,19 +51,72 @@ describe('check-changelog', () => {
     });
   });
 
+  describe('hasChangelogItems', () => {
+    it('is false for a heading directly followed by the next section', () => {
+      const text =
+        '## [Unreleased]\n\n## [0.3.1] - 2026-11-01\n\n## [0.3.0] - 2026-10-25\n\n- a\n';
+      assert.equal(hasChangelogItems(text, '0.3.1'), false);
+    });
+
+    it('is true when an item follows a subheading', () => {
+      const text =
+        '## [0.3.1] - 2026-11-01\n\n### Fixed\n\n- x\n\n## [0.3.0] - 2026-10-25\n';
+      assert.equal(hasChangelogItems(text, '0.3.1'), true);
+    });
+
+    it('is true for a last section that ends with an item', () => {
+      assert.equal(
+        hasChangelogItems(
+          '## [0.3.1] - 2026-11-01\n\n### Fixed\n\n- x\n',
+          '0.3.1',
+        ),
+        true,
+      );
+    });
+
+    it('is false for a last section that ends with a subheading', () => {
+      assert.equal(
+        hasChangelogItems('## [0.3.1] - 2026-11-01\n\n### Fixed\n', '0.3.1'),
+        false,
+      );
+    });
+
+    it('is false for "* " items', () => {
+      assert.equal(
+        hasChangelogItems(
+          '## [0.3.1] - 2026-11-01\n\n### Fixed\n\n* x\n',
+          '0.3.1',
+        ),
+        false,
+      );
+    });
+
+    it('is true for the current CHANGELOG.md and 0.3.0', () => {
+      const changelog = readFileSync(
+        new URL('../../../CHANGELOG.md', import.meta.url),
+        'utf8',
+      );
+      assert.equal(hasChangelogItems(changelog, '0.3.0'), true);
+    });
+
+    it('is not asked about a prerelease: main skips it', () => {
+      assert.equal(requiresChangelogSection('0.4.0-rc.0'), false);
+    });
+  });
+
   describe('wiring', () => {
-    // Both release paths must run the guard: the local release script and the tag-triggered workflow.
+    // Both release paths check the section: the local release script (which
+    // builds it) and the tag-triggered workflow (which runs this guard).
     const guardCommand =
       'node --experimental-strip-types packages/shiori-cli/scripts/check-changelog.ts';
 
-    it('runs in the release script after the bump', () => {
+    it('is checked by the release script itself (stage 3), not by a separate command', () => {
       const rootPackageJson = JSON.parse(
         readFileSync(new URL('../../../package.json', import.meta.url), 'utf8'),
       ) as { scripts: Record<string, string> };
-      assert.ok(
-        rootPackageJson.scripts['release']?.includes(
-          `--execute "${guardCommand}"`,
-        ),
+      assert.equal(
+        rootPackageJson.scripts['release'],
+        'node --experimental-strip-types scripts/release/release.ts',
       );
     });
 

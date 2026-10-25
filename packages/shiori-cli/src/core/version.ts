@@ -6,7 +6,7 @@
  *
  * A constant rather than a package.json read: the published package ships only
  * dist/src/, and src, dist/src and the esbuild bundle sit at different depths.
- * The release script's bumpp call rewrites it, and tests/version.test.ts fails
- * when it drifts from package.json.
+ * The version bump of `pnpm run release` (scripts/release/release.ts) rewrites
+ * it, and tests/version.test.ts fails when it drifts from package.json.
  */
 export const VERSION = '0.3.0';

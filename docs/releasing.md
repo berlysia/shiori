@@ -42,10 +42,10 @@ Note the id and conditions of the old configuration (`publish.yml`) from `npm tr
 
 ### 4. Rehearse with an rc
 
-1. On master, run `pnpm run release --preid rc` and choose a prerelease such as `0.2.2-rc.1`. This performs the bump commit, the tag `v0.2.2-rc.1`, and the push.
+1. Write a changeset, then on master run `pnpm run release --pre rc`. It makes a prerelease such as `0.2.2-rc.0`: the bump commit, the tag `v0.2.2-rc.0`, and the push. To rehearse the stable release afterwards, run `pnpm run release --exit-pre`.
 2. When the Release workflow succeeds, do the "Checks before approval" described below, then approve and publish it as `next`. Attestations can only be checked after approval, so take the rc through to approval as well.
 
-Treat the rc version as disposable. To retry, advance `rc.N`. The rc bump commit remains on master and is overwritten by the real bump. An approved rc remains on the `next` dist-tag (as designed).
+Treat the rc version as disposable. To retry, add a changeset and run `--pre rc` again to advance `rc.N`. The rc bump commit remains on master and is overwritten by the real bump. An approved rc remains on the `next` dist-tag (as designed).
 
 Items to check:
 
@@ -67,11 +67,48 @@ The reason to revoke last is that if you revoke first and the rehearsal reveals 
 
 ## Every release
 
-1. For a stable release (a version without `-`), first write a `## [X.Y.Z] - YYYY-MM-DD` section in CHANGELOG.md and commit it. Running `/changelog X.Y.Z` in Claude Code reads the commits since the previous stable tag, including their bodies, and drafts only the user-visible changes. Check the content before committing. It is not needed for prereleases.
-2. On master, run `pnpm run release`. After passing the quality checks, build, and tests, [bumpp](https://github.com/antfu-collective/bumpp) interactively asks for the next version and rewrites `packages/shiori-cli/package.json` and `packages/shiori-cli/src/core/version.ts`. Next, it checks whether the section for a stable release exists in CHANGELOG.md. If the section is missing, it stops before committing and prints the command to revert the bump. Once the check passes, it commits (`chore: release vX.Y.Z`), creates the tag `vX.Y.Z`, and pushes. bumpp does not publish to npm.
-   - Create a prerelease with `pnpm run release --preid rc` (for example `0.2.2-rc.1`).
-   - The pushed tag triggers the Release workflow. The tag is created from the version, so it does not diverge from the validate match check.
-3. Wait for the Release workflow to finish. A version containing `-` (for example `0.3.0-rc.1`) is staged with `--tag next`, and the GitHub Release is also made a prerelease.
+1. Write a changeset in the pull request that makes a user-visible change: run `pnpm changeset`, or create `.changeset/<name>.md` by hand (format: `.changeset/README.md`). The bump level decides the next version, so nobody types a version number. Running `/changelog` in Claude Code drafts the changesets that are missing for the commits since the previous stable tag. `pnpm run check:changesets` checks them, and CI runs it too.
+2. On master, run `pnpm run release`. It needs a terminal on both stdin and stdout, and it works in these steps:
+   1. **Prerequisites**: master is checked out, clean, and equal to `origin/master` after a fetch; `.changeset/config.json` has the expected content; `npm trust list` shows exactly the one trust for `release.yml`; the `npm` environment and the `v*` tag ruleset on GitHub are as described under "One-time migration"; the changesets and the empty `[Unreleased]` block are valid; and `typecheck`, `lint`, `lint:boundaries`, `lint:envelope`, `format:check`, `build` and `test` pass. Nothing is changed in this step.
+   2. **Version bump**: `changeset version` raises the version of `@berlysia/shiori` from the changesets, `packages/shiori-cli/src/core/version.ts` follows it, and for a stable release the `## [X.Y.Z] - YYYY-MM-DD` section of CHANGELOG.md is generated from the changeset text (the date is today's local date). The daemon and the VS Code extension are not released with it.
+   3. **Publish preconditions**: the version is not on npm, a stable version is newer than `latest`, the tag exists neither locally nor on origin, and a stable version has a CHANGELOG section with at least one item.
+   4. **Confirmation**: it prints the version, the dist-tag and the changed files, and asks `[y/N]`.
+   5. **Commit and tag**: only the allowed files are committed as `chore: release vX.Y.Z` (hooks are skipped on purpose), then the annotated tag `vX.Y.Z` is made.
+   6. **Push**: the GitHub protections are read once more, then `git push --atomic origin refs/heads/master:refs/heads/master refs/tags/vX.Y.Z:refs/tags/vX.Y.Z`. On success it prints that the tag was pushed; the rest is manual (below).
+
+   What a person answers: the one-time password for `npm trust list` (choose "skip 2FA for the next 5 minutes"), and the `[y/N]` in step 4. `N` ends the run with exit code 0 and leaves the version bump in the work tree; the command that discards it is printed.
+   - Prerelease: `pnpm run release --pre rc` makes `X.Y.Z-rc.N` from the pending changesets (the changesets and CHANGELOG.md stay as they are). `pnpm run release --exit-pre` leaves pre mode and releases the stable version, whose CHANGELOG section lists every changeset since the previous stable release.
+   - The only flags are `--pre <tag>` and `--exit-pre`. Anything else, including a version, is refused before anything changes.
+   - When it stops it prints the reason, the commands to try next (they are never run for you), and the section of this document to read. Run `pnpm run release` again after fixing the cause: the script decides where to continue from git, npm and the work tree, so there is no progress file.
+
+3. The pushed tag triggers the Release workflow.
+
+### Wait for the Release workflow
+
+Wait for the workflow run of the tag to finish. A version containing `-` (for example `0.3.0-rc.1`) is staged with `--tag next`, and the GitHub Release is also made a prerelease. Then continue with "Checks before approval".
+
+### Resuming an interrupted release
+
+`pnpm run release` reads the state again at every start and tells you what applies. The common stops:
+
+- **The work tree holds a leftover version bump** (entry row 1): the stop lists the files. If the list is only the files of a version bump, the printed `git reset --hard HEAD && git clean -fd ...` discards them and the next run starts over. If the list has anything else, the script prints no destructive command: commit or stash your own changes first.
+- **A local tag exists and origin does not have it** (row 5): the push was refused or interrupted. Either send it again with the printed `git push --atomic ...` (after checking that the tag points at HEAD), or undo with `git tag -d vX.Y.Z && git reset --hard origin/master`.
+- **A release commit exists without its tag** (row 6): run `pnpm run release` with no flags. It checks that the commit is the one the script would have made, places the tag and pushes. If the check fails, it prints `git reset --hard origin/master`.
+- **The tag is on origin and the version is not published** (rows 2 and 4): the release is unfinished. Row 4 asks you to `git switch --detach vX.Y.Z` first. Continue with "Wait for the Release workflow" and the sections after it.
+- **The version is published** (row 3): check it with "Post-release checks".
+
+### Verify trust and protections by hand
+
+When the script stops because the npm trust or the GitHub protections did not match, the raw outputs it read are saved under `.tmp/release/` (the stop names the directory). Compare them with what the one-time migration set up:
+
+```bash
+npm trust list @berlysia/shiori --json
+gh api --method GET repos/berlysia/shiori/environments/npm
+gh api --method GET repos/berlysia/shiori/environments/npm/deployment-branch-policies
+gh api --method GET repos/berlysia/shiori/rulesets
+```
+
+Expected: exactly one trust (`github`, `release.yml`, `berlysia/shiori`, environment `npm`, permission `createStagedPackage`); the environment allows custom branch policies only, with the single policy `v*` of type `tag`; and an active tag ruleset on `refs/tags/v*` (no exclusions) that blocks creation, update and deletion, with only the repository admin role able to bypass. Fix the setting, then run `pnpm run release` again.
 
 ### Checks before approval
 

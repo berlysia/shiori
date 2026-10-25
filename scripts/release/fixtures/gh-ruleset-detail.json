@@ -1,0 +1,43 @@
+{
+  "id": 24324650,
+  "name": "release tags",
+  "target": "tag",
+  "source_type": "Repository",
+  "source": "berlysia/shiori",
+  "enforcement": "active",
+  "conditions": {
+    "ref_name": {
+      "exclude": [],
+      "include": ["refs/tags/v*"]
+    }
+  },
+  "rules": [
+    {
+      "type": "creation"
+    },
+    {
+      "type": "update"
+    },
+    {
+      "type": "deletion"
+    }
+  ],
+  "created_at": "2026-10-02T03:19:00.571+09:00",
+  "updated_at": "2026-10-02T03:19:00.619+09:00",
+  "bypass_actors": [
+    {
+      "actor_id": 5,
+      "actor_type": "RepositoryRole",
+      "bypass_mode": "always"
+    }
+  ],
+  "current_user_can_bypass": "always",
+  "_links": {
+    "self": {
+      "href": "https://api.github.com/repos/berlysia/shiori/rulesets/24324650"
+    },
+    "html": {
+      "href": "https://github.com/berlysia/shiori/rules/24324650"
+    }
+  }
+}
