@@ -44,13 +44,18 @@ import { pitchCommand } from './pitch-cli.ts';
 import { onboardCommand } from './onboard-cli.ts';
 import { impactCommand } from './impact-cli.ts';
 import { badgeCommand } from './badge-cli.ts';
+import type { SubCommandable } from 'gunshi';
 
 /**
  * All CLI subcommand registrations.
  * Keys must stay in sync with REGISTERED_COMMANDS and EXIT_CODE_POLICIES.
  * Three-way consistency is verified by tests (exit-codes.test.ts, doctor.test.ts).
+ *
+ * The explicit annotation keeps the emitted declaration portable. Without it,
+ * tsc names gunshi's types through `.pnpm/...` when the checkout lives under a
+ * `.git/` directory (as git worktrees here do) and fails with TS2883.
  */
-export const subCommandMap = {
+export const subCommandMap: Readonly<Record<string, SubCommandable>> = {
   init: initCommand,
   scan: scanCommand,
   verify: verifyCommand,
@@ -86,7 +91,7 @@ export const subCommandMap = {
   onboard: onboardCommand,
   impact: impactCommand,
   badge: badgeCommand,
-} as const;
+};
 
 /**
  * CLI subcommand keys — test-only export.
