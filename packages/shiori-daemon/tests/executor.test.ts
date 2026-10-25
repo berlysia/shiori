@@ -33,7 +33,7 @@ function makeConfig(overrides?: Partial<DaemonConfig>): DaemonConfig {
  */
 function createSlowScript(): string {
   const scriptPath = join(tmpdir(), `slow-${process.pid}-${Date.now()}.sh`);
-  writeFileSync(scriptPath, '#!/bin/sh\nsleep 60\n', { mode: 0o755 });
+  writeFileSync(scriptPath, '#!/bin/sh\nexec sleep 60\n', { mode: 0o755 });
   // chmodSync as an extra safety net for platforms where mode flag is ignored
   chmodSync(scriptPath, 0o755);
   return scriptPath;
