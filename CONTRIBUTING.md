@@ -57,11 +57,15 @@ Core modules live in `src/core/`. Design decisions are documented as ADRs in `do
 
 ## Releasing
 
+When a pull request makes a user-visible change, write a changeset with `pnpm changeset`. The bump level of the changesets decides the next version.
+
+Release from master in your usual terminal:
+
 ```bash
-pnpm release patch   # or minor / major
+pnpm run release
 ```
 
-Runs typecheck → lint → boundary check → format check → build → test, then bumps the version in `packages/shiori-cli/package.json`. Commit and push after the script completes.
+See [docs/releasing.md](docs/releasing.md) for the steps and for what to do when it stops.
 
 ## Commit Messages
 
