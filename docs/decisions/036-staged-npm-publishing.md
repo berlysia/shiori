@@ -6,6 +6,8 @@ deps:
 
 # ADR-036: npm 公開を tag 起点の Trusted Publishing + Staged Publishing に一本化する
 
+> リリースの手順（版の決め方、tag の push までのコマンド）は [ADR-037](037-changesets-and-release-command.md) が替えた。D1〜D4 はそのまま有効である。
+
 ## Status
 
 Accepted

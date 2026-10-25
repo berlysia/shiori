@@ -1,6 +1,6 @@
 # Release Procedure
 
-Publishing `@berlysia/shiori` to npm starts with a tag push: `release.yml` stages the tarball, and it is published only when a maintainer approves it with 2FA. See [ADR-036](decisions/036-staged-npm-publishing.md) for the background to this decision.
+Publishing `@berlysia/shiori` to npm starts with a tag push: `release.yml` stages the tarball, and it is published only when a maintainer approves it with 2FA. See [ADR-036](decisions/036-staged-npm-publishing.md) for the background to this decision, and [ADR-037](decisions/037-changesets-and-release-command.md) for how the version is decided and how `pnpm run release` works.
 
 ## Local prerequisites
 
@@ -68,7 +68,7 @@ The reason to revoke last is that if you revoke first and the rehearsal reveals 
 ## Every release
 
 1. Write a changeset in the pull request that makes a user-visible change: run `pnpm changeset`, or create `.changeset/<name>.md` by hand (format: `.changeset/README.md`). The bump level decides the next version, so nobody types a version number. Running `/changelog` in Claude Code drafts the changesets that are missing for the commits since the previous stable tag. `pnpm run check:changesets` checks them, and CI runs it too.
-2. On master, run `pnpm run release`. It needs a terminal on both stdin and stdout, and it works in these steps:
+2. On master, run `pnpm run release` in your usual terminal. It needs a terminal on both stdin and stdout, so it stops at the entry check when started from Claude Code's `!`, which connects neither. It works in these steps:
    1. **Prerequisites**: master is checked out, clean, and equal to `origin/master` after a fetch; `.changeset/config.json` has the expected content; `npm trust list` shows exactly the one trust for `release.yml`; the `npm` environment and the `v*` tag ruleset on GitHub are as described under "One-time migration"; the changesets and the empty `[Unreleased]` block are valid; and `typecheck`, `lint`, `lint:boundaries`, `lint:envelope`, `format:check`, `build` and `test` pass. Nothing is changed in this step.
    2. **Version bump**: `changeset version` raises the version of `@berlysia/shiori` from the changesets, `packages/shiori-cli/src/core/version.ts` follows it, and for a stable release the `## [X.Y.Z] - YYYY-MM-DD` section of CHANGELOG.md is generated from the changeset text (the date is today's local date). The daemon and the VS Code extension are not released with it.
    3. **Publish preconditions**: the version is not on npm, a stable version is newer than `latest`, the tag exists neither locally nor on origin, and a stable version has a CHANGELOG section with at least one item.
@@ -77,13 +77,15 @@ The reason to revoke last is that if you revoke first and the rehearsal reveals 
    6. **Push**: the GitHub protections are read once more, then `git push --atomic origin refs/heads/master:refs/heads/master refs/tags/vX.Y.Z:refs/tags/vX.Y.Z`. On success it prints that the tag was pushed; the rest is manual (below).
 
    What a person answers: the one-time password for `npm trust list` (choose "skip 2FA for the next 5 minutes"), and the `[y/N]` in step 4. `N` ends the run with exit code 0 and leaves the version bump in the work tree; the command that discards it is printed.
-   - Prerelease: `pnpm run release --pre rc` makes `X.Y.Z-rc.N` from the pending changesets (the changesets and CHANGELOG.md stay as they are). `pnpm run release --exit-pre` leaves pre mode and releases the stable version, whose CHANGELOG section lists every changeset since the previous stable release.
+   - Prerelease: `pnpm run release --pre rc` makes `X.Y.Z-rc.N` (the first one is `X.Y.Z-rc.0`, following the changesets pre mode) from the pending changesets (the changesets and CHANGELOG.md stay as they are). `pnpm run release --exit-pre` leaves pre mode and releases the stable version, whose CHANGELOG section lists every changeset since the previous stable release.
    - The only flags are `--pre <tag>` and `--exit-pre`. Anything else, including a version, is refused before anything changes.
    - When it stops it prints the reason, the commands to try next (they are never run for you), and the section of this document to read. Run `pnpm run release` again after fixing the cause: the script decides where to continue from git, npm and the work tree, so there is no progress file.
 
 3. The pushed tag triggers the Release workflow.
 
 ### Wait for the Release workflow
+
+The steps from here on are manual. Automating them is on hold; see [ADR-037](decisions/037-changesets-and-release-command.md) and [docs/plans/release-approve-automation.md](plans/release-approve-automation.md).
 
 Wait for the workflow run of the tag to finish. A version containing `-` (for example `0.3.0-rc.1`) is staged with `--tag next`, and the GitHub Release is also made a prerelease. Then continue with "Checks before approval".
 

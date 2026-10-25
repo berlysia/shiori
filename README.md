@@ -690,25 +690,7 @@ pnpm unlink:local  # Remove the global link
 
 ### Releasing
 
-```bash
-# 1. Bump version (runs full quality gate automatically)
-pnpm release patch   # or minor / major
-
-# 2. Commit and push the version bump with tag
-git add packages/shiori-cli/package.json
-git commit -m "chore: release v$(node -p "require('./packages/shiori-cli/package.json').version")"
-git tag "v$(node -p "require('./packages/shiori-cli/package.json').version")"
-git push origin main --tags
-```
-
-Tag push triggers the Release workflow, which validates the tag and creates a GitHub Release with a bundled tarball.
-
-npm publish is a separate manual step to prevent unauthorized publishing:
-
-```bash
-# 3. Publish to npm (manual trigger required)
-gh workflow run publish.yml -f tag=v<version>
-```
+When a pull request makes a user-visible change, write a changeset with `pnpm changeset`. Release from master in your usual terminal with `pnpm run release`. See [docs/releasing.md](docs/releasing.md) for the details.
 
 ## License
 
