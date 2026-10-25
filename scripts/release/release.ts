@@ -41,6 +41,7 @@ import {
   type StatusObservation,
 } from './lib/entry.ts';
 import {
+  firstErrorLine,
   parseCommitSha,
   parseLsRemote,
   parseNameStatus,
@@ -422,9 +423,10 @@ async function runStatus(
   ]);
   await saveRaw(ctx, `${fileName}.log`, result);
   if (result.code !== 0) {
+    const reason = firstErrorLine(`${result.stderrTail}\n${result.stdout}`);
     return {
       kind: 'failed',
-      error: `changeset status exited with ${result.code}`,
+      error: `changeset status exited with ${result.code}${reason === undefined ? '' : `: ${reason}`}`,
     };
   }
   const text = await readText(ctx, relativeOutput);

@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  firstErrorLine,
   parseCommitSha,
   parseLsRemote,
   parseNameStatus,
@@ -52,6 +53,21 @@ describe('parseNameStatus', () => {
   it('fails on an odd field count and on a rename score', () => {
     assert.equal(parseNameStatus('M\0a\0D\0').kind, 'error');
     assert.equal(parseNameStatus('R100\0a\0').kind, 'error');
+  });
+});
+
+describe('firstErrorLine', () => {
+  it('returns the first error line without colour codes', () => {
+    assert.equal(
+      firstErrorLine(
+        'resize: cannot open terminal\n🦋  \u001b[31merror\u001b[39m Some packages have been changed but no changesets were found.\n🦋  \u001b[31merror\u001b[39m second',
+      ),
+      '🦋  error Some packages have been changed but no changesets were found.',
+    );
+  });
+  it('returns undefined when no line mentions an error, and cuts long lines', () => {
+    assert.equal(firstErrorLine('all good\n'), undefined);
+    assert.equal(firstErrorLine(`error ${'x'.repeat(300)}`)?.length, 200);
   });
 });
 

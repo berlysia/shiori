@@ -142,6 +142,18 @@ export function parseNpmView(
   return { kind: 'published', versions: list as string[], distTags: tags };
 }
 
+// The first line that a CLI marked as an error, with colour codes removed, for
+// a stop message. The output stays external text: the caller still sends it
+// through the terminal exit, which removes the remaining control characters.
+export function firstErrorLine(text: string): string | undefined {
+  for (const raw of text.split('\n')) {
+    // eslint-disable-next-line no-control-regex -- strips SGR colour codes only
+    const line = raw.replace(/\u001b\[[0-9;]*m/g, '').trim();
+    if (/\berror\b/i.test(line)) return line.slice(0, 200);
+  }
+  return undefined;
+}
+
 const SHA = /^[0-9a-f]{40}$/;
 
 // `git ls-remote origin refs/tags/<tag> refs/tags/<tag>^{}`: the peeled line
