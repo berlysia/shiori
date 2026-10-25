@@ -1,0 +1,19 @@
+{
+  "id": 23235010884,
+  "name": "npm",
+  "url": "https://api.github.com/repos/berlysia/shiori/environments/npm",
+  "html_url": "https://github.com/berlysia/shiori/deployments/activity_log?environments_filter=npm",
+  "created_at": "2026-10-01T18:18:44Z",
+  "updated_at": "2026-10-01T18:18:44Z",
+  "can_admins_bypass": true,
+  "protection_rules": [
+    {
+      "id": 67362342,
+      "type": "branch_policy"
+    }
+  ],
+  "deployment_branch_policy": {
+    "protected_branches": false,
+    "custom_branch_policies": true
+  }
+}

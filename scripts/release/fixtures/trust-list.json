@@ -1,0 +1,8 @@
+{
+  "id": "b7a32934-3914-4385-91de-258015129090",
+  "type": "github",
+  "file": "release.yml",
+  "repository": "berlysia/shiori",
+  "environment": "npm",
+  "permissions": ["createStagedPackage"]
+}

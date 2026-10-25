@@ -9,8 +9,8 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   CHANGESET_MAX_BYTES,
-  checkUnreleased,
-  parseChangeset,
+  checkChangesetDirectory,
+  type ChangesetDirectoryEntry,
 } from './lib/changeset.ts';
 import { sanitizeForTerminal } from './lib/sanitize.ts';
 
@@ -30,45 +30,32 @@ export function checkRepository(root: string): CheckOutcome {
     return { violations: [], fatal: '.changeset/ could not be read' };
   }
 
-  const violations: string[] = [];
-  for (const name of names) {
-    // Only *.md is a changeset. README.md, config.json and pre.json are not.
-    if (!name.endsWith('.md') || name === 'README.md') continue;
-    const file = `.changeset/${name}`;
+  const entries: ChangesetDirectoryEntry[] = names.map((name) => {
     const path = join(changesetDir, name);
     // lstat, not stat: a symlink must not make the check read outside the repo
     if (!lstatSync(path).isFile()) {
-      violations.push(`${file}:1: not a regular file`);
-      continue;
+      return { name, kind: 'other', size: 0, text: undefined };
     }
-    if (statSync(path).size > CHANGESET_MAX_BYTES) {
-      violations.push(`${file}:1: larger than ${CHANGESET_MAX_BYTES} bytes`);
-      continue;
-    }
-    const parsed = parseChangeset(
-      name.slice(0, -'.md'.length),
-      readFileSync(path, 'utf8'),
-    );
-    if (!parsed.ok) {
-      for (const error of parsed.errors) {
-        violations.push(`${file}:${error.line}: ${error.reason}`);
-      }
-    }
-  }
+    const size = statSync(path).size;
+    return {
+      name,
+      kind: 'file',
+      size,
+      // a file over the limit is reported by its size, not read
+      text: size > CHANGESET_MAX_BYTES ? undefined : readFileSync(path, 'utf8'),
+    };
+  });
 
   let changelog: string;
   try {
     changelog = readFileSync(join(root, 'CHANGELOG.md'), 'utf8');
   } catch {
-    return { violations, fatal: 'CHANGELOG.md could not be read' };
+    return {
+      violations: checkChangesetDirectory(entries, ''),
+      fatal: 'CHANGELOG.md could not be read',
+    };
   }
-  const unreleased = checkUnreleased(changelog);
-  if (!unreleased.ok) {
-    for (const error of unreleased.errors) {
-      violations.push(`CHANGELOG.md:${error.line}: ${error.reason}`);
-    }
-  }
-  return { violations };
+  return { violations: checkChangesetDirectory(entries, changelog) };
 }
 
 function main(): void {

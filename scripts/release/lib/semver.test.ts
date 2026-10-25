@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseVersion } from './semver.ts';
+import { compareVersions, parseVersion } from './semver.ts';
 
 describe('parseVersion', () => {
   const accepted: [string, boolean][] = [
@@ -52,5 +52,28 @@ describe('parseVersion', () => {
     const result = parseVersion('0.3.1\u001b[31m');
     assert.equal(result.ok, false);
     if (!result.ok) assert.equal(result.reason.includes('\u001b'), false);
+  });
+});
+
+describe('compareVersions', () => {
+  const greater: [string, string][] = [
+    ['0.3.1', '0.3.0'],
+    ['0.4.0-rc.1', '0.4.0-rc.0'],
+    ['0.4.0', '0.4.0-rc.9'],
+    ['0.4.0-rc.10', '0.4.0-rc.9'],
+    ['0.4.0-rc.0', '0.4.0-beta.9'],
+    ['0.4.0-rc.0', '0.4.0-1'],
+    ['0.4.0-rc.0.1', '0.4.0-rc.0'],
+    ['1.0.0', '0.99.99'],
+  ];
+  for (const [left, right] of greater) {
+    it(`${left} > ${right}`, () => {
+      assert.equal(compareVersions(left, right), 1);
+      assert.equal(compareVersions(right, left), -1);
+    });
+  }
+  it('is 0 for equal versions', () => {
+    assert.equal(compareVersions('0.3.0', '0.3.0'), 0);
+    assert.equal(compareVersions('0.3.0-rc.1', '0.3.0-rc.1'), 0);
   });
 });

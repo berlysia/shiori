@@ -273,3 +273,55 @@ export function checkUnreleased(changelog: string): UnreleasedCheck {
   }
   return errors.length > 0 ? { ok: false, errors } : { ok: true };
 }
+
+// ---------------------------------------------------------------------------
+// the check that CI and the release command share
+// ---------------------------------------------------------------------------
+
+export interface ChangesetDirectoryEntry {
+  // the file name in .changeset/
+  readonly name: string;
+  // 'file' for a regular file; a symlink or directory is 'other'
+  readonly kind: 'file' | 'other';
+  readonly size: number;
+  // the text; undefined when the file was not read (not a regular file, or too large)
+  readonly text: string | undefined;
+}
+
+// `<file>:<line>: <reason>` lines, not yet sanitized. The caller reads the
+// directory; entries other than `*.md` (config.json, pre.json) are skipped here.
+export function checkChangesetDirectory(
+  entries: readonly ChangesetDirectoryEntry[],
+  changelog: string,
+): string[] {
+  const violations: string[] = [];
+  for (const entry of [...entries].sort((a, b) => (a.name < b.name ? -1 : 1))) {
+    // Only *.md is a changeset. README.md, config.json and pre.json are not.
+    if (!entry.name.endsWith('.md') || entry.name === 'README.md') continue;
+    const file = `.changeset/${entry.name}`;
+    if (entry.kind !== 'file') {
+      violations.push(`${file}:1: not a regular file`);
+      continue;
+    }
+    if (entry.size > CHANGESET_MAX_BYTES) {
+      violations.push(`${file}:1: larger than ${CHANGESET_MAX_BYTES} bytes`);
+      continue;
+    }
+    const parsed = parseChangeset(
+      entry.name.slice(0, -'.md'.length),
+      entry.text ?? '',
+    );
+    if (!parsed.ok) {
+      for (const error of parsed.errors) {
+        violations.push(`${file}:${error.line}: ${error.reason}`);
+      }
+    }
+  }
+  const unreleased = checkUnreleased(changelog);
+  if (!unreleased.ok) {
+    for (const error of unreleased.errors) {
+      violations.push(`CHANGELOG.md:${error.line}: ${error.reason}`);
+    }
+  }
+  return violations;
+}

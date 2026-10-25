@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import {
   CHANGESET_MAX_BYTES,
   HEADINGS,
+  checkChangesetDirectory,
   checkUnreleased,
   parseBody,
   parseChangeset,
@@ -291,5 +292,67 @@ describe('checkUnreleased', () => {
   it('rejects CR', () => {
     const changelog = '## [Unreleased]\r\n\r\n## [0.3.0] - 2026-10-25\r\n';
     assert.equal(checkUnreleased(changelog).ok, false);
+  });
+});
+
+describe('checkChangesetDirectory', () => {
+  const clean = '# C\n\n## [Unreleased]\n\n## [0.3.0] - 2026-10-25\n';
+  const good = `${FM()}\n### Fixed\n\n- ok\n`;
+  const file = (name: string, text = good) => ({
+    name,
+    kind: 'file' as const,
+    size: Buffer.byteLength(text),
+    text,
+  });
+
+  it('passes valid changesets and ignores README.md, config.json and pre.json', () => {
+    assert.deepEqual(
+      checkChangesetDirectory(
+        [
+          file('a-b.md'),
+          file('README.md', '# x'),
+          file('config.json', '{}'),
+          file('pre.json', '{}'),
+        ],
+        clean,
+      ),
+      [],
+    );
+  });
+  it('reports file and line, in name order', () => {
+    const violations = checkChangesetDirectory(
+      [file('b.md', 'nope'), file('a.md', `${FM()}\n- x\n`)],
+      clean,
+    );
+    assert.match(violations[0] ?? '', /^\.changeset\/a\.md:\d+: /);
+    assert.match(
+      violations[violations.length - 1] ?? '',
+      /^\.changeset\/b\.md:\d+: /,
+    );
+  });
+  it('reports a symlink or directory and an oversized file without reading them', () => {
+    const violations = checkChangesetDirectory(
+      [
+        { name: 'link.md', kind: 'other', size: 0, text: undefined },
+        {
+          name: 'big.md',
+          kind: 'file',
+          size: CHANGESET_MAX_BYTES + 1,
+          text: undefined,
+        },
+      ],
+      clean,
+    );
+    assert.deepEqual(violations, [
+      '.changeset/big.md:1: larger than 65536 bytes',
+      '.changeset/link.md:1: not a regular file',
+    ]);
+  });
+  it('reports an entry under [Unreleased]', () => {
+    const violations = checkChangesetDirectory(
+      [],
+      '## [Unreleased]\n\n- hand\n',
+    );
+    assert.match(violations[0] ?? '', /^CHANGELOG\.md:3: /);
   });
 });

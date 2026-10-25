@@ -1,0 +1,10 @@
+{
+  "total_count": 1,
+  "branch_policies": [
+    {
+      "id": 61669677,
+      "name": "v*",
+      "type": "tag"
+    }
+  ]
+}

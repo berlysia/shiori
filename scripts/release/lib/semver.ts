@@ -54,3 +54,52 @@ export function parseVersion(text: string): ParsedVersion {
     prerelease: prerelease !== undefined,
   };
 }
+
+// semver 2.0.0 section 11. Both arguments must have passed parseVersion.
+export function compareVersions(left: string, right: string): -1 | 0 | 1 {
+  const [leftCore = '', leftPre] = splitPrerelease(left);
+  const [rightCore = '', rightPre] = splitPrerelease(right);
+  const leftParts = leftCore.split('.').map(Number);
+  const rightParts = rightCore.split('.').map(Number);
+  for (let index = 0; index < 3; index += 1) {
+    const a = leftParts[index] ?? 0;
+    const b = rightParts[index] ?? 0;
+    if (a !== b) return a < b ? -1 : 1;
+  }
+  // a prerelease sorts below the stable version with the same core
+  if (leftPre === undefined && rightPre === undefined) return 0;
+  if (leftPre === undefined) return 1;
+  if (rightPre === undefined) return -1;
+  const a = leftPre.split('.');
+  const b = rightPre.split('.');
+  for (let index = 0; index < Math.max(a.length, b.length); index += 1) {
+    const x = a[index];
+    const y = b[index];
+    if (x === undefined) return -1;
+    if (y === undefined) return 1;
+    const order = compareIdentifier(x, y);
+    if (order !== 0) return order;
+  }
+  return 0;
+}
+
+function splitPrerelease(version: string): [string, string | undefined] {
+  const dash = version.indexOf('-');
+  return dash === -1
+    ? [version, undefined]
+    : [version.slice(0, dash), version.slice(dash + 1)];
+}
+
+function compareIdentifier(x: string, y: string): -1 | 0 | 1 {
+  const xNumeric = /^\d+$/.test(x);
+  const yNumeric = /^\d+$/.test(y);
+  if (xNumeric && yNumeric) {
+    const a = Number(x);
+    const b = Number(y);
+    return a === b ? 0 : a < b ? -1 : 1;
+  }
+  // numeric identifiers sort below alphanumeric ones
+  if (xNumeric) return -1;
+  if (yNumeric) return 1;
+  return x === y ? 0 : x < y ? -1 : 1;
+}

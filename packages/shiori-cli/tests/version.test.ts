@@ -15,15 +15,4 @@ describe('VERSION', () => {
     const packageJson = readJson('../package.json');
     assert.equal(VERSION, packageJson['version']);
   });
-
-  it('is bumped by the release script', () => {
-    // bumpp skips a listed file without error when it lacks the current version,
-    // and does not touch an unlisted one, so both conditions are pinned here.
-    const rootPackageJson = readJson('../../../package.json');
-    const scripts = rootPackageJson['scripts'] as Record<string, string>;
-    assert.match(
-      scripts['release'] ?? '',
-      /bumpp [^&]*packages\/shiori-cli\/src\/core\/version\.ts/,
-    );
-  });
 });

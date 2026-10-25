@@ -61,7 +61,7 @@ describe('changesets@2.29.8 behaviour', () => {
     });
   });
 
-  it('S2: rc, rc, pre exit, stable; changesets@2.29.8 bumps an ignored daemon on pre exit (直ったら落ちる。plan-2 の戻しを見直す合図)', async () => {
+  it('S2: rc, rc, pre exit, stable; changesets@2.29.8 bumps an ignored daemon on pre exit and lists it in status (直ったら落ちる。段 2 の整合の ignore 名の扱いを見直す合図)', async () => {
     await withChangesetFixture((fx) => {
       // S2-1
       ok(fx.changeset('pre', 'enter', 'rc'), 'pre enter');
@@ -106,6 +106,18 @@ describe('changesets@2.29.8 behaviour', () => {
         afterExit.json?.changesets.map((changeset) => changeset.id).sort(),
         ['aaa', 'bbb'],
       );
+
+      // Canary for the stage-2 status check in lib/preconditions.ts: it skips
+      // an ignored package's release only when no changeset is behind it.
+      const daemon = afterExit.json?.releases.find(
+        (release) => release.name === '@fx/daemon',
+      );
+      assert.equal(
+        daemon?.type,
+        'patch',
+        'changesets@2.29.8 lists the ignored daemon as a patch release in status after pre exit; if this fails it was fixed: revisit the ignored-name handling in the stage-2 check',
+      );
+      assert.deepEqual(daemon?.changesets, []);
 
       // S2-5: the changesets that feed the stable CHANGELOG section are still
       // on disk right before `version`, and gone right after
