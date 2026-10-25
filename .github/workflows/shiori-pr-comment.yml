@@ -213,7 +213,7 @@ jobs:
           $(cat .tmp/shiori-comment.md)"
 
           # Find existing shiori comment by marker
-          COMMENT_ID=$(gh api "repos/${REPO}/issues/${PR_NUMBER}/comments" \
+          COMMENT_ID=$(gh api --paginate "repos/${REPO}/issues/${PR_NUMBER}/comments" \
             --jq '.[] | select(.user.login == "github-actions[bot]") | select(.body | contains("<!-- shiori-delta -->")) | .id' \
             | head -1)
 
